@@ -1,0 +1,21 @@
+# Entorno virtual
+venv/
+.env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Archivos de entorno
+.env
+
+# Archivos del sistema
+.DS_Store
+
+# Uploads (importante en tu caso)
+uploads/
+
+# VSCode / IDEs
+.vscode/
+.idea/
