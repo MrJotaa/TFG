@@ -1,34 +1,37 @@
+from ml.loaders.model_loader import load_resnet18
 from schemas.models import ModelInfo
 
 
-_models = [
-    ModelInfo(id="resnet18", name="ResNet18 pretrained", active=True),
-    ModelInfo(id="mobilenet_v2", name="MobileNetV2 pretrained", active=False),
-]
+_loaded_models = {
+    "resnet18": {
+        "info": ModelInfo(id="resnet18", name="ResNet18 pretrained", active=True),
+        "instance": load_resnet18(),
+    }
+}
 
 
 def list_models() -> list[ModelInfo]:
-    return _models
+    return [model["info"] for model in _loaded_models.values()]
 
 
 def get_active_model() -> ModelInfo:
-    for model in _models:
-        if model.active:
-            return model
+    for model_data in _loaded_models.values():
+        if model_data["info"].active:
+            return model_data["info"]
+    raise ValueError("No active model found")
+
+def get_active_model_instance():
+    for model_data in _loaded_models.values():
+        if model_data["info"].active:
+            return model_data["instance"]
     raise ValueError("No active model found")
 
 
 def select_model(model_id: str) -> ModelInfo:
-    selected_model = None
+    if model_id not in _loaded_models:
+        raise ValueError(f"Model with id '{model_id}' not found")
 
-    for model in _models:
-        if model.id == model_id:
-            selected_model = model
-            model.active = True
-        else:
-            model.active = False
+    for current_id, model_data in _loaded_models.items():
+        model_data["info"].active = (current_id == model_id)
 
-    if selected_model is None:
-        raise ValueError(f"Model '{model_id}' not found")
-
-    return selected_model
+    return _loaded_models[model_id]["info"]

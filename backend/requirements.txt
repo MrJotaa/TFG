@@ -1,6 +1,9 @@
 fastapi
-"fastapi[standard]"
+fastapi[standard]
 uvicorn
 python-multipart
 pydantic
 pillow
+torch
+torchvision
+numpy
