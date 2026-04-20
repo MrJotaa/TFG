@@ -2,3 +2,5 @@ fastapi
 "fastapi[standard]"
 uvicorn
 python-multipart
+pydantic
+pillow
