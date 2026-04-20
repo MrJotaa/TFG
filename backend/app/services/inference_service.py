@@ -1,3 +1,5 @@
+from fastapi import HTTPException
+
 from ml.preprocessing.image_preprocessor import preprocess_image
 from schemas.predict import PredictResponse, TopKPrediction
 from utils.image_utils import decode_base64_image
@@ -13,7 +15,11 @@ def predict_image(image_b64: str) -> PredictResponse:
 
     Más adelante aquí se integrará el modelo real con PyTorch.
     """
-    image = decode_base64_image(image_b64)
+    try:
+        image = decode_base64_image(image_b64)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     processed_image = preprocess_image(image)
 
     # De momento no usamos `processed_image` para inferencia real,

@@ -19,3 +19,6 @@ uploads/
 # VSCode / IDEs
 .vscode/
 .idea/
+
+# Test fotos
+TestFotos/
