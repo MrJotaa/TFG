@@ -2,10 +2,13 @@ from ml.loaders.model_loader import load_resnet18
 from schemas.models import ModelInfo
 
 
+resnet_model, resnet_categories = load_resnet18()
+
 _loaded_models = {
     "resnet18": {
         "info": ModelInfo(id="resnet18", name="ResNet18 pretrained", active=True),
-        "instance": load_resnet18(),
+        "instance": resnet_model,
+        "categories": resnet_categories,
     }
 }
 
@@ -24,6 +27,12 @@ def get_active_model_instance():
     for model_data in _loaded_models.values():
         if model_data["info"].active:
             return model_data["instance"]
+    raise ValueError("No active model found")
+
+def get_active_model_categories():
+    for model_data in _loaded_models.values():
+        if model_data["info"].active:
+            return model_data["categories"]
     raise ValueError("No active model found")
 
 

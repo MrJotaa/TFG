@@ -4,7 +4,10 @@ from fastapi import HTTPException
 
 from ml.preprocessing.image_preprocessor import preprocess_image
 from schemas.predict import PredictResponse, TopKPrediction
-from services.model_service import get_active_model_instance
+from services.model_service import (
+     get_active_model_instance,
+     get_active_model_categories,
+)
 from utils.image_utils import decode_base64_image
 
 def predict_image(image_b64: str) -> PredictResponse:
@@ -20,6 +23,7 @@ def predict_image(image_b64: str) -> PredictResponse:
 
     try:
         model = get_active_model_instance()
+        categories = get_active_model_categories()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -31,7 +35,7 @@ def predict_image(image_b64: str) -> PredictResponse:
 
     top_k_predictions = [
         TopKPrediction(
-            label=f"class_{idx.item()}",
+            label=categories[idx.item()],
             probability=round(prob.item(), 4)
         )
         for prob, idx in zip(top_probs, top_indices)
