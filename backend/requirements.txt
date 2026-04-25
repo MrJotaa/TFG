@@ -7,3 +7,8 @@ pillow
 torch
 torchvision
 numpy
+email-validator
+pymongo
+python-dotenv
+passlib[bcrypt]
+python-multipart

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from api.routes.predict import router as predict_router
 from api.routes.models import router as models_router
+from api.routes.users import router as users_router
 
 app = FastAPI()
 
@@ -11,3 +12,4 @@ async def root():
 
 app.include_router(predict_router)
 app.include_router(models_router)
+app.include_router(users_router)
