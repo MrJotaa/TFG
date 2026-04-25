@@ -14,34 +14,37 @@ router = APIRouter()
 
 @router.get("/users", response_model=list[UserResponse])
 async def get_users() -> list[UserResponse]:
-    return list_users()
+    return await list_users()
 
 
 @router.post("/users", response_model=UserResponse)
 async def register_user(user: UserCreate) -> UserResponse:
-    return create_user(user)
+    try:
+        return await create_user(user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/users/{user_id}", response_model=UserResponse)
-async def get_user_by_id(user_id: int) -> UserResponse:
+async def get_user_by_id(user_id: str) -> UserResponse:
     try:
-        return get_user(user_id)
+        return await get_user(user_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.patch("/users/{user_id}", response_model=UserResponse)
-async def update_user_by_id(user_id: int, user: UserUpdate) -> UserResponse:
+async def update_user_by_id(user_id: str, user: UserUpdate) -> UserResponse:
     try:
-        return update_user(user_id, user)
+        return await update_user(user_id, user)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.delete("/users/{user_id}")
-async def delete_user_by_id(user_id: int) -> dict:
+async def delete_user_by_id(user_id: str) -> dict:
     try:
-        delete_user(user_id)
+        await delete_user(user_id)
         return {"message": "User deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
