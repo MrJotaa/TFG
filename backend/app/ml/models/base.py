@@ -8,6 +8,8 @@ class BaseImageClassificationModel(ABC):
     """
     Clase base para modelos de clasificación de imágenes.
     Define la interfaz común que deberán implementar todos los modelos.
+    No se instancia directamente,
+    sino que se extiende para crear implementaciones específicas de modelos.
     """
 
     id: str
