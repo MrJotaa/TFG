@@ -13,10 +13,10 @@ app = FastAPI()
 async def root():
     return {"message": "API running"}
 
-app.include_router(predict_router)
-app.include_router(models_router)
-app.include_router(users_router)
-app.include_router(datasets_router)
+app.include_router(predict_router, tags=["Inference"])
+app.include_router(models_router, tags=["Models"])
+app.include_router(users_router, tags=["Users"])
+app.include_router(datasets_router, tags=["Datasets"])
 
 @app.get("/health/db")
 async def health_db():

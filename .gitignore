@@ -1,6 +1,5 @@
 # Entorno virtual
 venv/
-.env/
 
 # Python
 __pycache__/
@@ -22,3 +21,6 @@ uploads/
 
 # Test fotos
 TestFotos/
+
+#Docker
+mongo_data/

@@ -19,17 +19,18 @@ from utils.file_manager import (
 UPLOADS_DATASETS_PATH = "uploads/datasets"
 
 def dataset_to_response(dataset: dict) -> DatasetResponse:
+    dataset_id = str(dataset["_id"])
+
     return DatasetResponse(
-        id=str(dataset["_id"]),
+        id=dataset_id,
         name=dataset["name"],
         owner_id=str(dataset["owner_id"]),
         image_count=dataset["image_count"],
-        path=dataset["path"],
         images=[
             DatasetImage(
                 id=image["id"],
                 filename=image["filename"],
-                path=image["path"],
+                url=f"/datasets/{dataset_id}/images/{image['id']}",
             )
             for image in dataset["images"]
         ],
@@ -143,7 +144,7 @@ async def list_images_in_dataset(dataset_id: str) -> list[DatasetImage]:
         DatasetImage(
             id=image["id"],
             filename=image["filename"],
-            path=image["path"],
+            url=f"/datasets/{dataset_id}/images/{image['id']}",
         )
         for image in dataset["images"]
     ]
@@ -227,7 +228,7 @@ async def add_images_to_dataset(
         DatasetImage(
             id=image["id"],
             filename=image["filename"],
-            path=image["path"],
+            url=f"/datasets/{dataset_id}/images/{image['id']}",
         )
         for image in images_metadata
     ]

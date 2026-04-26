@@ -6,7 +6,8 @@ class TopKPrediction(BaseModel):
     label: str
     probability: float
 
-# Representacion de la solicitud de prediccion, que incluye la imagen codificada en base64.
+# Representacion de la solicitud de prediccion
+# basada en una imagen persistida dentro de un dataset.
 class PredictRequest(BaseModel):
     dataset_id: str
     image_id: str
