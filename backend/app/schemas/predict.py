@@ -8,7 +8,8 @@ class TopKPrediction(BaseModel):
 
 # Representacion de la solicitud de prediccion, que incluye la imagen codificada en base64.
 class PredictRequest(BaseModel):
-    image: str
+    dataset_id: str
+    image_id: str
 
 # Representa la respuesta completa del endpoint.
 class PredictResponse(BaseModel):

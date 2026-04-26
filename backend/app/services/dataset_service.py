@@ -6,6 +6,7 @@ import uuid
 from bson import ObjectId
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
+from PIL import Image
 
 from db.collections import datasets_collection, users_collection
 from schemas.datasets import DatasetImage, DatasetResponse
@@ -281,3 +282,28 @@ async def delete_dataset(dataset_id: str) -> None:
         {"datasets": ObjectId(dataset_id)},
         {"$pull": {"datasets": ObjectId(dataset_id)}},
     )
+
+# Función adicional para obtener la imagen como objeto PIL, útil para el endpoint de predicción.
+async def get_image_from_dataset(dataset_id: str, image_id: str) -> Image.Image:
+    if not ObjectId.is_valid(dataset_id):
+        raise ValueError("Invalid dataset id")
+
+    dataset = await datasets_collection.find_one({"_id": ObjectId(dataset_id)})
+
+    if not dataset:
+        raise ValueError(f"Dataset with id {dataset_id} not found")
+
+    image_metadata = next(
+        (image for image in dataset["images"] if image["id"] == image_id),
+        None,
+    )
+
+    if not image_metadata:
+        raise ValueError(f"Image with id {image_id} not found in dataset {dataset_id}")
+
+    image_path = image_metadata["path"]
+
+    if not os.path.exists(image_path):
+        raise ValueError(f"Image file not found on disk: {image_id}")
+
+    return Image.open(image_path).convert("RGB")
