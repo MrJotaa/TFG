@@ -1,0 +1,127 @@
+import os
+import uuid
+
+from bson import ObjectId
+from fastapi import UploadFile
+
+from db.collections import datasets_collection, users_collection
+from schemas.datasets import DatasetImage, DatasetResponse
+from utils.file_manager import (
+    create_directory,
+    is_valid_image_file,
+    save_upload_file,
+)
+
+UPLOADS_DATASETS_PATH = "uploads/datasets"
+
+def dataset_to_response(dataset: dict) -> DatasetResponse:
+    return DatasetResponse(
+        id=str(dataset["_id"]),
+        name=dataset["name"],
+        owner_id=str(dataset["owner_id"]),
+        image_count=dataset["image_count"],
+        path=dataset["path"],
+        images=[
+            DatasetImage(
+                id=image["id"],
+                filename=image["filename"],
+                path=image["path"],
+            )
+            for image in dataset["images"]
+        ],
+    )
+
+async def create_dataset_from_images(
+    user_id: str,
+    name: str,
+    files: list[UploadFile],
+) -> DatasetResponse:
+    if not ObjectId.is_valid(user_id):
+        raise ValueError("Invalid user id")
+
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+
+    if not user:
+        raise ValueError(f"User with id {user_id} not found")
+
+    if not files:
+        raise ValueError("Dataset must contain at least one image")
+
+    valid_files = []
+
+    for file in files:
+        if not is_valid_image_file(file.filename):
+            raise ValueError(f"Invalid image file: {file.filename}")
+        valid_files.append(file)
+
+    dataset_id = ObjectId()
+    dataset_path = os.path.join(
+        UPLOADS_DATASETS_PATH,
+        f"user_{user_id}",
+        f"dataset_{str(dataset_id)}",
+    )
+
+    create_directory(dataset_path)
+
+    images_metadata = []
+
+    for file in valid_files:
+        """
+        Para evitar colisiones de nombres,
+        generamos un ID único para cada imagen
+        y lo almacenamos con la extensión original.
+        """
+        image_id = str(uuid.uuid4())
+        extension = os.path.splitext(file.filename)[1].lower()
+        stored_filename = f"{image_id}{extension}"
+        image_path = os.path.join(dataset_path, stored_filename)
+
+        save_upload_file(file, image_path)
+
+        images_metadata.append(
+            {
+                "id": image_id,
+                "filename": file.filename,
+                "stored_filename": stored_filename,
+                "path": image_path,
+            }
+        )
+
+    dataset_doc = {
+        "_id": dataset_id,
+        "name": name,
+        "owner_id": ObjectId(user_id),
+        "image_count": len(images_metadata),
+        "path": dataset_path,
+        "images": images_metadata,
+    }
+
+    await datasets_collection.insert_one(dataset_doc)
+
+    await users_collection.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$addToSet": {"datasets": dataset_id}},
+    )
+
+    created_dataset = await datasets_collection.find_one({"_id": dataset_id})
+
+    return dataset_to_response(created_dataset)
+
+async def list_datasets() -> list[DatasetResponse]:
+    datasets = []
+
+    async for dataset in datasets_collection.find():
+        datasets.append(dataset_to_response(dataset))
+
+    return datasets
+
+async def get_dataset(dataset_id: str) -> DatasetResponse:
+    if not ObjectId.is_valid(dataset_id):
+        raise ValueError("Invalid dataset id")
+
+    dataset = await datasets_collection.find_one({"_id": ObjectId(dataset_id)})
+
+    if not dataset:
+        raise ValueError(f"Dataset with id {dataset_id} not found")
+
+    return dataset_to_response(dataset)
