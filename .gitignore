@@ -28,3 +28,4 @@ mongo_data/
 # Frontend
 node_modules/
 dist/
+.env.local
