@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import UserSelector from '../components/UserSelector'
 import DatasetUploader from '../components/DatasetUploader'
+import DatasetList from '../components/DatasetList'
+import ImageGallery from '../components/ImageGallery'
 import { getDatasetsByUser } from '../api/datasets'
 
 function Dashboard() {
     const [selectedUser, setSelectedUser] = useState(null)
     const [datasets, setDatasets] = useState([])
+    const [selectedDataset, setSelectedDataset] = useState(null)
+    const [selectedImage, setSelectedImage] = useState(null)
     const [datasetsError, setDatasetsError] = useState('')
 
     useEffect(() => {
@@ -56,28 +60,27 @@ function Dashboard() {
             </section>
 
             <section>
-                <h2>Datasets</h2>
+                <DatasetList
+                    datasets={datasets}
+                    selectedDataset={selectedDataset}
+                    onSelectDataset={(dataset) => {
+                        setSelectedDataset(dataset)
+                        setSelectedImage(null)
+                    }}
+                />
+            </section>
 
-                {datasetsError && <p className="error">{datasetsError}</p>}
-
-                {!selectedUser ? (
-                    <p>Selecciona un usuario para ver sus datasets.</p>
-                ) : datasets.length === 0 ? (
-                    <p>Este usuario no tiene datasets.</p>
-                ) : (
-                    <ul>
-                        {datasets.map((dataset) => (
-                            <li key={dataset.id}>
-                                {dataset.name} — {dataset.image_count} imágenes
-                            </li>
-                        ))}
-                    </ul>
-                )}
+            <section>
+                <ImageGallery
+                    selectedDataset={selectedDataset}
+                    selectedImage={selectedImage}
+                    onSelectImage={setSelectedImage}
+                />
             </section>
 
             <section>
                 <h2>Predicción</h2>
-                <p>Zona de selección de imagen y visualización de resultados.</p>
+                <p>Zona de predicción (siguiente paso).</p>
             </section>
 
             <section>
