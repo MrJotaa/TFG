@@ -1,4 +1,9 @@
+import { useState } from 'react'
+import UserSelector from '../components/UserSelector'
+
 function Dashboard() {
+    const [selectedUser, setSelectedUser] = useState(null)
+
     return (
         <main>
             <header>
@@ -10,8 +15,10 @@ function Dashboard() {
             </header>
 
             <section>
-                <h2>Usuario</h2>
-                <p>Zona de selección o creación de usuario.</p>
+                <UserSelector
+                    selectedUser={selectedUser}
+                    onUserSelect={setSelectedUser}
+                />
             </section>
 
             <section>

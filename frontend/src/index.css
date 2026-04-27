@@ -28,3 +28,22 @@ h2,
 p {
     margin-top: 0;
 }
+
+input,
+select,
+button {
+    display: block;
+    width: 100%;
+    max-width: 420px;
+    margin-bottom: 0.75rem;
+    padding: 0.6rem;
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+.error {
+    color: #b00020;
+}
