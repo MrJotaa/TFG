@@ -27,3 +27,7 @@ export function uploadDataset({ userId, name, files }) {
         body: formData,
     })
 }
+
+export function getDatasetsByUser(userId) {
+    return apiRequest(`/users/${userId}/datasets`)
+}

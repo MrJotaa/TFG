@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
 
+from schemas.datasets import DatasetResponse
 from schemas.users import UserCreate, UserResponse, UserUpdate
+from services.dataset_service import get_datasets_by_user
 from services.user_service import (
     create_user,
     delete_user,
@@ -48,3 +50,11 @@ async def delete_user_by_id(user_id: str) -> dict:
         return {"message": "User deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/users/{user_id}/datasets", response_model=list[DatasetResponse])
+async def get_user_datasets(user_id: str):
+    try:
+        return await get_datasets_by_user(user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -308,3 +308,14 @@ async def get_image_from_dataset(dataset_id: str, image_id: str) -> Image.Image:
         raise ValueError(f"Image file not found on disk: {image_id}")
 
     return Image.open(image_path).convert("RGB")
+
+async def get_datasets_by_user(user_id: str) -> list[DatasetResponse]:
+    if not ObjectId.is_valid(user_id):
+        raise ValueError("Invalid user id")
+
+    datasets = []
+
+    async for dataset in datasets_collection.find({"owner_id": ObjectId(user_id)}):
+        datasets.append(dataset_to_response(dataset))
+
+    return datasets
