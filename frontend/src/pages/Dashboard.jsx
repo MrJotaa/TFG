@@ -4,6 +4,7 @@ import DatasetUploader from '../components/DatasetUploader'
 import DatasetList from '../components/DatasetList'
 import ImageGallery from '../components/ImageGallery'
 import { getDatasetsByUser } from '../api/datasets'
+import PredictionPanel from '../components/PredictionPanel'
 
 function Dashboard() {
     const [selectedUser, setSelectedUser] = useState(null)
@@ -79,8 +80,10 @@ function Dashboard() {
             </section>
 
             <section>
-                <h2>Predicción</h2>
-                <p>Zona de predicción (siguiente paso).</p>
+                <PredictionPanel
+                    selectedDataset={selectedDataset}
+                    selectedImage={selectedImage}
+                />
             </section>
 
             <section>
