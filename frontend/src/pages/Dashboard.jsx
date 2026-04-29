@@ -5,6 +5,7 @@ import DatasetList from '../components/DatasetList'
 import ImageGallery from '../components/ImageGallery'
 import { getDatasetsByUser } from '../api/datasets'
 import PredictionPanel from '../components/PredictionPanel'
+import ModelSelector from '../components/ModelSelector'
 
 function Dashboard() {
     const [selectedUser, setSelectedUser] = useState(null)
@@ -77,6 +78,10 @@ function Dashboard() {
                     selectedImage={selectedImage}
                     onSelectImage={setSelectedImage}
                 />
+            </section>
+
+            <section>
+                <ModelSelector />
             </section>
 
             <section>
