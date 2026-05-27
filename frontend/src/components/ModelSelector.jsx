@@ -41,6 +41,7 @@ function ModelSelector() {
                 currentModels.map((model) => ({
                     ...model,
                     active: model.id === selectedModel.id,
+                    loaded: model.id === selectedModel.id,
                 })),
             )
         } catch (err) {
@@ -49,6 +50,8 @@ function ModelSelector() {
             setLoading(false)
         }
     }
+
+    const activeModel = models.find((model) => model.active)
 
     return (
         <div>
@@ -66,16 +69,24 @@ function ModelSelector() {
                 >
                     {models.map((model) => (
                         <option key={model.id} value={model.id}>
-                            {model.name} {model.active ? '(activo)' : ''}
+                            {model.name}
+                            {model.active ? ' (activo)' : ''}
+                            {model.loaded ? ' (cargado)' : ' (no cargado)'}
                         </option>
                     ))}
                 </select>
             )}
 
-            {selectedModelId && (
-                <p>
-                    Modelo activo: <strong>{selectedModelId}</strong>
-                </p>
+            {activeModel && (
+                <div>
+                    <p>
+                        Modelo activo: <strong>{activeModel.name}</strong>
+                    </p>
+                    <p>
+                        Estado:{' '}
+                        <strong>{activeModel.loaded ? 'Cargado en memoria' : 'No cargado'}</strong>
+                    </p>
+                </div>
             )}
         </div>
     )

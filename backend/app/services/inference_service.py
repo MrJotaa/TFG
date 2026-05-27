@@ -20,6 +20,7 @@ async def predict_image(dataset_id: str, image_id: str) -> PredictResponse:
 
     try:
         model = get_active_model_instance()
+        return model.predict(image)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
