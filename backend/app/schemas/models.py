@@ -4,3 +4,4 @@ class ModelInfo(BaseModel):
     id: str
     name: str
     active: bool
+    loaded: bool

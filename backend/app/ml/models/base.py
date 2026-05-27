@@ -23,6 +23,20 @@ class BaseImageClassificationModel(ABC):
         pass
 
     @abstractmethod
+    def unload(self) -> None:
+        """
+        Libera los recursos asociados al modelo.
+        """
+        pass
+
+    @abstractmethod
+    def is_loaded(self) -> bool:
+        """
+        Indica si el modelo está cargado y listo para hacer predicciones.
+        """
+        pass
+
+    @abstractmethod
     def preprocess(self, image: Image.Image):
         """
         Preprocesa la imagen de entrada según los requisitos del modelo.

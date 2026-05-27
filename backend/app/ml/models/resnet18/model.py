@@ -1,3 +1,5 @@
+import gc
+
 import torch
 import torch.nn.functional as F
 from PIL import Image
@@ -16,10 +18,29 @@ class ResNet18Model(BaseImageClassificationModel):
         self.categories = None
 
     def load(self) -> None: # Carga el modelo y los recursos necesarios.
+        # Si ya está cargado, no lo volvemos a cargar.
+        if self.is_loaded():
+            return
+
         weights = models.ResNet18_Weights.DEFAULT
         self.model = models.resnet18(weights=weights)
         self.model.eval()
         self.categories = weights.meta["categories"]
+
+    def unload(self) -> None:
+        # Libera referencias al modelo y categorías.
+        self.model = None
+        self.categories = None
+
+        # Fuerza recolección de basura en CPU.
+        gc.collect()
+
+        # Si en el futuro se usa GPU, limpia caché CUDA.
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    def is_loaded(self) -> bool:
+        return self.model is not None and self.categories is not None
 
     def preprocess(self, image: Image.Image): # Preprocesa la imagen de entrada según los requisitos del modelo.
         transform = transforms.Compose([
@@ -39,8 +60,8 @@ class ResNet18Model(BaseImageClassificationModel):
         """
         Ejecuta la inferencia sobre una imagen y devuelve una respuesta normalizada.
         """
-        if self.model is None or self.categories is None:
-            self.load()
+        if not self.is_loaded():
+            raise ValueError("Model is not loaded")
 
         input_tensor = self.preprocess(image)
 
