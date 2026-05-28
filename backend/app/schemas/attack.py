@@ -41,6 +41,7 @@ class AttackResponse(BaseModel):
     attack_type: AttackType
     parameters: AttackParameters
     adversarial_image: str
+    perturbation_image: str
     original_prediction: PredictResponse
     adversarial_prediction: PredictResponse
     comparison: AttackComparison

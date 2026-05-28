@@ -1,17 +1,9 @@
-import base64
-from io import BytesIO
-
 import matplotlib.cm as cm
 import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-
-
-def image_to_base64(image: Image.Image) -> str:
-    buffer = BytesIO()
-    image.save(buffer, format="PNG")
-    return base64.b64encode(buffer.getvalue()).decode("utf-8")
+from utils.image_encoding import image_to_base64
 
 
 def generate_gradcam(model_wrapper, image: Image.Image):
