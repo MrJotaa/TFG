@@ -42,6 +42,8 @@ class AttackResponse(BaseModel):
     parameters: AttackParameters
     adversarial_image: str
     perturbation_image: str
+    original_gradcam_image: str
+    adversarial_gradcam_image: str
     original_prediction: PredictResponse
     adversarial_prediction: PredictResponse
     comparison: AttackComparison

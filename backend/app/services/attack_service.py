@@ -10,6 +10,7 @@ from schemas.attack import (
 from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
 from utils.image_encoding import image_to_base64
+from ml.explainability.gradcam import generate_gradcam
 
 
 _available_attacks = {
@@ -55,6 +56,9 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
 
     adversarial_prediction = model.predict(adversarial_image)
 
+    original_gradcam_result = generate_gradcam(model, image)
+    adversarial_gradcam_result = generate_gradcam(model, adversarial_image)
+
     confidence_difference = round(
         adversarial_prediction.confidence - original_prediction.confidence,
         4,
@@ -81,6 +85,8 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         parameters=request.parameters,
         adversarial_image=image_to_base64(adversarial_image),
         perturbation_image=image_to_base64(perturbation_image),
+        original_gradcam_image=original_gradcam_result["gradcam_image"],
+        adversarial_gradcam_image=adversarial_gradcam_result["gradcam_image"],
         original_prediction=original_prediction,
         adversarial_prediction=adversarial_prediction,
         comparison=comparison,

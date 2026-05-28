@@ -7,6 +7,7 @@ import { getDatasetsByUser } from '../api/datasets'
 import PredictionPanel from '../components/PredictionPanel'
 import ModelSelector from '../components/ModelSelector'
 import DatasetImageUploader from '../components/DatasetImageUploader'
+import AttackPanel from '../components/AttackPanel'
 
 function Dashboard() {
     const [selectedUser, setSelectedUser] = useState(null)
@@ -124,8 +125,10 @@ function Dashboard() {
             </section>
 
             <section>
-                <h2>Comparativa adversaria</h2>
-                <p>Zona reservada para la futura comparación con ataques adversarios.</p>
+                <AttackPanel
+                    selectedDataset={selectedDataset}
+                    selectedImage={selectedImage}
+                />
             </section>
         </main>
     )
