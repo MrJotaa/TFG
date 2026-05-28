@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { predictImage } from '../api/predict'
+import { generateGradCam } from '../api/explainability'
 
 function PredictionPanel({ selectedDataset, selectedImage }) {
     const [prediction, setPrediction] = useState(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [gradCam, setGradCam] = useState(null)
+    const [gradCamLoading, setGradCamLoading] = useState(false)
 
     async function handlePredict() {
         if (!selectedDataset || !selectedImage) {
@@ -27,6 +30,30 @@ function PredictionPanel({ selectedDataset, selectedImage }) {
             setError(err.message)
         } finally {
             setLoading(false)
+        }
+    }
+
+    async function handleGenerateGradCam() {
+        if (!selectedDataset || !selectedImage) {
+            setError('Debes seleccionar un dataset y una imagen.')
+            return
+        }
+
+        try {
+            setGradCamLoading(true)
+            setError('')
+            setGradCam(null)
+
+            const result = await generateGradCam({
+                datasetId: selectedDataset.id,
+                imageId: selectedImage.id,
+            })
+
+            setGradCam(result)
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setGradCamLoading(false)
         }
     }
 
@@ -70,6 +97,31 @@ function PredictionPanel({ selectedDataset, selectedImage }) {
                             </li>
                         ))}
                     </ul>
+                </div>
+            )}
+
+            <button
+                type="button"
+                onClick={handleGenerateGradCam}
+                disabled={!selectedDataset || !selectedImage || gradCamLoading}
+            >
+                {gradCamLoading ? 'Generando Grad-CAM...' : 'Generar Grad-CAM'}
+            </button>
+
+            {gradCam && (
+                <div>
+                    <h3>Grad-CAM</h3>
+                    <p>
+                        Clase explicada: <strong>{gradCam.prediction}</strong>
+                    </p>
+                    <p>
+                        Confianza: <strong>{gradCam.confidence}</strong>
+                    </p>
+                    <img
+                        src={`data:image/png;base64,${gradCam.gradcam_image}`}
+                        alt="Grad-CAM"
+                        width={300}
+                    />
                 </div>
             )}
         </div>

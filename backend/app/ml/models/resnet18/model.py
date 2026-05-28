@@ -84,3 +84,17 @@ class ResNet18Model(BaseImageClassificationModel):
             confidence=top_k_predictions[0].probability,
             top_k=top_k_predictions,
         )
+
+
+    def get_torch_model(self):
+        if not self.is_loaded():
+            raise ValueError("Model is not loaded")
+
+        return self.model
+
+
+    def get_gradcam_target_layer(self):
+        if not self.is_loaded():
+            raise ValueError("Model is not loaded")
+
+        return self.model.layer4[-1]
