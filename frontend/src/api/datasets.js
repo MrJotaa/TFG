@@ -31,3 +31,16 @@ export function uploadDataset({ userId, name, files }) {
 export function getDatasetsByUser(userId) {
     return apiRequest(`/users/${userId}/datasets`)
 }
+
+export function addImagesToDataset({ datasetId, files }) {
+    const formData = new FormData()
+
+    Array.from(files).forEach((file) => {
+        formData.append('files', file)
+    })
+
+    return apiRequest(`/datasets/${datasetId}/images`, {
+        method: 'POST',
+        body: formData,
+    })
+}

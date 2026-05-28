@@ -6,6 +6,7 @@ import ImageGallery from '../components/ImageGallery'
 import { getDatasetsByUser } from '../api/datasets'
 import PredictionPanel from '../components/PredictionPanel'
 import ModelSelector from '../components/ModelSelector'
+import DatasetImageUploader from '../components/DatasetImageUploader'
 
 function Dashboard() {
     const [selectedUser, setSelectedUser] = useState(null)
@@ -13,6 +14,7 @@ function Dashboard() {
     const [selectedDataset, setSelectedDataset] = useState(null)
     const [selectedImage, setSelectedImage] = useState(null)
     const [datasetsError, setDatasetsError] = useState('')
+    const [imagesRefreshKey, setImagesRefreshKey] = useState(0)
 
     useEffect(() => {
         async function loadUserDatasets() {
@@ -35,6 +37,30 @@ function Dashboard() {
 
     function handleDatasetUploaded(dataset) {
         setDatasets((currentDatasets) => [...currentDatasets, dataset])
+    }
+
+    function handleImagesUploaded(uploadedImages) {
+        setImagesRefreshKey((current) => current + 1)
+
+        setDatasets((currentDatasets) =>
+            currentDatasets.map((dataset) =>
+                dataset.id === selectedDataset.id
+                    ? {
+                        ...dataset,
+                        image_count: dataset.image_count + uploadedImages.length,
+                    }
+                    : dataset,
+            ),
+        )
+
+        setSelectedDataset((currentDataset) =>
+            currentDataset
+                ? {
+                    ...currentDataset,
+                    image_count: currentDataset.image_count + uploadedImages.length,
+                }
+                : currentDataset,
+        )
     }
 
     return (
@@ -73,12 +99,18 @@ function Dashboard() {
             </section>
 
             <section>
-                <ImageGallery
+                <DatasetImageUploader
                     selectedDataset={selectedDataset}
-                    selectedImage={selectedImage}
-                    onSelectImage={setSelectedImage}
+                    onImagesUploaded={handleImagesUploaded}
                 />
             </section>
+
+            <ImageGallery
+                selectedDataset={selectedDataset}
+                selectedImage={selectedImage}
+                onSelectImage={setSelectedImage}
+                refreshKey={imagesRefreshKey}
+            />
 
             <section>
                 <ModelSelector />

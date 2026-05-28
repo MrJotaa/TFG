@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getDatasetImages } from '../api/datasets'
 
-function ImageGallery({ selectedDataset, selectedImage, onSelectImage }) {
+function ImageGallery({ selectedDataset, selectedImage, onSelectImage, refreshKey }) {
     const [images, setImages] = useState([])
     const [error, setError] = useState('')
 
@@ -22,7 +22,7 @@ function ImageGallery({ selectedDataset, selectedImage, onSelectImage }) {
         }
 
         loadImages()
-    }, [selectedDataset])
+    }, [selectedDataset, refreshKey])
 
     return (
         <div>
