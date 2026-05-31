@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { applyAttack } from '../api/attack'
 
 function AttackPanel({ selectedDataset, selectedImage }) {
@@ -7,6 +7,11 @@ function AttackPanel({ selectedDataset, selectedImage }) {
     const [attackResult, setAttackResult] = useState(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+
+    useEffect(() => {
+        setAttackResult(null)
+        setError('')
+    }, [selectedDataset, selectedImage])
 
     async function handleApplyAttack() {
         if (!selectedDataset || !selectedImage) {
@@ -78,7 +83,7 @@ function AttackPanel({ selectedDataset, selectedImage }) {
                 {loading ? 'Aplicando ataque...' : 'Aplicar ataque'}
             </button>
 
-            {attackResult && (
+            {attackResult && selectedImage && (
                 <div>
                     <h3>Resultado del ataque</h3>
 

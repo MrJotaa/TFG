@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { predictImage } from '../api/predict'
 import { generateGradCam } from '../api/explainability'
 
@@ -8,6 +8,12 @@ function PredictionPanel({ selectedDataset, selectedImage }) {
     const [error, setError] = useState('')
     const [gradCam, setGradCam] = useState(null)
     const [gradCamLoading, setGradCamLoading] = useState(false)
+
+    useEffect(() => {
+        setPrediction(null)
+        setGradCam(null)
+        setError('')
+    }, [selectedDataset, selectedImage])
 
     async function handlePredict() {
         if (!selectedDataset || !selectedImage) {
