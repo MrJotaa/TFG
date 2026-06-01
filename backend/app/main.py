@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from api.routes.predict import router as predict_router
 from api.routes.models import router as models_router
@@ -22,6 +23,7 @@ app.add_middleware( # Para permitir solicitudes desde el frontend en desarrollo
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.mount("/results", StaticFiles(directory="uploads/results"), name="results")
 
 @app.get("/")
 async def root():

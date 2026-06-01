@@ -7,6 +7,7 @@ class GradCamRequest(BaseModel):
 
 
 class GradCamResponse(BaseModel):
+    result_id: str
     prediction: str
     confidence: float
-    gradcam_image: str
+    gradcam_image_url: str
