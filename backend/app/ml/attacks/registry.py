@@ -1,9 +1,11 @@
 from ml.attacks.fgsm import FGSMAttack
+from ml.attacks.random_noise import RandomNoiseAttack
 from schemas.attack import AttackType
 
 
 _AVAILABLE_ATTACKS = {
     AttackType.FGSM: FGSMAttack(),
+    AttackType.RANDOM_NOISE: RandomNoiseAttack(),
 }
 
 

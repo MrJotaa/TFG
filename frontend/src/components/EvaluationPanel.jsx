@@ -62,6 +62,7 @@ function EvaluationPanel({ selectedDataset }) {
                         onChange={(event) => setAttackType(event.target.value)}
                     >
                         <option value="fgsm">FGSM</option>
+                        <option value="random_noise">Random Noise</option>
                     </select>
                 </label>
             </div>
