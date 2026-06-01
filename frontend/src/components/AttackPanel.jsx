@@ -7,6 +7,8 @@ function AttackPanel({ selectedDataset, selectedImage }) {
     const [attackResult, setAttackResult] = useState(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [alpha, setAlpha] = useState(0.01)
+    const [steps, setSteps] = useState(10)
 
     useEffect(() => {
         setAttackResult(null)
@@ -29,6 +31,8 @@ function AttackPanel({ selectedDataset, selectedImage }) {
                 imageId: selectedImage.id,
                 attackType,
                 epsilon: Number(epsilon),
+                alpha: Number(alpha),
+                steps: Number(steps),
             })
 
             setAttackResult(result)
@@ -61,6 +65,7 @@ function AttackPanel({ selectedDataset, selectedImage }) {
                 >
                     <option value="fgsm">FGSM</option>
                     <option value="random_noise">Random Noise</option>
+                    <option value="pgd">PGD</option>
                 </select>
             </label>
 
@@ -74,6 +79,32 @@ function AttackPanel({ selectedDataset, selectedImage }) {
                     value={epsilon}
                     onChange={(event) => setEpsilon(event.target.value)}
                 />
+                {attackType === 'pgd' && (
+                    <div>
+                        <label>
+                            Alpha: {alpha}
+                            <input
+                                type="range"
+                                min="0.001"
+                                max="0.05"
+                                step="0.001"
+                                value={alpha}
+                                onChange={(event) => setAlpha(event.target.value)}
+                            />
+                        </label>
+
+                        <label>
+                            Steps: {steps}
+                            <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={steps}
+                                onChange={(event) => setSteps(event.target.value)}
+                            />
+                        </label>
+                    </div>
+                )}
             </label>
 
             <button

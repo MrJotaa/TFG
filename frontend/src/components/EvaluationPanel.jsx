@@ -9,6 +9,8 @@ function EvaluationPanel({ selectedDataset }) {
     const [evaluation, setEvaluation] = useState(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [alpha, setAlpha] = useState(0.01)
+    const [steps, setSteps] = useState(10)
 
     useEffect(() => {
         setEvaluation(null)
@@ -30,6 +32,8 @@ function EvaluationPanel({ selectedDataset }) {
                 datasetId: selectedDataset.id,
                 attackType,
                 epsilon,
+                alpha,
+                steps,
             })
 
             setEvaluation(result)
@@ -63,6 +67,7 @@ function EvaluationPanel({ selectedDataset }) {
                     >
                         <option value="fgsm">FGSM</option>
                         <option value="random_noise">Random Noise</option>
+                        <option value="pgd">PGD</option>
                     </select>
                 </label>
             </div>
@@ -78,6 +83,32 @@ function EvaluationPanel({ selectedDataset }) {
                         value={epsilon}
                         onChange={(event) => setEpsilon(event.target.value)}
                     />
+                    {attackType === 'pgd' && (
+                        <div>
+                            <label>
+                                Alpha: {alpha}
+                                <input
+                                    type="range"
+                                    min="0.001"
+                                    max="0.05"
+                                    step="0.001"
+                                    value={alpha}
+                                    onChange={(event) => setAlpha(event.target.value)}
+                                />
+                            </label>
+
+                            <label>
+                                Steps: {steps}
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    value={steps}
+                                    onChange={(event) => setSteps(event.target.value)}
+                                />
+                            </label>
+                        </div>
+                    )}
                 </label>
             </div>
 
