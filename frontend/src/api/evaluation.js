@@ -1,6 +1,6 @@
 import { apiRequest } from './client'
 
-export function evaluateDataset({ datasetId, attackType, epsilon }) {
+export function evaluateDataset({ datasetId, attackType, epsilon, alpha, steps }) {
     return apiRequest('/evaluate', {
         method: 'POST',
         headers: {
@@ -11,6 +11,8 @@ export function evaluateDataset({ datasetId, attackType, epsilon }) {
             attack_type: attackType,
             parameters: {
                 epsilon: Number(epsilon),
+                alpha: Number(alpha),
+                steps: Number(steps),
             },
         }),
     })

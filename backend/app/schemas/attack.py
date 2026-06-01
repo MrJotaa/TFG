@@ -8,6 +8,7 @@ from schemas.predict import PredictResponse
 class AttackType(str, Enum):
     FGSM = "fgsm"
     RANDOM_NOISE = "random_noise"
+    PGD = "pgd"
 
 
 class AttackParameters(BaseModel):
@@ -15,7 +16,19 @@ class AttackParameters(BaseModel):
         default=0.03,
         ge=0.0,
         le=0.3,
-        description="Perturbation intensity for FGSM attack",
+        description="Maximum perturbation intensity",
+    )
+    alpha: float = Field(
+        default=0.01,
+        ge=0.0,
+        le=0.1,
+        description="Step size for iterative attacks such as PGD",
+    )
+    steps: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Number of iterations for iterative attacks such as PGD",
     )
 
 
