@@ -1,21 +1,15 @@
 from fastapi import HTTPException
 
-from ml.attacks.fgsm import FGSMAttack
+from ml.attacks.registry import get_attack
 from schemas.attack import (
     AttackComparison,
     AttackRequest,
     AttackResponse,
-    AttackType,
 )
 from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
 from utils.result_files import create_result_directory, save_result_image, save_result_metadata
 from ml.explainability.gradcam import generate_gradcam
-
-
-_available_attacks = {
-    AttackType.FGSM: FGSMAttack(),
-}
 
 
 async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
@@ -32,13 +26,10 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    if request.attack_type not in _available_attacks:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Attack '{request.attack_type}' is not supported",
-        )
-
-    attack = _available_attacks[request.attack_type]
+    try:
+        attack = get_attack(request.attack_type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     original_prediction = model.predict(image)
 
