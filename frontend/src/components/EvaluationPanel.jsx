@@ -204,8 +204,7 @@ function EvaluationPanel({ selectedDataset }) {
                                     <th>Adversarial</th>
                                     <th>Perturbación</th>
                                     <th>Etiqueta real</th>
-                                    <th>Original correcta</th>
-                                    <th>Adversaria correcta</th>
+                                    <th>Resultado ataque</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -239,18 +238,7 @@ function EvaluationPanel({ selectedDataset }) {
                                         </td>
                                         <td>{result.ground_truth_label || '-'}</td>
                                         <td>
-                                            {result.original_correct === null || result.original_correct === undefined
-                                                ? '-'
-                                                : result.original_correct
-                                                    ? 'Sí'
-                                                    : 'No'}
-                                        </td>
-                                        <td>
-                                            {result.adversarial_correct === null || result.adversarial_correct === undefined
-                                                ? '-'
-                                                : result.adversarial_correct
-                                                    ? 'Sí'
-                                                    : 'No'}
+                                            {result.attack_success ? 'Exitoso' : 'No exitoso'}
                                         </td>
                                     </tr>
                                 ))}
