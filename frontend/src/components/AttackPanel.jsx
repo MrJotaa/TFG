@@ -60,6 +60,7 @@ function AttackPanel({ selectedDataset, selectedImage }) {
                     onChange={(event) => setAttackType(event.target.value)}
                 >
                     <option value="fgsm">FGSM</option>
+                    <option value="random_noise">Random Noise</option>
                 </select>
             </label>
 

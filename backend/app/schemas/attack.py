@@ -7,6 +7,7 @@ from schemas.predict import PredictResponse
 
 class AttackType(str, Enum):
     FGSM = "fgsm"
+    RANDOM_NOISE = "random_noise"
 
 
 class AttackParameters(BaseModel):
