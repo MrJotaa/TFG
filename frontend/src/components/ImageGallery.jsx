@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getDatasetImages } from '../api/datasets'
+import { getDatasetImages, updateImageLabel } from '../api/datasets'
+import ImageLabelEditor from './ImageLabelEditor'
 
 function ImageGallery({ selectedDataset, selectedImage, onSelectImage, refreshKey }) {
     const [images, setImages] = useState([])
@@ -24,6 +25,30 @@ function ImageGallery({ selectedDataset, selectedImage, onSelectImage, refreshKe
         loadImages()
     }, [selectedDataset, refreshKey])
 
+    async function handleLabelChange(imageId, label) {
+        if (!selectedDataset) return
+
+        try {
+            setError('')
+
+            const updatedImage = await updateImageLabel({
+                datasetId: selectedDataset.id,
+                imageId,
+                label,
+            })
+
+            setImages((currentImages) =>
+                currentImages.map((image) =>
+                    image.id === imageId
+                        ? { ...image, label: updatedImage.label }
+                        : image,
+                ),
+            )
+        } catch (err) {
+            setError(err.message)
+        }
+    }
+
     return (
         <div>
             <h2>Imágenes</h2>
@@ -37,21 +62,34 @@ function ImageGallery({ selectedDataset, selectedImage, onSelectImage, refreshKe
             ) : (
                 <div>
                     {images.map((image) => (
-                        <img
+                        <div
                             key={image.id}
-                            src={`http://127.0.0.1:8000${image.url}`}
-                            alt={image.filename}
-                            width={120}
                             style={{
-                                margin: '5px',
-                                border:
-                                    selectedImage?.id === image.id
-                                        ? '3px solid blue'
-                                        : '1px solid #ccc',
-                                cursor: 'pointer',
+                                display: 'inline-block',
+                                margin: '8px',
+                                verticalAlign: 'top',
                             }}
-                            onClick={() => onSelectImage(image)}
-                        />
+                        >
+                            <img
+                                src={`http://127.0.0.1:8000${image.url}`}
+                                alt={image.filename}
+                                width={120}
+                                style={{
+                                    margin: '5px',
+                                    border:
+                                        selectedImage?.id === image.id
+                                            ? '3px solid blue'
+                                            : '1px solid #ccc',
+                                    cursor: 'pointer',
+                                }}
+                                onClick={() => onSelectImage(image)}
+                            />
+
+                            <ImageLabelEditor
+                                image={image}
+                                onSaveLabel={handleLabelChange}
+                            />
+                        </div>
                     ))}
                 </div>
             )}

@@ -90,6 +90,19 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
             original_prediction.prediction != adversarial_prediction.prediction
         )
 
+        ground_truth_label = image_metadata.get("label")
+
+        original_correct = None
+        adversarial_correct = None
+
+        if ground_truth_label:
+            normalized_ground_truth = ground_truth_label.strip().lower()
+            normalized_original_prediction = original_prediction.prediction.strip().lower()
+            normalized_adversarial_prediction = adversarial_prediction.prediction.strip().lower()
+
+            original_correct = normalized_original_prediction == normalized_ground_truth
+            adversarial_correct = normalized_adversarial_prediction == normalized_ground_truth
+
         safe_image_id = image_id.replace("/", "_")
 
         adversarial_image_url = save_result_image(
@@ -124,6 +137,9 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
                 attack_success=prediction_changed,
                 perturbation_linf=attack_result["perturbation_linf"],
                 perturbation_l2=attack_result["perturbation_l2"],
+                ground_truth_label=ground_truth_label,
+                original_correct=original_correct,
+                adversarial_correct=adversarial_correct,
             )
         )
 
@@ -158,6 +174,40 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
 
     attack_success_rate = round(changed_predictions / total_images, 4)
 
+    labeled_results = [
+        result for result in results
+        if result.ground_truth_label is not None
+    ]
+
+    labeled_images = len(labeled_results)
+
+    original_accuracy = None
+    adversarial_accuracy = None
+    accuracy_drop = None
+    correct_before_attack = None
+    correct_after_attack = None
+    correct_before_wrong_after = None
+
+    if labeled_images > 0:
+        correct_before_attack = sum(
+            1 for result in labeled_results
+            if result.original_correct
+        )
+
+        correct_after_attack = sum(
+            1 for result in labeled_results
+            if result.adversarial_correct
+        )
+
+        correct_before_wrong_after = sum(
+            1 for result in labeled_results
+            if result.original_correct and not result.adversarial_correct
+        )
+
+        original_accuracy = round(correct_before_attack / labeled_images, 4)
+        adversarial_accuracy = round(correct_after_attack / labeled_images, 4)
+        accuracy_drop = round(original_accuracy - adversarial_accuracy, 4)
+
     summary = EvaluationSummary(
         total_images=total_images,
         changed_predictions=changed_predictions,
@@ -168,6 +218,13 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
         average_confidence_difference=average_confidence_difference,
         average_perturbation_linf=average_perturbation_linf,
         average_perturbation_l2=average_perturbation_l2,
+        labeled_images=labeled_images,
+        original_accuracy=original_accuracy,
+        adversarial_accuracy=adversarial_accuracy,
+        accuracy_drop=accuracy_drop,
+        correct_before_attack=correct_before_attack,
+        correct_after_attack=correct_after_attack,
+        correct_before_wrong_after=correct_before_wrong_after,
     )
 
     save_result_metadata(

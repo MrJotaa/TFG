@@ -11,8 +11,9 @@ from services.dataset_service import (
     delete_image_from_dataset,
     get_image_file_response,
     list_images_in_dataset,
-
 )
+from schemas.datasets import DatasetImage, DatasetImageLabelUpdate
+from services.dataset_service import update_image_label
 
 router = APIRouter()
 
@@ -82,5 +83,16 @@ async def delete_dataset_image(dataset_id: str, image_id: str) -> dict:
     try:
         await delete_image_from_dataset(dataset_id, image_id)
         return {"message": "Image deleted successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.patch("/datasets/{dataset_id}/images/{image_id}/label", response_model=DatasetImage)
+async def update_dataset_image_label(
+    dataset_id: str,
+    image_id: str,
+    label_update: DatasetImageLabelUpdate,
+) -> DatasetImage:
+    try:
+        return await update_image_label(dataset_id, image_id, label_update)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from PIL import Image
 
 from db.collections import datasets_collection, users_collection
-from schemas.datasets import DatasetImage, DatasetResponse
+from schemas.datasets import DatasetImage, DatasetResponse, DatasetImageLabelUpdate
 from utils.file_manager import (
     create_directory,
     is_valid_image_file,
@@ -27,11 +27,12 @@ def dataset_to_response(dataset: dict) -> DatasetResponse:
         owner_id=str(dataset["owner_id"]),
         image_count=dataset["image_count"],
         images=[
-            DatasetImage(
-                id=image["id"],
-                filename=image["filename"],
-                url=f"/datasets/{dataset_id}/images/{image['id']}",
-            )
+        DatasetImage(
+            id=image["id"],
+            filename=image["filename"],
+            url=f"/datasets/{dataset_id}/images/{image['id']}",
+            label=image.get("label"),
+        )
             for image in dataset["images"]
         ],
     )
@@ -83,14 +84,15 @@ async def create_dataset_from_images(
 
         save_upload_file(file, image_path)
 
-        images_metadata.append(
-            {
-                "id": image_id,
-                "filename": file.filename,
-                "stored_filename": stored_filename,
-                "path": image_path,
-            }
-        )
+    images_metadata.append(
+        {
+            "id": image_id,
+            "filename": file.filename,
+            "stored_filename": stored_filename,
+            "path": image_path,
+            "label": None,
+        }
+)
 
     dataset_doc = {
         "_id": dataset_id,
@@ -145,6 +147,7 @@ async def list_images_in_dataset(dataset_id: str) -> list[DatasetImage]:
             id=image["id"],
             filename=image["filename"],
             url=f"/datasets/{dataset_id}/images/{image['id']}",
+            label=image.get("label"),
         )
         for image in dataset["images"]
     ]
@@ -212,6 +215,7 @@ async def add_images_to_dataset(
             "filename": file.filename,
             "stored_filename": stored_filename,
             "path": image_path,
+            "label": None,
         }
 
         images_metadata.append(image_metadata)
@@ -229,6 +233,7 @@ async def add_images_to_dataset(
             id=image["id"],
             filename=image["filename"],
             url=f"/datasets/{dataset_id}/images/{image['id']}",
+            label=image.get("label"),
         )
         for image in images_metadata
     ]
@@ -319,3 +324,49 @@ async def get_datasets_by_user(user_id: str) -> list[DatasetResponse]:
         datasets.append(dataset_to_response(dataset))
 
     return datasets
+
+async def update_image_label(
+    dataset_id: str,
+    image_id: str,
+    label_update: DatasetImageLabelUpdate,
+) -> DatasetImage:
+    if not ObjectId.is_valid(dataset_id):
+        raise ValueError("Invalid dataset id")
+
+    dataset = await datasets_collection.find_one({"_id": ObjectId(dataset_id)})
+
+    if not dataset:
+        raise ValueError(f"Dataset with id {dataset_id} not found")
+
+    image_metadata = next(
+        (image for image in dataset["images"] if image["id"] == image_id),
+        None,
+    )
+
+    if not image_metadata:
+        raise ValueError(f"Image with id {image_id} not found in dataset {dataset_id}")
+
+    normalized_label = (
+        label_update.label.strip()
+        if label_update.label and label_update.label.strip()
+        else None
+    )
+
+    await datasets_collection.update_one(
+        {
+            "_id": ObjectId(dataset_id),
+            "images.id": image_id,
+        },
+        {
+            "$set": {
+                "images.$.label": normalized_label,
+            }
+        },
+    )
+
+    return DatasetImage(
+        id=image_metadata["id"],
+        filename=image_metadata["filename"],
+        url=f"/datasets/{dataset_id}/images/{image_id}",
+        label=normalized_label,
+    )
