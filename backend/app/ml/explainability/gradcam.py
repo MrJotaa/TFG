@@ -3,8 +3,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-from utils.image_encoding import image_to_base64
-
 
 def generate_gradcam(model_wrapper, image: Image.Image):
     """
@@ -12,7 +10,7 @@ def generate_gradcam(model_wrapper, image: Image.Image):
     Devuelve:
     - etiqueta predicha
     - confianza
-    - imagen Grad-CAM en base64
+    - imagen Grad-CAM como PIL.Image
     """
     model = model_wrapper.get_torch_model()
     target_layer = model_wrapper.get_gradcam_target_layer()
@@ -68,5 +66,5 @@ def generate_gradcam(model_wrapper, image: Image.Image):
     return {
         "prediction": predicted_label,
         "confidence": round(confidence.item(), 4),
-        "gradcam_image": image_to_base64(overlay_image),
+        "gradcam_pil_image": overlay_image,
     }

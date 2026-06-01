@@ -38,12 +38,15 @@ class AttackComparison(BaseModel):
 
 
 class AttackResponse(BaseModel):
+    result_id: str
     attack_type: AttackType
     parameters: AttackParameters
-    adversarial_image: str
-    perturbation_image: str
-    original_gradcam_image: str
-    adversarial_gradcam_image: str
+
+    adversarial_image_url: str
+    perturbation_image_url: str
+    original_gradcam_image_url: str
+    adversarial_gradcam_image_url: str
+
     original_prediction: PredictResponse
     adversarial_prediction: PredictResponse
     comparison: AttackComparison

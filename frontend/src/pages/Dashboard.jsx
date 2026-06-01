@@ -8,6 +8,7 @@ import PredictionPanel from '../components/PredictionPanel'
 import ModelSelector from '../components/ModelSelector'
 import DatasetImageUploader from '../components/DatasetImageUploader'
 import AttackPanel from '../components/AttackPanel'
+import EvaluationPanel from '../components/EvaluationPanel'
 
 function Dashboard() {
     const [selectedUser, setSelectedUser] = useState(null)
@@ -129,6 +130,9 @@ function Dashboard() {
                     selectedDataset={selectedDataset}
                     selectedImage={selectedImage}
                 />
+            </section>
+            <section>
+                <EvaluationPanel selectedDataset={selectedDataset} />
             </section>
         </main>
     )

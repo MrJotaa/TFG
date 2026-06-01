@@ -103,7 +103,7 @@ function AttackPanel({ selectedDataset, selectedImage }) {
                             <div>
                                 <p>Perturbación</p>
                                 <img
-                                    src={`data:image/png;base64,${attackResult.perturbation_image}`}
+                                    src={`http://127.0.0.1:8000${attackResult.perturbation_image_url}`}
                                     alt="Perturbación"
                                     width={220}
                                 />
@@ -112,7 +112,7 @@ function AttackPanel({ selectedDataset, selectedImage }) {
                             <div>
                                 <p>Imagen adversaria</p>
                                 <img
-                                    src={`data:image/png;base64,${attackResult.adversarial_image}`}
+                                    src={`http://127.0.0.1:8000${attackResult.adversarial_image_url}`}
                                     alt="Imagen adversaria"
                                     width={220}
                                 />
@@ -178,7 +178,7 @@ function AttackPanel({ selectedDataset, selectedImage }) {
                             <div>
                                 <p>Grad-CAM original</p>
                                 <img
-                                    src={`data:image/png;base64,${attackResult.original_gradcam_image}`}
+                                    src={`http://127.0.0.1:8000${attackResult.original_gradcam_image_url}`}
                                     alt="Grad-CAM original"
                                     width={220}
                                 />
@@ -187,7 +187,7 @@ function AttackPanel({ selectedDataset, selectedImage }) {
                             <div>
                                 <p>Grad-CAM adversario</p>
                                 <img
-                                    src={`data:image/png;base64,${attackResult.adversarial_gradcam_image}`}
+                                    src={`http://127.0.0.1:8000${attackResult.adversarial_gradcam_image_url}`}
                                     alt="Grad-CAM adversario"
                                     width={220}
                                 />

@@ -1,21 +1,15 @@
 from fastapi import HTTPException
 
-from ml.attacks.fgsm import FGSMAttack
+from ml.attacks.registry import get_attack
 from schemas.attack import (
     AttackComparison,
     AttackRequest,
     AttackResponse,
-    AttackType,
 )
 from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
-from utils.image_encoding import image_to_base64
+from utils.result_files import create_result_directory, save_result_image, save_result_metadata
 from ml.explainability.gradcam import generate_gradcam
-
-
-_available_attacks = {
-    AttackType.FGSM: FGSMAttack(),
-}
 
 
 async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
@@ -32,13 +26,10 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    if request.attack_type not in _available_attacks:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Attack '{request.attack_type}' is not supported",
-        )
-
-    attack = _available_attacks[request.attack_type]
+    try:
+        attack = get_attack(request.attack_type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     original_prediction = model.predict(image)
 
@@ -80,13 +71,58 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         perturbation_l2=attack_result["perturbation_l2"],
     )
 
+    result_id, result_path = create_result_directory(prefix="attack")
+
+    adversarial_image_url = save_result_image(
+        image=adversarial_image,
+        result_id=result_id,
+        result_path=result_path,
+        filename="adversarial.png",
+    )
+
+    perturbation_image_url = save_result_image(
+        image=perturbation_image,
+        result_id=result_id,
+        result_path=result_path,
+        filename="perturbation.png",
+    )
+
+    original_gradcam_image_url = save_result_image(
+        image=original_gradcam_result["gradcam_pil_image"],
+        result_id=result_id,
+        result_path=result_path,
+        filename="original_gradcam.png",
+    )
+
+    adversarial_gradcam_image_url = save_result_image(
+        image=adversarial_gradcam_result["gradcam_pil_image"],
+        result_id=result_id,
+        result_path=result_path,
+        filename="adversarial_gradcam.png",
+    )
+
+    save_result_metadata(
+        result_path=result_path,
+        metadata={
+            "result_id": result_id,
+            "result_type": "attack",
+            "dataset_id": request.dataset_id,
+            "image_id": request.image_id,
+            "model_id": model.id,
+            "attack_type": request.attack_type,
+            "parameters": request.parameters.model_dump(),
+            "expires_in_hours": 24,
+        },
+    )
+
     return AttackResponse(
+        result_id=result_id,
         attack_type=request.attack_type,
         parameters=request.parameters,
-        adversarial_image=image_to_base64(adversarial_image),
-        perturbation_image=image_to_base64(perturbation_image),
-        original_gradcam_image=original_gradcam_result["gradcam_image"],
-        adversarial_gradcam_image=adversarial_gradcam_result["gradcam_image"],
+        adversarial_image_url=adversarial_image_url,
+        perturbation_image_url=perturbation_image_url,
+        original_gradcam_image_url=original_gradcam_image_url,
+        adversarial_gradcam_image_url=adversarial_gradcam_image_url,
         original_prediction=original_prediction,
         adversarial_prediction=adversarial_prediction,
         comparison=comparison,

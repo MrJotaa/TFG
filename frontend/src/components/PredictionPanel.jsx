@@ -124,7 +124,7 @@ function PredictionPanel({ selectedDataset, selectedImage }) {
                         Confianza: <strong>{gradCam.confidence}</strong>
                     </p>
                     <img
-                        src={`data:image/png;base64,${gradCam.gradcam_image}`}
+                        src={`http://127.0.0.1:8000${gradCam.gradcam_image_url}`}
                         alt="Grad-CAM"
                         width={300}
                     />
