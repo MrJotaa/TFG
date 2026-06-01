@@ -15,7 +15,7 @@ function EvaluationPanel({ selectedDataset }) {
     useEffect(() => {
         setEvaluation(null)
         setError('')
-    }, [selectedDataset])
+    }, [selectedDataset, attackType, epsilon, alpha, steps])
 
     async function handleEvaluate() {
         if (!selectedDataset) {
@@ -81,36 +81,34 @@ function EvaluationPanel({ selectedDataset }) {
                         max="0.1"
                         step="0.01"
                         value={epsilon}
-                        onChange={(event) => setEpsilon(event.target.value)}
-                    />
-                    {attackType === 'pgd' && (
-                        <div>
-                            <label>
-                                Alpha: {alpha}
-                                <input
-                                    type="range"
-                                    min="0.001"
-                                    max="0.05"
-                                    step="0.001"
-                                    value={alpha}
-                                    onChange={(event) => setAlpha(event.target.value)}
-                                />
-                            </label>
-
-                            <label>
-                                Steps: {steps}
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    value={steps}
-                                    onChange={(event) => setSteps(event.target.value)}
-                                />
-                            </label>
-                        </div>
-                    )}
+                        onChange={(event) => setEpsilon(Number(event.target.value))} />
                 </label>
             </div>
+
+            {attackType === 'pgd' && (
+                <div>
+                    <label>
+                        Alpha: {alpha}
+                        <input
+                            type="range"
+                            min="0.001"
+                            max="0.05"
+                            step="0.001"
+                            value={alpha}
+                            onChange={(event) => setAlpha(Number(event.target.value))} />
+                    </label>
+
+                    <label>
+                        Steps: {steps}
+                        <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={steps}
+                            onChange={(event) => setSteps(Number(event.target.value))} />
+                    </label>
+                </div>
+            )}
 
             <button
                 type="button"
@@ -159,6 +157,36 @@ function EvaluationPanel({ selectedDataset }) {
                                 {evaluation.summary.average_confidence_difference}
                             </strong>
                         </p>
+                        {evaluation.summary.labeled_images > 0 ? (
+                            <div>
+                                <h4>Métricas con etiquetas</h4>
+                                <p>
+                                    Imágenes etiquetadas:{' '}
+                                    <strong>{evaluation.summary.labeled_images}</strong>
+                                </p>
+                                <p>
+                                    Accuracy original:{' '}
+                                    <strong>{evaluation.summary.original_accuracy}</strong>
+                                </p>
+                                <p>
+                                    Accuracy adversaria:{' '}
+                                    <strong>{evaluation.summary.adversarial_accuracy}</strong>
+                                </p>
+                                <p>
+                                    Caída de accuracy:{' '}
+                                    <strong>{evaluation.summary.accuracy_drop}</strong>
+                                </p>
+                                <p>
+                                    Correctas antes y fallidas después:{' '}
+                                    <strong>{evaluation.summary.correct_before_wrong_after}</strong>
+                                </p>
+                            </div>
+                        ) : (
+                            <p>
+                                Este dataset no tiene etiquetas. Se muestran métricas de cambio de
+                                predicción, pero no accuracy.
+                            </p>
+                        )}
                     </div>
 
                     <h3>Resultados por imagen</h3>
@@ -175,6 +203,8 @@ function EvaluationPanel({ selectedDataset }) {
                                     <th>Cambió</th>
                                     <th>Adversarial</th>
                                     <th>Perturbación</th>
+                                    <th>Etiqueta real</th>
+                                    <th>Resultado ataque</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -205,6 +235,10 @@ function EvaluationPanel({ selectedDataset }) {
                                                     width={80}
                                                 />
                                             )}
+                                        </td>
+                                        <td>{result.ground_truth_label || '-'}</td>
+                                        <td>
+                                            {result.attack_success ? 'Exitoso' : 'No exitoso'}
                                         </td>
                                     </tr>
                                 ))}

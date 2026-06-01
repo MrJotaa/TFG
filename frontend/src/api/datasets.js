@@ -44,3 +44,15 @@ export function addImagesToDataset({ datasetId, files }) {
         body: formData,
     })
 }
+
+export function updateImageLabel({ datasetId, imageId, label }) {
+    return apiRequest(`/datasets/${datasetId}/images/${imageId}/label`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            label,
+        }),
+    })
+}

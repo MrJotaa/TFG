@@ -17,6 +17,8 @@ class EvaluationImageResult(BaseModel):
     adversarial_image_url: str | None = None
     perturbation_image_url: str | None = None
 
+    ground_truth_label: str | None = None
+
     original_label: str
     adversarial_label: str
 
@@ -26,6 +28,9 @@ class EvaluationImageResult(BaseModel):
 
     prediction_changed: bool
     attack_success: bool
+
+    original_correct: bool | None = None
+    adversarial_correct: bool | None = None
 
     perturbation_linf: float
     perturbation_l2: float
@@ -43,6 +48,14 @@ class EvaluationSummary(BaseModel):
 
     average_perturbation_linf: float
     average_perturbation_l2: float
+
+    labeled_images: int = 0
+    original_accuracy: float | None = None
+    adversarial_accuracy: float | None = None
+    accuracy_drop: float | None = None
+    correct_before_attack: int | None = None
+    correct_after_attack: int | None = None
+    correct_before_wrong_after: int | None = None
 
 
 class EvaluationResponse(BaseModel):
