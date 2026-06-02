@@ -1,32 +1,36 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import UserSelector from '../components/UserSelector'
-import DatasetUploader from '../components/DatasetUploader'
 import DatasetList from '../components/DatasetList'
 import ImageGallery from '../components/ImageGallery'
 import { getDatasetsByUser } from '../api/datasets'
-import PredictionPanel from '../components/PredictionPanel'
 import ModelSelector from '../components/ModelSelector'
-import DatasetImageUploader from '../components/DatasetImageUploader'
 import AttackSelector from '../components/AttackSelector'
 import ExperimentSummary from '../components/ExperimentSummary'
+import { useExperiment } from '../context/ExperimentContext'
 
 function Dashboard() {
-    const [selectedUser, setSelectedUser] = useState(null)
-    const [datasets, setDatasets] = useState([])
-    const [selectedDataset, setSelectedDataset] = useState(null)
-    const [selectedImage, setSelectedImage] = useState(null)
+    const navigate = useNavigate()
+
+    const {
+        selectedUser,
+        setSelectedUser,
+        datasets,
+        setDatasets,
+        selectedDataset,
+        setSelectedDataset,
+        selectedImage,
+        setSelectedImage,
+        activeModel,
+        setActiveModel,
+        selectedAttack,
+        setSelectedAttack,
+        attackParameters,
+        setAttackParameters,
+    } = useExperiment()
+
     const [datasetsError, setDatasetsError] = useState('')
-    const [imagesRefreshKey, setImagesRefreshKey] = useState(0)
-
-    const [activeModel, setActiveModel] = useState(null)
-    const [selectedAttack, setSelectedAttack] = useState('fgsm')
-    const [attackParameters, setAttackParameters] = useState({
-        epsilon: 0.03,
-        alpha: 0.01,
-        steps: 10,
-    })
-
-    const [activeView, setActiveView] = useState('dashboard')
+    const [imagesRefreshKey] = useState(0)
     const [leftCollapsed, setLeftCollapsed] = useState(false)
     const [rightCollapsed, setRightCollapsed] = useState(false)
 
@@ -49,35 +53,7 @@ function Dashboard() {
         }
 
         loadUserDatasets()
-    }, [selectedUser])
-
-    function handleDatasetUploaded(dataset) {
-        setDatasets((currentDatasets) => [...currentDatasets, dataset])
-    }
-
-    function handleImagesUploaded(uploadedImages) {
-        setImagesRefreshKey((current) => current + 1)
-
-        setDatasets((currentDatasets) =>
-            currentDatasets.map((dataset) =>
-                dataset.id === selectedDataset.id
-                    ? {
-                        ...dataset,
-                        image_count: dataset.image_count + uploadedImages.length,
-                    }
-                    : dataset,
-            ),
-        )
-
-        setSelectedDataset((currentDataset) =>
-            currentDataset
-                ? {
-                    ...currentDataset,
-                    image_count: currentDataset.image_count + uploadedImages.length,
-                }
-                : currentDataset,
-        )
-    }
+    }, [selectedUser, setDatasets, setSelectedDataset, setSelectedImage])
 
     function handleDatasetSelect(dataset) {
         setSelectedDataset(dataset)
@@ -85,178 +61,119 @@ function Dashboard() {
     }
 
     return (
-        <main className="app-shell">
-            <header className="app-header">
-                <h1>Adversarial AI App</h1>
-            </header>
+        <div
+            className={[
+                'dashboard-layout',
+                leftCollapsed ? 'left-collapsed' : '',
+                rightCollapsed ? 'right-collapsed' : '',
+            ].join(' ')}
+        >
+            <aside className="dashboard-sidebar left-sidebar">
+                <button
+                    type="button"
+                    className="collapse-button"
+                    onClick={() => setLeftCollapsed((current) => !current)}
+                    aria-label="Colapsar panel izquierdo"
+                >
+                    {leftCollapsed ? '>' : '<'}
+                </button>
 
-            <div
-                className={[
-                    'dashboard-layout',
-                    leftCollapsed ? 'left-collapsed' : '',
-                    rightCollapsed ? 'right-collapsed' : '',
-                ].join(' ')}
-            >
-                <aside className="dashboard-sidebar left-sidebar">
-                    <button
-                        type="button"
-                        className="collapse-button"
-                        onClick={() => setLeftCollapsed((current) => !current)}
-                        aria-label="Colapsar panel izquierdo"
-                    >
-                        {leftCollapsed ? '>' : '<'}
-                    </button>
+                {!leftCollapsed && (
+                    <>
+                        <ModelSelector onActiveModelChange={setActiveModel} />
 
-                    {!leftCollapsed && (
-                        <>
-                            <ModelSelector onActiveModelChange={setActiveModel} />
-
-                            <AttackSelector
-                                selectedAttack={selectedAttack}
-                                onSelectAttack={setSelectedAttack}
-                                attackParameters={attackParameters}
-                                onChangeAttackParameters={setAttackParameters}
-                            />
-                        </>
-                    )}
-                </aside>
-
-                <section className="dashboard-main-panel">
-                    {activeView === 'dashboard' && (
-                        <ExperimentSummary
-                            selectedDataset={selectedDataset}
-                            selectedImage={selectedImage}
-                            activeModel={activeModel}
+                        <AttackSelector
                             selectedAttack={selectedAttack}
+                            onSelectAttack={setSelectedAttack}
                             attackParameters={attackParameters}
-                            onGoToPrediction={() => setActiveView('prediction')}
+                            onChangeAttackParameters={setAttackParameters}
                         />
-                    )}
+                    </>
+                )}
+            </aside>
 
-                    {activeView === 'prediction' && (
-                        <div className="view-panel">
-                            <button
-                                type="button"
-                                className="secondary-action"
-                                onClick={() => setActiveView('dashboard')}
-                            >
-                                Volver al dashboard
-                            </button>
+            <section className="dashboard-main-panel">
+                <ExperimentSummary
+                    selectedDataset={selectedDataset}
+                    selectedImage={selectedImage}
+                    activeModel={activeModel}
+                    selectedAttack={selectedAttack}
+                    attackParameters={attackParameters}
+                    onGoToPrediction={() => navigate('/prediction')}
+                />
+            </section>
 
-                            <PredictionPanel
+            <aside className="dashboard-sidebar right-sidebar">
+                <button
+                    type="button"
+                    className="collapse-button"
+                    onClick={() => setRightCollapsed((current) => !current)}
+                    aria-label="Colapsar panel derecho"
+                >
+                    {rightCollapsed ? '<' : '>'}
+                </button>
+
+                {!rightCollapsed && (
+                    <>
+                        <div className="user-panel">
+                            <UserSelector
+                                selectedUser={selectedUser}
+                                onUserSelect={setSelectedUser}
+                            />
+                        </div>
+
+                        <div className="sidebar-block">
+                            <div className="sidebar-title-row">
+                                <div className="sidebar-block-title">Datasets</div>
+
+                                <button
+                                    type="button"
+                                    className="icon-button"
+                                    onClick={() => navigate('/datasets')}
+                                    title="Gestionar datasets"
+                                >
+                                    ⚙
+                                </button>
+                            </div>
+
+                            {datasetsError && <p className="error">{datasetsError}</p>}
+
+                            <DatasetList
+                                datasets={datasets}
+                                selectedDataset={selectedDataset}
+                                onSelectDataset={handleDatasetSelect}
+                                compact
+                            />
+                        </div>
+
+                        <div className="sidebar-block">
+                            <div className="sidebar-title-row">
+                                <div className="sidebar-block-title">
+                                    Dataset Images
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="icon-button"
+                                    title="Vista ampliada pendiente"
+                                >
+                                    🔍
+                                </button>
+                            </div>
+
+                            <ImageGallery
                                 selectedDataset={selectedDataset}
                                 selectedImage={selectedImage}
+                                onSelectImage={setSelectedImage}
+                                refreshKey={imagesRefreshKey}
+                                compact
+                                showLabelEditor={false}
                             />
                         </div>
-                    )}
-
-                    {activeView === 'datasets' && (
-                        <div className="view-panel">
-                            <button
-                                type="button"
-                                className="secondary-action"
-                                onClick={() => setActiveView('dashboard')}
-                            >
-                                Volver al dashboard
-                            </button>
-
-                            <h2>Gestión de datasets</h2>
-                            <p>
-                                Vista de gestión de datasets pendiente de pulir en el
-                                siguiente mockup.
-                            </p>
-
-                            <DatasetUploader
-                                selectedUser={selectedUser}
-                                onDatasetUploaded={handleDatasetUploaded}
-                            />
-
-                            <DatasetImageUploader
-                                selectedDataset={selectedDataset}
-                                onImagesUploaded={handleImagesUploaded}
-                            />
-                        </div>
-                    )}
-                </section>
-
-                <aside className="dashboard-sidebar right-sidebar">
-                    <button
-                        type="button"
-                        className="collapse-button"
-                        onClick={() => setRightCollapsed((current) => !current)}
-                        aria-label="Colapsar panel derecho"
-                    >
-                        {rightCollapsed ? '<' : '>'}
-                    </button>
-
-                    {!rightCollapsed && (
-                        <>
-                            <div className="user-panel">
-                                <UserSelector
-                                    selectedUser={selectedUser}
-                                    onUserSelect={setSelectedUser}
-                                />
-                            </div>
-
-                            <div className="sidebar-block">
-                                <div className="sidebar-title-row">
-                                    <div className="sidebar-block-title">Datasets</div>
-
-                                    <button
-                                        type="button"
-                                        className="icon-button"
-                                        onClick={() => setActiveView('datasets')}
-                                        title="Gestionar datasets"
-                                    >
-                                        ⚙
-                                    </button>
-                                </div>
-
-                                {datasetsError && (
-                                    <p className="error">{datasetsError}</p>
-                                )}
-
-                                <DatasetList
-                                    datasets={datasets}
-                                    selectedDataset={selectedDataset}
-                                    onSelectDataset={handleDatasetSelect}
-                                    compact
-                                />
-                            </div>
-
-                            <div className="sidebar-block">
-                                <div className="sidebar-title-row">
-                                    <div className="sidebar-block-title">
-                                        Dataset Images
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        className="icon-button"
-                                        title="Vista ampliada pendiente"
-                                    >
-                                        🔍
-                                    </button>
-                                </div>
-
-                                <ImageGallery
-                                    selectedDataset={selectedDataset}
-                                    selectedImage={selectedImage}
-                                    onSelectImage={setSelectedImage}
-                                    refreshKey={imagesRefreshKey}
-                                    compact
-                                    showLabelEditor={false}
-                                />
-                            </div>
-                        </>
-                    )}
-                </aside>
-            </div>
-
-            <footer className="app-footer">
-                © 2026 Adversarial AI App. All rights reserved.
-            </footer>
-        </main>
+                    </>
+                )}
+            </aside>
+        </div>
     )
 }
 
