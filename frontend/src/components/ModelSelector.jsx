@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getModels, selectModel } from '../api/models'
 
-function ModelSelector() {
+function ModelSelector({ onActiveModelChange }) {
     const [models, setModels] = useState([])
     const [selectedModelId, setSelectedModelId] = useState('')
     const [loading, setLoading] = useState(false)
@@ -16,6 +16,7 @@ function ModelSelector() {
             const activeModel = data.find((model) => model.active)
             if (activeModel) {
                 setSelectedModelId(activeModel.id)
+                onActiveModelChange?.(activeModel)
             }
         } catch (err) {
             setError(err.message)
@@ -26,16 +27,14 @@ function ModelSelector() {
         loadModels()
     }, [])
 
-    async function handleModelChange(event) {
-        const modelId = event.target.value
+    async function handleSelectModel() {
+        if (!selectedModelId) return
 
         try {
             setLoading(true)
             setError('')
 
-            const selectedModel = await selectModel(modelId)
-
-            setSelectedModelId(selectedModel.id)
+            const selectedModel = await selectModel(selectedModelId)
 
             setModels((currentModels) =>
                 currentModels.map((model) => ({
@@ -44,6 +43,11 @@ function ModelSelector() {
                     loaded: model.id === selectedModel.id,
                 })),
             )
+
+            onActiveModelChange?.({
+                ...selectedModel,
+                loaded: true,
+            })
         } catch (err) {
             setError(err.message)
         } finally {
@@ -51,43 +55,43 @@ function ModelSelector() {
         }
     }
 
-    const activeModel = models.find((model) => model.active)
-
     return (
-        <div>
-            <h2>Modelo</h2>
+        <div className="sidebar-block">
+            <div className="sidebar-block-title">Modelos</div>
 
             {error && <p className="error">{error}</p>}
 
             {models.length === 0 ? (
                 <p>No hay modelos disponibles.</p>
             ) : (
-                <select
-                    value={selectedModelId}
-                    onChange={handleModelChange}
-                    disabled={loading}
-                >
+                <div className="sidebar-list">
                     {models.map((model) => (
-                        <option key={model.id} value={model.id}>
-                            {model.name}
-                            {model.active ? ' (activo)' : ''}
-                            {model.loaded ? ' (cargado)' : ' (no cargado)'}
-                        </option>
+                        <button
+                            key={model.id}
+                            type="button"
+                            className={
+                                selectedModelId === model.id
+                                    ? 'sidebar-list-item active'
+                                    : 'sidebar-list-item'
+                            }
+                            onClick={() => setSelectedModelId(model.id)}
+                            disabled={loading}
+                        >
+                            <span>{model.name}</span>
+                            {model.active && <small>Activo</small>}
+                        </button>
                     ))}
-                </select>
-            )}
-
-            {activeModel && (
-                <div>
-                    <p>
-                        Modelo activo: <strong>{activeModel.name}</strong>
-                    </p>
-                    <p>
-                        Estado:{' '}
-                        <strong>{activeModel.loaded ? 'Cargado en memoria' : 'No cargado'}</strong>
-                    </p>
                 </div>
             )}
+
+            <button
+                type="button"
+                className="secondary-action"
+                onClick={handleSelectModel}
+                disabled={!selectedModelId || loading}
+            >
+                {loading ? 'Seleccionando...' : 'Select'}
+            </button>
         </div>
     )
 }
