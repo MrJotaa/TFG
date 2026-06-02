@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
-import { getDatasetImages, updateImageLabel } from '../api/datasets'
+import {
+    deleteDatasetImage,
+    getDatasetImages,
+    updateImageLabel,
+} from '../api/datasets'
 import ImageLabelEditor from './ImageLabelEditor'
 
 function ImageGallery({
@@ -9,6 +13,8 @@ function ImageGallery({
     refreshKey,
     compact = false,
     showLabelEditor = true,
+    showDeleteButton = false,
+    onImageDeleted,
 }) {
     const [images, setImages] = useState([])
     const [error, setError] = useState('')
@@ -56,6 +62,37 @@ function ImageGallery({
         }
     }
 
+    async function handleDeleteImage(imageId) {
+        if (!selectedDataset) return
+
+        const confirmed = window.confirm(
+            '¿Seguro que quieres borrar esta imagen? Esta acción no se puede deshacer.',
+        )
+
+        if (!confirmed) return
+
+        try {
+            setError('')
+
+            await deleteDatasetImage({
+                datasetId: selectedDataset.id,
+                imageId,
+            })
+
+            setImages((currentImages) =>
+                currentImages.filter((image) => image.id !== imageId),
+            )
+
+            if (selectedImage?.id === imageId) {
+                onSelectImage(null)
+            }
+
+            onImageDeleted?.(imageId)
+        } catch (err) {
+            setError(err.message)
+        }
+    }
+
     return (
         <div className={compact ? 'image-gallery compact' : 'image-gallery'}>
             {!compact && <h2>Imágenes</h2>}
@@ -97,6 +134,16 @@ function ImageGallery({
                                     image={image}
                                     onSaveLabel={handleLabelChange}
                                 />
+                            )}
+
+                            {showDeleteButton && (
+                                <button
+                                    type="button"
+                                    className="danger-action small full-width"
+                                    onClick={() => handleDeleteImage(image.id)}
+                                >
+                                    Delete
+                                </button>
                             )}
                         </div>
                     ))}
