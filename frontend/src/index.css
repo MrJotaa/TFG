@@ -531,3 +531,141 @@ button {
         align-items: flex-start;
     }
 }
+
+.prediction-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.context-summary {
+    background: #fff;
+    border: 1px solid #d8dde5;
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+.context-summary h2 {
+    margin-top: 0;
+}
+
+.context-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    gap: 0.5rem 2rem;
+}
+
+.context-grid p {
+    margin: 0;
+}
+
+.status-success {
+    color: #16a34a;
+    font-weight: 700;
+}
+
+.prediction-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.analysis-card {
+    background: #fff;
+    border: 1px solid #d8dde5;
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.analysis-card h3 {
+    margin-top: 0;
+}
+
+.analysis-image {
+    width: min(100%, 360px);
+    max-height: 360px;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+}
+
+.image-placeholder {
+    width: min(100%, 360px);
+    height: 260px;
+    margin: 0 auto 1rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.prediction-main-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.main-prediction {
+    font-size: 1.2rem;
+    color: #2563eb;
+}
+
+.topk-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.topk-row {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.45rem 0;
+    text-align: left;
+}
+
+.analysis-footer {
+    border-top: 1px solid #d8dde5;
+    padding-top: 1rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: center;
+}
+
+.attack-summary-line {
+    background: #fff;
+    border: 1px solid #d8dde5;
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.analysis-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.empty-state {
+    background: #fff;
+    border: 1px solid #d8dde5;
+    border-radius: 10px;
+    padding: 2rem;
+}
+
+@media (max-width: 900px) {
+
+    .prediction-grid,
+    .context-grid,
+    .analysis-footer {
+        grid-template-columns: 1fr;
+    }
+
+    .analysis-actions {
+        flex-direction: column;
+    }
+}
