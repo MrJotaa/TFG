@@ -100,6 +100,7 @@ function Dashboard() {
                     selectedAttack={selectedAttack}
                     attackParameters={attackParameters}
                     onGoToPrediction={() => navigate('/prediction')}
+                    onGoToEvaluation={() => navigate('/evaluation')}
                 />
             </section>
 

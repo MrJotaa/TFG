@@ -11,6 +11,7 @@ function ExperimentSummary({
     selectedAttack,
     attackParameters,
     onGoToPrediction,
+    onGoToEvaluation,
 }) {
     const selectedTarget = selectedImage
         ? selectedImage.filename
@@ -62,6 +63,15 @@ function ExperimentSummary({
                     disabled={!selectedDataset || !selectedImage || !activeModel}
                 >
                     Predict
+                </button>
+
+                <button
+                    type="button"
+                    className="secondary-action"
+                    onClick={onGoToEvaluation}
+                    disabled={!selectedDataset || !activeModel}
+                >
+                    Evaluate
                 </button>
             </div>
         </section>

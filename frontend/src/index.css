@@ -235,7 +235,22 @@ button {
 .summary-actions {
     display: flex;
     justify-content: center;
+    gap: 1rem;
     margin-top: 1.25rem;
+}
+
+.summary-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.25rem;
+}
+
+.summary-actions .primary-action,
+.summary-actions .secondary-action {
+    width: 130px;
+    height: 48px;
+    margin: 0;
 }
 
 .primary-action,
@@ -772,5 +787,151 @@ button {
 
     .comparison-actions-top {
         justify-content: stretch;
+    }
+}
+
+.evaluation-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.evaluation-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.evaluation-run-card {
+    background: #fff;
+    border: 1px solid #d8dde5;
+    border-radius: 10px;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+}
+
+.evaluation-run-card h3,
+.evaluation-run-card p {
+    margin: 0;
+}
+
+.evaluation-run-card p {
+    margin-top: 0.25rem;
+    color: #64748b;
+}
+
+.metrics-section {
+    background: #fff;
+    border: 1px solid #d8dde5;
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+.metrics-section h3 {
+    margin-top: 0;
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+.metric-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.metric-card span {
+    color: #64748b;
+    font-weight: 700;
+}
+
+.metric-card strong {
+    font-size: 1.4rem;
+}
+
+.metric-card small {
+    color: #64748b;
+}
+
+.charts-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.simple-bar-row {
+    margin-bottom: 1rem;
+}
+
+.simple-bar-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.35rem;
+}
+
+.simple-bar-track {
+    height: 12px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.simple-bar-fill {
+    height: 100%;
+    background: #2563eb;
+    border-radius: 999px;
+}
+
+.info-card {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 10px;
+    padding: 1rem;
+    color: #9a3412;
+}
+
+.evaluation-table-wrapper {
+    overflow-x: auto;
+}
+
+.evaluation-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 980px;
+}
+
+.evaluation-table th,
+.evaluation-table td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.75rem;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.evaluation-table th {
+    background: #f8fafc;
+    font-weight: 700;
+}
+
+.evaluation-table img {
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+}
+
+@media (max-width: 800px) {
+    .evaluation-run-card {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
