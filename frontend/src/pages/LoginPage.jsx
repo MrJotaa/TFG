@@ -1,10 +1,18 @@
 import { Link, useNavigate } from 'react-router-dom'
+import UserSelector from '../components/UserSelector'
+import { useExperiment } from '../context/ExperimentContext'
 
 function LoginPage() {
     const navigate = useNavigate()
+    const { selectedUser, setSelectedUser } = useExperiment()
 
-    function handleMockLogin(event) {
+    function handleContinue(event) {
         event.preventDefault()
+
+        if (!selectedUser) {
+            return
+        }
+
         navigate('/dashboard')
     }
 
@@ -12,26 +20,30 @@ function LoginPage() {
         <main className="auth-page">
             <section className="auth-card">
                 <h1>Adversarial AI App</h1>
-                <h2>Login</h2>
+                <h2>Iniciar sesión</h2>
 
-                <form onSubmit={handleMockLogin}>
-                    <label>
-                        Email
-                        <input type="email" placeholder="user@example.com" />
-                    </label>
+                <p>
+                    Selecciona un usuario existente para acceder al panel principal.
+                </p>
 
-                    <label>
-                        Password
-                        <input type="password" placeholder="Password" />
-                    </label>
+                <UserSelector
+                    selectedUser={selectedUser}
+                    onUserSelect={setSelectedUser}
+                    showCreateForm={false}
+                />
 
-                    <button type="submit" className="primary-action">
+                <form onSubmit={handleContinue}>
+                    <button
+                        type="submit"
+                        className="primary-action auth-submit"
+                        disabled={!selectedUser}
+                    >
                         Entrar
                     </button>
                 </form>
 
                 <p>
-                    ¿No tienes cuenta? <Link to="/signup">Crear cuenta</Link>
+                    ¿No tienes usuario? <Link to="/signup">Crear usuario</Link>
                 </p>
             </section>
         </main>

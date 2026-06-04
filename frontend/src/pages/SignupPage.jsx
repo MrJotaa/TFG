@@ -1,42 +1,47 @@
 import { Link, useNavigate } from 'react-router-dom'
+import UserSelector from '../components/UserSelector'
+import { useExperiment } from '../context/ExperimentContext'
 
 function SignupPage() {
     const navigate = useNavigate()
+    const { selectedUser, setSelectedUser } = useExperiment()
 
-    function handleMockSignup(event) {
-        event.preventDefault()
-        navigate('/dashboard')
+    function handleContinue() {
+        if (selectedUser) {
+            navigate('/dashboard')
+        }
     }
 
     return (
         <main className="auth-page">
             <section className="auth-card">
                 <h1>Adversarial AI App</h1>
-                <h2>Sign up</h2>
-
-                <form onSubmit={handleMockSignup}>
-                    <label>
-                        Username
-                        <input type="text" placeholder="Username" />
-                    </label>
-
-                    <label>
-                        Email
-                        <input type="email" placeholder="user@example.com" />
-                    </label>
-
-                    <label>
-                        Password
-                        <input type="password" placeholder="Password" />
-                    </label>
-
-                    <button type="submit" className="primary-action">
-                        Crear cuenta
-                    </button>
-                </form>
+                <h2>Crear usuario</h2>
 
                 <p>
-                    ¿Ya tienes cuenta? <Link to="/">Iniciar sesión</Link>
+                    Crea un usuario para asociar datasets, imágenes y resultados.
+                </p>
+
+                <UserSelector
+                    selectedUser={selectedUser}
+                    onUserSelect={setSelectedUser}
+                    showExistingUsers={false}
+                    showCreateForm
+                    onUserCreated={handleContinue}
+                />
+
+                {selectedUser && (
+                    <button
+                        type="button"
+                        className="primary-action auth-submit"
+                        onClick={() => navigate('/dashboard')}
+                    >
+                        Ir al panel principal
+                    </button>
+                )}
+
+                <p>
+                    ¿Ya tienes usuario? <Link to="/">Iniciar sesión</Link>
                 </p>
             </section>
         </main>

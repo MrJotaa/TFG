@@ -31,6 +31,8 @@ function Dashboard() {
     const [imagesRefreshKey] = useState(0)
     const [leftCollapsed, setLeftCollapsed] = useState(false)
     const [rightCollapsed, setRightCollapsed] = useState(false)
+    const [leftWidth, setLeftWidth] = useState(300)
+    const [rightWidth, setRightWidth] = useState(380)
 
     useEffect(() => {
         async function loadUserDatasets() {
@@ -58,6 +60,46 @@ function Dashboard() {
         setSelectedImage(null)
     }
 
+    function startLeftResize(event) {
+        event.preventDefault()
+
+        const startX = event.clientX
+        const startWidth = leftWidth
+
+        function handleMouseMove(moveEvent) {
+            const nextWidth = startWidth + (moveEvent.clientX - startX)
+            setLeftWidth(Math.min(Math.max(nextWidth, 240), 460))
+        }
+
+        function handleMouseUp() {
+            window.removeEventListener('mousemove', handleMouseMove)
+            window.removeEventListener('mouseup', handleMouseUp)
+        }
+
+        window.addEventListener('mousemove', handleMouseMove)
+        window.addEventListener('mouseup', handleMouseUp)
+    }
+
+    function startRightResize(event) {
+        event.preventDefault()
+
+        const startX = event.clientX
+        const startWidth = rightWidth
+
+        function handleMouseMove(moveEvent) {
+            const nextWidth = startWidth - (moveEvent.clientX - startX)
+            setRightWidth(Math.min(Math.max(nextWidth, 280), 520))
+        }
+
+        function handleMouseUp() {
+            window.removeEventListener('mousemove', handleMouseMove)
+            window.removeEventListener('mouseup', handleMouseUp)
+        }
+
+        window.addEventListener('mousemove', handleMouseMove)
+        window.addEventListener('mouseup', handleMouseUp)
+    }
+
     return (
         <div
             className={[
@@ -65,6 +107,10 @@ function Dashboard() {
                 leftCollapsed ? 'left-collapsed' : '',
                 rightCollapsed ? 'right-collapsed' : '',
             ].join(' ')}
+            style={{
+                '--left-width': `${leftWidth}px`,
+                '--right-width': `${rightWidth}px`,
+            }}
         >
             <aside className="dashboard-sidebar left-sidebar">
                 <button
@@ -90,6 +136,15 @@ function Dashboard() {
                 )}
             </aside>
 
+            {!leftCollapsed && (
+                <div
+                    className="resize-handle resize-handle-left"
+                    onMouseDown={startLeftResize}
+                    role="separator"
+                    aria-label="Redimensionar panel izquierdo"
+                />
+            )}
+
             <section className="dashboard-main-panel">
                 <ExperimentSummary
                     selectedDataset={selectedDataset}
@@ -101,6 +156,15 @@ function Dashboard() {
                     onGoToEvaluation={() => navigate('/evaluation')}
                 />
             </section>
+
+            {!rightCollapsed && (
+                <div
+                    className="resize-handle resize-handle-right"
+                    onMouseDown={startRightResize}
+                    role="separator"
+                    aria-label="Redimensionar panel derecho"
+                />
+            )}
 
             <aside className="dashboard-sidebar right-sidebar">
                 <button

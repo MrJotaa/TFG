@@ -63,21 +63,46 @@ button {
 .dashboard-layout {
     min-height: 0;
     display: grid;
-    grid-template-columns: 300px minmax(520px, 1fr) 380px;
-    gap: 0.75rem;
+    grid-template-columns:
+        var(--left-width, 300px) 8px minmax(420px, 1fr) 8px var(--right-width, 380px);
+    gap: 0;
     align-items: stretch;
 }
 
 .dashboard-layout.left-collapsed {
-    grid-template-columns: 44px minmax(520px, 1fr) 380px;
+    grid-template-columns:
+        44px 0 minmax(420px, 1fr) 8px var(--right-width, 380px);
 }
 
 .dashboard-layout.right-collapsed {
-    grid-template-columns: 300px minmax(520px, 1fr) 44px;
+    grid-template-columns:
+        var(--left-width, 300px) 8px minmax(420px, 1fr) 0 44px;
 }
 
 .dashboard-layout.left-collapsed.right-collapsed {
-    grid-template-columns: 44px minmax(520px, 1fr) 44px;
+    grid-template-columns:
+        44px 0 minmax(420px, 1fr) 0 44px;
+}
+
+.resize-handle {
+    width: 8px;
+    cursor: col-resize;
+    position: relative;
+}
+
+.resize-handle::after {
+    content: '';
+    position: absolute;
+    top: 16px;
+    bottom: 16px;
+    left: 3px;
+    width: 2px;
+    border-radius: 999px;
+    background: transparent;
+}
+
+.resize-handle:hover::after {
+    background: #cbd5e1;
 }
 
 .dashboard-sidebar,
