@@ -5,12 +5,12 @@ import DatasetImageUploader from '../components/DatasetImageUploader'
 import ImageGallery from '../components/ImageGallery'
 import { deleteDataset, getDatasetsByUser } from '../api/datasets'
 import { useExperiment } from '../context/ExperimentContext'
+import { useAuth } from '../context/AuthContext'
 
 function DatasetManager() {
     const navigate = useNavigate()
 
     const {
-        selectedUser,
         datasets,
         setDatasets,
         selectedDataset,
@@ -21,10 +21,11 @@ function DatasetManager() {
 
     const [datasetsError, setDatasetsError] = useState('')
     const [imagesRefreshKey, setImagesRefreshKey] = useState(0)
+    const { user } = useAuth()
 
     useEffect(() => {
         async function loadUserDatasets() {
-            if (!selectedUser) {
+            if (!user) {
                 setDatasets([])
                 setSelectedDataset(null)
                 setSelectedImage(null)
@@ -33,7 +34,7 @@ function DatasetManager() {
 
             try {
                 setDatasetsError('')
-                const data = await getDatasetsByUser(selectedUser.id)
+                const data = await getDatasetsByUser(user.id)
                 setDatasets(data)
             } catch (err) {
                 setDatasetsError(err.message)
@@ -41,7 +42,7 @@ function DatasetManager() {
         }
 
         loadUserDatasets()
-    }, [selectedUser, setDatasets, setSelectedDataset, setSelectedImage])
+    }, [user, setDatasets, setSelectedDataset, setSelectedImage])
 
     function handleDatasetUploaded(dataset) {
         setDatasets((currentDatasets) => [...currentDatasets, dataset])
@@ -119,8 +120,8 @@ function DatasetManager() {
                     <section className="management-card">
                         <h3>My Datasets</h3>
 
-                        {!selectedUser ? (
-                            <p>Selecciona un usuario en el dashboard para ver datasets.</p>
+                        {!user ? (
+                            <p>Inicia sesión para ver tus datasets.</p>
                         ) : datasets.length === 0 ? (
                             <p>No hay datasets disponibles.</p>
                         ) : (
@@ -172,7 +173,7 @@ function DatasetManager() {
                         <h3>Subir un Nuevo Dataset</h3>
 
                         <DatasetUploader
-                            selectedUser={selectedUser}
+                            selectedUser={user}
                             onDatasetUploaded={handleDatasetUploaded}
                         />
 

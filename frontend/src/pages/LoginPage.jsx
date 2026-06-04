@@ -1,19 +1,31 @@
 import { Link, useNavigate } from 'react-router-dom'
-import UserSelector from '../components/UserSelector'
-import { useExperiment } from '../context/ExperimentContext'
+import { useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 
 function LoginPage() {
     const navigate = useNavigate()
-    const { selectedUser, setSelectedUser } = useExperiment()
+    const { login } = useAuth()
 
-    function handleContinue(event) {
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const [error, setError] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    async function handleLogin(event) {
         event.preventDefault()
 
-        if (!selectedUser) {
-            return
-        }
+        try {
+            setLoading(true)
+            setError('')
 
-        navigate('/dashboard')
+            await login({ email, password })
+
+            navigate('/dashboard')
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -22,24 +34,39 @@ function LoginPage() {
                 <h1>Adversarial AI App</h1>
                 <h2>Iniciar sesión</h2>
 
-                <p>
-                    Selecciona un usuario existente para acceder al panel principal.
-                </p>
+                <p>Introduce tus credenciales para acceder al panel principal.</p>
 
-                <UserSelector
-                    selectedUser={selectedUser}
-                    onUserSelect={setSelectedUser}
-                    showCreateForm={false}
-                    showExistingUsers
-                />
+                {error && <p className="error">{error}</p>}
 
-                <form onSubmit={handleContinue}>
+                <form onSubmit={handleLogin}>
+                    <label>
+                        Correo
+                        <input
+                            type="email"
+                            placeholder="usuario@email.com"
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            required
+                        />
+                    </label>
+
+                    <label>
+                        Contraseña
+                        <input
+                            type="password"
+                            placeholder="Contraseña"
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                            required
+                        />
+                    </label>
+
                     <button
                         type="submit"
                         className="primary-action auth-submit"
-                        disabled={!selectedUser}
+                        disabled={loading}
                     >
-                        Entrar
+                        {loading ? 'Entrando...' : 'Entrar'}
                     </button>
                 </form>
 

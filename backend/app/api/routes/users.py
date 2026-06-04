@@ -1,4 +1,9 @@
 from fastapi import APIRouter, HTTPException
+from fastapi import Depends
+
+from api.dependencies.auth import require_current_user
+from schemas.users import UserDeleteRequest
+from services.user_service import delete_user_with_password
 
 from schemas.datasets import DatasetResponse
 from schemas.users import UserCreate, UserResponse, UserUpdate
@@ -41,6 +46,21 @@ async def update_user_by_id(user_id: str, user: UserUpdate) -> UserResponse:
         return await update_user(user_id, user)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete("/users/me")
+async def delete_current_user_account(
+    delete_request: UserDeleteRequest,
+    current_user: UserResponse = Depends(require_current_user),
+) -> dict:
+    try:
+        await delete_user_with_password(
+            user_id=current_user.id,
+            password=delete_request.password,
+        )
+        return {"message": "User account deleted successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/users/{user_id}")

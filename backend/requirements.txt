@@ -13,3 +13,4 @@ python-dotenv
 passlib[bcrypt]
 bcrypt==4.3.0
 matplotlib
+python-jose[cryptography]
