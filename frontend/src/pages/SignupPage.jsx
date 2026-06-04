@@ -6,10 +6,8 @@ function SignupPage() {
     const navigate = useNavigate()
     const { selectedUser, setSelectedUser } = useExperiment()
 
-    function handleContinue() {
-        if (selectedUser) {
-            navigate('/dashboard')
-        }
+    function handleUserCreated() {
+        navigate('/dashboard')
     }
 
     return (
@@ -27,18 +25,8 @@ function SignupPage() {
                     onUserSelect={setSelectedUser}
                     showExistingUsers={false}
                     showCreateForm
-                    onUserCreated={handleContinue}
+                    onUserCreated={handleUserCreated}
                 />
-
-                {selectedUser && (
-                    <button
-                        type="button"
-                        className="primary-action auth-submit"
-                        onClick={() => navigate('/dashboard')}
-                    >
-                        Ir al panel principal
-                    </button>
-                )}
 
                 <p>
                     ¿Ya tienes usuario? <Link to="/">Iniciar sesión</Link>

@@ -30,6 +30,7 @@ function LoginPage() {
                     selectedUser={selectedUser}
                     onUserSelect={setSelectedUser}
                     showCreateForm={false}
+                    showExistingUsers
                 />
 
                 <form onSubmit={handleContinue}>

@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { createUser, getUsers } from '../api/users'
 
-function UserSelector({ selectedUser, onUserSelect }) {
+function UserSelector({
+    selectedUser,
+    onUserSelect,
+    showCreateForm = true,
+    showExistingUsers = true,
+    onUserCreated,
+}) {
     const [users, setUsers] = useState([])
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
@@ -20,8 +26,10 @@ function UserSelector({ selectedUser, onUserSelect }) {
     }
 
     useEffect(() => {
-        loadUsers()
-    }, [])
+        if (showExistingUsers) {
+            loadUsers()
+        }
+    }, [showExistingUsers])
 
     async function handleCreateUser(event) {
         event.preventDefault()
@@ -38,6 +46,7 @@ function UserSelector({ selectedUser, onUserSelect }) {
 
             setUsers((currentUsers) => [...currentUsers, newUser])
             onUserSelect(newUser)
+            onUserCreated?.(newUser)
 
             setName('')
             setEmail('')
@@ -50,70 +59,89 @@ function UserSelector({ selectedUser, onUserSelect }) {
     }
 
     return (
-        <div>
-            <h2>Usuario</h2>
-
+        <div className="user-selector">
             {error && <p className="error">{error}</p>}
 
-            <form onSubmit={handleCreateUser}>
-                <input
-                    type="text"
-                    placeholder="Nombre"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    required
-                />
+            {showCreateForm && (
+                <form onSubmit={handleCreateUser} className="user-form">
+                    <label>
+                        Nombre
+                        <input
+                            type="text"
+                            placeholder="Nombre"
+                            value={name}
+                            onChange={(event) => setName(event.target.value)}
+                            required
+                        />
+                    </label>
 
-                <input
-                    type="email"
-                    placeholder="Correo"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    required
-                />
+                    <label>
+                        Correo
+                        <input
+                            type="email"
+                            placeholder="Correo"
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            required
+                        />
+                    </label>
 
-                <input
-                    type="password"
-                    placeholder="Contraseña"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    required
-                />
+                    <label>
+                        Contraseña
+                        <input
+                            type="password"
+                            placeholder="Contraseña"
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                            required
+                        />
+                    </label>
 
-                <button type="submit" disabled={loading}>
-                    {loading ? 'Creando...' : 'Crear usuario'}
-                </button>
-            </form>
-
-            <div>
-                <h3>Usuarios existentes</h3>
-
-                {users.length === 0 ? (
-                    <p>No hay usuarios registrados.</p>
-                ) : (
-                    <select
-                        value={selectedUser?.id || ''}
-                        onChange={(event) => {
-                            const user = users.find((item) => item.id === event.target.value)
-                            onUserSelect(user)
-                        }}
+                    <button
+                        type="submit"
+                        className="primary-action auth-submit"
+                        disabled={loading}
                     >
-                        <option value="">Selecciona un usuario</option>
+                        {loading ? 'Creando...' : 'Crear usuario'}
+                    </button>
+                </form>
+            )}
 
-                        {users.map((user) => (
-                            <option key={user.id} value={user.id}>
-                                {user.name} ({user.email})
-                            </option>
-                        ))}
-                    </select>
-                )}
+            {showExistingUsers && (
+                <div className="existing-users">
+                    {users.length === 0 ? (
+                        <p>No hay usuarios registrados.</p>
+                    ) : (
+                        <label>
+                            Usuario
+                            <select
+                                value={selectedUser?.id || ''}
+                                onChange={(event) => {
+                                    const user = users.find(
+                                        (item) => item.id === event.target.value,
+                                    )
+                                    onUserSelect(user || null)
+                                }}
+                            >
+                                <option value="">Selecciona un usuario</option>
 
-                {selectedUser && (
-                    <p>
-                        Usuario seleccionado: <strong>{selectedUser.name}</strong>
-                    </p>
-                )}
-            </div>
+                                {users.map((user) => (
+                                    <option key={user.id} value={user.id}>
+                                        {user.name} ({user.email})
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
+
+                    {selectedUser && (
+                        <p className="selected-user-message">
+                            Usuario seleccionado:{' '}
+                            <strong>{selectedUser.name}</strong>
+                        </p>
+                    )}
+                </div>
+            )}
         </div>
     )
 }
