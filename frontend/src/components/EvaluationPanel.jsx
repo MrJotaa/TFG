@@ -246,16 +246,16 @@ function EvaluationPanel({
 
                                 {summary.labeled_images > 0 && (
                                     <article className="analysis-card">
-                                        <h3>Accuracy Before vs After</h3>
+                                        <h3>Accuracy Antes vs Despues</h3>
 
                                         <SimpleBar
-                                            label="Original accuracy"
+                                            label="Accuracy original"
                                             value={summary.original_accuracy}
                                             max={1}
                                         />
 
                                         <SimpleBar
-                                            label="Adversarial accuracy"
+                                            label="Accuracy adversarial"
                                             value={summary.adversarial_accuracy}
                                             max={1}
                                         />

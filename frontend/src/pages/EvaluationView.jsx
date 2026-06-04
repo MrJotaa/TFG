@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import EvaluationPanel from '../components/EvaluationPanel'
 import { useExperiment } from '../context/ExperimentContext'
 
@@ -8,6 +9,8 @@ const ATTACK_NAMES = {
 }
 
 function EvaluationView() {
+    const navigate = useNavigate()
+
     const {
         selectedDataset,
         activeModel,
@@ -27,6 +30,14 @@ function EvaluationView() {
                         del dataset seleccionado.
                     </p>
                 </div>
+
+                <button
+                    type="button"
+                    className="secondary-action"
+                    onClick={() => navigate('/dashboard')}
+                >
+                    Volver al Dashboard
+                </button>
             </div>
 
             <div className="context-summary">
@@ -35,7 +46,7 @@ function EvaluationView() {
                 <div className="context-grid">
                     <p>
                         <strong>Dataset:</strong>{' '}
-                        {selectedDataset?.name || 'No dataset selected'}
+                        {selectedDataset?.name || 'Sin dataset seleccionado'}
                     </p>
 
                     <p>
@@ -45,7 +56,7 @@ function EvaluationView() {
 
                     <p>
                         <strong>Modelo:</strong>{' '}
-                        {activeModel?.name || 'No active model'}
+                        {activeModel?.name || 'Sin modelo activo'}
                     </p>
 
                     <p>
