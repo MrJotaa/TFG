@@ -1123,3 +1123,17 @@ button {
         grid-template-columns: 1fr;
     }
 }
+
+.danger-zone label {
+    display: block;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+.danger-zone input {
+    width: 100%;
+    margin-top: 0.35rem;
+    padding: 0.65rem;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+}

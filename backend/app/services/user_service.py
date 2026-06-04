@@ -1,10 +1,14 @@
 from bson import ObjectId
+import os
+import shutil
+
+from utils.security import verify_password
 
 from db.collections import users_collection
 from schemas.users import UserCreate, UserResponse, UserUpdate
 from utils.security import hash_password
 from schemas.auth import SignupRequest
-from services.dataset_service import delete_dataset
+from services.dataset_service import delete_dataset, UPLOADS_DATASETS_PATH
 
 
 def user_to_response(user: dict) -> UserResponse:
@@ -96,6 +100,14 @@ async def delete_user(user_id: str) -> None:
     for dataset_id in dataset_ids:
         await delete_dataset(str(dataset_id))
 
+    user_datasets_path = os.path.join(
+        UPLOADS_DATASETS_PATH,
+        f"user_{user_id}",
+    )
+
+    if os.path.exists(user_datasets_path):
+        shutil.rmtree(user_datasets_path, ignore_errors=True)
+
     result = await users_collection.delete_one({"_id": ObjectId(user_id)})
 
     if result.deleted_count == 0:
@@ -120,3 +132,19 @@ async def create_user_from_signup(signup_data: SignupRequest) -> UserResponse:
     )
 
     return await create_user(user_data)
+
+async def delete_user_with_password(user_id: str, password: str) -> None:
+    if not ObjectId.is_valid(user_id):
+        raise ValueError(f"Invalid user ID: {user_id}")
+
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+
+    if not user:
+        raise ValueError(f"User with id {user_id} not found")
+
+    hashed_password = user.get("password")
+
+    if not hashed_password or not verify_password(password, hashed_password):
+        raise ValueError("Invalid password")
+
+    await delete_user(user_id)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { deleteUser, updateUser } from '../api/users'
+import { deleteCurrentUser, updateUser } from '../api/users'
 import { getDatasetsByUser } from '../api/datasets'
 import { useAuth } from '../context/AuthContext'
 import { useExperiment } from '../context/ExperimentContext'
@@ -17,6 +17,7 @@ function ProfilePage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
+    const [deletePassword, setDeletePassword] = useState('')
 
     useEffect(() => {
         async function loadDatasets() {
@@ -74,6 +75,11 @@ function ProfilePage() {
     async function handleDeleteAccount() {
         if (!user) return
 
+        if (!deletePassword.trim()) {
+            setError('Debes introducir tu contraseña para eliminar la cuenta.')
+            return
+        }
+
         const confirmed = window.confirm(
             '¿Seguro que quieres eliminar tu cuenta? También se eliminarán todos tus datasets e imágenes. Esta acción no se puede deshacer.',
         )
@@ -84,7 +90,7 @@ function ProfilePage() {
             setLoading(true)
             setError('')
 
-            await deleteUser(user.id)
+            await deleteCurrentUser(deletePassword)
 
             logout()
             resetExperiment()
@@ -229,6 +235,16 @@ function ProfilePage() {
                     <p>
                         Eliminar tu cuenta borrará también todos tus datasets e imágenes.
                     </p>
+
+                    <label>
+                        Confirma tu contraseña
+                        <input
+                            type="password"
+                            value={deletePassword}
+                            onChange={(event) => setDeletePassword(event.target.value)}
+                            placeholder="Introduce tu contraseña"
+                        />
+                    </label>
 
                     <button
                         type="button"
