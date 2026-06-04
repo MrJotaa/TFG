@@ -159,7 +159,7 @@ function EvaluationPanel({
                                     />
 
                                     <MetricCard
-                                        title="Media: PerturbaciónL∞"
+                                        title="Media: Perturbación L∞"
                                         value={summary.average_perturbation_linf}
                                     />
 
@@ -216,20 +216,20 @@ function EvaluationPanel({
                                     <h3>Modificado vs No Modificado</h3>
 
                                     <SimpleBar
-                                        label="Changed"
+                                        label="Cambiadas"
                                         value={summary.changed_predictions}
                                         max={summary.total_images}
                                     />
 
                                     <SimpleBar
-                                        label="Unchanged"
+                                        label="Sin Cambiar"
                                         value={summary.unchanged_predictions}
                                         max={summary.total_images}
                                     />
                                 </article>
 
                                 <article className="analysis-card">
-                                    <h3>Confianza Antes vs Despues</h3>
+                                    <h3>Confianza Antes vs Después</h3>
 
                                     <SimpleBar
                                         label="Original"
@@ -246,7 +246,7 @@ function EvaluationPanel({
 
                                 {summary.labeled_images > 0 && (
                                     <article className="analysis-card">
-                                        <h3>Accuracy Antes vs Despues</h3>
+                                        <h3>Accuracy Antes vs Después</h3>
 
                                         <SimpleBar
                                             label="Accuracy original"
@@ -287,7 +287,7 @@ function EvaluationPanel({
                                         Usando etiquetas ground-truth, la accuracy ha pasado de{' '}
                                         <strong>{summary.original_accuracy}</strong> a{' '}
                                         <strong>{summary.adversarial_accuracy}</strong>,
-                                        produciendo una caida de accuracy de{' '}
+                                        produciendo una caída de accuracy de{' '}
                                         <strong>{summary.accuracy_drop}</strong>.
                                     </p>
                                 )}
@@ -305,7 +305,7 @@ function EvaluationPanel({
                                                 <th>Original</th>
                                                 <th>Adv.</th>
                                                 <th>Conf. Δ</th>
-                                                <th> Cambio</th>
+                                                <th>Cambio</th>
                                                 <th>Resultado del Ataque</th>
                                                 <th>Adversarial</th>
                                                 <th>Perturbación</th>
