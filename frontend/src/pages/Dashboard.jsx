@@ -29,8 +29,6 @@ function Dashboard() {
 
     const [datasetsError, setDatasetsError] = useState('')
     const [imagesRefreshKey] = useState(0)
-    const [leftCollapsed, setLeftCollapsed] = useState(false)
-    const [rightCollapsed, setRightCollapsed] = useState(false)
     const [leftWidth, setLeftWidth] = useState(300)
     const [rightWidth, setRightWidth] = useState(380)
 
@@ -102,48 +100,30 @@ function Dashboard() {
 
     return (
         <div
-            className={[
-                'dashboard-layout',
-                leftCollapsed ? 'left-collapsed' : '',
-                rightCollapsed ? 'right-collapsed' : '',
-            ].join(' ')}
+            className="dashboard-layout"
             style={{
                 '--left-width': `${leftWidth}px`,
                 '--right-width': `${rightWidth}px`,
             }}
         >
             <aside className="dashboard-sidebar left-sidebar">
-                <button
-                    type="button"
-                    className="collapse-button"
-                    onClick={() => setLeftCollapsed((current) => !current)}
-                    aria-label="Colapsar panel izquierdo"
-                >
-                    {leftCollapsed ? '>' : '<'}
-                </button>
 
-                {!leftCollapsed && (
-                    <>
-                        <ModelSelector onActiveModelChange={setActiveModel} />
+                <ModelSelector onActiveModelChange={setActiveModel} />
 
-                        <AttackSelector
-                            selectedAttack={selectedAttack}
-                            onSelectAttack={setSelectedAttack}
-                            attackParameters={attackParameters}
-                            onChangeAttackParameters={setAttackParameters}
-                        />
-                    </>
-                )}
+                <AttackSelector
+                    selectedAttack={selectedAttack}
+                    onSelectAttack={setSelectedAttack}
+                    attackParameters={attackParameters}
+                    onChangeAttackParameters={setAttackParameters}
+                />
             </aside>
 
-            {!leftCollapsed && (
-                <div
-                    className="resize-handle resize-handle-left"
-                    onMouseDown={startLeftResize}
-                    role="separator"
-                    aria-label="Redimensionar panel izquierdo"
-                />
-            )}
+            <div
+                className="resize-handle resize-handle-left"
+                onMouseDown={startLeftResize}
+                role="separator"
+                aria-label="Redimensionar panel izquierdo"
+            />
 
             <section className="dashboard-main-panel">
                 <ExperimentSummary
@@ -157,89 +137,75 @@ function Dashboard() {
                 />
             </section>
 
-            {!rightCollapsed && (
-                <div
-                    className="resize-handle resize-handle-right"
-                    onMouseDown={startRightResize}
-                    role="separator"
-                    aria-label="Redimensionar panel derecho"
-                />
-            )}
+            <div
+                className="resize-handle resize-handle-right"
+                onMouseDown={startRightResize}
+                role="separator"
+                aria-label="Redimensionar panel derecho"
+            />
 
             <aside className="dashboard-sidebar right-sidebar">
-                <button
-                    type="button"
-                    className="collapse-button"
-                    onClick={() => setRightCollapsed((current) => !current)}
-                    aria-label="Colapsar panel derecho"
-                >
-                    {rightCollapsed ? '<' : '>'}
-                </button>
 
-                {!rightCollapsed && (
-                    <>
-                        <div className="dashboard-user-card">
-                            <div className="user-avatar">
-                                {selectedUser?.name?.charAt(0).toUpperCase() || 'U'}
-                            </div>
+                <div className="dashboard-user-card">
+                    <div className="user-avatar">
+                        {selectedUser?.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
 
-                            <div>
-                                <p className="user-card-label">Usuario activo</p>
-                                <strong>{selectedUser?.name || 'Sin usuario'}</strong>
-                                {selectedUser?.email && <span>{selectedUser.email}</span>}
-                            </div>
+                    <div>
+                        <p className="user-card-label">Usuario activo</p>
+                        <strong>{selectedUser?.name || 'Sin usuario'}</strong>
+                        {selectedUser?.email && <span>{selectedUser.email}</span>}
+                    </div>
+                </div>
+
+                <div className="sidebar-block">
+                    <div className="sidebar-title-row">
+                        <div className="sidebar-block-title">Datasets</div>
+
+                        <button
+                            type="button"
+                            className="icon-button"
+                            onClick={() => navigate('/datasets')}
+                            title="Gestionar datasets"
+                        >
+                            ⚙
+                        </button>
+                    </div>
+
+                    {datasetsError && <p className="error">{datasetsError}</p>}
+
+                    <DatasetList
+                        datasets={datasets}
+                        selectedDataset={selectedDataset}
+                        onSelectDataset={handleDatasetSelect}
+                        compact
+                    />
+                </div>
+
+                <div className="sidebar-block">
+                    <div className="sidebar-title-row">
+                        <div className="sidebar-block-title">
+                            Imágenes del Dataset
                         </div>
 
-                        <div className="sidebar-block">
-                            <div className="sidebar-title-row">
-                                <div className="sidebar-block-title">Datasets</div>
+                        <button
+                            type="button"
+                            className="icon-button"
+                            title="Vista ampliada pendiente"
+                        >
+                            🔍
+                        </button>
+                    </div>
 
-                                <button
-                                    type="button"
-                                    className="icon-button"
-                                    onClick={() => navigate('/datasets')}
-                                    title="Gestionar datasets"
-                                >
-                                    ⚙
-                                </button>
-                            </div>
-
-                            {datasetsError && <p className="error">{datasetsError}</p>}
-
-                            <DatasetList
-                                datasets={datasets}
-                                selectedDataset={selectedDataset}
-                                onSelectDataset={handleDatasetSelect}
-                                compact
-                            />
-                        </div>
-
-                        <div className="sidebar-block">
-                            <div className="sidebar-title-row">
-                                <div className="sidebar-block-title">
-                                    Imágenes del Dataset
-                                </div>
-
-                                <button
-                                    type="button"
-                                    className="icon-button"
-                                    title="Vista ampliada pendiente"
-                                >
-                                    🔍
-                                </button>
-                            </div>
-
-                            <ImageGallery
-                                selectedDataset={selectedDataset}
-                                selectedImage={selectedImage}
-                                onSelectImage={setSelectedImage}
-                                refreshKey={imagesRefreshKey}
-                                compact
-                                showLabelEditor={false}
-                            />
-                        </div>
-                    </>
-                )}
+                    <ImageGallery
+                        selectedDataset={selectedDataset}
+                        selectedImage={selectedImage}
+                        onSelectImage={setSelectedImage}
+                        refreshKey={imagesRefreshKey}
+                        compact
+                        showLabelEditor={false}
+                    />
+                </div>
             </aside>
         </div>
     )
