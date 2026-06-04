@@ -21,6 +21,7 @@ def _to_model_info(model_id: str, model_data: dict) -> ModelInfo:
         name=instance.name,
         active=model_data["active"],
         loaded=instance.is_loaded(),
+        task_type=instance.task_type,
     )
 
 
