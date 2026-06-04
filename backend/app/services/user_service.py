@@ -3,6 +3,7 @@ from bson import ObjectId
 from db.collections import users_collection
 from schemas.users import UserCreate, UserResponse, UserUpdate
 from utils.security import hash_password
+from schemas.auth import SignupRequest
 
 
 def user_to_response(user: dict) -> UserResponse:
@@ -67,7 +68,7 @@ async def update_user(user_id: str, user_data: UserUpdate) -> UserResponse:
         update_data["email"] = user_data.email
 
     if user_data.password is not None:
-        update_data["hashed_password"] = hash_password(user_data.password)
+        update_data["password"] = hash_password(user_data.password)
 
     if update_data:
         await users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
@@ -88,3 +89,23 @@ async def delete_user(user_id: str) -> None:
 
     if result.deleted_count == 0:
         raise ValueError(f"User with id {user_id} not found")
+
+async def get_user_document_by_email(email: str) -> dict | None:
+    return await users_collection.find_one({"email": email})
+
+
+async def get_user_document_by_id(user_id: str) -> dict | None:
+    if not ObjectId.is_valid(user_id):
+        return None
+
+    return await users_collection.find_one({"_id": ObjectId(user_id)})
+
+
+async def create_user_from_signup(signup_data: SignupRequest) -> UserResponse:
+    user_data = UserCreate(
+        name=signup_data.name,
+        email=signup_data.email,
+        password=signup_data.password,
+    )
+
+    return await create_user(user_data)

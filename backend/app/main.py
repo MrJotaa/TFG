@@ -9,6 +9,7 @@ from api.routes.datasets import router as datasets_router
 from api.routes.explainability import router as explainability_router
 from api.routes.attack import router as attack_router
 from api.routes.evaluate import router as evaluate_router
+from api.routes.auth import router as auth_router
 
 from db.database import get_database
 
@@ -32,6 +33,7 @@ async def root():
 
 app.include_router(predict_router, tags=["Inference"])
 app.include_router(models_router, tags=["Models"])
+app.include_router(auth_router, tags=["Auth"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(datasets_router, tags=["Datasets"])
 app.include_router(explainability_router, tags=["Explainability"])
