@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import UserSelector from '../components/UserSelector'
 import DatasetList from '../components/DatasetList'
 import ImageGallery from '../components/ImageGallery'
 import { getDatasetsByUser } from '../api/datasets'
@@ -14,7 +13,6 @@ function Dashboard() {
 
     const {
         selectedUser,
-        setSelectedUser,
         datasets,
         setDatasets,
         selectedDataset,
@@ -116,11 +114,16 @@ function Dashboard() {
 
                 {!rightCollapsed && (
                     <>
-                        <div className="user-panel">
-                            <UserSelector
-                                selectedUser={selectedUser}
-                                onUserSelect={setSelectedUser}
-                            />
+                        <div className="dashboard-user-card">
+                            <div className="user-avatar">
+                                {selectedUser?.name?.charAt(0).toUpperCase() || 'U'}
+                            </div>
+
+                            <div>
+                                <p className="user-card-label">Usuario activo</p>
+                                <strong>{selectedUser?.name || 'Sin usuario'}</strong>
+                                {selectedUser?.email && <span>{selectedUser.email}</span>}
+                            </div>
                         </div>
 
                         <div className="sidebar-block">
