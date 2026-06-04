@@ -1015,3 +1015,21 @@ button {
 .selected-user-message {
     color: var(--muted);
 }
+
+.app-header-with-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.header-user-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.header-user-actions span {
+    color: var(--muted);
+    font-weight: 700;
+}

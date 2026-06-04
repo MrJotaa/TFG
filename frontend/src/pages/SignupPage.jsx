@@ -1,13 +1,32 @@
 import { Link, useNavigate } from 'react-router-dom'
-import UserSelector from '../components/UserSelector'
-import { useExperiment } from '../context/ExperimentContext'
+import { useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 
 function SignupPage() {
     const navigate = useNavigate()
-    const { selectedUser, setSelectedUser } = useExperiment()
+    const { signup } = useAuth()
 
-    function handleUserCreated() {
-        navigate('/dashboard')
+    const [name, setName] = useState('')
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const [error, setError] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    async function handleSignup(event) {
+        event.preventDefault()
+
+        try {
+            setLoading(true)
+            setError('')
+
+            await signup({ name, email, password })
+
+            navigate('/dashboard')
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -16,17 +35,52 @@ function SignupPage() {
                 <h1>Adversarial AI App</h1>
                 <h2>Crear usuario</h2>
 
-                <p>
-                    Crea un usuario para asociar datasets, imágenes y resultados.
-                </p>
+                <p>Crea una cuenta para gestionar datasets y experimentos.</p>
 
-                <UserSelector
-                    selectedUser={selectedUser}
-                    onUserSelect={setSelectedUser}
-                    showExistingUsers={false}
-                    showCreateForm
-                    onUserCreated={handleUserCreated}
-                />
+                {error && <p className="error">{error}</p>}
+
+                <form onSubmit={handleSignup}>
+                    <label>
+                        Nombre
+                        <input
+                            type="text"
+                            placeholder="Nombre"
+                            value={name}
+                            onChange={(event) => setName(event.target.value)}
+                            required
+                        />
+                    </label>
+
+                    <label>
+                        Correo
+                        <input
+                            type="email"
+                            placeholder="usuario@email.com"
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            required
+                        />
+                    </label>
+
+                    <label>
+                        Contraseña
+                        <input
+                            type="password"
+                            placeholder="Contraseña"
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                            required
+                        />
+                    </label>
+
+                    <button
+                        type="submit"
+                        className="primary-action auth-submit"
+                        disabled={loading}
+                    >
+                        {loading ? 'Creando usuario...' : 'Crear usuario'}
+                    </button>
+                </form>
 
                 <p>
                     ¿Ya tienes usuario? <Link to="/">Iniciar sesión</Link>

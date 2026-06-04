@@ -3,7 +3,6 @@ import { createContext, useContext, useState } from 'react'
 const ExperimentContext = createContext(null)
 
 export function ExperimentProvider({ children }) {
-    const [selectedUser, setSelectedUser] = useState(null)
     const [datasets, setDatasets] = useState([])
     const [selectedDataset, setSelectedDataset] = useState(null)
     const [selectedImage, setSelectedImage] = useState(null)
@@ -15,9 +14,20 @@ export function ExperimentProvider({ children }) {
         steps: 10,
     })
 
+    function resetExperiment() {
+        setDatasets([])
+        setSelectedDataset(null)
+        setSelectedImage(null)
+        setActiveModel(null)
+        setSelectedAttack('fgsm')
+        setAttackParameters({
+            epsilon: 0.03,
+            alpha: 0.01,
+            steps: 10,
+        })
+    }
+
     const value = {
-        selectedUser,
-        setSelectedUser,
         datasets,
         setDatasets,
         selectedDataset,
@@ -30,6 +40,7 @@ export function ExperimentProvider({ children }) {
         setSelectedAttack,
         attackParameters,
         setAttackParameters,
+        resetExperiment,
     }
 
     return (

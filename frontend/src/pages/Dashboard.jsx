@@ -7,6 +7,7 @@ import ModelSelector from '../components/ModelSelector'
 import AttackSelector from '../components/AttackSelector'
 import ExperimentSummary from '../components/ExperimentSummary'
 import { useExperiment } from '../context/ExperimentContext'
+import { useAuth } from '../context/AuthContext'
 
 function Dashboard() {
     const navigate = useNavigate()
@@ -31,10 +32,11 @@ function Dashboard() {
     const [imagesRefreshKey] = useState(0)
     const [leftWidth, setLeftWidth] = useState(300)
     const [rightWidth, setRightWidth] = useState(380)
+    const { user } = useAuth()
 
     useEffect(() => {
         async function loadUserDatasets() {
-            if (!selectedUser) {
+            if (!user) {
                 setDatasets([])
                 setSelectedDataset(null)
                 setSelectedImage(null)
@@ -43,7 +45,7 @@ function Dashboard() {
 
             try {
                 setDatasetsError('')
-                const data = await getDatasetsByUser(selectedUser.id)
+                const data = await getDatasetsByUser(user.id)
                 setDatasets(data)
             } catch (err) {
                 setDatasetsError(err.message)
@@ -51,7 +53,7 @@ function Dashboard() {
         }
 
         loadUserDatasets()
-    }, [selectedUser, setDatasets, setSelectedDataset, setSelectedImage])
+    }, [user, setDatasets, setSelectedDataset, setSelectedImage])
 
     function handleDatasetSelect(dataset) {
         setSelectedDataset(dataset)
@@ -148,13 +150,13 @@ function Dashboard() {
 
                 <div className="dashboard-user-card">
                     <div className="user-avatar">
-                        {selectedUser?.name?.charAt(0).toUpperCase() || 'U'}
+                        {user?.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
 
                     <div>
                         <p className="user-card-label">Usuario activo</p>
-                        <strong>{selectedUser?.name || 'Sin usuario'}</strong>
-                        {selectedUser?.email && <span>{selectedUser.email}</span>}
+                        <strong>{user?.name || 'Sin usuario'}</strong>
+                        {user?.email && <span>{user.email}</span>}
                     </div>
                 </div>
 
