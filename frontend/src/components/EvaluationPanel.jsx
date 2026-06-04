@@ -102,7 +102,7 @@ function EvaluationPanel({
                 <>
                     <div className="evaluation-run-card">
                         <div>
-                            <h3>Run Dataset Evaluation</h3>
+                            <h3>Ejecutar la evaluación del dataset</h3>
                             <p>
                                 Se aplicará <strong>{attackName}</strong> sobre todas
                                 las imágenes del dataset seleccionado.
@@ -115,7 +115,7 @@ function EvaluationPanel({
                             onClick={handleEvaluate}
                             disabled={loading}
                         >
-                            {loading ? 'Evaluating dataset...' : 'Run Evaluation'}
+                            {loading ? 'Evaluando dataset...' : 'Ejecutar Evaluación'}
                         </button>
                     </div>
 
@@ -124,47 +124,47 @@ function EvaluationPanel({
                     {evaluation && (
                         <>
                             <section className="metrics-section">
-                                <h3>Evaluation Metrics</h3>
+                                <h3>Métricas de Evaluación</h3>
 
                                 <div className="metric-grid">
                                     <MetricCard
-                                        title="Total Images"
+                                        title="Imágenes Totales"
                                         value={summary.total_images}
                                     />
 
                                     <MetricCard
-                                        title="Changed Predictions"
+                                        title="Predicciones Cambiadas"
                                         value={summary.changed_predictions}
-                                        subtitle={`${summary.unchanged_predictions} unchanged`}
+                                        subtitle={`${summary.unchanged_predictions} sin cambiar`}
                                     />
 
                                     <MetricCard
-                                        title="Attack Success Rate"
+                                        title="Tasa de Éxito del Ataque"
                                         value={summary.attack_success_rate}
                                     />
 
                                     <MetricCard
-                                        title="Avg. Confidence Δ"
+                                        title="Media: Confianza Δ"
                                         value={summary.average_confidence_difference}
                                     />
 
                                     <MetricCard
-                                        title="Avg. Original Confidence"
+                                        title="Media: Confianza Original"
                                         value={summary.average_original_confidence}
                                     />
 
                                     <MetricCard
-                                        title="Avg. Adversarial Confidence"
+                                        title="Media: Confianza Adversarial"
                                         value={summary.average_adversarial_confidence}
                                     />
 
                                     <MetricCard
-                                        title="Avg. L∞ Perturbation"
+                                        title="Media: PerturbaciónL∞"
                                         value={summary.average_perturbation_linf}
                                     />
 
                                     <MetricCard
-                                        title="Avg. L2 Perturbation"
+                                        title="Media: Perturbación L2"
                                         value={summary.average_perturbation_l2}
                                     />
                                 </div>
@@ -172,21 +172,21 @@ function EvaluationPanel({
 
                             {summary.labeled_images > 0 && (
                                 <section className="metrics-section">
-                                    <h3>Ground Truth Metrics</h3>
+                                    <h3>Métricas de Ground Truth</h3>
 
                                     <div className="metric-grid">
                                         <MetricCard
-                                            title="Labeled Images"
+                                            title="Imágenes Etiquetadas"
                                             value={summary.labeled_images}
                                         />
 
                                         <MetricCard
-                                            title="Original Accuracy"
+                                            title="Accuracy Original"
                                             value={summary.original_accuracy}
                                         />
 
                                         <MetricCard
-                                            title="Adversarial Accuracy"
+                                            title="Accuracy Adversarial"
                                             value={summary.adversarial_accuracy}
                                         />
 
@@ -196,7 +196,7 @@ function EvaluationPanel({
                                         />
 
                                         <MetricCard
-                                            title="Correct Before / Wrong After"
+                                            title="Correctas antes / Incorrectas después"
                                             value={summary.correct_before_wrong_after}
                                         />
                                     </div>
@@ -213,7 +213,7 @@ function EvaluationPanel({
 
                             <section className="charts-section">
                                 <article className="analysis-card">
-                                    <h3>Changed vs Unchanged</h3>
+                                    <h3>Modificado vs No Modificado</h3>
 
                                     <SimpleBar
                                         label="Changed"
@@ -229,7 +229,7 @@ function EvaluationPanel({
                                 </article>
 
                                 <article className="analysis-card">
-                                    <h3>Confidence Before vs After</h3>
+                                    <h3>Confianza Antes vs Despues</h3>
 
                                     <SimpleBar
                                         label="Original"
@@ -264,18 +264,18 @@ function EvaluationPanel({
                             </section>
 
                             <section className="comparison-detail-card">
-                                <h3>Analysis Summary</h3>
+                                <h3>Resumen del Análisis</h3>
 
                                 <p>
-                                    The attack changed{' '}
-                                    <strong>{summary.changed_predictions}</strong> of{' '}
-                                    <strong>{summary.total_images}</strong> predictions,
-                                    with an attack success rate of{' '}
+                                    El ataque cambió{' '}
+                                    <strong>{summary.changed_predictions}</strong> de{' '}
+                                    <strong>{summary.total_images}</strong> predicciones,
+                                    con una tasa de éxito en los ataques de{' '}
                                     <strong>{summary.attack_success_rate}</strong>.
                                 </p>
 
                                 <p>
-                                    The average confidence changed by{' '}
+                                    La confianza promedio cambió en{' '}
                                     <strong>
                                         {summary.average_confidence_difference}
                                     </strong>
@@ -284,31 +284,31 @@ function EvaluationPanel({
 
                                 {summary.labeled_images > 0 && (
                                     <p>
-                                        Using ground-truth labels, accuracy changed from{' '}
-                                        <strong>{summary.original_accuracy}</strong> to{' '}
+                                        Usando etiquetas ground-truth, la accuracy ha pasado de{' '}
+                                        <strong>{summary.original_accuracy}</strong> a{' '}
                                         <strong>{summary.adversarial_accuracy}</strong>,
-                                        producing an accuracy drop of{' '}
+                                        produciendo una caida de accuracy de{' '}
                                         <strong>{summary.accuracy_drop}</strong>.
                                     </p>
                                 )}
                             </section>
 
                             <section className="comparison-detail-card">
-                                <h3>Per-image Results</h3>
+                                <h3>Resultados por Imagen</h3>
 
                                 <div className="evaluation-table-wrapper">
                                     <table className="evaluation-table">
                                         <thead>
                                             <tr>
-                                                <th>Image</th>
+                                                <th>Imagen</th>
                                                 <th>Ground Truth</th>
                                                 <th>Original</th>
                                                 <th>Adv.</th>
                                                 <th>Conf. Δ</th>
-                                                <th>Changed</th>
-                                                <th>Attack Result</th>
+                                                <th> Cambio</th>
+                                                <th>Resultado del Ataque</th>
                                                 <th>Adversarial</th>
-                                                <th>Perturbation</th>
+                                                <th>Perturbación</th>
                                             </tr>
                                         </thead>
 

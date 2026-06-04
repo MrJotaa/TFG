@@ -99,7 +99,7 @@ function DatasetManager() {
         <div className="dataset-manager-page">
             <div className="page-toolbar">
                 <div>
-                    <h2>Datasets Management</h2>
+                    <h2>Gestión de Datasets</h2>
                     <p>Gestiona datasets, imágenes y etiquetas asociadas.</p>
                 </div>
 
@@ -108,7 +108,7 @@ function DatasetManager() {
                     className="secondary-action"
                     onClick={() => navigate('/dashboard')}
                 >
-                    Back to Dashboard
+                    Volver al Dashboard
                 </button>
             </div>
 
@@ -136,7 +136,7 @@ function DatasetManager() {
                                     >
                                         <h4>{dataset.name}</h4>
                                         <p>
-                                            Images:{' '}
+                                            Imágenes:{' '}
                                             <strong>{dataset.image_count}</strong>
                                         </p>
 
@@ -149,7 +149,7 @@ function DatasetManager() {
                                                     setSelectedImage(null)
                                                 }}
                                             >
-                                                Select
+                                                Seleccionar
                                             </button>
 
                                             <button
@@ -159,7 +159,7 @@ function DatasetManager() {
                                                     handleDeleteDataset(dataset.id)
                                                 }
                                             >
-                                                Delete
+                                                Eliminar
                                             </button>
                                         </div>
                                     </article>
@@ -169,7 +169,7 @@ function DatasetManager() {
                     </section>
 
                     <section className="management-card">
-                        <h3>Upload New Dataset</h3>
+                        <h3>Subir un Nuevo Dataset</h3>
 
                         <DatasetUploader
                             selectedUser={selectedUser}
@@ -177,7 +177,7 @@ function DatasetManager() {
                         />
 
                         <p className="muted-text">
-                            ZIP upload support coming soon.
+                            Soporte para subida de archivos ZIP disponible pronto.
                         </p>
                     </section>
                 </aside>
@@ -185,7 +185,7 @@ function DatasetManager() {
                 <section className="dataset-manager-content">
                     <div className="management-card">
                         <h3>
-                            Selected Dataset:{' '}
+                            Dataset Seleccionado:{' '}
                             <span>{selectedDataset?.name || 'None'}</span>
                         </h3>
 
@@ -194,7 +194,7 @@ function DatasetManager() {
                         ) : (
                             <>
                                 <p>
-                                    Total images:{' '}
+                                    Imágenes Totales:{' '}
                                     <strong>{selectedDataset.image_count}</strong>
                                 </p>
 

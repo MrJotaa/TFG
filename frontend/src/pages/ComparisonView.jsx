@@ -66,7 +66,7 @@ function ComparisonView() {
         <section className="comparison-page">
             <div className="comparison-header">
                 <div>
-                    <h2>Adversarial Comparison and Analysis</h2>
+                    <h2>Análisis Comparativo Adversarial</h2>
                     <p>
                         Compara la predicción original frente a la predicción tras aplicar
                         un ataque adversario.
@@ -78,12 +78,12 @@ function ComparisonView() {
                     className="secondary-action"
                     onClick={() => navigate('/dashboard')}
                 >
-                    Back to Dashboard
+                    Volver al Dashboard
                 </button>
             </div>
 
             <div className="context-summary">
-                <h3>Context Summary</h3>
+                <h3>Resumen de Contexto</h3>
 
                 <div className="context-grid">
                     <p>
@@ -92,27 +92,27 @@ function ComparisonView() {
                     </p>
 
                     <p>
-                        <strong>Image:</strong>{' '}
+                        <strong>Imagen:</strong>{' '}
                         {selectedImage?.filename || 'No image selected'}
                     </p>
 
                     <p>
-                        <strong>Model:</strong>{' '}
+                        <strong>Modelo:</strong>{' '}
                         {activeModel?.name || 'No active model'}
                     </p>
 
                     <p>
-                        <strong>Attack:</strong> {attackName}
+                        <strong>Ataque:</strong> {attackName}
                     </p>
 
                     <p>
-                        <strong>Parameters:</strong> ε={attackParameters.epsilon}
+                        <strong>Parámetros:</strong> ε={attackParameters.epsilon}
                         {selectedAttack === 'pgd' &&
                             ` · α=${attackParameters.alpha} · steps=${attackParameters.steps}`}
                     </p>
 
                     <p>
-                        <strong>Attack Status:</strong>{' '}
+                        <strong>Estado del Ataque:</strong>{' '}
                         {attackResult ? (
                             <span className="status-danger">Attacked</span>
                         ) : (
@@ -137,7 +137,7 @@ function ComparisonView() {
                         className="secondary-action"
                         onClick={() => navigate('/dashboard')}
                     >
-                        Back to Dashboard
+                        Volver al Dashboard
                     </button>
                 </div>
             ) : (
@@ -149,13 +149,13 @@ function ComparisonView() {
                             onClick={handleRunAttack}
                             disabled={loading}
                         >
-                            {loading ? 'Running attack...' : 'Run Attack'}
+                            {loading ? 'Ejecutando ataque...' : 'Ejecutar Ataque'}
                         </button>
                     </div>
 
                     <div className="comparison-visual-grid">
                         <article className="analysis-card">
-                            <h3>Original Image</h3>
+                            <h3>Imagen Original</h3>
                             <img
                                 className="analysis-image"
                                 src={`${API_BASE_URL}${selectedImage.url}`}
@@ -164,7 +164,7 @@ function ComparisonView() {
                         </article>
 
                         <article className="analysis-card perturbation-card">
-                            <h3>Perturbation Map</h3>
+                            <h3>Mapa de Perturbación</h3>
 
                             {attackResult ? (
                                 <img
@@ -174,13 +174,13 @@ function ComparisonView() {
                                 />
                             ) : (
                                 <div className="image-placeholder">
-                                    Perturbation not generated
+                                    Perturbación no generada
                                 </div>
                             )}
                         </article>
 
                         <article className="analysis-card">
-                            <h3>Adversarial Image</h3>
+                            <h3>Imagen Adversarial</h3>
 
                             {attackResult ? (
                                 <img
@@ -190,7 +190,7 @@ function ComparisonView() {
                                 />
                             ) : (
                                 <div className="image-placeholder">
-                                    Adversarial image not generated
+                                    Imagen adversarial no generada
                                 </div>
                             )}
                         </article>
@@ -198,7 +198,7 @@ function ComparisonView() {
 
                     <div className="comparison-grid">
                         <article className="analysis-card">
-                            <h3>Original Grad-CAM</h3>
+                            <h3>Grad-CAM Original</h3>
 
                             {attackResult ? (
                                 <img
@@ -208,13 +208,13 @@ function ComparisonView() {
                                 />
                             ) : (
                                 <div className="image-placeholder">
-                                    Original heatmap not generated
+                                    Heatmap original no generado
                                 </div>
                             )}
                         </article>
 
                         <article className="analysis-card">
-                            <h3>Adversarial Grad-CAM</h3>
+                            <h3>Grad-CAM Adversarial</h3>
 
                             {attackResult ? (
                                 <img
@@ -224,41 +224,41 @@ function ComparisonView() {
                                 />
                             ) : (
                                 <div className="image-placeholder">
-                                    Adversarial heatmap not generated
+                                    Heatmap adversarial no generado
                                 </div>
                             )}
                         </article>
 
                         <article className="analysis-card prediction-main-card">
-                            <h3>Original Prediction</h3>
+                            <h3>Predicción Original</h3>
 
                             {attackResult ? (
                                 <>
                                     <p className="main-prediction">
-                                        Predicted Class:{' '}
+                                        Clase predicha:{' '}
                                         <strong>
                                             {attackResult.original_prediction.prediction}
                                         </strong>
                                     </p>
                                     <p>
-                                        Confidence:{' '}
+                                        Confianza:{' '}
                                         <strong>
                                             {attackResult.original_prediction.confidence}
                                         </strong>
                                     </p>
                                 </>
                             ) : (
-                                <p>No original prediction available.</p>
+                                <p>No hay predicción original disponible.</p>
                             )}
                         </article>
 
                         <article className="analysis-card prediction-main-card">
-                            <h3>Attacked Prediction</h3>
+                            <h3>Predicción Adversarial</h3>
 
                             {attackResult ? (
                                 <>
                                     <p className="main-prediction danger-text">
-                                        Predicted Class:{' '}
+                                        Clase predicha:{' '}
                                         <strong>
                                             {
                                                 attackResult.adversarial_prediction
@@ -267,7 +267,7 @@ function ComparisonView() {
                                         </strong>
                                     </p>
                                     <p>
-                                        Confidence:{' '}
+                                        Confianza:{' '}
                                         <strong>
                                             {
                                                 attackResult.adversarial_prediction
@@ -277,12 +277,12 @@ function ComparisonView() {
                                     </p>
                                 </>
                             ) : (
-                                <p>No adversarial prediction available.</p>
+                                <p>No hay predicción adversarial disponible.</p>
                             )}
                         </article>
 
                         <article className="analysis-card">
-                            <h3>Original Top-K</h3>
+                            <h3>Top-K Original</h3>
 
                             {attackResult ? (
                                 <div className="topk-list">
@@ -299,12 +299,12 @@ function ComparisonView() {
                                     )}
                                 </div>
                             ) : (
-                                <p>No Top-K results available.</p>
+                                <p>No hay resultados Top-K disponibles.</p>
                             )}
                         </article>
 
                         <article className="analysis-card">
-                            <h3>Attacked Top-K</h3>
+                            <h3>Top-K Adversarial</h3>
 
                             {attackResult ? (
                                 <div className="topk-list">
@@ -321,18 +321,18 @@ function ComparisonView() {
                                     )}
                                 </div>
                             ) : (
-                                <p>No Top-K results available.</p>
+                                <p>No hay resultados Top-K disponibles.</p>
                             )}
                         </article>
                     </div>
 
                     <div className="comparison-detail-card">
-                        <h3>Attack Details</h3>
+                        <h3>Detalles del Ataque</h3>
 
                         {attackResult ? (
                             <div className="details-grid">
                                 <p>
-                                    <strong>Attack Name:</strong> {attackName}
+                                    <strong>Nombre del Ataque:</strong> {attackName}
                                 </p>
                                 <p>
                                     <strong>Epsilon:</strong>{' '}
@@ -351,41 +351,41 @@ function ComparisonView() {
                                     </>
                                 )}
                                 <p>
-                                    <strong>L∞ perturbation:</strong>{' '}
+                                    <strong>Perturbación L∞:</strong>{' '}
                                     {comparison.perturbation_linf}
                                 </p>
                                 <p>
-                                    <strong>L2 perturbation:</strong>{' '}
+                                    <strong>Perturbación L2:</strong>{' '}
                                     {comparison.perturbation_l2}
                                 </p>
                                 <p>
-                                    <strong>Attack Result:</strong>{' '}
+                                    <strong>Resultado del Ataque:</strong>{' '}
                                     {comparison.attack_success ? (
                                         <span className="status-danger">
-                                            Successful
+                                            Exitoso
                                         </span>
                                     ) : (
                                         <span className="status-success">
-                                            Not successful
+                                            No exitoso
                                         </span>
                                     )}
                                 </p>
                             </div>
                         ) : (
-                            <p>Run an attack to see details.</p>
+                            <p>Ejecuta un ataque para ver los detalles.</p>
                         )}
                     </div>
 
                     <div className="comparison-detail-card">
-                        <h3>Comparative Analysis</h3>
+                        <h3>Análisis Comparativo</h3>
 
                         {attackResult ? (
                             <div className="details-grid">
                                 <p>
-                                    <strong>Prediction Changed:</strong>{' '}
+                                    <strong>Predicción Cambiada:</strong>{' '}
                                     {comparison.prediction_changed ? (
                                         <span className="status-danger">
-                                            Yes ({comparison.original_label} →{' '}
+                                            Sí ({comparison.original_label} →{' '}
                                             {comparison.adversarial_label})
                                         </span>
                                     ) : (
@@ -394,29 +394,29 @@ function ComparisonView() {
                                 </p>
 
                                 <p>
-                                    <strong>Confidence Difference:</strong>{' '}
+                                    <strong>Diferencia de Confianza:</strong>{' '}
                                     {comparison.confidence_difference}
                                 </p>
 
                                 <p>
-                                    <strong>Original Confidence:</strong>{' '}
+                                    <strong>Confianza Original:</strong>{' '}
                                     {comparison.original_confidence}
                                 </p>
 
                                 <p>
-                                    <strong>Adversarial Confidence:</strong>{' '}
+                                    <strong>Confianza Adversarial:</strong>{' '}
                                     {comparison.adversarial_confidence}
                                 </p>
 
                                 <p>
-                                    <strong>Attack Impact:</strong>{' '}
+                                    <strong>Impacto del Ataque:</strong>{' '}
                                     {comparison.attack_success
-                                        ? 'The attack changed the model prediction.'
-                                        : 'The attack did not change the model prediction.'}
+                                        ? 'El ataque cambió la predicción del modelo.'
+                                        : 'El ataque no cambió la predicción del modelo.'}
                                 </p>
                             </div>
                         ) : (
-                            <p>Run an attack to see the comparative analysis.</p>
+                            <p>Ejecuta un ataque para ver el análisis comparativo.</p>
                         )}
                     </div>
 
@@ -426,7 +426,7 @@ function ComparisonView() {
                             className="secondary-action"
                             onClick={() => navigate('/dashboard')}
                         >
-                            Back
+                            Volver
                         </button>
 
                         <button
@@ -435,7 +435,7 @@ function ComparisonView() {
                             onClick={handleRunAttack}
                             disabled={loading}
                         >
-                            {loading ? 'Running...' : 'Run New Attack'}
+                            {loading ? 'Ejecutando...' : 'Ejecutar Nuevo Ataque'}
                         </button>
                     </div>
                 </>

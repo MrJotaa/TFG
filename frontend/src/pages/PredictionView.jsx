@@ -88,7 +88,7 @@ function PredictionView() {
     return (
         <section className="prediction-page">
             <div className="context-summary">
-                <h2>Context Summary</h2>
+                <h2>Resumen del Contexto</h2>
 
                 <div className="context-grid">
                     <p>
@@ -97,18 +97,18 @@ function PredictionView() {
                     </p>
 
                     <p>
-                        <strong>Image:</strong>{' '}
+                        <strong>Imagen:</strong>{' '}
                         {selectedImage?.filename || 'No image selected'}
                     </p>
 
                     <p>
-                        <strong>Model:</strong>{' '}
+                        <strong>Modelo:</strong>{' '}
                         {activeModel?.name || 'No active model'}
                     </p>
 
                     <p>
-                        <strong>Attack Status:</strong>{' '}
-                        <span className="status-success">Not Attacked</span>
+                        <strong>Estado del Ataque:</strong>{' '}
+                        <span className="status-success">No Atacado</span>
                     </p>
 
                     <p>
@@ -133,14 +133,14 @@ function PredictionView() {
                         className="secondary-action"
                         onClick={() => navigate('/dashboard')}
                     >
-                        Back to Dashboard
+                        Volver al Dashboard
                     </button>
                 </div>
             ) : (
                 <>
                     <div className="prediction-grid">
                         <article className="analysis-card">
-                            <h3>Original Image</h3>
+                            <h3>Imagen Original</h3>
 
                             <img
                                 className="analysis-image"
@@ -168,7 +168,7 @@ function PredictionView() {
                             ) : (
                                 <>
                                     <div className="image-placeholder">
-                                        Heatmap not generated
+                                        Heatmap no generado
                                     </div>
 
                                     <button
@@ -178,29 +178,29 @@ function PredictionView() {
                                         disabled={loadingGradCam}
                                     >
                                         {loadingGradCam
-                                            ? 'Generating Grad-CAM...'
-                                            : 'Generate Grad-CAM'}
+                                            ? 'Generando Grad-CAM...'
+                                            : 'Generar Grad-CAM'}
                                     </button>
                                 </>
                             )}
                         </article>
 
                         <article className="analysis-card prediction-main-card">
-                            <h3>Main Prediction</h3>
+                            <h3>Predicción Principal</h3>
 
                             {prediction ? (
                                 <>
                                     <p className="main-prediction">
-                                        Predicted Class:{' '}
+                                        Clase Predicha:{' '}
                                         <strong>{prediction.prediction}</strong>
                                     </p>
                                     <p>
-                                        Confidence:{' '}
+                                        Confianza:{' '}
                                         <strong>{prediction.confidence}</strong>
                                     </p>
                                 </>
                             ) : (
-                                <p>No prediction executed yet.</p>
+                                <p>No se ha ejecutado ninguna predicción aún.</p>
                             )}
 
                             <button
@@ -210,13 +210,13 @@ function PredictionView() {
                                 disabled={loadingPrediction}
                             >
                                 {loadingPrediction
-                                    ? 'Predicting...'
-                                    : 'Run Prediction'}
+                                    ? 'Prediciendo...'
+                                    : 'Ejecutar Predicción'}
                             </button>
                         </article>
 
                         <article className="analysis-card">
-                            <h3>Top-K Predictions</h3>
+                            <h3>Predicciones Top-K</h3>
 
                             {prediction ? (
                                 <div className="topk-list">
@@ -231,15 +231,15 @@ function PredictionView() {
                                     ))}
                                 </div>
                             ) : (
-                                <p>No Top-K results available.</p>
+                                <p>No hay resultados disponibles para las predicciones Top-K.</p>
                             )}
                         </article>
                     </div>
 
                     <div className="analysis-footer">
                         <div className="attack-summary-line">
-                            <strong>Attack Name:</strong> {attackName}{' '}
-                            <strong>Attack Parameters:</strong> ε=
+                            <strong>Nombre del Ataque:</strong> {attackName}{' '}
+                            <strong>Parámetros del Ataque:</strong> ε=
                             {attackParameters.epsilon}
                             {selectedAttack === 'pgd' &&
                                 ` · α=${attackParameters.alpha} · steps=${attackParameters.steps}`}
@@ -251,7 +251,7 @@ function PredictionView() {
                                 className="secondary-action"
                                 onClick={() => navigate('/dashboard')}
                             >
-                                Back to Dashboard
+                                Volver al Dashboard
                             </button>
 
                             <button
@@ -259,7 +259,7 @@ function PredictionView() {
                                 className="primary-action"
                                 onClick={() => navigate('/comparison')}
                             >
-                                Apply Attack
+                                Aplicar Ataque Adversario
                             </button>
                         </div>
                     </div>

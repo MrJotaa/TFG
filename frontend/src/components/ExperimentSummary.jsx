@@ -22,7 +22,7 @@ function ExperimentSummary({
     return (
         <section className="experiment-summary">
             <div className="summary-heading">
-                <h2>Predict Overview</h2>
+                <h2>Resumen de la Predicción</h2>
                 <p>
                     Configura el experimento seleccionando usuario, dataset, imagen,
                     modelo y ataque antes de ejecutar la predicción.
@@ -62,7 +62,7 @@ function ExperimentSummary({
                     onClick={onGoToPrediction}
                     disabled={!selectedDataset || !selectedImage || !activeModel}
                 >
-                    Predict
+                    Predecir
                 </button>
 
                 <button
@@ -71,7 +71,7 @@ function ExperimentSummary({
                     onClick={onGoToEvaluation}
                     disabled={!selectedDataset || !activeModel}
                 >
-                    Evaluate
+                    Evaluar
                 </button>
             </div>
         </section>

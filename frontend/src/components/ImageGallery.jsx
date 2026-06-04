@@ -142,7 +142,7 @@ function ImageGallery({
                                     className="danger-action small full-width"
                                     onClick={() => handleDeleteImage(image.id)}
                                 >
-                                    Delete
+                                    Borrar
                                 </button>
                             )}
                         </div>

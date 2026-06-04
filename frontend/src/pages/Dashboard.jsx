@@ -150,7 +150,7 @@ function Dashboard() {
                         <div className="sidebar-block">
                             <div className="sidebar-title-row">
                                 <div className="sidebar-block-title">
-                                    Dataset Images
+                                    Imágenes del Dataset
                                 </div>
 
                                 <button

@@ -21,7 +21,7 @@ function EvaluationView() {
         <section className="evaluation-page">
             <div className="comparison-header">
                 <div>
-                    <h2>Dataset Evaluation and Analysis</h2>
+                    <h2>Evaluación y Análisis de Dataset</h2>
                     <p>
                         Evalúa el impacto del ataque adversario sobre todas las imágenes
                         del dataset seleccionado.
@@ -30,7 +30,7 @@ function EvaluationView() {
             </div>
 
             <div className="context-summary">
-                <h3>Context Summary</h3>
+                <h3>Resumen del Contexto</h3>
 
                 <div className="context-grid">
                     <p>
@@ -39,21 +39,21 @@ function EvaluationView() {
                     </p>
 
                     <p>
-                        <strong>Total images:</strong>{' '}
+                        <strong>Imágenes Totales:</strong>{' '}
                         {selectedDataset?.image_count ?? '-'}
                     </p>
 
                     <p>
-                        <strong>Model:</strong>{' '}
+                        <strong>Modelo:</strong>{' '}
                         {activeModel?.name || 'No active model'}
                     </p>
 
                     <p>
-                        <strong>Attack:</strong> {attackName}
+                        <strong>Ataque:</strong> {attackName}
                     </p>
 
                     <p>
-                        <strong>Parameters:</strong> ε={attackParameters.epsilon}
+                        <strong>Parámetros:</strong> ε={attackParameters.epsilon}
                         {selectedAttack === 'pgd' &&
                             ` · α=${attackParameters.alpha} · steps=${attackParameters.steps}`}
                     </p>
