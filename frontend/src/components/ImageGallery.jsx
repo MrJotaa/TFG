@@ -1,8 +1,21 @@
 import { useEffect, useState } from 'react'
-import { getDatasetImages, updateImageLabel } from '../api/datasets'
+import {
+    deleteDatasetImage,
+    getDatasetImages,
+    updateImageLabel,
+} from '../api/datasets'
 import ImageLabelEditor from './ImageLabelEditor'
 
-function ImageGallery({ selectedDataset, selectedImage, onSelectImage, refreshKey }) {
+function ImageGallery({
+    selectedDataset,
+    selectedImage,
+    onSelectImage,
+    refreshKey,
+    compact = false,
+    showLabelEditor = true,
+    showDeleteButton = false,
+    onImageDeleted,
+}) {
     const [images, setImages] = useState([])
     const [error, setError] = useState('')
 
@@ -49,9 +62,40 @@ function ImageGallery({ selectedDataset, selectedImage, onSelectImage, refreshKe
         }
     }
 
+    async function handleDeleteImage(imageId) {
+        if (!selectedDataset) return
+
+        const confirmed = window.confirm(
+            '¿Seguro que quieres borrar esta imagen? Esta acción no se puede deshacer.',
+        )
+
+        if (!confirmed) return
+
+        try {
+            setError('')
+
+            await deleteDatasetImage({
+                datasetId: selectedDataset.id,
+                imageId,
+            })
+
+            setImages((currentImages) =>
+                currentImages.filter((image) => image.id !== imageId),
+            )
+
+            if (selectedImage?.id === imageId) {
+                onSelectImage(null)
+            }
+
+            onImageDeleted?.(imageId)
+        } catch (err) {
+            setError(err.message)
+        }
+    }
+
     return (
-        <div>
-            <h2>Imágenes</h2>
+        <div className={compact ? 'image-gallery compact' : 'image-gallery'}>
+            {!compact && <h2>Imágenes</h2>}
 
             {error && <p className="error">{error}</p>}
 
@@ -60,35 +104,47 @@ function ImageGallery({ selectedDataset, selectedImage, onSelectImage, refreshKe
             ) : images.length === 0 ? (
                 <p>Este dataset no tiene imágenes.</p>
             ) : (
-                <div>
+                <div className="image-grid">
                     {images.map((image) => (
                         <div
                             key={image.id}
-                            style={{
-                                display: 'inline-block',
-                                margin: '8px',
-                                verticalAlign: 'top',
-                            }}
+                            className={
+                                selectedImage?.id === image.id
+                                    ? 'image-card selected'
+                                    : 'image-card'
+                            }
                         >
-                            <img
-                                src={`http://127.0.0.1:8000${image.url}`}
-                                alt={image.filename}
-                                width={120}
-                                style={{
-                                    margin: '5px',
-                                    border:
-                                        selectedImage?.id === image.id
-                                            ? '3px solid blue'
-                                            : '1px solid #ccc',
-                                    cursor: 'pointer',
-                                }}
+                            <button
+                                type="button"
+                                className="image-button"
                                 onClick={() => onSelectImage(image)}
-                            />
+                            >
+                                <img
+                                    src={`http://127.0.0.1:8000${image.url}`}
+                                    alt={image.filename}
+                                />
+                            </button>
 
-                            <ImageLabelEditor
-                                image={image}
-                                onSaveLabel={handleLabelChange}
-                            />
+                            {!compact && (
+                                <p className="image-filename">{image.filename}</p>
+                            )}
+
+                            {showLabelEditor && (
+                                <ImageLabelEditor
+                                    image={image}
+                                    onSaveLabel={handleLabelChange}
+                                />
+                            )}
+
+                            {showDeleteButton && (
+                                <button
+                                    type="button"
+                                    className="danger-action small full-width"
+                                    onClick={() => handleDeleteImage(image.id)}
+                                >
+                                    Borrar
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>

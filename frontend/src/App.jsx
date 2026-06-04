@@ -1,7 +1,35 @@
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import AppLayout from './components/layout/AppLayout'
+import { ExperimentProvider } from './context/ExperimentContext'
+import LoginPage from './pages/LoginPage'
+import SignupPage from './pages/SignupPage'
 import Dashboard from './pages/Dashboard'
+import DatasetManager from './pages/DatasetManager'
+import PredictionView from './pages/PredictionView'
+import ComparisonView from './pages/ComparisonView'
+import EvaluationView from './pages/EvaluationView'
 
 function App() {
-  return <Dashboard />
+  return (
+    <ExperimentProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/datasets" element={<DatasetManager />} />
+            <Route path="/prediction" element={<PredictionView />} />
+            <Route path="/comparison" element={<ComparisonView />} />
+            <Route path="/evaluation" element={<EvaluationView />} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ExperimentProvider>
+  )
 }
 
 export default App

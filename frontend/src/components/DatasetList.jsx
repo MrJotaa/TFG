@@ -1,26 +1,28 @@
-function DatasetList({ datasets, selectedDataset, onSelectDataset }) {
+function DatasetList({ datasets, selectedDataset, onSelectDataset, compact = false }) {
     return (
-        <div>
-            <h2>Datasets</h2>
+        <div className={compact ? 'dataset-list compact' : 'dataset-list'}>
+            {!compact && <h2>Datasets</h2>}
 
             {datasets.length === 0 ? (
                 <p>No hay datasets disponibles.</p>
             ) : (
-                <ul>
+                <div className="sidebar-list">
                     {datasets.map((dataset) => (
-                        <li key={dataset.id}>
-                            <button
-                                onClick={() => onSelectDataset(dataset)}
-                                style={{
-                                    fontWeight:
-                                        selectedDataset?.id === dataset.id ? 'bold' : 'normal',
-                                }}
-                            >
-                                {dataset.name} — {dataset.image_count} imágenes
-                            </button>
-                        </li>
+                        <button
+                            key={dataset.id}
+                            type="button"
+                            className={
+                                selectedDataset?.id === dataset.id
+                                    ? 'sidebar-list-item active'
+                                    : 'sidebar-list-item'
+                            }
+                            onClick={() => onSelectDataset(dataset)}
+                        >
+                            <span>{dataset.name}</span>
+                            <small>{dataset.image_count} imágenes</small>
+                        </button>
                     ))}
-                </ul>
+                </div>
             )}
         </div>
     )

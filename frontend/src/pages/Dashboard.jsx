@@ -1,27 +1,43 @@
 import { useEffect, useState } from 'react'
-import UserSelector from '../components/UserSelector'
-import DatasetUploader from '../components/DatasetUploader'
+import { useNavigate } from 'react-router-dom'
 import DatasetList from '../components/DatasetList'
 import ImageGallery from '../components/ImageGallery'
 import { getDatasetsByUser } from '../api/datasets'
-import PredictionPanel from '../components/PredictionPanel'
 import ModelSelector from '../components/ModelSelector'
-import DatasetImageUploader from '../components/DatasetImageUploader'
-import AttackPanel from '../components/AttackPanel'
-import EvaluationPanel from '../components/EvaluationPanel'
+import AttackSelector from '../components/AttackSelector'
+import ExperimentSummary from '../components/ExperimentSummary'
+import { useExperiment } from '../context/ExperimentContext'
 
 function Dashboard() {
-    const [selectedUser, setSelectedUser] = useState(null)
-    const [datasets, setDatasets] = useState([])
-    const [selectedDataset, setSelectedDataset] = useState(null)
-    const [selectedImage, setSelectedImage] = useState(null)
+    const navigate = useNavigate()
+
+    const {
+        selectedUser,
+        datasets,
+        setDatasets,
+        selectedDataset,
+        setSelectedDataset,
+        selectedImage,
+        setSelectedImage,
+        activeModel,
+        setActiveModel,
+        selectedAttack,
+        setSelectedAttack,
+        attackParameters,
+        setAttackParameters,
+    } = useExperiment()
+
     const [datasetsError, setDatasetsError] = useState('')
-    const [imagesRefreshKey, setImagesRefreshKey] = useState(0)
+    const [imagesRefreshKey] = useState(0)
+    const [leftWidth, setLeftWidth] = useState(300)
+    const [rightWidth, setRightWidth] = useState(380)
 
     useEffect(() => {
         async function loadUserDatasets() {
             if (!selectedUser) {
                 setDatasets([])
+                setSelectedDataset(null)
+                setSelectedImage(null)
                 return
             }
 
@@ -35,106 +51,163 @@ function Dashboard() {
         }
 
         loadUserDatasets()
-    }, [selectedUser])
+    }, [selectedUser, setDatasets, setSelectedDataset, setSelectedImage])
 
-    function handleDatasetUploaded(dataset) {
-        setDatasets((currentDatasets) => [...currentDatasets, dataset])
+    function handleDatasetSelect(dataset) {
+        setSelectedDataset(dataset)
+        setSelectedImage(null)
     }
 
-    function handleImagesUploaded(uploadedImages) {
-        setImagesRefreshKey((current) => current + 1)
+    function startLeftResize(event) {
+        event.preventDefault()
 
-        setDatasets((currentDatasets) =>
-            currentDatasets.map((dataset) =>
-                dataset.id === selectedDataset.id
-                    ? {
-                        ...dataset,
-                        image_count: dataset.image_count + uploadedImages.length,
-                    }
-                    : dataset,
-            ),
-        )
+        const startX = event.clientX
+        const startWidth = leftWidth
 
-        setSelectedDataset((currentDataset) =>
-            currentDataset
-                ? {
-                    ...currentDataset,
-                    image_count: currentDataset.image_count + uploadedImages.length,
-                }
-                : currentDataset,
-        )
+        function handleMouseMove(moveEvent) {
+            const nextWidth = startWidth + (moveEvent.clientX - startX)
+            setLeftWidth(Math.min(Math.max(nextWidth, 240), 460))
+        }
+
+        function handleMouseUp() {
+            window.removeEventListener('mousemove', handleMouseMove)
+            window.removeEventListener('mouseup', handleMouseUp)
+        }
+
+        window.addEventListener('mousemove', handleMouseMove)
+        window.addEventListener('mouseup', handleMouseUp)
+    }
+
+    function startRightResize(event) {
+        event.preventDefault()
+
+        const startX = event.clientX
+        const startWidth = rightWidth
+
+        function handleMouseMove(moveEvent) {
+            const nextWidth = startWidth - (moveEvent.clientX - startX)
+            setRightWidth(Math.min(Math.max(nextWidth, 280), 520))
+        }
+
+        function handleMouseUp() {
+            window.removeEventListener('mousemove', handleMouseMove)
+            window.removeEventListener('mouseup', handleMouseUp)
+        }
+
+        window.addEventListener('mousemove', handleMouseMove)
+        window.addEventListener('mouseup', handleMouseUp)
     }
 
     return (
-        <main>
-            <header>
-                <h1>Adversarial AI App</h1>
-                <p>
-                    Plataforma para gestionar datasets, seleccionar imágenes y analizar
-                    predicciones de modelos de inteligencia artificial.
-                </p>
-            </header>
+        <div
+            className="dashboard-layout"
+            style={{
+                '--left-width': `${leftWidth}px`,
+                '--right-width': `${rightWidth}px`,
+            }}
+        >
+            <aside className="dashboard-sidebar left-sidebar">
 
-            <section>
-                <UserSelector
-                    selectedUser={selectedUser}
-                    onUserSelect={setSelectedUser}
+                <ModelSelector onActiveModelChange={setActiveModel} />
+
+                <AttackSelector
+                    selectedAttack={selectedAttack}
+                    onSelectAttack={setSelectedAttack}
+                    attackParameters={attackParameters}
+                    onChangeAttackParameters={setAttackParameters}
                 />
-            </section>
+            </aside>
 
-            <section>
-                <DatasetUploader
-                    selectedUser={selectedUser}
-                    onDatasetUploaded={handleDatasetUploaded}
-                />
-            </section>
-
-            <section>
-                <DatasetList
-                    datasets={datasets}
-                    selectedDataset={selectedDataset}
-                    onSelectDataset={(dataset) => {
-                        setSelectedDataset(dataset)
-                        setSelectedImage(null)
-                    }}
-                />
-            </section>
-
-            <section>
-                <DatasetImageUploader
-                    selectedDataset={selectedDataset}
-                    onImagesUploaded={handleImagesUploaded}
-                />
-            </section>
-
-            <ImageGallery
-                selectedDataset={selectedDataset}
-                selectedImage={selectedImage}
-                onSelectImage={setSelectedImage}
-                refreshKey={imagesRefreshKey}
+            <div
+                className="resize-handle resize-handle-left"
+                onMouseDown={startLeftResize}
+                role="separator"
+                aria-label="Redimensionar panel izquierdo"
             />
 
-            <section>
-                <ModelSelector />
-            </section>
-
-            <section>
-                <PredictionPanel
+            <section className="dashboard-main-panel">
+                <ExperimentSummary
                     selectedDataset={selectedDataset}
                     selectedImage={selectedImage}
+                    activeModel={activeModel}
+                    selectedAttack={selectedAttack}
+                    attackParameters={attackParameters}
+                    onGoToPrediction={() => navigate('/prediction')}
+                    onGoToEvaluation={() => navigate('/evaluation')}
                 />
             </section>
 
-            <section>
-                <AttackPanel
-                    selectedDataset={selectedDataset}
-                    selectedImage={selectedImage}
-                />
-            </section>
-            <section>
-                <EvaluationPanel selectedDataset={selectedDataset} />
-            </section>
-        </main>
+            <div
+                className="resize-handle resize-handle-right"
+                onMouseDown={startRightResize}
+                role="separator"
+                aria-label="Redimensionar panel derecho"
+            />
+
+            <aside className="dashboard-sidebar right-sidebar">
+
+                <div className="dashboard-user-card">
+                    <div className="user-avatar">
+                        {selectedUser?.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+
+                    <div>
+                        <p className="user-card-label">Usuario activo</p>
+                        <strong>{selectedUser?.name || 'Sin usuario'}</strong>
+                        {selectedUser?.email && <span>{selectedUser.email}</span>}
+                    </div>
+                </div>
+
+                <div className="sidebar-block">
+                    <div className="sidebar-title-row">
+                        <div className="sidebar-block-title">Datasets</div>
+
+                        <button
+                            type="button"
+                            className="icon-button"
+                            onClick={() => navigate('/datasets')}
+                            title="Gestionar datasets"
+                        >
+                            ⚙
+                        </button>
+                    </div>
+
+                    {datasetsError && <p className="error">{datasetsError}</p>}
+
+                    <DatasetList
+                        datasets={datasets}
+                        selectedDataset={selectedDataset}
+                        onSelectDataset={handleDatasetSelect}
+                        compact
+                    />
+                </div>
+
+                <div className="sidebar-block">
+                    <div className="sidebar-title-row">
+                        <div className="sidebar-block-title">
+                            Imágenes del Dataset
+                        </div>
+
+                        <button
+                            type="button"
+                            className="icon-button"
+                            title="Vista ampliada pendiente"
+                        >
+                            🔍
+                        </button>
+                    </div>
+
+                    <ImageGallery
+                        selectedDataset={selectedDataset}
+                        selectedImage={selectedImage}
+                        onSelectImage={setSelectedImage}
+                        refreshKey={imagesRefreshKey}
+                        compact
+                        showLabelEditor={false}
+                    />
+                </div>
+            </aside>
+        </div>
     )
 }
 

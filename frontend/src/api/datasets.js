@@ -56,3 +56,15 @@ export function updateImageLabel({ datasetId, imageId, label }) {
         }),
     })
 }
+
+export function deleteDataset(datasetId) {
+    return apiRequest(`/datasets/${datasetId}`, {
+        method: 'DELETE',
+    })
+}
+
+export function deleteDatasetImage({ datasetId, imageId }) {
+    return apiRequest(`/datasets/${datasetId}/images/${imageId}`, {
+        method: 'DELETE',
+    })
+}
