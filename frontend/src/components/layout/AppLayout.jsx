@@ -19,7 +19,15 @@ function AppLayout() {
                 <h1>Adversarial AI App</h1>
 
                 <div className="header-user-actions">
-                    {user && <span>{user.name}</span>}
+                    {user && (
+                        <button
+                            type="button"
+                            className="header-user-link"
+                            onClick={() => navigate('/profile')}
+                        >
+                            {user.name}
+                        </button>
+                    )}
 
                     <button
                         type="button"

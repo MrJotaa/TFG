@@ -13,7 +13,6 @@ function Dashboard() {
     const navigate = useNavigate()
 
     const {
-        selectedUser,
         datasets,
         setDatasets,
         selectedDataset,
@@ -148,7 +147,11 @@ function Dashboard() {
 
             <aside className="dashboard-sidebar right-sidebar">
 
-                <div className="dashboard-user-card">
+                <button
+                    type="button"
+                    className="dashboard-user-card dashboard-user-button"
+                    onClick={() => navigate('/profile')}
+                >
                     <div className="user-avatar">
                         {user?.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
@@ -158,7 +161,7 @@ function Dashboard() {
                         <strong>{user?.name || 'Sin usuario'}</strong>
                         {user?.email && <span>{user.email}</span>}
                     </div>
-                </div>
+                </button>
 
                 <div className="sidebar-block">
                     <div className="sidebar-title-row">

@@ -84,14 +84,14 @@ async def create_dataset_from_images(
 
         save_upload_file(file, image_path)
 
-    images_metadata.append(
-        {
-            "id": image_id,
-            "filename": file.filename,
-            "stored_filename": stored_filename,
-            "path": image_path,
-            "label": None,
-        }
+        images_metadata.append(
+            {
+                "id": image_id,
+                "filename": file.filename,
+                "stored_filename": stored_filename,
+                "path": image_path,
+                "label": None,
+            }
 )
 
     dataset_doc = {

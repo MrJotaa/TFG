@@ -4,6 +4,7 @@ from db.collections import users_collection
 from schemas.users import UserCreate, UserResponse, UserUpdate
 from utils.security import hash_password
 from schemas.auth import SignupRequest
+from services.dataset_service import delete_dataset
 
 
 def user_to_response(user: dict) -> UserResponse:
@@ -84,6 +85,16 @@ async def update_user(user_id: str, user_data: UserUpdate) -> UserResponse:
 async def delete_user(user_id: str) -> None:
     if not ObjectId.is_valid(user_id):
         raise ValueError(f"Invalid user ID: {user_id}")
+
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+
+    if not user:
+        raise ValueError(f"User with id {user_id} not found")
+
+    dataset_ids = user.get("datasets", [])
+
+    for dataset_id in dataset_ids:
+        await delete_dataset(str(dataset_id))
 
     result = await users_collection.delete_one({"_id": ObjectId(user_id)})
 
