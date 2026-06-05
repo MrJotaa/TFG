@@ -1225,3 +1225,15 @@ button {
     color: var(--muted);
     font-size: 0.9rem;
 }
+
+.detection-explainability-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 900px) {
+    .detection-explainability-grid {
+        grid-template-columns: 1fr;
+    }
+}

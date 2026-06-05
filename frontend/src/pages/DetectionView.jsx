@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { attackDetectionImage, detectImage } from '../api/detect'
 import { useExperiment } from '../context/ExperimentContext'
+import { generateDetectionExplainability } from '../api/explainability'
+import {
+    formatAttackParameters,
+    getAttackName,
+} from '../utils/attackFormatting'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 
@@ -57,11 +62,14 @@ function DetectionView() {
     const [loading, setLoading] = useState(false)
     const [attackLoading, setAttackLoading] = useState(false)
     const [error, setError] = useState('')
+    const [explainabilityResult, setExplainabilityResult] = useState(null)
+    const [explainabilityLoading, setExplainabilityLoading] = useState(false)
 
     useEffect(() => {
         setDetectionResult(null)
         setAttackResult(null)
         setError('')
+        setExplainabilityResult(null)
     }, [selectedDataset, selectedImage, activeModel])
 
     const detectionAttackSupported =
@@ -82,6 +90,7 @@ function DetectionView() {
             setLoading(true)
             setError('')
             setDetectionResult(null)
+            setExplainabilityResult(null)
 
             const result = await detectImage({
                 datasetId: selectedDataset.id,
@@ -136,6 +145,35 @@ function DetectionView() {
         }
     }
 
+    async function handleGenerateDetectionHeatmap() {
+        if (!selectedDataset || !selectedImage) {
+            setError('Debes seleccionar un dataset y una imagen.')
+            return
+        }
+
+        if (activeModel?.task_type !== 'detection') {
+            setError('Debes seleccionar un modelo de detección, como YOLO.')
+            return
+        }
+
+        try {
+            setExplainabilityLoading(true)
+            setError('')
+            setExplainabilityResult(null)
+
+            const result = await generateDetectionExplainability({
+                datasetId: selectedDataset.id,
+                imageId: selectedImage.id,
+            })
+
+            setExplainabilityResult(result)
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setExplainabilityLoading(false)
+        }
+    }
+
     return (
         <section className="detection-page">
             <div className="comparison-header">
@@ -182,13 +220,12 @@ function DetectionView() {
 
                     <p>
                         <strong>Ataque seleccionado:</strong>{' '}
-                        {selectedAttack || '-'}
+                        {getAttackName(selectedAttack)}
                     </p>
 
                     <p>
-                        <strong>Parámetros:</strong> ε={attackParameters.epsilon}
-                        {selectedAttack === 'yolo_confidence' &&
-                            ` · α=${attackParameters.alpha} · steps=${attackParameters.steps}`}
+                        <strong>Parámetros:</strong>{' '}
+                        {formatAttackParameters(selectedAttack, attackParameters)}
                     </p>
                 </div>
             </div>
@@ -254,6 +291,15 @@ function DetectionView() {
                                 ? 'Aplicando ataque...'
                                 : 'Aplicar ataque de detección'}
                         </button>
+
+                        <button
+                            type="button"
+                            className="secondary-action"
+                            onClick={handleGenerateDetectionHeatmap}
+                            disabled={explainabilityLoading}
+                        >
+                            {explainabilityLoading ? 'Generando heatmap...' : 'Generar heatmap'}
+                        </button>
                     </div>
 
                     {!detectionAttackSupported && (
@@ -300,6 +346,35 @@ function DetectionView() {
                             <DetectionTable detections={detectionResult.detections} />
                         )}
                     </section>
+
+                    {explainabilityResult && (
+                        <section className="comparison-detail-card">
+                            <h3>Explicabilidad visual de detección</h3>
+
+                            <p>
+                                Tipo de explicación:{' '}
+                                <strong>{explainabilityResult.explanation_type}</strong>
+                            </p>
+
+                            <div className="detection-explainability-grid">
+                                <article className="analysis-card">
+                                    <h3>EigenCAM + detecciones</h3>
+
+                                    <img
+                                        className="analysis-image"
+                                        src={`${API_BASE_URL}${explainabilityResult.explanation_image_url}`}
+                                        alt="Explicabilidad de detección"
+                                    />
+                                </article>
+
+                                <article className="analysis-card">
+                                    <h3>Detecciones explicadas</h3>
+
+                                    <DetectionTable detections={explainabilityResult.detections} />
+                                </article>
+                            </div>
+                        </section>
+                    )}
 
                     {attackResult && (
                         <>
