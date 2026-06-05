@@ -26,6 +26,12 @@ class YOLODetectionModel(BaseObjectDetectionModel):
     def is_loaded(self) -> bool:
         return self.model is not None
 
+    def get_torch_model(self):
+        if self.model is None:
+            self.load()
+
+        return self.model.model
+
     def _run_inference(self, image: Image.Image):
         if self.model is None:
             self.load()

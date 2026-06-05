@@ -2,12 +2,14 @@ from ml.attacks.fgsm import FGSMAttack
 from ml.attacks.random_noise import RandomNoiseAttack
 from ml.attacks.pgd import PGDAttack
 from schemas.attack import AttackType
+from ml.attacks.yolo_confidence import YOLOConfidenceAttack
 
 
 _AVAILABLE_ATTACKS = {
     AttackType.FGSM: FGSMAttack(),
     AttackType.RANDOM_NOISE: RandomNoiseAttack(),
     AttackType.PGD: PGDAttack(),
+    AttackType.YOLO_CONFIDENCE: YOLOConfidenceAttack(),
 }
 
 
