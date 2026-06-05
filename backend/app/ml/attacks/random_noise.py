@@ -8,6 +8,7 @@ from ml.attacks.base import BaseAdversarialAttack
 class RandomNoiseAttack(BaseAdversarialAttack):
     id = "random_noise"
     name = "Random Noise Baseline"
+    supported_task_types = ["classification", "detection"]
 
     def __init__(self):
         self.to_tensor = transforms.ToTensor()

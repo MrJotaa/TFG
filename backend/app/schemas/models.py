@@ -5,3 +5,4 @@ class ModelInfo(BaseModel):
     name: str
     active: bool
     loaded: bool
+    task_type: str

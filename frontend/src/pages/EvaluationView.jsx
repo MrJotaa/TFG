@@ -1,12 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import EvaluationPanel from '../components/EvaluationPanel'
 import { useExperiment } from '../context/ExperimentContext'
-
-const ATTACK_NAMES = {
-    fgsm: 'FGSM',
-    random_noise: 'Random Noise',
-    pgd: 'PGD',
-}
+import DetectionEvaluationPanel from '../components/DetectionEvaluationPanel'
+import {
+    formatAttackParameters,
+    getAttackName,
+} from '../utils/attackFormatting'
 
 function EvaluationView() {
     const navigate = useNavigate()
@@ -18,16 +17,21 @@ function EvaluationView() {
         attackParameters,
     } = useExperiment()
 
-    const attackName = ATTACK_NAMES[selectedAttack] || selectedAttack
+    const attackName = getAttackName(selectedAttack)
 
     return (
         <section className="evaluation-page">
             <div className="comparison-header">
                 <div>
-                    <h2>Evaluación y Análisis de Dataset</h2>
+                    <h2>
+                        {activeModel?.task_type === 'detection'
+                            ? 'Evaluación y Análisis de Detección'
+                            : 'Evaluación y Análisis de Dataset'}
+                    </h2>
                     <p>
-                        Evalúa el impacto del ataque adversario sobre todas las imágenes
-                        del dataset seleccionado.
+                        {activeModel?.task_type === 'detection'
+                            ? 'Evalúa el impacto de ataques adversarios sobre las detecciones del modelo.'
+                            : 'Evalúa el impacto del ataque adversario sobre todas las imágenes del dataset seleccionado.'}
                     </p>
                 </div>
 
@@ -64,18 +68,25 @@ function EvaluationView() {
                     </p>
 
                     <p>
-                        <strong>Parámetros:</strong> ε={attackParameters.epsilon}
-                        {selectedAttack === 'pgd' &&
-                            ` · α=${attackParameters.alpha} · steps=${attackParameters.steps}`}
+                        <strong>Parámetros:</strong>{' '}
+                        {formatAttackParameters(selectedAttack, attackParameters)}
                     </p>
                 </div>
             </div>
 
-            <EvaluationPanel
-                selectedDataset={selectedDataset}
-                selectedAttack={selectedAttack}
-                attackParameters={attackParameters}
-            />
+            {activeModel?.task_type === 'detection' ? (
+                <DetectionEvaluationPanel
+                    selectedDataset={selectedDataset}
+                    selectedAttack={selectedAttack}
+                    attackParameters={attackParameters}
+                />
+            ) : (
+                <EvaluationPanel
+                    selectedDataset={selectedDataset}
+                    selectedAttack={selectedAttack}
+                    attackParameters={attackParameters}
+                />
+            )}
         </section>
     )
 }

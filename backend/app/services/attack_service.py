@@ -31,6 +31,26 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    model_task_type = getattr(model, "task_type", None)
+
+    if not attack.supports_task_type(model_task_type):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Attack '{request.attack_type}' is not supported "
+                f"for model task type '{model_task_type}'"
+            ),
+        )
+
+    if model_task_type != "classification":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Endpoint /attack currently supports classification attacks only. "
+                f"Use a detection-specific attack endpoint for model '{model.id}'."
+            ),
+        )
+
     original_prediction = model.predict(image)
 
     try:

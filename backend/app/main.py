@@ -10,6 +10,9 @@ from api.routes.explainability import router as explainability_router
 from api.routes.attack import router as attack_router
 from api.routes.evaluate import router as evaluate_router
 from api.routes.auth import router as auth_router
+from api.routes.detect import router as detect_router
+from api.routes.detection_attack import router as detection_attack_router
+from api.routes.detection_evaluate import router as detection_evaluate_router
 
 from db.database import get_database
 
@@ -32,6 +35,9 @@ async def root():
     return {"message": "API running"}
 
 app.include_router(predict_router, tags=["Inference"])
+app.include_router(detect_router, tags=["Detection"])
+app.include_router(detection_attack_router, tags=["Detection Attack"])
+app.include_router(detection_evaluate_router, tags=["Detection Evaluation"])
 app.include_router(models_router, tags=["Models"])
 app.include_router(auth_router, tags=["Auth"])
 app.include_router(users_router, tags=["Users"])

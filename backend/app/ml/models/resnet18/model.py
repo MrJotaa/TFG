@@ -12,6 +12,7 @@ from schemas.predict import PredictResponse, TopKPrediction
 class ResNet18Model(BaseImageClassificationModel):
     id = "resnet18"
     name = "ResNet18 pretrained"
+    task_type = "classification"
 
     def __init__(self):
         self.model = None

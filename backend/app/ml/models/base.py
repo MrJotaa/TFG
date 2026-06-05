@@ -1,19 +1,18 @@
 from abc import ABC, abstractmethod
 from PIL import Image
 
+from schemas.detection import DetectionResponse
 from schemas.predict import PredictResponse
 
 
-class BaseImageClassificationModel(ABC):
+class BaseModel(ABC):
     """
-    Clase base para modelos de clasificación de imágenes.
-    Define la interfaz común que deberán implementar todos los modelos.
-    No se instancia directamente,
-    sino que se extiende para crear implementaciones específicas de modelos.
+    Clase base común para cualquier modelo de IA usado por la aplicación.
     """
 
     id: str
     name: str
+    task_type: str
 
     @abstractmethod
     def load(self) -> None:
@@ -32,9 +31,17 @@ class BaseImageClassificationModel(ABC):
     @abstractmethod
     def is_loaded(self) -> bool:
         """
-        Indica si el modelo está cargado y listo para hacer predicciones.
+        Indica si el modelo está cargado y listo para hacer inferencia.
         """
         pass
+
+
+class BaseImageClassificationModel(BaseModel):
+    """
+    Clase base para modelos de clasificación de imágenes.
+    """
+
+    task_type = "classification"
 
     @abstractmethod
     def preprocess(self, image: Image.Image):
@@ -46,6 +53,45 @@ class BaseImageClassificationModel(ABC):
     @abstractmethod
     def predict(self, image: Image.Image) -> PredictResponse:
         """
-        Ejecuta la inferencia sobre una imagen y devuelve una respuesta normalizada.
+        Ejecuta la inferencia de clasificación sobre una imagen.
         """
         pass
+
+
+class BaseObjectDetectionModel(BaseModel):
+    """
+    Clase base para modelos de detección de objetos.
+    """
+
+    task_type = "detection"
+
+    @abstractmethod
+    def detect(self, image: Image.Image) -> DetectionResponse:
+        """
+        Ejecuta detección de objetos sobre una imagen.
+        """
+        pass
+
+    def get_annotated_image(self, image: Image.Image) -> Image.Image:
+        """
+        Devuelve una imagen anotada con las detecciones.
+
+        Los modelos concretos pueden sobrescribirlo. Por defecto,
+        no transforma la imagen.
+        """
+        return image
+
+    def detect_with_visualization(
+        self,
+        image: Image.Image,
+    ) -> tuple[DetectionResponse, Image.Image]:
+        """
+        Ejecuta detección y devuelve también una imagen visualmente anotada.
+
+        Los modelos concretos pueden sobrescribirlo para evitar ejecutar
+        inferencia dos veces.
+        """
+        detection_response = self.detect(image)
+        annotated_image = self.get_annotated_image(image)
+
+        return detection_response, annotated_image

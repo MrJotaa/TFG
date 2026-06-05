@@ -3,16 +3,25 @@ const ATTACKS = [
         id: 'fgsm',
         name: 'FGSM',
         description: 'Ataque rápido basado en gradiente',
+        supportedTaskTypes: ['classification'],
     },
     {
         id: 'random_noise',
         name: 'Random Noise',
         description: 'Baseline con ruido aleatorio',
+        supportedTaskTypes: ['classification', 'detection'],
     },
     {
         id: 'pgd',
         name: 'PGD',
         description: 'Ataque iterativo basado en gradiente',
+        supportedTaskTypes: ['classification'],
+    },
+    {
+        id: 'yolo_confidence',
+        name: 'YOLO Confidence',
+        description: 'Ataque de supresión de confianza para detección',
+        supportedTaskTypes: ['detection'],
     },
 ]
 
@@ -21,7 +30,9 @@ function AttackSelector({
     onSelectAttack,
     attackParameters,
     onChangeAttackParameters,
+    activeModel,
 }) {
+    const activeTaskType = activeModel?.task_type || 'classification'
     function handleParameterChange(name, value) {
         onChangeAttackParameters({
             ...attackParameters,
@@ -34,21 +45,47 @@ function AttackSelector({
             <div className="sidebar-block-title">Ataques</div>
 
             <div className="sidebar-list">
-                {ATTACKS.map((attack) => (
-                    <button
-                        key={attack.id}
-                        type="button"
-                        className={
-                            selectedAttack === attack.id
-                                ? 'sidebar-list-item active'
-                                : 'sidebar-list-item'
-                        }
-                        onClick={() => onSelectAttack(attack.id)}
-                    >
-                        <span>{attack.name}</span>
-                    </button>
-                ))}
+                {ATTACKS.map((attack) => {
+                    const isSupported = attack.supportedTaskTypes.includes(activeTaskType)
+
+                    return (
+                        <button
+                            key={attack.id}
+                            type="button"
+                            className={
+                                selectedAttack === attack.id
+                                    ? 'sidebar-list-item active'
+                                    : 'sidebar-list-item'
+                            }
+                            onClick={() => {
+                                if (isSupported) {
+                                    onSelectAttack(attack.id)
+                                }
+                            }}
+                            disabled={!isSupported}
+                            title={
+                                isSupported
+                                    ? attack.description
+                                    : 'Ataque no disponible para este tipo de modelo'
+                            }
+                        >
+                            <span>{attack.name}</span>
+
+                            {!isSupported && (
+                                <small className="attack-unavailable">
+                                    No disponible
+                                </small>
+                            )}
+                        </button>
+                    )
+                })}
             </div>
+
+            {activeTaskType === 'detection' && (
+                <p className="muted-text">
+                    FGSM y PGD están disponibles para clasificación. Para detección puedes usar Random Noise o YOLO Confidence.
+                </p>
+            )}
 
             <div className="attack-config">
                 <h4>Configuración</h4>
@@ -67,7 +104,7 @@ function AttackSelector({
                     />
                 </label>
 
-                {selectedAttack === 'pgd' && (
+                {['pgd', 'yolo_confidence'].includes(selectedAttack) && (
                     <>
                         <label>
                             Alpha: {attackParameters.alpha}

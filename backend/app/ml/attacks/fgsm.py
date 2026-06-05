@@ -9,6 +9,7 @@ from ml.attacks.base import BaseAdversarialAttack
 class FGSMAttack(BaseAdversarialAttack):
     id = "fgsm"
     name = "Fast Gradient Sign Method"
+    supported_task_types = ["classification"]
 
     def __init__(self): # Inicializa las transformaciones necesarias para el ataque.
         self.to_tensor = transforms.ToTensor()

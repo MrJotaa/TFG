@@ -9,6 +9,7 @@ class AttackType(str, Enum):
     FGSM = "fgsm"
     RANDOM_NOISE = "random_noise"
     PGD = "pgd"
+    YOLO_CONFIDENCE = "yolo_confidence"
 
 
 class AttackParameters(BaseModel):

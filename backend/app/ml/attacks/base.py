@@ -11,6 +11,10 @@ class BaseAdversarialAttack(ABC):
 
     id: str
     name: str
+    supported_task_types: list[str] = []
+
+    def supports_task_type(self, task_type: str) -> bool:
+        return task_type in self.supported_task_types
 
     @abstractmethod
     def apply(

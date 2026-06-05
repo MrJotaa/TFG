@@ -1,17 +1,23 @@
 from ml.models.resnet18.model import ResNet18Model
+from ml.models.yolo.model import YOLODetectionModel
 from schemas.models import ModelInfo
 
 
 resnet18 = ResNet18Model()
+yolov8n = YOLODetectionModel()
+
 resnet18.load()
 
 _models = {
     resnet18.id: {
         "instance": resnet18,
         "active": True,
-    }
+    },
+    yolov8n.id: {
+        "instance": yolov8n,
+        "active": False,
+    },
 }
-
 
 def _to_model_info(model_id: str, model_data: dict) -> ModelInfo:
     instance = model_data["instance"]
@@ -21,6 +27,7 @@ def _to_model_info(model_id: str, model_data: dict) -> ModelInfo:
         name=instance.name,
         active=model_data["active"],
         loaded=instance.is_loaded(),
+        task_type=instance.task_type,
     )
 
 

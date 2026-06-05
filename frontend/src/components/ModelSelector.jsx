@@ -77,7 +77,15 @@ function ModelSelector({ onActiveModelChange }) {
                             onClick={() => setSelectedModelId(model.id)}
                             disabled={loading}
                         >
-                            <span>{model.name}</span>
+                            <div>
+                                <span>{model.name}</span>
+                                {model.task_type && (
+                                    <small className="model-task-badge">
+                                        {model.task_type === 'classification' ? 'Clasificación' : 'Detección'}
+                                    </small>
+                                )}
+                            </div>
+
                             {model.active && <small>Activo</small>}
                         </button>
                     ))}
