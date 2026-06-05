@@ -33,6 +33,9 @@ class DetectionAttackResponse(BaseModel):
     adversarial_annotated_image_url: str
     perturbation_image_url: str
 
+    original_explanation_image_url: str
+    adversarial_explanation_image_url: str
+
     original_detections: list[DetectionPrediction]
     adversarial_detections: list[DetectionPrediction]
     comparison: DetectionAttackComparison

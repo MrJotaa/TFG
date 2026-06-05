@@ -12,3 +12,16 @@ export function generateGradCam({ datasetId, imageId }) {
         }),
     })
 }
+
+export function generateDetectionExplainability({ datasetId, imageId }) {
+    return apiRequest('/explain/detection', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            dataset_id: datasetId,
+            image_id: imageId,
+        }),
+    })
+}

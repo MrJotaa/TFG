@@ -95,3 +95,20 @@ class BaseObjectDetectionModel(BaseModel):
         annotated_image = self.get_annotated_image(image)
 
         return detection_response, annotated_image
+
+    def get_torch_model(self):
+        """
+        Devuelve el modelo PyTorch interno si el detector lo expone.
+        Necesario para técnicas de explainability como EigenCAM.
+        """
+        raise NotImplementedError(
+            f"Model '{self.id}' does not expose a torch model"
+        )
+
+    def get_explainability_target_layer(self):
+        """
+        Devuelve la capa objetivo para técnicas CAM.
+        """
+        raise NotImplementedError(
+            f"Model '{self.id}' does not define an explainability target layer"
+        )

@@ -33,6 +33,14 @@ class YOLODetectionModel(BaseObjectDetectionModel):
 
         return self.model.model
 
+    def get_explainability_target_layer(self):
+        if self.model is None:
+            self.load()
+
+        # Capa profunda antes del head de detección.
+        # Para YOLOv8n suele ser una buena primera opción para EigenCAM.
+        return self.model.model.model[-2]
+
     def _run_inference(self, image: Image.Image):
         if self.model is None:
             self.load()
