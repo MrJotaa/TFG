@@ -1,6 +1,11 @@
 from pydantic import BaseModel
 
 
+class DetectionRequest(BaseModel):
+    dataset_id: str
+    image_id: str
+
+
 class BoundingBox(BaseModel):
     x1: float
     y1: float

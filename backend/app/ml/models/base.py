@@ -80,3 +80,18 @@ class BaseObjectDetectionModel(BaseModel):
         no transforma la imagen.
         """
         return image
+
+    def detect_with_visualization(
+        self,
+        image: Image.Image,
+    ) -> tuple[DetectionResponse, Image.Image]:
+        """
+        Ejecuta detección y devuelve también una imagen visualmente anotada.
+
+        Los modelos concretos pueden sobrescribirlo para evitar ejecutar
+        inferencia dos veces.
+        """
+        detection_response = self.detect(image)
+        annotated_image = self.get_annotated_image(image)
+
+        return detection_response, annotated_image

@@ -26,13 +26,14 @@ class YOLODetectionModel(BaseObjectDetectionModel):
     def is_loaded(self) -> bool:
         return self.model is not None
 
-    def detect(self, image: Image.Image) -> DetectionResponse:
+    def _run_inference(self, image: Image.Image):
         if self.model is None:
             self.load()
 
         results = self.model(image)
-        result = results[0]
+        return results[0]
 
+    def _result_to_response(self, result) -> DetectionResponse:
         detections = []
 
         if result.boxes is not None:
@@ -62,12 +63,30 @@ class YOLODetectionModel(BaseObjectDetectionModel):
             annotated_image_url=None,
         )
 
-    def get_annotated_image(self, image: Image.Image) -> Image.Image:
-        if self.model is None:
-            self.load()
-
-        results = self.model(image)
-        result = results[0]
-
+    def _result_to_annotated_image(self, result) -> Image.Image:
         annotated_array = result.plot()
+
+        # Ultralytics/OpenCV puede devolver la imagen anotada en BGR.
+        # PIL espera RGB, por eso invertimos los canales.
+        annotated_array = annotated_array[:, :, ::-1].copy()
+
         return Image.fromarray(annotated_array)
+
+    def detect(self, image: Image.Image) -> DetectionResponse:
+        result = self._run_inference(image)
+        return self._result_to_response(result)
+
+    def get_annotated_image(self, image: Image.Image) -> Image.Image:
+        result = self._run_inference(image)
+        return self._result_to_annotated_image(result)
+
+    def detect_with_visualization(
+        self,
+        image: Image.Image,
+    ) -> tuple[DetectionResponse, Image.Image]:
+        result = self._run_inference(image)
+
+        detection_response = self._result_to_response(result)
+        annotated_image = self._result_to_annotated_image(result)
+
+        return detection_response, annotated_image
