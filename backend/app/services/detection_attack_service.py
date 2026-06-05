@@ -13,6 +13,10 @@ from utils.result_files import (
     save_result_image,
     save_result_metadata,
 )
+from ml.explainability.gradcam import (
+    draw_detections_on_image,
+    generate_detection_eigencam,
+)
 
 
 def _average_detection_confidence(detections) -> float:
@@ -88,6 +92,16 @@ async def apply_detection_attack(
     original_detections = original_detection_response.detections
     adversarial_detections = adversarial_detection_response.detections
 
+    original_explanation_image = draw_detections_on_image(
+        image=generate_detection_eigencam(model, image),
+        detections=original_detections,
+    )
+
+    adversarial_explanation_image = draw_detections_on_image(
+        image=generate_detection_eigencam(model, adversarial_image),
+        detections=adversarial_detections,
+    )
+
     original_count = len(original_detections)
     adversarial_count = len(adversarial_detections)
     detections_difference = adversarial_count - original_count
@@ -146,6 +160,20 @@ async def apply_detection_attack(
         filename="perturbation.png",
     )
 
+    original_explanation_image_url = save_result_image(
+        image=original_explanation_image,
+        result_id=result_id,
+        result_path=result_path,
+        filename="original_explanation.png",
+    )
+
+    adversarial_explanation_image_url = save_result_image(
+        image=adversarial_explanation_image,
+        result_id=result_id,
+        result_path=result_path,
+        filename="adversarial_explanation.png",
+    )
+
     save_result_metadata(
         result_path=result_path,
         metadata={
@@ -159,6 +187,9 @@ async def apply_detection_attack(
             "parameters": request.parameters.model_dump(),
             "original_detection_count": original_count,
             "adversarial_detection_count": adversarial_count,
+            "explanation_type": "eigencam",
+            "original_explanation_image": "original_explanation.png",
+            "adversarial_explanation_image": "adversarial_explanation.png",
             "expires_in_hours": 24,
         },
     )
@@ -174,4 +205,6 @@ async def apply_detection_attack(
         original_detections=original_detections,
         adversarial_detections=adversarial_detections,
         comparison=comparison,
+        original_explanation_image_url=original_explanation_image_url,
+        adversarial_explanation_image_url=adversarial_explanation_image_url,
     )

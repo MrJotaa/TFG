@@ -417,6 +417,24 @@ function DetectionView() {
                                             alt="Adversaria anotada"
                                         />
                                     </article>
+
+                                    <article className="analysis-card">
+                                        <h3>EigenCAM original</h3>
+                                        <img
+                                            className="analysis-image"
+                                            src={`${API_BASE_URL}${attackResult.original_explanation_image_url}`}
+                                            alt="EigenCAM original"
+                                        />
+                                    </article>
+
+                                    <article className="analysis-card">
+                                        <h3>EigenCAM adversaria</h3>
+                                        <img
+                                            className="analysis-image"
+                                            src={`${API_BASE_URL}${attackResult.adversarial_explanation_image_url}`}
+                                            alt="EigenCAM adversaria"
+                                        />
+                                    </article>
                                 </div>
                             </section>
 

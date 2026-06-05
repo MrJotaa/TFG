@@ -1195,7 +1195,7 @@ button {
 
 .detection-attack-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 1rem;
 }
 
@@ -1205,15 +1205,7 @@ button {
     gap: 1rem;
 }
 
-@media (max-width: 1100px) {
-    .detection-attack-grid {
-        grid-template-columns: repeat(2, minmax(220px, 1fr));
-    }
-}
-
 @media (max-width: 800px) {
-
-    .detection-attack-grid,
     .detection-comparison-tables {
         grid-template-columns: 1fr;
     }
