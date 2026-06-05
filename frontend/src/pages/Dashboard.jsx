@@ -135,6 +135,7 @@ function Dashboard() {
                     attackParameters={attackParameters}
                     onGoToPrediction={() => navigate('/prediction')}
                     onGoToEvaluation={() => navigate('/evaluation')}
+                    onGoToDetection={() => navigate('/detection')}
                 />
             </section>
 

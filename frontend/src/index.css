@@ -1137,3 +1137,38 @@ button {
     border: 1px solid #fecaca;
     border-radius: 8px;
 }
+
+.detection-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.detection-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.detection-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.model-task-badge {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+@media (max-width: 900px) {
+    .detection-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .detection-actions {
+        justify-content: stretch;
+    }
+}

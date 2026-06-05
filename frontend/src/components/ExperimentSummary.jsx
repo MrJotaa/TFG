@@ -12,6 +12,7 @@ function ExperimentSummary({
     attackParameters,
     onGoToPrediction,
     onGoToEvaluation,
+    onGoToDetection,
 }) {
     const selectedTarget = selectedImage
         ? selectedImage.filename
@@ -56,23 +57,36 @@ function ExperimentSummary({
             </div>
 
             <div className="summary-actions">
-                <button
-                    type="button"
-                    className="primary-action"
-                    onClick={onGoToPrediction}
-                    disabled={!selectedDataset || !selectedImage || !activeModel}
-                >
-                    Predecir
-                </button>
+                {activeModel?.task_type === 'detection' ? (
+                    <button
+                        type="button"
+                        className="primary-action"
+                        onClick={onGoToDetection}
+                        disabled={!selectedDataset || !selectedImage || !activeModel}
+                    >
+                        Detectar
+                    </button>
+                ) : (
+                    <>
+                        <button
+                            type="button"
+                            className="primary-action"
+                            onClick={onGoToPrediction}
+                            disabled={!selectedDataset || !selectedImage || !activeModel}
+                        >
+                            Predecir
+                        </button>
 
-                <button
-                    type="button"
-                    className="secondary-action"
-                    onClick={onGoToEvaluation}
-                    disabled={!selectedDataset || !activeModel}
-                >
-                    Evaluar
-                </button>
+                        <button
+                            type="button"
+                            className="secondary-action"
+                            onClick={onGoToEvaluation}
+                            disabled={!selectedDataset || !activeModel}
+                        >
+                            Evaluar
+                        </button>
+                    </>
+                )}
             </div>
         </section>
     )
