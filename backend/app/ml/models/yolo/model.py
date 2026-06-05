@@ -1,5 +1,6 @@
 from PIL import Image
 from ultralytics import YOLO
+import torch
 
 from ml.models.base import BaseObjectDetectionModel
 from schemas.detection import BoundingBox, DetectionPrediction, DetectionResponse
@@ -36,7 +37,9 @@ class YOLODetectionModel(BaseObjectDetectionModel):
         if self.model is None:
             self.load()
 
-        results = self.model(image)
+        with torch.no_grad():
+            results = self.model(image)
+
         return results[0]
 
     def _result_to_response(self, result) -> DetectionResponse:

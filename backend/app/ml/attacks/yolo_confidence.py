@@ -38,6 +38,7 @@ class YOLOConfidenceAttack(BaseAdversarialAttack):
 
         torch_model = model_wrapper.get_torch_model()
         torch_model.eval()
+        torch.set_grad_enabled(True)
 
         original_tensor = self.to_tensor(image).unsqueeze(0)
         adversarial_tensor = original_tensor.clone().detach()
@@ -47,10 +48,10 @@ class YOLOConfidenceAttack(BaseAdversarialAttack):
 
             model_input = self._resize_for_yolo(adversarial_tensor)
 
-            output = torch_model(model_input)
-            prediction_tensor = self._extract_prediction_tensor(output)
-
-            confidence_loss = self._confidence_objective(prediction_tensor)
+            with torch.enable_grad():
+                output = torch_model.forward(model_input)
+                prediction_tensor = self._extract_prediction_tensor(output).clone()
+                confidence_loss = self._confidence_objective(prediction_tensor)
 
             torch_model.zero_grad()
             confidence_loss.backward()

@@ -44,6 +44,17 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    model_task_type = getattr(model, "task_type", None)
+
+    if model_task_type != "classification":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Endpoint /evaluate currently supports classification models only. "
+                f"Use /detect/evaluate for detection model '{model.id}'."
+            ),
+        )
+
     try:
         attack = get_attack(request.attack_type)
     except ValueError as e:
