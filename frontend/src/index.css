@@ -1218,3 +1218,10 @@ button {
         grid-template-columns: 1fr;
     }
 }
+
+.detections-cell {
+    max-width: 260px;
+    white-space: normal;
+    color: var(--muted);
+    font-size: 0.9rem;
+}

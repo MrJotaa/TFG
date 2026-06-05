@@ -1,8 +1,7 @@
-const ATTACK_NAMES = {
-    fgsm: 'FGSM',
-    random_noise: 'Random Noise',
-    pgd: 'PGD',
-}
+import {
+    formatAttackParameters,
+    getAttackName,
+} from '../utils/attackFormatting'
 
 function ExperimentSummary({
     selectedDataset,
@@ -23,10 +22,10 @@ function ExperimentSummary({
     return (
         <section className="experiment-summary">
             <div className="summary-heading">
-                <h2>Resumen de la Predicción</h2>
+                <h2>Resumen del Experimento</h2>
                 <p>
-                    Configura el experimento seleccionando usuario, dataset, imagen,
-                    modelo y ataque antes de ejecutar la predicción.
+                    Configura el experimento seleccionando dataset, imagen, modelo y
+                    ataque antes de ejecutar el análisis.
                 </p>
             </div>
 
@@ -43,29 +42,38 @@ function ExperimentSummary({
 
                 <article className="summary-card summary-card-yellow">
                     <span>Ataque activo</span>
-                    <strong>{ATTACK_NAMES[selectedAttack] || selectedAttack}</strong>
+                    <strong>{getAttackName(selectedAttack)}</strong>
                 </article>
 
                 <article className="summary-card summary-card-red">
                     <span>Parámetros del ataque</span>
                     <strong>
-                        ε={attackParameters.epsilon}
-                        {selectedAttack === 'pgd' &&
-                            ` · α=${attackParameters.alpha} · steps=${attackParameters.steps}`}
+                        {formatAttackParameters(selectedAttack, attackParameters)}
                     </strong>
                 </article>
             </div>
 
             <div className="summary-actions">
                 {activeModel?.task_type === 'detection' ? (
-                    <button
-                        type="button"
-                        className="primary-action"
-                        onClick={onGoToDetection}
-                        disabled={!selectedDataset || !selectedImage || !activeModel}
-                    >
-                        Detectar
-                    </button>
+                    <>
+                        <button
+                            type="button"
+                            className="primary-action"
+                            onClick={onGoToDetection}
+                            disabled={!selectedDataset || !selectedImage || !activeModel}
+                        >
+                            Detectar
+                        </button>
+
+                        <button
+                            type="button"
+                            className="secondary-action"
+                            onClick={onGoToEvaluation}
+                            disabled={!selectedDataset || !activeModel}
+                        >
+                            Evaluar
+                        </button>
+                    </>
                 ) : (
                     <>
                         <button
