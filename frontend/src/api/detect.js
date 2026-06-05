@@ -12,3 +12,29 @@ export function detectImage({ datasetId, imageId }) {
         }),
     })
 }
+
+export function attackDetectionImage({
+    datasetId,
+    imageId,
+    attackType,
+    epsilon,
+    alpha,
+    steps,
+}) {
+    return apiRequest('/detect/attack', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            dataset_id: datasetId,
+            image_id: imageId,
+            attack_type: attackType,
+            parameters: {
+                epsilon,
+                alpha,
+                steps,
+            },
+        }),
+    })
+}

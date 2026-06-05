@@ -17,6 +17,12 @@ const ATTACKS = [
         description: 'Ataque iterativo basado en gradiente',
         supportedTaskTypes: ['classification'],
     },
+    {
+        id: 'yolo_confidence',
+        name: 'YOLO Confidence',
+        description: 'Ataque de supresión de confianza para detección',
+        supportedTaskTypes: ['detection'],
+    },
 ]
 
 function AttackSelector({
@@ -77,8 +83,7 @@ function AttackSelector({
 
             {activeTaskType === 'detection' && (
                 <p className="muted-text">
-                    FGSM y PGD están disponibles para clasificación. Para detección se
-                    utilizarán ataques específicos en la siguiente fase.
+                    FGSM y PGD están disponibles para clasificación. Para detección puedes usar Random Noise o YOLO Confidence.
                 </p>
             )}
 
@@ -99,7 +104,7 @@ function AttackSelector({
                     />
                 </label>
 
-                {selectedAttack === 'pgd' && (
+                {['pgd', 'yolo_confidence'].includes(selectedAttack) && (
                     <>
                         <label>
                             Alpha: {attackParameters.alpha}

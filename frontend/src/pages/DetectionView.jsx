@@ -1,9 +1,45 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { detectImage } from '../api/detect'
+import { attackDetectionImage, detectImage } from '../api/detect'
 import { useExperiment } from '../context/ExperimentContext'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+
+function DetectionTable({ detections }) {
+    if (!detections || detections.length === 0) {
+        return <p>No hay detecciones.</p>
+    }
+
+    return (
+        <div className="evaluation-table-wrapper">
+            <table className="evaluation-table">
+                <thead>
+                    <tr>
+                        <th>Clase</th>
+                        <th>Confianza</th>
+                        <th>x1</th>
+                        <th>y1</th>
+                        <th>x2</th>
+                        <th>y2</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {detections.map((detection, index) => (
+                        <tr key={`${detection.label}-${index}`}>
+                            <td>{detection.label}</td>
+                            <td>{detection.confidence}</td>
+                            <td>{detection.bbox.x1}</td>
+                            <td>{detection.bbox.y1}</td>
+                            <td>{detection.bbox.x2}</td>
+                            <td>{detection.bbox.y2}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    )
+}
 
 function DetectionView() {
     const navigate = useNavigate()
@@ -12,16 +48,24 @@ function DetectionView() {
         selectedDataset,
         selectedImage,
         activeModel,
+        selectedAttack,
+        attackParameters,
     } = useExperiment()
 
     const [detectionResult, setDetectionResult] = useState(null)
+    const [attackResult, setAttackResult] = useState(null)
     const [loading, setLoading] = useState(false)
+    const [attackLoading, setAttackLoading] = useState(false)
     const [error, setError] = useState('')
 
     useEffect(() => {
         setDetectionResult(null)
+        setAttackResult(null)
         setError('')
     }, [selectedDataset, selectedImage, activeModel])
+
+    const detectionAttackSupported =
+        selectedAttack === 'random_noise' || selectedAttack === 'yolo_confidence'
 
     async function handleDetect() {
         if (!selectedDataset || !selectedImage) {
@@ -49,6 +93,46 @@ function DetectionView() {
             setError(err.message)
         } finally {
             setLoading(false)
+        }
+    }
+
+    async function handleDetectionAttack() {
+        if (!selectedDataset || !selectedImage) {
+            setError('Debes seleccionar un dataset y una imagen.')
+            return
+        }
+
+        if (activeModel?.task_type !== 'detection') {
+            setError('Debes seleccionar un modelo de detección, como YOLO.')
+            return
+        }
+
+        if (!detectionAttackSupported) {
+            setError(
+                'Selecciona Random Noise o YOLO Confidence para atacar un modelo de detección.',
+            )
+            return
+        }
+
+        try {
+            setAttackLoading(true)
+            setError('')
+            setAttackResult(null)
+
+            const result = await attackDetectionImage({
+                datasetId: selectedDataset.id,
+                imageId: selectedImage.id,
+                attackType: selectedAttack,
+                epsilon: attackParameters.epsilon,
+                alpha: attackParameters.alpha,
+                steps: attackParameters.steps,
+            })
+
+            setAttackResult(result)
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setAttackLoading(false)
         }
     }
 
@@ -95,6 +179,17 @@ function DetectionView() {
                         <strong>Tipo de modelo:</strong>{' '}
                         {activeModel?.task_type || '-'}
                     </p>
+
+                    <p>
+                        <strong>Ataque seleccionado:</strong>{' '}
+                        {selectedAttack || '-'}
+                    </p>
+
+                    <p>
+                        <strong>Parámetros:</strong> ε={attackParameters.epsilon}
+                        {selectedAttack === 'yolo_confidence' &&
+                            ` · α=${attackParameters.alpha} · steps=${attackParameters.steps}`}
+                    </p>
                 </div>
             </div>
 
@@ -120,8 +215,8 @@ function DetectionView() {
                 <div className="empty-state">
                     <h3>Modelo no compatible</h3>
                     <p>
-                        La vista de detección requiere un modelo de detección. Selecciona
-                        YOLO en el Dashboard.
+                        La vista de detección requiere un modelo de detección.
+                        Selecciona YOLO en el Dashboard.
                     </p>
 
                     <button
@@ -143,7 +238,30 @@ function DetectionView() {
                         >
                             {loading ? 'Detectando...' : 'Ejecutar detección'}
                         </button>
+
+                        <button
+                            type="button"
+                            className="secondary-action"
+                            onClick={handleDetectionAttack}
+                            disabled={attackLoading || !detectionAttackSupported}
+                            title={
+                                detectionAttackSupported
+                                    ? 'Aplicar ataque al detector'
+                                    : 'Selecciona Random Noise o YOLO Confidence'
+                            }
+                        >
+                            {attackLoading
+                                ? 'Aplicando ataque...'
+                                : 'Aplicar ataque de detección'}
+                        </button>
                     </div>
+
+                    {!detectionAttackSupported && (
+                        <p className="muted-text">
+                            Para modelos de detección puedes usar Random Noise o YOLO
+                            Confidence.
+                        </p>
+                    )}
 
                     <div className="detection-grid">
                         <article className="analysis-card">
@@ -167,7 +285,7 @@ function DetectionView() {
                                 />
                             ) : (
                                 <div className="image-placeholder">
-                                    Ejecuta la detección para ver las cajas
+                                    Ejecuta la detección para ver las cajas.
                                 </div>
                             )}
                         </article>
@@ -178,38 +296,169 @@ function DetectionView() {
 
                         {!detectionResult ? (
                             <p>No se ha ejecutado ninguna detección todavía.</p>
-                        ) : detectionResult.detections.length === 0 ? (
-                            <p>No se han detectado objetos en la imagen.</p>
                         ) : (
-                            <div className="evaluation-table-wrapper">
-                                <table className="evaluation-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Clase</th>
-                                            <th>Confianza</th>
-                                            <th>x1</th>
-                                            <th>y1</th>
-                                            <th>x2</th>
-                                            <th>y2</th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        {detectionResult.detections.map((detection, index) => (
-                                            <tr key={`${detection.label}-${index}`}>
-                                                <td>{detection.label}</td>
-                                                <td>{detection.confidence}</td>
-                                                <td>{detection.bbox.x1}</td>
-                                                <td>{detection.bbox.y1}</td>
-                                                <td>{detection.bbox.x2}</td>
-                                                <td>{detection.bbox.y2}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <DetectionTable detections={detectionResult.detections} />
                         )}
                     </section>
+
+                    {attackResult && (
+                        <>
+                            <section className="comparison-detail-card">
+                                <h3>Comparación adversaria de detección</h3>
+
+                                <div className="detection-attack-grid">
+                                    <article className="analysis-card">
+                                        <h3>Original anotada</h3>
+                                        <img
+                                            className="analysis-image"
+                                            src={`${API_BASE_URL}${attackResult.original_annotated_image_url}`}
+                                            alt="Original anotada"
+                                        />
+                                    </article>
+
+                                    <article className="analysis-card">
+                                        <h3>Perturbación</h3>
+                                        <img
+                                            className="analysis-image"
+                                            src={`${API_BASE_URL}${attackResult.perturbation_image_url}`}
+                                            alt="Perturbación"
+                                        />
+                                    </article>
+
+                                    <article className="analysis-card">
+                                        <h3>Imagen adversaria</h3>
+                                        <img
+                                            className="analysis-image"
+                                            src={`${API_BASE_URL}${attackResult.adversarial_image_url}`}
+                                            alt="Imagen adversaria"
+                                        />
+                                    </article>
+
+                                    <article className="analysis-card">
+                                        <h3>Adversaria anotada</h3>
+                                        <img
+                                            className="analysis-image"
+                                            src={`${API_BASE_URL}${attackResult.adversarial_annotated_image_url}`}
+                                            alt="Adversaria anotada"
+                                        />
+                                    </article>
+                                </div>
+                            </section>
+
+                            <section className="comparison-detail-card">
+                                <h3>Métricas del ataque de detección</h3>
+
+                                <div className="metric-grid">
+                                    <article className="metric-card">
+                                        <span>Detecciones originales</span>
+                                        <strong>
+                                            {
+                                                attackResult.comparison
+                                                    .original_detection_count
+                                            }
+                                        </strong>
+                                    </article>
+
+                                    <article className="metric-card">
+                                        <span>Detecciones adversarias</span>
+                                        <strong>
+                                            {
+                                                attackResult.comparison
+                                                    .adversarial_detection_count
+                                            }
+                                        </strong>
+                                    </article>
+
+                                    <article className="metric-card">
+                                        <span>Diferencia de detecciones</span>
+                                        <strong>
+                                            {
+                                                attackResult.comparison
+                                                    .detections_difference
+                                            }
+                                        </strong>
+                                    </article>
+
+                                    <article className="metric-card">
+                                        <span>Confianza media original</span>
+                                        <strong>
+                                            {
+                                                attackResult.comparison
+                                                    .average_original_confidence
+                                            }
+                                        </strong>
+                                    </article>
+
+                                    <article className="metric-card">
+                                        <span>Confianza media adversaria</span>
+                                        <strong>
+                                            {
+                                                attackResult.comparison
+                                                    .average_adversarial_confidence
+                                            }
+                                        </strong>
+                                    </article>
+
+                                    <article className="metric-card">
+                                        <span>Diferencia de confianza</span>
+                                        <strong>
+                                            {
+                                                attackResult.comparison
+                                                    .average_confidence_difference
+                                            }
+                                        </strong>
+                                    </article>
+
+                                    <article className="metric-card">
+                                        <span>Resultado del ataque</span>
+                                        <strong>
+                                            {attackResult.comparison.attack_success
+                                                ? 'Exitoso'
+                                                : 'No exitoso'}
+                                        </strong>
+                                    </article>
+
+                                    <article className="metric-card">
+                                        <span>Perturbación L∞</span>
+                                        <strong>
+                                            {attackResult.comparison.perturbation_linf}
+                                        </strong>
+                                    </article>
+
+                                    <article className="metric-card">
+                                        <span>Perturbación L2</span>
+                                        <strong>
+                                            {attackResult.comparison.perturbation_l2}
+                                        </strong>
+                                    </article>
+                                </div>
+                            </section>
+
+                            <section className="comparison-detail-card">
+                                <h3>Detecciones originales vs adversarias</h3>
+
+                                <div className="detection-comparison-tables">
+                                    <div>
+                                        <h4>Originales</h4>
+                                        <DetectionTable
+                                            detections={
+                                                attackResult.original_detections
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <h4>Adversarias</h4>
+                                        <DetectionTable
+                                            detections={
+                                                attackResult.adversarial_detections
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            </section>
+                        </>
+                    )}
                 </>
             )}
         </section>
