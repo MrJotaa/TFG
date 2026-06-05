@@ -116,6 +116,7 @@ function Dashboard() {
                     onSelectAttack={setSelectedAttack}
                     attackParameters={attackParameters}
                     onChangeAttackParameters={setAttackParameters}
+                    activeModel={activeModel}
                 />
             </aside>
 

@@ -1172,3 +1172,16 @@ button {
         justify-content: stretch;
     }
 }
+
+.sidebar-list-item:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    background: #f1f5f9;
+}
+
+.attack-unavailable {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+}

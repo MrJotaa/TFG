@@ -9,6 +9,7 @@ from ml.attacks.base import BaseAdversarialAttack
 class PGDAttack(BaseAdversarialAttack):
     id = "pgd"
     name = "Projected Gradient Descent"
+    supported_task_types = ["classification"]
 
     def __init__(self):
         self.to_tensor = transforms.ToTensor()
