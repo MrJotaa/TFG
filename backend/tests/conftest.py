@@ -1,17 +1,23 @@
 import os
+import shutil
+from io import BytesIO
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 from pymongo import MongoClient
 
 
 TEST_DB_NAME = "tfg_adversarial_ai_test"
+TEST_UPLOADS_DATASETS_PATH = "uploads/test_datasets"
 
 os.environ["JWT_SECRET_KEY"] = "test-secret-key"
 os.environ["MONGO_DB_NAME"] = TEST_DB_NAME
+os.environ["UPLOADS_DATASETS_PATH"] = TEST_UPLOADS_DATASETS_PATH
 
 Path("uploads/results").mkdir(parents=True, exist_ok=True)
+Path(TEST_UPLOADS_DATASETS_PATH).mkdir(parents=True, exist_ok=True)
 
 
 from main import app  # noqa: E402
@@ -43,10 +49,16 @@ def clean_test_database():
 
     mongo_client.drop_database(TEST_DB_NAME)
 
+    shutil.rmtree(TEST_UPLOADS_DATASETS_PATH, ignore_errors=True)
+    Path(TEST_UPLOADS_DATASETS_PATH).mkdir(parents=True, exist_ok=True)
+
     yield
 
     mongo_client.drop_database(TEST_DB_NAME)
     mongo_client.close()
+
+    shutil.rmtree(TEST_UPLOADS_DATASETS_PATH, ignore_errors=True)
+    Path(TEST_UPLOADS_DATASETS_PATH).mkdir(parents=True, exist_ok=True)
 
 
 @pytest.fixture
@@ -74,3 +86,41 @@ def auth_headers(registered_user):
     return {
         "Authorization": f"Bearer {token}",
     }
+
+@pytest.fixture
+def image_file_factory():
+    def _create_image_file(
+        filename: str = "test-image.png",
+        color: tuple[int, int, int] = (255, 0, 0),
+    ):
+        image = Image.new("RGB", (32, 32), color=color)
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        return (
+            "files",
+            (filename, buffer, "image/png"),
+        )
+
+    return _create_image_file
+
+
+@pytest.fixture
+def created_dataset(client, registered_user, image_file_factory):
+    user_id = registered_user["user"]["id"]
+
+    response = client.post(
+        "/datasets",
+        data={
+            "user_id": user_id,
+            "name": "Test Dataset",
+        },
+        files=[
+            image_file_factory("image-1.png"),
+        ],
+    )
+
+    assert response.status_code == 200
+
+    return response.json()
