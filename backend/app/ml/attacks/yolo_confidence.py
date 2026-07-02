@@ -136,16 +136,18 @@ class YOLOConfidenceAttack(BaseAdversarialAttack):
 
         # Caso habitual YOLOv8: [B, 84, 8400]
         if prediction_tensor.shape[1] > prediction_tensor.shape[2]:
-            # Formato alternativo tipo [B, N, C]
+            # Formato alternativo [B, N, C].
             class_scores = prediction_tensor[:, :, 4:]
+            class_dimension = 2
         else:
-            # Formato habitual [B, C, N]
+            # Formato habitual [B, C, N].
             class_scores = prediction_tensor[:, 4:, :]
+            class_dimension = 1
 
         if class_scores.numel() == 0:
             raise ValueError("YOLO prediction tensor does not contain class scores")
 
-        max_class_scores = class_scores.max(dim=1).values
+        max_class_scores = class_scores.max(dim=class_dimension).values
 
         return max_class_scores.mean()
 
