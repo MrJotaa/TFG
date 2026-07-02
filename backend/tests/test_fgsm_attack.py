@@ -257,10 +257,7 @@ def test_fgsm_with_zero_epsilon_does_not_modify_image(monkeypatch):
         original_tensor,
     )
 
-    assert (
-        result["adversarial_image"].tobytes()
-        == original_image.tobytes()
-    )
+    assert result["adversarial_image"].tobytes() == original_image.tobytes()
 
     assert result["perturbation_linf"] == 0.0
     assert result["perturbation_l2"] == 0.0

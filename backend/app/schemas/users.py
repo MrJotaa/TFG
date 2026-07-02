@@ -18,5 +18,6 @@ class UserResponse(BaseModel):
     name: str
     email: EmailStr
 
+
 class UserDeleteRequest(BaseModel):
     password: str

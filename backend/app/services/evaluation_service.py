@@ -1,8 +1,3 @@
-from fastapi import HTTPException
-
-from bson import ObjectId
-
-from db.collections import datasets_collection
 from ml.attacks.registry import get_attack
 from schemas.evaluation import (
     EvaluationImageResult,
@@ -10,63 +5,57 @@ from schemas.evaluation import (
     EvaluationResponse,
     EvaluationSummary,
 )
-from services.dataset_service import get_image_from_dataset
+from services.dataset_service import (
+    get_dataset,
+    get_image_from_dataset,
+)
 from services.model_service import get_active_model_instance
 from utils.result_files import (
     create_result_directory,
     save_result_image,
     save_result_metadata,
 )
+from core.task_compatibility import (
+    CLASSIFICATION_TASK_TYPE,
+    require_attack_task_type,
+    require_model_task_type,
+)
+from core.errors import BadRequestError
 
 
-async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
-    if not ObjectId.is_valid(request.dataset_id):
-        raise HTTPException(status_code=400, detail="Invalid dataset id")
+async def evaluate_dataset(
+    request: EvaluationRequest,
+) -> EvaluationResponse:
+    dataset = await get_dataset(request.dataset_id)
 
-    dataset = await datasets_collection.find_one({"_id": ObjectId(request.dataset_id)})
+    if not dataset.images:
+        raise BadRequestError("Dataset must contain at least one image")
 
-    if not dataset:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Dataset with id {request.dataset_id} not found",
-        )
+    model = get_active_model_instance()
 
-    images_metadata = dataset.get("images", [])
-
-    if not images_metadata:
-        raise HTTPException(
-            status_code=400,
-            detail="Dataset must contain at least one image",
-        )
-
-    try:
-        model = get_active_model_instance()
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    model_task_type = getattr(model, "task_type", None)
-
-    if model_task_type != "classification":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Endpoint /evaluate currently supports classification models only. "
-                f"Use /detect/evaluate for detection model '{model.id}'."
-            ),
-        )
+    require_model_task_type(
+        model=model,
+        expected_task_type=CLASSIFICATION_TASK_TYPE,
+        endpoint="/evaluate",
+    )
 
     try:
         attack = get_attack(request.attack_type)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as error:
+        raise BadRequestError(str(error)) from error
+
+    require_attack_task_type(
+        attack=attack,
+        task_type=model.task_type,
+    )
 
     result_id, result_path = create_result_directory(prefix="evaluation")
 
     results: list[EvaluationImageResult] = []
 
-    for image_metadata in images_metadata:
-        image_id = image_metadata["id"]
-        filename = image_metadata["filename"]
+    for image_metadata in dataset.images:
+        image_id = image_metadata.id
+        filename = image_metadata.filename
 
         image = await get_image_from_dataset(
             dataset_id=request.dataset_id,
@@ -75,17 +64,11 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
 
         original_prediction = model.predict(image)
 
-        try:
-            attack_result = attack.apply(
-                model_wrapper=model,
-                image=image,
-                parameters=request.parameters,
-            )
-        except ValueError as e:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Error attacking image {filename}: {str(e)}",
-            )
+        attack_result = attack.apply(
+            model_wrapper=model,
+            image=image,
+            parameters=request.parameters,
+        )
 
         adversarial_image = attack_result["adversarial_image"]
         perturbation_image = attack_result["perturbation_image"]
@@ -101,18 +84,24 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
             original_prediction.prediction != adversarial_prediction.prediction
         )
 
-        ground_truth_label = image_metadata.get("label")
+        ground_truth_label = image_metadata.label
 
         original_correct = None
         adversarial_correct = None
 
         if ground_truth_label:
             normalized_ground_truth = ground_truth_label.strip().lower()
-            normalized_original_prediction = original_prediction.prediction.strip().lower()
-            normalized_adversarial_prediction = adversarial_prediction.prediction.strip().lower()
+            normalized_original_prediction = (
+                original_prediction.prediction.strip().lower()
+            )
+            normalized_adversarial_prediction = (
+                adversarial_prediction.prediction.strip().lower()
+            )
 
             original_correct = normalized_original_prediction == normalized_ground_truth
-            adversarial_correct = normalized_adversarial_prediction == normalized_ground_truth
+            adversarial_correct = (
+                normalized_adversarial_prediction == normalized_ground_truth
+            )
 
         safe_image_id = image_id.replace("/", "_")
 
@@ -186,8 +175,7 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
     attack_success_rate = round(changed_predictions / total_images, 4)
 
     labeled_results = [
-        result for result in results
-        if result.ground_truth_label is not None
+        result for result in results if result.ground_truth_label is not None
     ]
 
     labeled_images = len(labeled_results)
@@ -201,17 +189,16 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
 
     if labeled_images > 0:
         correct_before_attack = sum(
-            1 for result in labeled_results
-            if result.original_correct
+            1 for result in labeled_results if result.original_correct
         )
 
         correct_after_attack = sum(
-            1 for result in labeled_results
-            if result.adversarial_correct
+            1 for result in labeled_results if result.adversarial_correct
         )
 
         correct_before_wrong_after = sum(
-            1 for result in labeled_results
+            1
+            for result in labeled_results
             if result.original_correct and not result.adversarial_correct
         )
 

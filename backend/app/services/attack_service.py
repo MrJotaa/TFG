@@ -1,5 +1,3 @@
-from fastapi import HTTPException
-
 from ml.attacks.registry import get_attack
 from schemas.attack import (
     AttackComparison,
@@ -8,59 +6,51 @@ from schemas.attack import (
 )
 from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
-from utils.result_files import create_result_directory, save_result_image, save_result_metadata
+from utils.result_files import (
+    create_result_directory,
+    save_result_image,
+    save_result_metadata,
+)
 from ml.explainability.gradcam import generate_gradcam
+from core.task_compatibility import (
+    CLASSIFICATION_TASK_TYPE,
+    require_attack_task_type,
+    require_model_task_type,
+)
+from core.errors import BadRequestError
 
 
 async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
-    try:
-        image = await get_image_from_dataset(
-            dataset_id=request.dataset_id,
-            image_id=request.image_id,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    image = await get_image_from_dataset(
+        dataset_id=request.dataset_id,
+        image_id=request.image_id,
+    )
 
-    try:
-        model = get_active_model_instance()
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    model = get_active_model_instance()
+
+    require_model_task_type(
+        model=model,
+        expected_task_type=CLASSIFICATION_TASK_TYPE,
+        endpoint="/attack",
+    )
 
     try:
         attack = get_attack(request.attack_type)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as error:
+        raise BadRequestError(str(error)) from error
 
-    model_task_type = getattr(model, "task_type", None)
-
-    if not attack.supports_task_type(model_task_type):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Attack '{request.attack_type}' is not supported "
-                f"for model task type '{model_task_type}'"
-            ),
-        )
-
-    if model_task_type != "classification":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Endpoint /attack currently supports classification attacks only. "
-                f"Use a detection-specific attack endpoint for model '{model.id}'."
-            ),
-        )
+    require_attack_task_type(
+        attack=attack,
+        task_type=model.task_type,
+    )
 
     original_prediction = model.predict(image)
 
-    try:
-        attack_result = attack.apply(
-            model_wrapper=model,
-            image=image,
-            parameters=request.parameters,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    attack_result = attack.apply(
+        model_wrapper=model,
+        image=image,
+        parameters=request.parameters,
+    )
 
     adversarial_image = attack_result["adversarial_image"]
     perturbation_image = attack_result["perturbation_image"]

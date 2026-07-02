@@ -87,6 +87,7 @@ def auth_headers(registered_user):
         "Authorization": f"Bearer {token}",
     }
 
+
 @pytest.fixture
 def image_file_factory():
     def _create_image_file(

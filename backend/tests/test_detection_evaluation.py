@@ -239,11 +239,14 @@ def test_detect_evaluate_with_invalid_attack_type_returns_422(client):
     assert response.status_code == 422
 
 
-def test_detect_evaluate_propagates_incompatible_model_error(client, monkeypatch):
+def test_detect_evaluate_propagates_incompatible_model_error(
+    client,
+    monkeypatch,
+):
     async def fake_evaluate_detection_dataset(request):
         raise HTTPException(
             status_code=400,
-            detail="Endpoint /detect/evaluate currently supports detection models only.",
+            detail=("Endpoint '/detect/evaluate' requires a detection model"),
         )
 
     monkeypatch.setattr(
@@ -261,7 +264,9 @@ def test_detect_evaluate_propagates_incompatible_model_error(client, monkeypatch
     )
 
     assert response.status_code == 400
-    assert "detection models only" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "Endpoint '/detect/evaluate' requires a detection model"
+    )
 
 
 def test_detect_evaluate_propagates_dataset_error(client, monkeypatch):

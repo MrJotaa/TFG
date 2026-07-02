@@ -13,12 +13,15 @@ from api.routes.auth import router as auth_router
 from api.routes.detect import router as detect_router
 from api.routes.detection_attack import router as detection_attack_router
 from api.routes.detection_evaluate import router as detection_evaluate_router
+from core.error_handlers import register_error_handlers
 
 from db.database import get_database
 
 app = FastAPI()
 
-app.add_middleware( # Para permitir solicitudes desde el frontend en desarrollo
+register_error_handlers(app)
+
+app.add_middleware(  # Para permitir solicitudes desde el frontend en desarrollo
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
@@ -30,9 +33,11 @@ app.add_middleware( # Para permitir solicitudes desde el frontend en desarrollo
 )
 app.mount("/results", StaticFiles(directory="uploads/results"), name="results")
 
+
 @app.get("/")
 async def root():
     return {"message": "API running"}
+
 
 app.include_router(predict_router, tags=["Inference"])
 app.include_router(detect_router, tags=["Detection"])
@@ -45,6 +50,7 @@ app.include_router(datasets_router, tags=["Datasets"])
 app.include_router(explainability_router, tags=["Explainability"])
 app.include_router(attack_router, tags=["Attack"])
 app.include_router(evaluate_router, tags=["Evaluation"])
+
 
 @app.get("/health/db")
 async def health_db():

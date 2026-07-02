@@ -89,11 +89,11 @@ def test_get_user_by_id_returns_user(client, registered_user):
     assert data["email"] == registered_user["user"]["email"]
 
 
-def test_get_user_with_invalid_id_returns_404(client):
+def test_get_user_with_invalid_id_returns_400(client):
     response = client.get("/users/invalid-id")
 
-    assert response.status_code == 404
-    assert "invalid user id" in response.json()["detail"].lower()
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid user id"
 
 
 def test_get_user_with_unknown_id_returns_404(client):
@@ -180,7 +180,7 @@ def test_update_user_with_invalid_email_returns_422(client, registered_user):
     assert response.status_code == 422
 
 
-def test_update_user_with_invalid_id_returns_404(client):
+def test_update_user_with_invalid_id_returns_400(client):
     response = client.patch(
         "/users/invalid-id",
         json={
@@ -188,8 +188,8 @@ def test_update_user_with_invalid_id_returns_404(client):
         },
     )
 
-    assert response.status_code == 404
-    assert "invalid user id" in response.json()["detail"].lower()
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid user id"
 
 
 def test_update_unknown_user_returns_404(client):
@@ -217,11 +217,11 @@ def test_delete_user_removes_user(client, registered_user):
     assert get_response.status_code == 404
 
 
-def test_delete_user_with_invalid_id_returns_404(client):
+def test_delete_user_with_invalid_id_returns_400(client):
     response = client.delete("/users/invalid-id")
 
-    assert response.status_code == 404
-    assert "invalid user id" in response.json()["detail"].lower()
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid user id"
 
 
 def test_delete_unknown_user_returns_404(client):
@@ -247,4 +247,11 @@ def test_get_user_datasets_with_invalid_user_id_returns_400(client):
     response = client.get("/users/invalid-id/datasets")
 
     assert response.status_code == 400
-    assert "invalid user id" in response.json()["detail"].lower()
+    assert response.json()["detail"] == "Invalid user id"
+
+
+def test_get_user_datasets_for_unknown_user_returns_404(client):
+    response = client.get("/users/507f1f77bcf86cd799439011/datasets")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User not found"

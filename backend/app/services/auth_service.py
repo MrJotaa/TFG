@@ -1,3 +1,4 @@
+from core.errors import UnauthorizedError
 from schemas.auth import AuthResponse, LoginRequest, SignupRequest
 from schemas.users import UserResponse
 from services.user_service import (
@@ -6,7 +7,15 @@ from services.user_service import (
     get_user_document_by_id,
     user_to_response,
 )
-from utils.security import create_access_token, decode_access_token, verify_password
+from utils.security import (
+    create_access_token,
+    decode_access_token,
+    verify_password,
+)
+
+
+INVALID_CREDENTIALS_MESSAGE = "Invalid email or password"
+INVALID_TOKEN_MESSAGE = "Invalid or expired token"
 
 
 def create_auth_response(user: UserResponse) -> AuthResponse:
@@ -33,15 +42,15 @@ async def login(login_data: LoginRequest) -> AuthResponse:
     user_document = await get_user_document_by_email(login_data.email)
 
     if not user_document:
-        raise ValueError("Invalid email or password")
+        raise UnauthorizedError(INVALID_CREDENTIALS_MESSAGE)
 
     hashed_password = user_document.get("password")
 
     if not hashed_password:
-        raise ValueError("Invalid email or password")
+        raise UnauthorizedError(INVALID_CREDENTIALS_MESSAGE)
 
     if not verify_password(login_data.password, hashed_password):
-        raise ValueError("Invalid email or password")
+        raise UnauthorizedError(INVALID_CREDENTIALS_MESSAGE)
 
     user = user_to_response(user_document)
 
@@ -49,16 +58,19 @@ async def login(login_data: LoginRequest) -> AuthResponse:
 
 
 async def get_current_user(token: str) -> UserResponse:
-    payload = decode_access_token(token)
+    try:
+        payload = decode_access_token(token)
+    except ValueError as error:
+        raise UnauthorizedError(INVALID_TOKEN_MESSAGE) from error
 
     user_id = payload.get("sub")
 
     if not user_id:
-        raise ValueError("Invalid token payload")
+        raise UnauthorizedError("Invalid token payload")
 
     user_document = await get_user_document_by_id(user_id)
 
     if not user_document:
-        raise ValueError("User not found")
+        raise UnauthorizedError("User not found")
 
     return user_to_response(user_document)

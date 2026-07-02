@@ -19,3 +19,4 @@ grad-cam
 pytest
 pytest-asyncio
 httpx
+ruff

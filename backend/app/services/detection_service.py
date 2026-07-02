@@ -1,5 +1,3 @@
-from fastapi import HTTPException
-
 from schemas.detection import DetectionRequest, DetectionResponse
 from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
@@ -8,30 +6,25 @@ from utils.result_files import (
     save_result_image,
     save_result_metadata,
 )
+from core.task_compatibility import (
+    DETECTION_TASK_TYPE,
+    require_model_task_type,
+)
 
 
 async def detect_objects(request: DetectionRequest) -> DetectionResponse:
-    try:
-        image = await get_image_from_dataset(
-            dataset_id=request.dataset_id,
-            image_id=request.image_id,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    image = await get_image_from_dataset(
+        dataset_id=request.dataset_id,
+        image_id=request.image_id,
+    )
 
-    try:
-        model = get_active_model_instance()
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    model = get_active_model_instance()
 
-    if getattr(model, "task_type", None) != "detection":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Active model '{model.id}' is not a detection model. "
-                "Select a detection model before calling /detect."
-            ),
-        )
+    require_model_task_type(
+        model=model,
+        expected_task_type=DETECTION_TASK_TYPE,
+        endpoint="/detect",
+    )
 
     detection_response, annotated_image = model.detect_with_visualization(image)
 

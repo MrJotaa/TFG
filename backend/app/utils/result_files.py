@@ -10,8 +10,12 @@ from datetime import datetime, timezone
 RESULTS_BASE_PATH = "uploads/results"
 RESULTS_TTL_SECONDS = 24 * 60 * 60  # 24 horas
 
-def ensure_results_directory() -> None: # Crea el directorio base de resultados si no existe
+
+def ensure_results_directory() -> (
+    None
+):  # Crea el directorio base de resultados si no existe
     os.makedirs(RESULTS_BASE_PATH, exist_ok=True)
+
 
 def cleanup_old_results(ttl_seconds: int = RESULTS_TTL_SECONDS) -> None:
     """
@@ -31,6 +35,7 @@ def cleanup_old_results(ttl_seconds: int = RESULTS_TTL_SECONDS) -> None:
 
         if age_seconds > ttl_seconds:
             shutil.rmtree(entry_path, ignore_errors=True)
+
 
 def create_result_directory(prefix: str = "result") -> tuple[str, str]:
     """
@@ -62,6 +67,7 @@ def save_result_image(
     image.save(image_path, format="PNG")
 
     return f"/results/{result_id}/{filename}"
+
 
 def save_result_metadata(
     result_path: str,

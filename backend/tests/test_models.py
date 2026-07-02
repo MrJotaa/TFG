@@ -178,7 +178,8 @@ def test_select_unknown_model_returns_404(client):
     response = client.post("/models/unknown-model/select")
 
     assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
+    assert response.json()["detail"] == "Model not found"
+
 
 def test_select_already_active_model_loads_it(client):
     resnet_instance = model_service._models["resnet18"]["instance"]

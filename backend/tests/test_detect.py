@@ -89,14 +89,21 @@ def test_detect_propagates_dataset_error(client, monkeypatch):
     assert response.json()["detail"] == "Image not found"
 
 
-def test_detect_propagates_incompatible_model_error(client, monkeypatch):
+def test_detect_propagates_incompatible_model_error(
+    client,
+    monkeypatch,
+):
     async def fake_detect_objects(request):
         raise HTTPException(
             status_code=400,
-            detail="Active model 'resnet18' is not a detection model.",
+            detail=("Endpoint '/detect' requires a detection model"),
         )
 
-    monkeypatch.setattr(detect_route, "detect_objects", fake_detect_objects)
+    monkeypatch.setattr(
+        detect_route,
+        "detect_objects",
+        fake_detect_objects,
+    )
 
     response = client.post(
         "/detect",
@@ -107,4 +114,6 @@ def test_detect_propagates_incompatible_model_error(client, monkeypatch):
     )
 
     assert response.status_code == 400
-    assert "not a detection model" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "Endpoint '/detect' requires a detection model"
+    )
