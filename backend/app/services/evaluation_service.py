@@ -23,6 +23,7 @@ from core.task_compatibility import (
     require_model_task_type,
 )
 
+
 async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
     if not ObjectId.is_valid(request.dataset_id):
         raise HTTPException(status_code=400, detail="Invalid dataset id")
@@ -109,11 +110,17 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
 
         if ground_truth_label:
             normalized_ground_truth = ground_truth_label.strip().lower()
-            normalized_original_prediction = original_prediction.prediction.strip().lower()
-            normalized_adversarial_prediction = adversarial_prediction.prediction.strip().lower()
+            normalized_original_prediction = (
+                original_prediction.prediction.strip().lower()
+            )
+            normalized_adversarial_prediction = (
+                adversarial_prediction.prediction.strip().lower()
+            )
 
             original_correct = normalized_original_prediction == normalized_ground_truth
-            adversarial_correct = normalized_adversarial_prediction == normalized_ground_truth
+            adversarial_correct = (
+                normalized_adversarial_prediction == normalized_ground_truth
+            )
 
         safe_image_id = image_id.replace("/", "_")
 
@@ -187,8 +194,7 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
     attack_success_rate = round(changed_predictions / total_images, 4)
 
     labeled_results = [
-        result for result in results
-        if result.ground_truth_label is not None
+        result for result in results if result.ground_truth_label is not None
     ]
 
     labeled_images = len(labeled_results)
@@ -202,17 +208,16 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
 
     if labeled_images > 0:
         correct_before_attack = sum(
-            1 for result in labeled_results
-            if result.original_correct
+            1 for result in labeled_results if result.original_correct
         )
 
         correct_after_attack = sum(
-            1 for result in labeled_results
-            if result.adversarial_correct
+            1 for result in labeled_results if result.adversarial_correct
         )
 
         correct_before_wrong_after = sum(
-            1 for result in labeled_results
+            1
+            for result in labeled_results
             if result.original_correct and not result.adversarial_correct
         )
 

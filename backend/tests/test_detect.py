@@ -96,9 +96,7 @@ def test_detect_propagates_incompatible_model_error(
     async def fake_detect_objects(request):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Endpoint '/detect' requires a detection model"
-            ),
+            detail=("Endpoint '/detect' requires a detection model"),
         )
 
     monkeypatch.setattr(

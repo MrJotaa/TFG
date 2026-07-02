@@ -203,10 +203,7 @@ def test_detect_attack_propagates_incompatible_attack_error(
     async def fake_apply_detection_attack(request):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Attack 'fgsm' does not support "
-                "task type 'detection'"
-            ),
+            detail=("Attack 'fgsm' does not support task type 'detection'"),
         )
 
     monkeypatch.setattr(
@@ -226,8 +223,7 @@ def test_detect_attack_propagates_incompatible_attack_error(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Attack 'fgsm' does not support "
-        "task type 'detection'"
+        "Attack 'fgsm' does not support task type 'detection'"
     )
 
 

@@ -33,8 +33,7 @@ def _to_model_info(model_id: str, model_data: dict) -> ModelInfo:
 
 def list_models() -> list[ModelInfo]:
     return [
-        _to_model_info(model_id, model_data)
-        for model_id, model_data in _models.items()
+        _to_model_info(model_id, model_data) for model_id, model_data in _models.items()
     ]
 
 

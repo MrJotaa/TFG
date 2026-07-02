@@ -149,14 +149,8 @@ def test_random_noise_is_reproducible_with_fixed_seed():
     second_pixels = second_result["adversarial_image"].tobytes()
 
     assert first_pixels == second_pixels
-    assert (
-        first_result["perturbation_linf"]
-        == second_result["perturbation_linf"]
-    )
-    assert (
-        first_result["perturbation_l2"]
-        == second_result["perturbation_l2"]
-    )
+    assert first_result["perturbation_linf"] == second_result["perturbation_linf"]
+    assert first_result["perturbation_l2"] == second_result["perturbation_l2"]
 
 
 def test_random_noise_with_positive_epsilon_modifies_image():

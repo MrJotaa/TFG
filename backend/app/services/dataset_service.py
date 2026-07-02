@@ -83,11 +83,7 @@ async def _get_dataset_document(
 
 def _get_image_metadata(dataset: dict, image_id: str) -> dict:
     image_metadata = next(
-        (
-            image
-            for image in dataset["images"]
-            if image["id"] == image_id
-        ),
+        (image for image in dataset["images"] if image["id"] == image_id),
         None,
     )
 
@@ -113,9 +109,7 @@ async def create_dataset_from_images(
 
     for file in files:
         if not is_valid_image_file(file.filename):
-            raise BadRequestError(
-                f"Invalid image file: {file.filename}"
-            )
+            raise BadRequestError(f"Invalid image file: {file.filename}")
 
     dataset_id = ObjectId()
     dataset_path = os.path.join(
@@ -162,9 +156,7 @@ async def create_dataset_from_images(
         {"$addToSet": {"datasets": dataset_id}},
     )
 
-    created_dataset = await datasets_collection.find_one(
-        {"_id": dataset_id}
-    )
+    created_dataset = await datasets_collection.find_one({"_id": dataset_id})
 
     return dataset_to_response(created_dataset)
 
@@ -232,9 +224,7 @@ async def add_images_to_dataset(
 
     for file in files:
         if not is_valid_image_file(file.filename):
-            raise BadRequestError(
-                f"Invalid image file: {file.filename}"
-            )
+            raise BadRequestError(f"Invalid image file: {file.filename}")
 
         image_id = str(uuid.uuid4())
         extension = os.path.splitext(file.filename)[1].lower()
@@ -332,9 +322,7 @@ async def get_datasets_by_user(
 
     datasets = []
 
-    async for dataset in datasets_collection.find(
-        {"owner_id": user_object_id}
-    ):
+    async for dataset in datasets_collection.find({"owner_id": user_object_id}):
         datasets.append(dataset_to_response(dataset))
 
     return datasets

@@ -49,14 +49,18 @@ class TinyYOLOModel(torch.nn.Module):
             candidate_count,
         )
 
-        secondary_class_scores = (score * 0.5).reshape(
-            batch_size,
-            1,
-            1,
-        ).expand(
-            batch_size,
-            1,
-            candidate_count,
+        secondary_class_scores = (
+            (score * 0.5)
+            .reshape(
+                batch_size,
+                1,
+                1,
+            )
+            .expand(
+                batch_size,
+                1,
+                candidate_count,
+            )
         )
 
         return torch.cat(
@@ -262,9 +266,7 @@ def test_yolo_confidence_uses_alpha_and_reduces_confidence(
     adversarial_tensor = captured["tensor"]
 
     expected_perturbation = alpha * steps
-    expected_adversarial_tensor = (
-        original_tensor - expected_perturbation
-    )
+    expected_adversarial_tensor = original_tensor - expected_perturbation
 
     assert torch.allclose(
         adversarial_tensor,
@@ -414,10 +416,7 @@ def test_yolo_confidence_with_zero_epsilon_does_not_modify_image(
         original_tensor,
     )
 
-    assert (
-        result["adversarial_image"].tobytes()
-        == original_image.tobytes()
-    )
+    assert result["adversarial_image"].tobytes() == original_image.tobytes()
 
     assert result["perturbation_linf"] == 0.0
     assert result["perturbation_l2"] == 0.0

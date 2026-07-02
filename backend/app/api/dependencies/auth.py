@@ -12,8 +12,6 @@ bearer_scheme = HTTPBearer()
 
 
 async def require_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(
-        bearer_scheme
-    ),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> UserResponse:
     return await get_current_user(credentials.credentials)

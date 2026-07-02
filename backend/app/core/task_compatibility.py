@@ -25,8 +25,7 @@ def require_model_task_type(
 
     if actual_task_type != expected_task_type:
         raise BadRequestError(
-            f"Endpoint '{endpoint}' requires a "
-            f"{expected_task_type} model"
+            f"Endpoint '{endpoint}' requires a {expected_task_type} model"
         )
 
 
@@ -42,6 +41,5 @@ def require_attack_task_type(
     """
     if not attack.supports_task_type(task_type):
         raise BadRequestError(
-            f"Attack '{attack.id}' does not support "
-            f"task type '{task_type}'"
+            f"Attack '{attack.id}' does not support task type '{task_type}'"
         )

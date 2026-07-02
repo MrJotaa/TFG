@@ -1,5 +1,3 @@
-from pyexpat import model
-
 from fastapi import HTTPException
 
 from ml.explainability.gradcam import (

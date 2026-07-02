@@ -26,9 +26,7 @@ class FakeModel:
         self.task_type = task_type
 
     def predict(self, image):
-        raise AssertionError(
-            "Prediction must not run for an incompatible model"
-        )
+        raise AssertionError("Prediction must not run for an incompatible model")
 
 
 class FakeAttack:
@@ -44,9 +42,7 @@ class FakeAttack:
         return task_type in self.supported_task_types
 
     def apply(self, model_wrapper, image, parameters):
-        raise AssertionError(
-            "Attack must not run when it is incompatible"
-        )
+        raise AssertionError("Attack must not run when it is incompatible")
 
 
 def _create_image() -> Image.Image:
@@ -88,10 +84,7 @@ def test_require_model_task_type_rejects_incompatible_model():
 
     with pytest.raises(
         BadRequestError,
-        match=(
-            "Endpoint '/predict' requires "
-            "a classification model"
-        ),
+        match=("Endpoint '/predict' requires a classification model"),
     ):
         require_model_task_type(
             model=model,
@@ -123,10 +116,7 @@ def test_require_attack_task_type_rejects_incompatible_attack():
 
     with pytest.raises(
         BadRequestError,
-        match=(
-            "Attack 'yolo_confidence' does not support "
-            "task type 'classification'"
-        ),
+        match=("Attack 'yolo_confidence' does not support task type 'classification'"),
     ):
         require_attack_task_type(
             attack=attack,
@@ -247,8 +237,7 @@ def test_attack_rejects_detection_only_attack(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Attack 'yolo_confidence' does not support "
-        "task type 'classification'"
+        "Attack 'yolo_confidence' does not support task type 'classification'"
     )
 
 
@@ -308,9 +297,9 @@ def test_evaluate_rejects_detection_only_attack(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Attack 'yolo_confidence' does not support "
-        "task type 'classification'"
+        "Attack 'yolo_confidence' does not support task type 'classification'"
     )
+
 
 def test_detect_rejects_classification_model(
     client,
@@ -425,8 +414,7 @@ def test_detection_attack_rejects_classification_only_attack(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Attack 'fgsm' does not support "
-        "task type 'detection'"
+        "Attack 'fgsm' does not support task type 'detection'"
     )
 
 
@@ -500,8 +488,7 @@ def test_detection_evaluate_rejects_classification_only_attack(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Attack 'fgsm' does not support "
-        "task type 'detection'"
+        "Attack 'fgsm' does not support task type 'detection'"
     )
 
 
@@ -536,8 +523,7 @@ def test_gradcam_rejects_detection_model(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Endpoint '/explain/gradcam' "
-        "requires a classification model"
+        "Endpoint '/explain/gradcam' requires a classification model"
     )
 
 

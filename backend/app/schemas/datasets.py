@@ -15,5 +15,6 @@ class DatasetResponse(BaseModel):
     image_count: int
     images: list[DatasetImage]
 
+
 class DatasetImageLabelUpdate(BaseModel):
     label: str | None = None

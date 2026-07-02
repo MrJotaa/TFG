@@ -34,9 +34,7 @@ def test_gradcam_returns_explainability_response(
             "result_id": "gradcam-result-1",
             "prediction": "tabby cat",
             "confidence": 0.9342,
-            "gradcam_image_url": (
-                "/results/gradcam-result-1/gradcam.png"
-            ),
+            "gradcam_image_url": ("/results/gradcam-result-1/gradcam.png"),
         }
 
     monkeypatch.setattr(
@@ -60,9 +58,7 @@ def test_gradcam_returns_explainability_response(
     assert data["result_id"] == "gradcam-result-1"
     assert data["prediction"] == "tabby cat"
     assert data["confidence"] == 0.9342
-    assert data["gradcam_image_url"] == (
-        "/results/gradcam-result-1/gradcam.png"
-    )
+    assert data["gradcam_image_url"] == ("/results/gradcam-result-1/gradcam.png")
 
 
 def test_gradcam_with_missing_image_id_returns_422(client):
@@ -123,10 +119,7 @@ def test_gradcam_propagates_incompatible_model_error(
 
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Endpoint '/explain/gradcam' "
-                "requires a classification model"
-            ),
+            detail=("Endpoint '/explain/gradcam' requires a classification model"),
         )
 
     monkeypatch.setattr(
@@ -145,8 +138,7 @@ def test_gradcam_propagates_incompatible_model_error(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Endpoint '/explain/gradcam' "
-        "requires a classification model"
+        "Endpoint '/explain/gradcam' requires a classification model"
     )
 
 
@@ -164,8 +156,7 @@ def test_detection_explainability_returns_response(
             "model_name": "YOLOv8n pretrained",
             "explanation_type": "eigencam",
             "explanation_image_url": (
-                "/results/detection-explain-result-1/"
-                "detection_explanation.png"
+                "/results/detection-explain-result-1/detection_explanation.png"
             ),
             "detections": [
                 _mock_detection("car", 0.91),
@@ -196,8 +187,7 @@ def test_detection_explainability_returns_response(
     assert data["model_name"] == "YOLOv8n pretrained"
     assert data["explanation_type"] == "eigencam"
     assert data["explanation_image_url"] == (
-        "/results/detection-explain-result-1/"
-        "detection_explanation.png"
+        "/results/detection-explain-result-1/detection_explanation.png"
     )
 
     assert len(data["detections"]) == 2
@@ -254,10 +244,7 @@ def test_detection_explainability_propagates_incompatible_model_error(
     async def fake_generate_detection_explainability(request):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Endpoint '/explain/detection' "
-                "requires a detection model"
-            ),
+            detail=("Endpoint '/explain/detection' requires a detection model"),
         )
 
     monkeypatch.setattr(
@@ -276,8 +263,7 @@ def test_detection_explainability_propagates_incompatible_model_error(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Endpoint '/explain/detection' "
-        "requires a detection model"
+        "Endpoint '/explain/detection' requires a detection model"
     )
 
 
@@ -306,7 +292,4 @@ def test_detection_explainability_propagates_no_detections_error(
     )
 
     assert response.status_code == 400
-    assert (
-        "no detections"
-        in response.json()["detail"].lower()
-    )
+    assert "no detections" in response.json()["detail"].lower()

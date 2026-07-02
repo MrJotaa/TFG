@@ -101,9 +101,7 @@ class BaseObjectDetectionModel(BaseModel):
         Devuelve el modelo PyTorch interno si el detector lo expone.
         Necesario para técnicas de explainability como EigenCAM.
         """
-        raise NotImplementedError(
-            f"Model '{self.id}' does not expose a torch model"
-        )
+        raise NotImplementedError(f"Model '{self.id}' does not expose a torch model")
 
     def get_explainability_target_layer(self):
         """

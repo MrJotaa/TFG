@@ -106,15 +106,16 @@ async def apply_detection_attack(
     detections_difference = adversarial_count - original_count
 
     average_original_confidence = _average_detection_confidence(original_detections)
-    average_adversarial_confidence = _average_detection_confidence(adversarial_detections)
+    average_adversarial_confidence = _average_detection_confidence(
+        adversarial_detections
+    )
     average_confidence_difference = round(
         average_adversarial_confidence - average_original_confidence,
         4,
     )
 
     attack_success = (
-        adversarial_count < original_count
-        or average_confidence_difference < 0
+        adversarial_count < original_count or average_confidence_difference < 0
     )
 
     comparison = DetectionAttackComparison(

@@ -11,7 +11,7 @@ class FGSMAttack(BaseAdversarialAttack):
     name = "Fast Gradient Sign Method"
     supported_task_types = ["classification"]
 
-    def __init__(self): # Inicializa las transformaciones necesarias para el ataque.
+    def __init__(self):  # Inicializa las transformaciones necesarias para el ataque.
         self.to_tensor = transforms.ToTensor()
 
         self.normalize = transforms.Normalize(
@@ -69,7 +69,6 @@ class FGSMAttack(BaseAdversarialAttack):
         # Calculamos la perturbación aplicada para métricas de comparación.
         perturbation = adversarial_tensor - original_tensor
 
-
         # Calculamos las métricas de la perturbación: norma L-infinito y L2.
         perturbation_linf = torch.max(torch.abs(perturbation)).item()
         perturbation_l2 = torch.norm(perturbation).item()
@@ -78,7 +77,7 @@ class FGSMAttack(BaseAdversarialAttack):
         adversarial_image = self._tensor_to_image(adversarial_tensor)
         perturbation_image = self._perturbation_to_image(perturbation)
 
-        return { # Devolvemos la imagen adversaria y las métricas de la perturbación.
+        return {  # Devolvemos la imagen adversaria y las métricas de la perturbación.
             "adversarial_image": adversarial_image,
             "perturbation_image": perturbation_image,
             "perturbation_linf": round(perturbation_linf, 4),

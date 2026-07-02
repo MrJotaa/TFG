@@ -44,9 +44,7 @@ async def list_users() -> list[UserResponse]:
 
 
 async def create_user(user_data: UserCreate) -> UserResponse:
-    existing_user = await users_collection.find_one(
-        {"email": user_data.email}
-    )
+    existing_user = await users_collection.find_one({"email": user_data.email})
 
     if existing_user:
         raise BadRequestError(USER_ALREADY_EXISTS_MESSAGE)
@@ -60,9 +58,7 @@ async def create_user(user_data: UserCreate) -> UserResponse:
 
     result = await users_collection.insert_one(user_doc)
 
-    created_user = await users_collection.find_one(
-        {"_id": result.inserted_id}
-    )
+    created_user = await users_collection.find_one({"_id": result.inserted_id})
 
     return user_to_response(created_user)
 
@@ -106,9 +102,7 @@ async def update_user(
             {"$set": update_data},
         )
 
-    updated_user = await users_collection.find_one(
-        {"_id": object_id}
-    )
+    updated_user = await users_collection.find_one({"_id": object_id})
 
     if not updated_user:
         raise NotFoundError(USER_NOT_FOUND_MESSAGE)
@@ -140,9 +134,7 @@ async def delete_user(user_id: str) -> None:
             ignore_errors=True,
         )
 
-    result = await users_collection.delete_one(
-        {"_id": object_id}
-    )
+    result = await users_collection.delete_one({"_id": object_id})
 
     if result.deleted_count == 0:
         raise NotFoundError(USER_NOT_FOUND_MESSAGE)
@@ -156,9 +148,7 @@ async def get_user_document_by_id(user_id: str) -> dict | None:
     if not ObjectId.is_valid(user_id):
         return None
 
-    return await users_collection.find_one(
-        {"_id": ObjectId(user_id)}
-    )
+    return await users_collection.find_one({"_id": ObjectId(user_id)})
 
 
 async def create_user_from_signup(

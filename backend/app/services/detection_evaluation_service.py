@@ -98,36 +98,24 @@ async def evaluate_detection_dataset(
         original_detection_response = model.detect(image)
         original_detections = original_detection_response.detections
 
-        adversarial_detection_response = model.detect(
-            adversarial_image
-        )
-        adversarial_detections = (
-            adversarial_detection_response.detections
-        )
+        adversarial_detection_response = model.detect(adversarial_image)
+        adversarial_detections = adversarial_detection_response.detections
 
         original_count = len(original_detections)
         adversarial_count = len(adversarial_detections)
         detections_difference = adversarial_count - original_count
 
-        average_original_confidence = (
-            _average_detection_confidence(
-                original_detections
-            )
-        )
-        average_adversarial_confidence = (
-            _average_detection_confidence(
-                adversarial_detections
-            )
+        average_original_confidence = _average_detection_confidence(original_detections)
+        average_adversarial_confidence = _average_detection_confidence(
+            adversarial_detections
         )
         average_confidence_difference = round(
-            average_adversarial_confidence
-            - average_original_confidence,
+            average_adversarial_confidence - average_original_confidence,
             4,
         )
 
         attack_success = (
-            adversarial_count < original_count
-            or average_confidence_difference < 0
+            adversarial_count < original_count or average_confidence_difference < 0
         )
 
         if adversarial_count < original_count:
@@ -142,21 +130,11 @@ async def evaluate_detection_dataset(
         total_original_detections += original_count
         total_adversarial_detections += adversarial_count
 
-        original_confidences.append(
-            average_original_confidence
-        )
-        adversarial_confidences.append(
-            average_adversarial_confidence
-        )
-        confidence_differences.append(
-            average_confidence_difference
-        )
-        perturbation_linf_values.append(
-            attack_result["perturbation_linf"]
-        )
-        perturbation_l2_values.append(
-            attack_result["perturbation_l2"]
-        )
+        original_confidences.append(average_original_confidence)
+        adversarial_confidences.append(average_adversarial_confidence)
+        confidence_differences.append(average_confidence_difference)
+        perturbation_linf_values.append(attack_result["perturbation_linf"])
+        perturbation_l2_values.append(attack_result["perturbation_l2"])
 
         image_results.append(
             DetectionEvaluationImageResult(
@@ -165,22 +143,12 @@ async def evaluate_detection_dataset(
                 original_detection_count=original_count,
                 adversarial_detection_count=adversarial_count,
                 detections_difference=detections_difference,
-                average_original_confidence=(
-                    average_original_confidence
-                ),
-                average_adversarial_confidence=(
-                    average_adversarial_confidence
-                ),
-                average_confidence_difference=(
-                    average_confidence_difference
-                ),
+                average_original_confidence=(average_original_confidence),
+                average_adversarial_confidence=(average_adversarial_confidence),
+                average_confidence_difference=(average_confidence_difference),
                 attack_success=attack_success,
-                perturbation_linf=attack_result[
-                    "perturbation_linf"
-                ],
-                perturbation_l2=attack_result[
-                    "perturbation_l2"
-                ],
+                perturbation_linf=attack_result["perturbation_linf"],
+                perturbation_l2=attack_result["perturbation_l2"],
                 original_detections=original_detections,
                 adversarial_detections=adversarial_detections,
             )

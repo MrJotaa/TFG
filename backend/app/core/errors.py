@@ -10,11 +10,7 @@ class ApplicationError(Exception):
     default_detail = "Application error"
 
     def __init__(self, detail: str | None = None):
-        self.detail = (
-            detail
-            if detail is not None
-            else self.default_detail
-        )
+        self.detail = detail if detail is not None else self.default_detail
 
         super().__init__(self.detail)
 

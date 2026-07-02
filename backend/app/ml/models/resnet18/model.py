@@ -18,7 +18,7 @@ class ResNet18Model(BaseImageClassificationModel):
         self.model = None
         self.categories = None
 
-    def load(self) -> None: # Carga el modelo y los recursos necesarios.
+    def load(self) -> None:  # Carga el modelo y los recursos necesarios.
         # Si ya está cargado, no lo volvemos a cargar.
         if self.is_loaded():
             return
@@ -43,15 +43,19 @@ class ResNet18Model(BaseImageClassificationModel):
     def is_loaded(self) -> bool:
         return self.model is not None and self.categories is not None
 
-    def preprocess(self, image: Image.Image): # Preprocesa la imagen de entrada según los requisitos del modelo.
-        transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225],
-            ),
-        ])
+    def preprocess(
+        self, image: Image.Image
+    ):  # Preprocesa la imagen de entrada según los requisitos del modelo.
+        transform = transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225],
+                ),
+            ]
+        )
 
         tensor = transform(image)
         tensor = tensor.unsqueeze(0)
@@ -68,7 +72,9 @@ class ResNet18Model(BaseImageClassificationModel):
 
         with torch.no_grad():
             output = self.model(input_tensor)
-            probabilities = F.softmax(output[0], dim=0) # Convierte las salidas del modelo en probabilidades utilizando softmax
+            probabilities = F.softmax(
+                output[0], dim=0
+            )  # Convierte las salidas del modelo en probabilidades utilizando softmax
 
         top_probs, top_indices = torch.topk(probabilities, k=3)
 
@@ -86,13 +92,11 @@ class ResNet18Model(BaseImageClassificationModel):
             top_k=top_k_predictions,
         )
 
-
     def get_torch_model(self):
         if not self.is_loaded():
             raise ValueError("Model is not loaded")
 
         return self.model
-
 
     def get_gradcam_target_layer(self):
         if not self.is_loaded():

@@ -61,14 +61,8 @@ def test_attack_task_type_compatibility(
     supports_classification,
     supports_detection,
 ):
-    assert (
-        attack.supports_task_type("classification")
-        is supports_classification
-    )
-    assert (
-        attack.supports_task_type("detection")
-        is supports_detection
-    )
+    assert attack.supports_task_type("classification") is supports_classification
+    assert attack.supports_task_type("detection") is supports_detection
 
 
 @pytest.mark.parametrize(

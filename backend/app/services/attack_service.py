@@ -8,7 +8,11 @@ from schemas.attack import (
 )
 from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
-from utils.result_files import create_result_directory, save_result_image, save_result_metadata
+from utils.result_files import (
+    create_result_directory,
+    save_result_image,
+    save_result_metadata,
+)
 from ml.explainability.gradcam import generate_gradcam
 from core.task_compatibility import (
     CLASSIFICATION_TASK_TYPE,

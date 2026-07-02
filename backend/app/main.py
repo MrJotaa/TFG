@@ -21,7 +21,7 @@ app = FastAPI()
 
 register_error_handlers(app)
 
-app.add_middleware( # Para permitir solicitudes desde el frontend en desarrollo
+app.add_middleware(  # Para permitir solicitudes desde el frontend en desarrollo
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
@@ -33,9 +33,11 @@ app.add_middleware( # Para permitir solicitudes desde el frontend en desarrollo
 )
 app.mount("/results", StaticFiles(directory="uploads/results"), name="results")
 
+
 @app.get("/")
 async def root():
     return {"message": "API running"}
+
 
 app.include_router(predict_router, tags=["Inference"])
 app.include_router(detect_router, tags=["Detection"])
@@ -48,6 +50,7 @@ app.include_router(datasets_router, tags=["Datasets"])
 app.include_router(explainability_router, tags=["Explainability"])
 app.include_router(attack_router, tags=["Attack"])
 app.include_router(evaluate_router, tags=["Evaluation"])
+
 
 @app.get("/health/db")
 async def health_db():

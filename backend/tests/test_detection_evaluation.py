@@ -246,10 +246,7 @@ def test_detect_evaluate_propagates_incompatible_model_error(
     async def fake_evaluate_detection_dataset(request):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Endpoint '/detect/evaluate' "
-                "requires a detection model"
-            ),
+            detail=("Endpoint '/detect/evaluate' requires a detection model"),
         )
 
     monkeypatch.setattr(

@@ -225,9 +225,7 @@ def test_pgd_uses_alpha_in_each_iteration(monkeypatch):
         abs=1e-4,
     )
 
-    expected_l2 = expected_perturbation * math.sqrt(
-        original_tensor.numel()
-    )
+    expected_l2 = expected_perturbation * math.sqrt(original_tensor.numel())
 
     assert result["perturbation_l2"] == pytest.approx(
         round(expected_l2, 4),
@@ -315,9 +313,7 @@ def test_pgd_runs_configured_number_of_steps():
 def test_pgd_output_remains_in_valid_pixel_range(monkeypatch):
     attack = PGDAttack()
 
-    wrapper = FakeClassificationModelWrapper(
-        UpperBoundaryGradientModel()
-    )
+    wrapper = FakeClassificationModelWrapper(UpperBoundaryGradientModel())
 
     original_image = _create_test_image(pixel_value=250)
 
@@ -379,10 +375,7 @@ def test_pgd_with_zero_epsilon_does_not_modify_image(monkeypatch):
         original_tensor,
     )
 
-    assert (
-        result["adversarial_image"].tobytes()
-        == original_image.tobytes()
-    )
+    assert result["adversarial_image"].tobytes() == original_image.tobytes()
 
     assert result["perturbation_linf"] == 0.0
     assert result["perturbation_l2"] == 0.0

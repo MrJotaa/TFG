@@ -120,9 +120,7 @@ async def test_classification_attack_preserves_unexpected_error(
         ValueError,
         match=INTERNAL_ERROR,
     ):
-        await attack_service.apply_adversarial_attack(
-            request
-        )
+        await attack_service.apply_adversarial_attack(request)
 
 
 @pytest.mark.asyncio
@@ -209,9 +207,7 @@ async def test_detection_attack_preserves_unexpected_error(
         ValueError,
         match=INTERNAL_ERROR,
     ):
-        await detection_attack_service.apply_detection_attack(
-            request
-        )
+        await detection_attack_service.apply_detection_attack(request)
 
 
 @pytest.mark.asyncio
@@ -260,10 +256,7 @@ async def test_detection_evaluation_preserves_unexpected_error(
         ValueError,
         match=INTERNAL_ERROR,
     ):
-        await (
-            detection_evaluation_service
-            .evaluate_detection_dataset(request)
-        )
+        await detection_evaluation_service.evaluate_detection_dataset(request)
 
 
 @pytest.mark.asyncio
@@ -293,12 +286,9 @@ async def test_gradcam_preserves_unexpected_error(
         ValueError,
         match=INTERNAL_ERROR,
     ):
-        await (
-            explainability_service
-            .generate_gradcam_for_image(
-                dataset_id="dataset-1",
-                image_id="image-1",
-            )
+        await explainability_service.generate_gradcam_for_image(
+            dataset_id="dataset-1",
+            image_id="image-1",
         )
 
 
@@ -337,7 +327,4 @@ async def test_detection_explainability_preserves_unexpected_error(
         ValueError,
         match=INTERNAL_ERROR,
     ):
-        await (
-            explainability_service
-            .generate_detection_explainability(request)
-        )
+        await explainability_service.generate_detection_explainability(request)

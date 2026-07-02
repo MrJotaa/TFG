@@ -249,10 +249,9 @@ def test_get_user_datasets_with_invalid_user_id_returns_400(client):
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid user id"
 
+
 def test_get_user_datasets_for_unknown_user_returns_404(client):
-    response = client.get(
-        "/users/507f1f77bcf86cd799439011/datasets"
-    )
+    response = client.get("/users/507f1f77bcf86cd799439011/datasets")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"

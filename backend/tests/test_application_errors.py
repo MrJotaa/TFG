@@ -119,6 +119,7 @@ def test_application_errors_are_converted_to_http_responses(
         "detail": detail,
     }
 
+
 def test_unexpected_error_handler_is_registered():
     assert Exception in app.exception_handlers
 
@@ -130,9 +131,7 @@ def test_unexpected_error_returns_generic_500_response():
 
     @test_app.get("/unexpected-error")
     async def raise_unexpected_error():
-        raise RuntimeError(
-            "Sensitive internal database failure"
-        )
+        raise RuntimeError("Sensitive internal database failure")
 
     with TestClient(
         test_app,
