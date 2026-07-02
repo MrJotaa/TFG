@@ -1,5 +1,3 @@
-from fastapi import HTTPException
-
 from schemas.detection import DetectionRequest, DetectionResponse
 from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
@@ -15,18 +13,12 @@ from core.task_compatibility import (
 
 
 async def detect_objects(request: DetectionRequest) -> DetectionResponse:
-    try:
-        image = await get_image_from_dataset(
-            dataset_id=request.dataset_id,
-            image_id=request.image_id,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    image = await get_image_from_dataset(
+        dataset_id=request.dataset_id,
+        image_id=request.image_id,
+    )
 
-    try:
-        model = get_active_model_instance()
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    model = get_active_model_instance()
 
     require_model_task_type(
         model=model,

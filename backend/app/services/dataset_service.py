@@ -35,6 +35,18 @@ IMAGE_NOT_FOUND_MESSAGE = "Image not found"
 IMAGE_FILE_NOT_FOUND_MESSAGE = "Image file not found"
 
 
+def _to_dataset_image(
+    dataset_id: str,
+    image_metadata: dict,
+) -> DatasetImage:
+    return DatasetImage(
+        id=image_metadata["id"],
+        filename=image_metadata["filename"],
+        url=(f"/datasets/{dataset_id}/images/{image_metadata['id']}"),
+        label=image_metadata.get("label"),
+    )
+
+
 def dataset_to_response(dataset: dict) -> DatasetResponse:
     dataset_id = str(dataset["_id"])
 
@@ -43,15 +55,7 @@ def dataset_to_response(dataset: dict) -> DatasetResponse:
         name=dataset["name"],
         owner_id=str(dataset["owner_id"]),
         image_count=dataset["image_count"],
-        images=[
-            DatasetImage(
-                id=image["id"],
-                filename=image["filename"],
-                url=f"/datasets/{dataset_id}/images/{image['id']}",
-                label=image.get("label"),
-            )
-            for image in dataset["images"]
-        ],
+        images=[_to_dataset_image(dataset_id, image) for image in dataset["images"]],
     )
 
 
@@ -180,15 +184,7 @@ async def list_images_in_dataset(
 ) -> list[DatasetImage]:
     _, dataset = await _get_dataset_document(dataset_id)
 
-    return [
-        DatasetImage(
-            id=image["id"],
-            filename=image["filename"],
-            url=f"/datasets/{dataset_id}/images/{image['id']}",
-            label=image.get("label"),
-        )
-        for image in dataset["images"]
-    ]
+    return [_to_dataset_image(dataset_id, image) for image in dataset["images"]]
 
 
 async def get_image_file_response(
@@ -251,15 +247,7 @@ async def add_images_to_dataset(
         },
     )
 
-    return [
-        DatasetImage(
-            id=image["id"],
-            filename=image["filename"],
-            url=f"/datasets/{dataset_id}/images/{image['id']}",
-            label=image.get("label"),
-        )
-        for image in images_metadata
-    ]
+    return [_to_dataset_image(dataset_id, image) for image in images_metadata]
 
 
 async def delete_image_from_dataset(
@@ -354,9 +342,12 @@ async def update_image_label(
         },
     )
 
-    return DatasetImage(
-        id=image_metadata["id"],
-        filename=image_metadata["filename"],
-        url=f"/datasets/{dataset_id}/images/{image_id}",
-        label=normalized_label,
+    updated_image_metadata = {
+        **image_metadata,
+        "label": normalized_label,
+    }
+
+    return _to_dataset_image(
+        dataset_id,
+        updated_image_metadata,
     )

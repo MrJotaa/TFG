@@ -1,8 +1,3 @@
-from fastapi import HTTPException
-
-from bson import ObjectId
-
-from db.collections import datasets_collection
 from ml.attacks.registry import get_attack
 from schemas.evaluation import (
     EvaluationImageResult,
@@ -10,7 +5,10 @@ from schemas.evaluation import (
     EvaluationResponse,
     EvaluationSummary,
 )
-from services.dataset_service import get_image_from_dataset
+from services.dataset_service import (
+    get_dataset,
+    get_image_from_dataset,
+)
 from services.model_service import get_active_model_instance
 from utils.result_files import (
     create_result_directory,
@@ -22,32 +20,18 @@ from core.task_compatibility import (
     require_attack_task_type,
     require_model_task_type,
 )
+from core.errors import BadRequestError
 
 
-async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
-    if not ObjectId.is_valid(request.dataset_id):
-        raise HTTPException(status_code=400, detail="Invalid dataset id")
+async def evaluate_dataset(
+    request: EvaluationRequest,
+) -> EvaluationResponse:
+    dataset = await get_dataset(request.dataset_id)
 
-    dataset = await datasets_collection.find_one({"_id": ObjectId(request.dataset_id)})
+    if not dataset.images:
+        raise BadRequestError("Dataset must contain at least one image")
 
-    if not dataset:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Dataset with id {request.dataset_id} not found",
-        )
-
-    images_metadata = dataset.get("images", [])
-
-    if not images_metadata:
-        raise HTTPException(
-            status_code=400,
-            detail="Dataset must contain at least one image",
-        )
-
-    try:
-        model = get_active_model_instance()
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    model = get_active_model_instance()
 
     require_model_task_type(
         model=model,
@@ -58,10 +42,7 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
     try:
         attack = get_attack(request.attack_type)
     except ValueError as error:
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
+        raise BadRequestError(str(error)) from error
 
     require_attack_task_type(
         attack=attack,
@@ -72,9 +53,9 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
 
     results: list[EvaluationImageResult] = []
 
-    for image_metadata in images_metadata:
-        image_id = image_metadata["id"]
-        filename = image_metadata["filename"]
+    for image_metadata in dataset.images:
+        image_id = image_metadata.id
+        filename = image_metadata.filename
 
         image = await get_image_from_dataset(
             dataset_id=request.dataset_id,
@@ -103,7 +84,7 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
             original_prediction.prediction != adversarial_prediction.prediction
         )
 
-        ground_truth_label = image_metadata.get("label")
+        ground_truth_label = image_metadata.label
 
         original_correct = None
         adversarial_correct = None

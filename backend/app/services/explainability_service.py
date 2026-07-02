@@ -1,5 +1,3 @@
-from fastapi import HTTPException
-
 from ml.explainability.gradcam import (
     draw_detections_on_image,
     generate_detection_eigencam,
@@ -22,18 +20,16 @@ from core.task_compatibility import (
     DETECTION_TASK_TYPE,
     require_model_task_type,
 )
+from core.errors import BadRequestError
 
 
 async def generate_gradcam_for_image(dataset_id: str, image_id: str) -> GradCamResponse:
-    try:
-        image = await get_image_from_dataset(dataset_id, image_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    image = await get_image_from_dataset(
+        dataset_id=dataset_id,
+        image_id=image_id,
+    )
 
-    try:
-        model = get_active_model_instance()
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    model = get_active_model_instance()
 
     require_model_task_type(
         model=model,
@@ -77,18 +73,12 @@ async def generate_gradcam_for_image(dataset_id: str, image_id: str) -> GradCamR
 async def generate_detection_explainability(
     request: DetectionExplainRequest,
 ) -> DetectionExplainResponse:
-    try:
-        image = await get_image_from_dataset(
-            dataset_id=request.dataset_id,
-            image_id=request.image_id,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    image = await get_image_from_dataset(
+        dataset_id=request.dataset_id,
+        image_id=request.image_id,
+    )
 
-    try:
-        model = get_active_model_instance()
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    model = get_active_model_instance()
 
     require_model_task_type(
         model=model,
@@ -100,10 +90,7 @@ async def generate_detection_explainability(
     detections = detection_response.detections
 
     if not detections:
-        raise HTTPException(
-            status_code=400,
-            detail="No detections found in the selected image.",
-        )
+        raise BadRequestError("No detections found in the selected image.")
 
     heatmap_image = generate_detection_eigencam(model, image)
 

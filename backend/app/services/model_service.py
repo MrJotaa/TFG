@@ -19,7 +19,7 @@ _models = {
 }
 
 
-def _to_model_info(model_id: str, model_data: dict) -> ModelInfo:
+def _to_model_info(model_data: dict) -> ModelInfo:
     instance = model_data["instance"]
 
     return ModelInfo(
@@ -32,15 +32,13 @@ def _to_model_info(model_id: str, model_data: dict) -> ModelInfo:
 
 
 def list_models() -> list[ModelInfo]:
-    return [
-        _to_model_info(model_id, model_data) for model_id, model_data in _models.items()
-    ]
+    return [_to_model_info(model_data) for model_data in _models.values()]
 
 
 def get_active_model() -> ModelInfo:
-    for model_id, model_data in _models.items():
+    for model_data in _models.values():
         if model_data["active"]:
-            return _to_model_info(model_id, model_data)
+            return _to_model_info(model_data)
 
     raise NotFoundError("No active model found")
 
@@ -62,18 +60,18 @@ def select_model(model_id: str) -> ModelInfo:
     if model_id not in _models:
         raise NotFoundError("Model not found")
 
-    if _models[model_id]["active"]:
-        instance = _models[model_id]["instance"]
-        instance.load()
-        return _to_model_info(model_id, _models[model_id])
+    selected_model = _models[model_id]
+
+    if selected_model["active"]:
+        selected_model["instance"].load()
+        return _to_model_info(selected_model)
 
     for model_data in _models.values():
         if model_data["active"]:
             model_data["instance"].unload()
             model_data["active"] = False
 
-    selected_model = _models[model_id]
     selected_model["instance"].load()
     selected_model["active"] = True
 
-    return _to_model_info(model_id, selected_model)
+    return _to_model_info(selected_model)

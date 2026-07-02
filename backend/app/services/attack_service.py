@@ -1,5 +1,3 @@
-from fastapi import HTTPException
-
 from ml.attacks.registry import get_attack
 from schemas.attack import (
     AttackComparison,
@@ -19,21 +17,16 @@ from core.task_compatibility import (
     require_attack_task_type,
     require_model_task_type,
 )
+from core.errors import BadRequestError
 
 
 async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
-    try:
-        image = await get_image_from_dataset(
-            dataset_id=request.dataset_id,
-            image_id=request.image_id,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    image = await get_image_from_dataset(
+        dataset_id=request.dataset_id,
+        image_id=request.image_id,
+    )
 
-    try:
-        model = get_active_model_instance()
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    model = get_active_model_instance()
 
     require_model_task_type(
         model=model,
@@ -43,8 +36,8 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
 
     try:
         attack = get_attack(request.attack_type)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as error:
+        raise BadRequestError(str(error)) from error
 
     require_attack_task_type(
         attack=attack,

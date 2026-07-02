@@ -1,5 +1,3 @@
-from fastapi import HTTPException
-
 from ml.attacks.registry import get_attack
 from schemas.detection_evaluation import (
     DetectionEvaluationImageResult,
@@ -14,39 +12,19 @@ from core.task_compatibility import (
     require_attack_task_type,
     require_model_task_type,
 )
-
-
-def _average_detection_confidence(detections) -> float:
-    if not detections:
-        return 0.0
-
-    total_confidence = sum(detection.confidence for detection in detections)
-
-    return round(total_confidence / len(detections), 4)
-
-
-def _average(values: list[float]) -> float:
-    if not values:
-        return 0.0
-
-    return round(sum(values) / len(values), 4)
+from core.errors import BadRequestError
+from utils.detection_metrics import (
+    average,
+    calculate_detection_comparison,
+)
 
 
 async def evaluate_detection_dataset(
     request: DetectionEvaluationRequest,
 ) -> DetectionEvaluationResponse:
-    try:
-        dataset = await get_dataset(request.dataset_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    dataset = await get_dataset(request.dataset_id)
 
-    try:
-        model = get_active_model_instance()
-    except ValueError as error:
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
+    model = get_active_model_instance()
 
     require_model_task_type(
         model=model,
@@ -57,10 +35,7 @@ async def evaluate_detection_dataset(
     try:
         attack = get_attack(request.attack_type)
     except ValueError as error:
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
+        raise BadRequestError(str(error)) from error
 
     require_attack_task_type(
         attack=attack,
@@ -101,38 +76,26 @@ async def evaluate_detection_dataset(
         adversarial_detection_response = model.detect(adversarial_image)
         adversarial_detections = adversarial_detection_response.detections
 
-        original_count = len(original_detections)
-        adversarial_count = len(adversarial_detections)
-        detections_difference = adversarial_count - original_count
-
-        average_original_confidence = _average_detection_confidence(original_detections)
-        average_adversarial_confidence = _average_detection_confidence(
-            adversarial_detections
-        )
-        average_confidence_difference = round(
-            average_adversarial_confidence - average_original_confidence,
-            4,
+        metrics = calculate_detection_comparison(
+            original_detections=original_detections,
+            adversarial_detections=adversarial_detections,
         )
 
-        attack_success = (
-            adversarial_count < original_count or average_confidence_difference < 0
-        )
-
-        if adversarial_count < original_count:
+        if metrics.adversarial_count < metrics.original_count:
             images_with_reduced_detections += 1
 
-        if adversarial_count == 0 and original_count > 0:
+        if metrics.adversarial_count == 0 and metrics.original_count > 0:
             images_with_no_adversarial_detections += 1
 
-        if attack_success:
+        if metrics.attack_success:
             successful_attacks += 1
 
-        total_original_detections += original_count
-        total_adversarial_detections += adversarial_count
+        total_original_detections += metrics.original_count
+        total_adversarial_detections += metrics.adversarial_count
 
-        original_confidences.append(average_original_confidence)
-        adversarial_confidences.append(average_adversarial_confidence)
-        confidence_differences.append(average_confidence_difference)
+        original_confidences.append(metrics.average_original_confidence)
+        adversarial_confidences.append(metrics.average_adversarial_confidence)
+        confidence_differences.append(metrics.average_confidence_difference)
         perturbation_linf_values.append(attack_result["perturbation_linf"])
         perturbation_l2_values.append(attack_result["perturbation_l2"])
 
@@ -140,13 +103,13 @@ async def evaluate_detection_dataset(
             DetectionEvaluationImageResult(
                 image_id=image_metadata.id,
                 filename=image_metadata.filename,
-                original_detection_count=original_count,
-                adversarial_detection_count=adversarial_count,
-                detections_difference=detections_difference,
-                average_original_confidence=(average_original_confidence),
-                average_adversarial_confidence=(average_adversarial_confidence),
-                average_confidence_difference=(average_confidence_difference),
-                attack_success=attack_success,
+                original_detection_count=metrics.original_count,
+                adversarial_detection_count=(metrics.adversarial_count),
+                detections_difference=(metrics.detections_difference),
+                average_original_confidence=(metrics.average_original_confidence),
+                average_adversarial_confidence=(metrics.average_adversarial_confidence),
+                average_confidence_difference=(metrics.average_confidence_difference),
+                attack_success=metrics.attack_success,
                 perturbation_linf=attack_result["perturbation_linf"],
                 perturbation_l2=attack_result["perturbation_l2"],
                 original_detections=original_detections,
@@ -175,16 +138,16 @@ async def evaluate_detection_dataset(
         )
         if total_images
         else 0.0,
-        average_original_confidence=_average(original_confidences),
-        average_adversarial_confidence=_average(adversarial_confidences),
-        average_confidence_difference=_average(confidence_differences),
+        average_original_confidence=average(original_confidences),
+        average_adversarial_confidence=average(adversarial_confidences),
+        average_confidence_difference=average(confidence_differences),
         images_with_reduced_detections=images_with_reduced_detections,
         images_with_no_adversarial_detections=images_with_no_adversarial_detections,
         attack_success_rate=round(successful_attacks / total_images, 4)
         if total_images
         else 0.0,
-        average_perturbation_linf=_average(perturbation_linf_values),
-        average_perturbation_l2=_average(perturbation_l2_values),
+        average_perturbation_linf=average(perturbation_linf_values),
+        average_perturbation_l2=average(perturbation_l2_values),
     )
 
     return DetectionEvaluationResponse(

@@ -127,22 +127,21 @@ async def test_classification_attack_preserves_unexpected_error(
 async def test_classification_evaluation_preserves_unexpected_error(
     monkeypatch,
 ):
-    class FakeDatasetsCollection:
-        async def find_one(self, query):
-            return {
-                "_id": VALID_DATASET_ID,
-                "images": [
-                    {
-                        "id": "image-1",
-                        "filename": "image.png",
-                    }
-                ],
-            }
+    async def fake_get_dataset(dataset_id: str):
+        return SimpleNamespace(
+            images=[
+                SimpleNamespace(
+                    id="image-1",
+                    filename="image.png",
+                    label=None,
+                )
+            ]
+        )
 
     monkeypatch.setattr(
         evaluation_service,
-        "datasets_collection",
-        FakeDatasetsCollection(),
+        "get_dataset",
+        fake_get_dataset,
     )
     monkeypatch.setattr(
         evaluation_service,
