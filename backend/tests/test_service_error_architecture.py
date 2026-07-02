@@ -36,19 +36,13 @@ def test_services_do_not_import_http_exception():
             }:
                 continue
 
-            imported_names = {
-                imported_name.name
-                for imported_name in node.names
-            }
+            imported_names = {imported_name.name for imported_name in node.names}
 
             if "HTTPException" in imported_names:
-                violations.append(
-                    f"{service_file}:{node.lineno}"
-                )
+                violations.append(f"{service_file}:{node.lineno}")
 
     assert violations == [], (
-        "Services must use application errors instead of "
-        f"HTTPException: {violations}"
+        f"Services must use application errors instead of HTTPException: {violations}"
     )
 
 
@@ -64,21 +58,16 @@ def test_services_do_not_catch_broad_exceptions():
 
             if node.type is None:
                 violations.append(
-                    f"{service_file}:{node.lineno} "
-                    "contains a bare except"
+                    f"{service_file}:{node.lineno} contains a bare except"
                 )
                 continue
 
-            if (
-                isinstance(node.type, ast.Name)
-                and node.type.id in {
-                    "Exception",
-                    "BaseException",
-                }
-            ):
+            if isinstance(node.type, ast.Name) and node.type.id in {
+                "Exception",
+                "BaseException",
+            }:
                 violations.append(
-                    f"{service_file}:{node.lineno} "
-                    f"catches {node.type.id}"
+                    f"{service_file}:{node.lineno} catches {node.type.id}"
                 )
 
     assert violations == [], (
