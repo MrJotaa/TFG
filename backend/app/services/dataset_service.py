@@ -1,6 +1,6 @@
 import mimetypes
-import shutil
 import os
+import shutil
 import uuid
 
 from bson import ObjectId
@@ -8,18 +8,32 @@ from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image
 
+from core.errors import BadRequestError, NotFoundError
 from db.collections import datasets_collection, users_collection
-from schemas.datasets import DatasetImage, DatasetResponse, DatasetImageLabelUpdate
+from schemas.datasets import (
+    DatasetImage,
+    DatasetImageLabelUpdate,
+    DatasetResponse,
+)
 from utils.file_manager import (
     create_directory,
     is_valid_image_file,
     save_upload_file,
 )
 
+
 UPLOADS_DATASETS_PATH = os.getenv(
     "UPLOADS_DATASETS_PATH",
     "uploads/datasets",
 )
+
+INVALID_DATASET_ID_MESSAGE = "Invalid dataset id"
+INVALID_USER_ID_MESSAGE = "Invalid user id"
+DATASET_NOT_FOUND_MESSAGE = "Dataset not found"
+USER_NOT_FOUND_MESSAGE = "User not found"
+IMAGE_NOT_FOUND_MESSAGE = "Image not found"
+IMAGE_FILE_NOT_FOUND_MESSAGE = "Image file not found"
+
 
 def dataset_to_response(dataset: dict) -> DatasetResponse:
     dataset_id = str(dataset["_id"])
@@ -30,56 +44,91 @@ def dataset_to_response(dataset: dict) -> DatasetResponse:
         owner_id=str(dataset["owner_id"]),
         image_count=dataset["image_count"],
         images=[
-        DatasetImage(
-            id=image["id"],
-            filename=image["filename"],
-            url=f"/datasets/{dataset_id}/images/{image['id']}",
-            label=image.get("label"),
-        )
+            DatasetImage(
+                id=image["id"],
+                filename=image["filename"],
+                url=f"/datasets/{dataset_id}/images/{image['id']}",
+                label=image.get("label"),
+            )
             for image in dataset["images"]
         ],
     )
+
+
+def _validate_dataset_id(dataset_id: str) -> ObjectId:
+    if not ObjectId.is_valid(dataset_id):
+        raise BadRequestError(INVALID_DATASET_ID_MESSAGE)
+
+    return ObjectId(dataset_id)
+
+
+def _validate_user_id(user_id: str) -> ObjectId:
+    if not ObjectId.is_valid(user_id):
+        raise BadRequestError(INVALID_USER_ID_MESSAGE)
+
+    return ObjectId(user_id)
+
+
+async def _get_dataset_document(
+    dataset_id: str,
+) -> tuple[ObjectId, dict]:
+    object_id = _validate_dataset_id(dataset_id)
+    dataset = await datasets_collection.find_one({"_id": object_id})
+
+    if not dataset:
+        raise NotFoundError(DATASET_NOT_FOUND_MESSAGE)
+
+    return object_id, dataset
+
+
+def _get_image_metadata(dataset: dict, image_id: str) -> dict:
+    image_metadata = next(
+        (
+            image
+            for image in dataset["images"]
+            if image["id"] == image_id
+        ),
+        None,
+    )
+
+    if not image_metadata:
+        raise NotFoundError(IMAGE_NOT_FOUND_MESSAGE)
+
+    return image_metadata
+
 
 async def create_dataset_from_images(
     user_id: str,
     name: str,
     files: list[UploadFile],
 ) -> DatasetResponse:
-    if not ObjectId.is_valid(user_id):
-        raise ValueError("Invalid user id")
-
-    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    user_object_id = _validate_user_id(user_id)
+    user = await users_collection.find_one({"_id": user_object_id})
 
     if not user:
-        raise ValueError(f"User with id {user_id} not found")
+        raise NotFoundError(USER_NOT_FOUND_MESSAGE)
 
     if not files:
-        raise ValueError("Dataset must contain at least one image")
-
-    valid_files = []
+        raise BadRequestError("Dataset must contain at least one image")
 
     for file in files:
         if not is_valid_image_file(file.filename):
-            raise ValueError(f"Invalid image file: {file.filename}")
-        valid_files.append(file)
+            raise BadRequestError(
+                f"Invalid image file: {file.filename}"
+            )
 
     dataset_id = ObjectId()
     dataset_path = os.path.join(
         UPLOADS_DATASETS_PATH,
         f"user_{user_id}",
-        f"dataset_{str(dataset_id)}",
+        f"dataset_{dataset_id}",
     )
 
     create_directory(dataset_path)
 
     images_metadata = []
 
-    for file in valid_files:
-        """
-        Para evitar colisiones de nombres,
-        generamos un ID único para cada imagen
-        y lo almacenamos con la extensión original.
-        """
+    for file in files:
         image_id = str(uuid.uuid4())
         extension = os.path.splitext(file.filename)[1].lower()
         stored_filename = f"{image_id}{extension}"
@@ -95,12 +144,12 @@ async def create_dataset_from_images(
                 "path": image_path,
                 "label": None,
             }
-)
+        )
 
     dataset_doc = {
         "_id": dataset_id,
         "name": name,
-        "owner_id": ObjectId(user_id),
+        "owner_id": user_object_id,
         "image_count": len(images_metadata),
         "path": dataset_path,
         "images": images_metadata,
@@ -109,13 +158,16 @@ async def create_dataset_from_images(
     await datasets_collection.insert_one(dataset_doc)
 
     await users_collection.update_one(
-        {"_id": ObjectId(user_id)},
+        {"_id": user_object_id},
         {"$addToSet": {"datasets": dataset_id}},
     )
 
-    created_dataset = await datasets_collection.find_one({"_id": dataset_id})
+    created_dataset = await datasets_collection.find_one(
+        {"_id": dataset_id}
+    )
 
     return dataset_to_response(created_dataset)
+
 
 async def list_datasets() -> list[DatasetResponse]:
     datasets = []
@@ -125,25 +177,16 @@ async def list_datasets() -> list[DatasetResponse]:
 
     return datasets
 
+
 async def get_dataset(dataset_id: str) -> DatasetResponse:
-    if not ObjectId.is_valid(dataset_id):
-        raise ValueError("Invalid dataset id")
-
-    dataset = await datasets_collection.find_one({"_id": ObjectId(dataset_id)})
-
-    if not dataset:
-        raise ValueError(f"Dataset with id {dataset_id} not found")
-
+    _, dataset = await _get_dataset_document(dataset_id)
     return dataset_to_response(dataset)
 
-async def list_images_in_dataset(dataset_id: str) -> list[DatasetImage]:
-    if not ObjectId.is_valid(dataset_id):
-        raise ValueError("Invalid dataset id")
 
-    dataset = await datasets_collection.find_one({"_id": ObjectId(dataset_id)})
-
-    if not dataset:
-        raise ValueError(f"Dataset with id {dataset_id} not found")
+async def list_images_in_dataset(
+    dataset_id: str,
+) -> list[DatasetImage]:
+    _, dataset = await _get_dataset_document(dataset_id)
 
     return [
         DatasetImage(
@@ -155,27 +198,17 @@ async def list_images_in_dataset(dataset_id: str) -> list[DatasetImage]:
         for image in dataset["images"]
     ]
 
-async def get_image_file_response(dataset_id: str, image_id: str) -> FileResponse:
-    if not ObjectId.is_valid(dataset_id):
-        raise ValueError("Invalid dataset id")
 
-    dataset = await datasets_collection.find_one({"_id": ObjectId(dataset_id)})
-
-    if not dataset:
-        raise ValueError(f"Dataset with id {dataset_id} not found")
-
-    image_metadata = next(
-        (image for image in dataset["images"] if image["id"] == image_id),
-        None,
-    )
-
-    if not image_metadata:
-        raise ValueError(f"Image with id {image_id} not found in dataset {dataset_id}")
-
+async def get_image_file_response(
+    dataset_id: str,
+    image_id: str,
+) -> FileResponse:
+    _, dataset = await _get_dataset_document(dataset_id)
+    image_metadata = _get_image_metadata(dataset, image_id)
     image_path = image_metadata["path"]
 
     if not os.path.exists(image_path):
-        raise ValueError(f"Image file not found on disk: {image_id}")
+        raise NotFoundError(IMAGE_FILE_NOT_FOUND_MESSAGE)
 
     media_type, _ = mimetypes.guess_type(image_path)
 
@@ -185,26 +218,23 @@ async def get_image_file_response(dataset_id: str, image_id: str) -> FileRespons
         media_type=media_type or "application/octet-stream",
     )
 
+
 async def add_images_to_dataset(
     dataset_id: str,
     files: list[UploadFile],
 ) -> list[DatasetImage]:
-    if not ObjectId.is_valid(dataset_id):
-        raise ValueError("Invalid dataset id")
-
-    dataset = await datasets_collection.find_one({"_id": ObjectId(dataset_id)})
-
-    if not dataset:
-        raise ValueError(f"Dataset with id {dataset_id} not found")
+    object_id, dataset = await _get_dataset_document(dataset_id)
 
     if not files:
-        raise ValueError("At least one image must be provided")
+        raise BadRequestError("At least one image must be provided")
 
     images_metadata = []
 
     for file in files:
         if not is_valid_image_file(file.filename):
-            raise ValueError(f"Invalid image file: {file.filename}")
+            raise BadRequestError(
+                f"Invalid image file: {file.filename}"
+            )
 
         image_id = str(uuid.uuid4())
         extension = os.path.splitext(file.filename)[1].lower()
@@ -213,18 +243,18 @@ async def add_images_to_dataset(
 
         save_upload_file(file, image_path)
 
-        image_metadata = {
-            "id": image_id,
-            "filename": file.filename,
-            "stored_filename": stored_filename,
-            "path": image_path,
-            "label": None,
-        }
-
-        images_metadata.append(image_metadata)
+        images_metadata.append(
+            {
+                "id": image_id,
+                "filename": file.filename,
+                "stored_filename": stored_filename,
+                "path": image_path,
+                "label": None,
+            }
+        )
 
     await datasets_collection.update_one(
-        {"_id": ObjectId(dataset_id)},
+        {"_id": object_id},
         {
             "$push": {"images": {"$each": images_metadata}},
             "$inc": {"image_count": len(images_metadata)},
@@ -241,113 +271,82 @@ async def add_images_to_dataset(
         for image in images_metadata
     ]
 
-async def delete_image_from_dataset(dataset_id: str, image_id: str) -> None:
-    if not ObjectId.is_valid(dataset_id):
-        raise ValueError("Invalid dataset id")
 
-    dataset = await datasets_collection.find_one({"_id": ObjectId(dataset_id)})
-
-    if not dataset:
-        raise ValueError(f"Dataset with id {dataset_id} not found")
-
-    image_metadata = next(
-        (image for image in dataset["images"] if image["id"] == image_id),
-        None,
-    )
-
-    if not image_metadata:
-        raise ValueError(f"Image with id {image_id} not found in dataset {dataset_id}")
-
+async def delete_image_from_dataset(
+    dataset_id: str,
+    image_id: str,
+) -> None:
+    object_id, dataset = await _get_dataset_document(dataset_id)
+    image_metadata = _get_image_metadata(dataset, image_id)
     image_path = image_metadata["path"]
 
     if os.path.exists(image_path):
         os.remove(image_path)
 
     await datasets_collection.update_one(
-        {"_id": ObjectId(dataset_id)},
+        {"_id": object_id},
         {
             "$pull": {"images": {"id": image_id}},
             "$inc": {"image_count": -1},
         },
     )
 
+
 async def delete_dataset(dataset_id: str) -> None:
-    if not ObjectId.is_valid(dataset_id):
-        raise ValueError("Invalid dataset id")
-
-    dataset = await datasets_collection.find_one({"_id": ObjectId(dataset_id)})
-
-    if not dataset:
-        raise ValueError(f"Dataset with id {dataset_id} not found")
-
+    object_id, dataset = await _get_dataset_document(dataset_id)
     dataset_path = dataset["path"]
 
     if os.path.exists(dataset_path):
         shutil.rmtree(dataset_path)
 
-    await datasets_collection.delete_one({"_id": ObjectId(dataset_id)})
+    await datasets_collection.delete_one({"_id": object_id})
 
     await users_collection.update_many(
-        {"datasets": ObjectId(dataset_id)},
-        {"$pull": {"datasets": ObjectId(dataset_id)}},
+        {"datasets": object_id},
+        {"$pull": {"datasets": object_id}},
     )
 
-# Función adicional para obtener la imagen como objeto PIL, útil para el endpoint de predicción.
-async def get_image_from_dataset(dataset_id: str, image_id: str) -> Image.Image:
-    if not ObjectId.is_valid(dataset_id):
-        raise ValueError("Invalid dataset id")
 
-    dataset = await datasets_collection.find_one({"_id": ObjectId(dataset_id)})
-
-    if not dataset:
-        raise ValueError(f"Dataset with id {dataset_id} not found")
-
-    image_metadata = next(
-        (image for image in dataset["images"] if image["id"] == image_id),
-        None,
-    )
-
-    if not image_metadata:
-        raise ValueError(f"Image with id {image_id} not found in dataset {dataset_id}")
-
+async def get_image_from_dataset(
+    dataset_id: str,
+    image_id: str,
+) -> Image.Image:
+    _, dataset = await _get_dataset_document(dataset_id)
+    image_metadata = _get_image_metadata(dataset, image_id)
     image_path = image_metadata["path"]
 
     if not os.path.exists(image_path):
-        raise ValueError(f"Image file not found on disk: {image_id}")
+        raise NotFoundError(IMAGE_FILE_NOT_FOUND_MESSAGE)
 
     return Image.open(image_path).convert("RGB")
 
-async def get_datasets_by_user(user_id: str) -> list[DatasetResponse]:
-    if not ObjectId.is_valid(user_id):
-        raise ValueError("Invalid user id")
+
+async def get_datasets_by_user(
+    user_id: str,
+) -> list[DatasetResponse]:
+    user_object_id = _validate_user_id(user_id)
+    user = await users_collection.find_one({"_id": user_object_id})
+
+    if not user:
+        raise NotFoundError(USER_NOT_FOUND_MESSAGE)
 
     datasets = []
 
-    async for dataset in datasets_collection.find({"owner_id": ObjectId(user_id)}):
+    async for dataset in datasets_collection.find(
+        {"owner_id": user_object_id}
+    ):
         datasets.append(dataset_to_response(dataset))
 
     return datasets
+
 
 async def update_image_label(
     dataset_id: str,
     image_id: str,
     label_update: DatasetImageLabelUpdate,
 ) -> DatasetImage:
-    if not ObjectId.is_valid(dataset_id):
-        raise ValueError("Invalid dataset id")
-
-    dataset = await datasets_collection.find_one({"_id": ObjectId(dataset_id)})
-
-    if not dataset:
-        raise ValueError(f"Dataset with id {dataset_id} not found")
-
-    image_metadata = next(
-        (image for image in dataset["images"] if image["id"] == image_id),
-        None,
-    )
-
-    if not image_metadata:
-        raise ValueError(f"Image with id {image_id} not found in dataset {dataset_id}")
+    object_id, dataset = await _get_dataset_document(dataset_id)
+    image_metadata = _get_image_metadata(dataset, image_id)
 
     normalized_label = (
         label_update.label.strip()
@@ -357,7 +356,7 @@ async def update_image_label(
 
     await datasets_collection.update_one(
         {
-            "_id": ObjectId(dataset_id),
+            "_id": object_id,
             "images.id": image_id,
         },
         {

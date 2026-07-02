@@ -1,14 +1,22 @@
-from bson import ObjectId
 import os
 import shutil
 
-from utils.security import verify_password
+from bson import ObjectId
 
+from core.errors import BadRequestError, NotFoundError
 from db.collections import users_collection
-from schemas.users import UserCreate, UserResponse, UserUpdate
-from utils.security import hash_password
 from schemas.auth import SignupRequest
-from services.dataset_service import delete_dataset, UPLOADS_DATASETS_PATH
+from schemas.users import UserCreate, UserResponse, UserUpdate
+from services.dataset_service import (
+    UPLOADS_DATASETS_PATH,
+    delete_dataset,
+)
+from utils.security import hash_password, verify_password
+
+
+INVALID_USER_ID_MESSAGE = "Invalid user id"
+USER_NOT_FOUND_MESSAGE = "User not found"
+USER_ALREADY_EXISTS_MESSAGE = "User with this email already exists"
 
 
 def user_to_response(user: dict) -> UserResponse:
@@ -17,6 +25,13 @@ def user_to_response(user: dict) -> UserResponse:
         name=user["name"],
         email=user["email"],
     )
+
+
+def _validate_user_id(user_id: str) -> ObjectId:
+    if not ObjectId.is_valid(user_id):
+        raise BadRequestError(INVALID_USER_ID_MESSAGE)
+
+    return ObjectId(user_id)
 
 
 async def list_users() -> list[UserResponse]:
@@ -29,10 +44,12 @@ async def list_users() -> list[UserResponse]:
 
 
 async def create_user(user_data: UserCreate) -> UserResponse:
-    existing_user = await users_collection.find_one({"email": user_data.email})
+    existing_user = await users_collection.find_one(
+        {"email": user_data.email}
+    )
 
     if existing_user:
-        raise ValueError(f"User with email {user_data.email} already exists")
+        raise BadRequestError(USER_ALREADY_EXISTS_MESSAGE)
 
     user_doc = {
         "name": user_data.name,
@@ -43,26 +60,34 @@ async def create_user(user_data: UserCreate) -> UserResponse:
 
     result = await users_collection.insert_one(user_doc)
 
-    created_user = await users_collection.find_one({"_id": result.inserted_id})
+    created_user = await users_collection.find_one(
+        {"_id": result.inserted_id}
+    )
 
     return user_to_response(created_user)
 
 
 async def get_user(user_id: str) -> UserResponse:
-    if not ObjectId.is_valid(user_id):
-        raise ValueError(f"Invalid user ID: {user_id}")
+    object_id = _validate_user_id(user_id)
 
-    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    user = await users_collection.find_one({"_id": object_id})
 
     if not user:
-        raise ValueError(f"User with id {user_id} not found")
+        raise NotFoundError(USER_NOT_FOUND_MESSAGE)
 
     return user_to_response(user)
 
 
-async def update_user(user_id: str, user_data: UserUpdate) -> UserResponse:
-    if not ObjectId.is_valid(user_id):
-        raise ValueError(f"Invalid user ID: {user_id}")
+async def update_user(
+    user_id: str,
+    user_data: UserUpdate,
+) -> UserResponse:
+    object_id = _validate_user_id(user_id)
+
+    user = await users_collection.find_one({"_id": object_id})
+
+    if not user:
+        raise NotFoundError(USER_NOT_FOUND_MESSAGE)
 
     update_data = {}
 
@@ -76,24 +101,28 @@ async def update_user(user_id: str, user_data: UserUpdate) -> UserResponse:
         update_data["password"] = hash_password(user_data.password)
 
     if update_data:
-        await users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
+        await users_collection.update_one(
+            {"_id": object_id},
+            {"$set": update_data},
+        )
 
-    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    updated_user = await users_collection.find_one(
+        {"_id": object_id}
+    )
 
-    if not user:
-        raise ValueError(f"User with id {user_id} not found")
+    if not updated_user:
+        raise NotFoundError(USER_NOT_FOUND_MESSAGE)
 
-    return user_to_response(user)
+    return user_to_response(updated_user)
 
 
 async def delete_user(user_id: str) -> None:
-    if not ObjectId.is_valid(user_id):
-        raise ValueError(f"Invalid user ID: {user_id}")
+    object_id = _validate_user_id(user_id)
 
-    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    user = await users_collection.find_one({"_id": object_id})
 
     if not user:
-        raise ValueError(f"User with id {user_id} not found")
+        raise NotFoundError(USER_NOT_FOUND_MESSAGE)
 
     dataset_ids = user.get("datasets", [])
 
@@ -106,12 +135,18 @@ async def delete_user(user_id: str) -> None:
     )
 
     if os.path.exists(user_datasets_path):
-        shutil.rmtree(user_datasets_path, ignore_errors=True)
+        shutil.rmtree(
+            user_datasets_path,
+            ignore_errors=True,
+        )
 
-    result = await users_collection.delete_one({"_id": ObjectId(user_id)})
+    result = await users_collection.delete_one(
+        {"_id": object_id}
+    )
 
     if result.deleted_count == 0:
-        raise ValueError(f"User with id {user_id} not found")
+        raise NotFoundError(USER_NOT_FOUND_MESSAGE)
+
 
 async def get_user_document_by_email(email: str) -> dict | None:
     return await users_collection.find_one({"email": email})
@@ -121,10 +156,14 @@ async def get_user_document_by_id(user_id: str) -> dict | None:
     if not ObjectId.is_valid(user_id):
         return None
 
-    return await users_collection.find_one({"_id": ObjectId(user_id)})
+    return await users_collection.find_one(
+        {"_id": ObjectId(user_id)}
+    )
 
 
-async def create_user_from_signup(signup_data: SignupRequest) -> UserResponse:
+async def create_user_from_signup(
+    signup_data: SignupRequest,
+) -> UserResponse:
     user_data = UserCreate(
         name=signup_data.name,
         email=signup_data.email,
@@ -133,18 +172,24 @@ async def create_user_from_signup(signup_data: SignupRequest) -> UserResponse:
 
     return await create_user(user_data)
 
-async def delete_user_with_password(user_id: str, password: str) -> None:
-    if not ObjectId.is_valid(user_id):
-        raise ValueError(f"Invalid user ID: {user_id}")
 
-    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+async def delete_user_with_password(
+    user_id: str,
+    password: str,
+) -> None:
+    object_id = _validate_user_id(user_id)
+
+    user = await users_collection.find_one({"_id": object_id})
 
     if not user:
-        raise ValueError(f"User with id {user_id} not found")
+        raise NotFoundError(USER_NOT_FOUND_MESSAGE)
 
     hashed_password = user.get("password")
 
-    if not hashed_password or not verify_password(password, hashed_password):
-        raise ValueError("Invalid password")
+    if not hashed_password:
+        raise BadRequestError("Invalid password")
+
+    if not verify_password(password, hashed_password):
+        raise BadRequestError("Invalid password")
 
     await delete_user(user_id)

@@ -1,3 +1,4 @@
+from core.errors import NotFoundError
 from ml.models.resnet18.model import ResNet18Model
 from ml.models.yolo.model import YOLODetectionModel
 from schemas.models import ModelInfo
@@ -16,6 +17,7 @@ _models = {
         "active": False,
     },
 }
+
 
 def _to_model_info(model_id: str, model_data: dict) -> ModelInfo:
     instance = model_data["instance"]
@@ -41,7 +43,7 @@ def get_active_model() -> ModelInfo:
         if model_data["active"]:
             return _to_model_info(model_id, model_data)
 
-    raise ValueError("No active model found")
+    raise NotFoundError("No active model found")
 
 
 def get_active_model_instance():
@@ -54,26 +56,23 @@ def get_active_model_instance():
 
             return instance
 
-    raise ValueError("No active model instance found")
+    raise NotFoundError("No active model found")
 
 
 def select_model(model_id: str) -> ModelInfo:
     if model_id not in _models:
-        raise ValueError(f"Model '{model_id}' not found")
+        raise NotFoundError("Model not found")
 
-    # Si ya es el modelo activo, aseguramos que esté cargado y devolvemos estado.
     if _models[model_id]["active"]:
         instance = _models[model_id]["instance"]
         instance.load()
         return _to_model_info(model_id, _models[model_id])
 
-    # Descarga cualquier modelo actualmente activo y lo desactiva.
-    for current_id, model_data in _models.items():
+    for model_data in _models.values():
         if model_data["active"]:
             model_data["instance"].unload()
             model_data["active"] = False
 
-    # Carga y activa el modelo seleccionado.
     selected_model = _models[model_id]
     selected_model["instance"].load()
     selected_model["active"] = True
