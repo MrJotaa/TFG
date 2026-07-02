@@ -13,10 +13,13 @@ from api.routes.auth import router as auth_router
 from api.routes.detect import router as detect_router
 from api.routes.detection_attack import router as detection_attack_router
 from api.routes.detection_evaluate import router as detection_evaluate_router
+from core.error_handlers import register_error_handlers
 
 from db.database import get_database
 
 app = FastAPI()
+
+register_error_handlers(app)
 
 app.add_middleware( # Para permitir solicitudes desde el frontend en desarrollo
     CORSMiddleware,

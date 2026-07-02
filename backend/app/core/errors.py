@@ -1,0 +1,47 @@
+class ApplicationError(Exception):
+    """
+    Error controlado producido por la lógica de la aplicación.
+
+    Los manejadores de FastAPI transforman estas excepciones en
+    respuestas HTTP con una estructura uniforme.
+    """
+
+    status_code = 500
+    default_detail = "Application error"
+
+    def __init__(self, detail: str | None = None):
+        self.detail = (
+            detail
+            if detail is not None
+            else self.default_detail
+        )
+
+        super().__init__(self.detail)
+
+
+class BadRequestError(ApplicationError):
+    """
+    La operación solicitada no puede ejecutarse con los datos
+    o el estado actual de la aplicación.
+    """
+
+    status_code = 400
+    default_detail = "Bad request"
+
+
+class UnauthorizedError(ApplicationError):
+    """
+    La petición no contiene credenciales válidas.
+    """
+
+    status_code = 401
+    default_detail = "Unauthorized"
+
+
+class NotFoundError(ApplicationError):
+    """
+    El recurso solicitado no existe.
+    """
+
+    status_code = 404
+    default_detail = "Resource not found"
