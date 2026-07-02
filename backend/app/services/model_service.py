@@ -6,8 +6,6 @@ from schemas.models import ModelInfo
 resnet18 = ResNet18Model()
 yolov8n = YOLODetectionModel()
 
-resnet18.load()
-
 _models = {
     resnet18.id: {
         "instance": resnet18,
@@ -52,7 +50,7 @@ def get_active_model_instance():
             instance = model_data["instance"]
 
             if not instance.is_loaded():
-                raise ValueError("Active model is not loaded")
+                instance.load()
 
             return instance
 

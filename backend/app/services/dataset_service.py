@@ -16,7 +16,10 @@ from utils.file_manager import (
     save_upload_file,
 )
 
-UPLOADS_DATASETS_PATH = "uploads/datasets"
+UPLOADS_DATASETS_PATH = os.getenv(
+    "UPLOADS_DATASETS_PATH",
+    "uploads/datasets",
+)
 
 def dataset_to_response(dataset: dict) -> DatasetResponse:
     dataset_id = str(dataset["_id"])
