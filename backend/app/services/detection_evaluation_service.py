@@ -9,6 +9,11 @@ from schemas.detection_evaluation import (
 )
 from services.dataset_service import get_dataset, get_image_from_dataset
 from services.model_service import get_active_model_instance
+from core.task_compatibility import (
+    DETECTION_TASK_TYPE,
+    require_attack_task_type,
+    require_model_task_type,
+)
 
 
 def _average_detection_confidence(detections) -> float:
@@ -37,33 +42,30 @@ async def evaluate_detection_dataset(
 
     try:
         model = get_active_model_instance()
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    if getattr(model, "task_type", None) != "detection":
+    except ValueError as error:
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"Active model '{model.id}' is not a detection model. "
-                "Select YOLO or another detection model before running detection evaluation."
-            ),
+            detail=str(error),
         )
+
+    require_model_task_type(
+        model=model,
+        expected_task_type=DETECTION_TASK_TYPE,
+        endpoint="/detect/evaluate",
+    )
 
     try:
         attack = get_attack(request.attack_type)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    model_task_type = getattr(model, "task_type", None)
-
-    if not attack.supports_task_type(model_task_type):
+    except ValueError as error:
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"Attack '{request.attack_type}' is not supported "
-                f"for model task type '{model_task_type}'"
-            ),
+            detail=str(error),
         )
+
+    require_attack_task_type(
+        attack=attack,
+        task_type=model.task_type,
+    )
 
     image_results = []
 

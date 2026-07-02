@@ -196,11 +196,17 @@ def test_detect_attack_with_invalid_epsilon_returns_422(client):
     assert response.status_code == 422
 
 
-def test_detect_attack_propagates_incompatible_attack_error(client, monkeypatch):
+def test_detect_attack_propagates_incompatible_attack_error(
+    client,
+    monkeypatch,
+):
     async def fake_apply_detection_attack(request):
         raise HTTPException(
             status_code=400,
-            detail="Attack 'fgsm' is not supported for detection models.",
+            detail=(
+                "Attack 'fgsm' does not support "
+                "task type 'detection'"
+            ),
         )
 
     monkeypatch.setattr(
@@ -219,7 +225,10 @@ def test_detect_attack_propagates_incompatible_attack_error(client, monkeypatch)
     )
 
     assert response.status_code == 400
-    assert "not supported for detection" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "Attack 'fgsm' does not support "
+        "task type 'detection'"
+    )
 
 
 def test_detect_attack_propagates_dataset_error(client, monkeypatch):

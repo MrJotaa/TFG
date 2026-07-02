@@ -10,6 +10,11 @@ from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
 from utils.result_files import create_result_directory, save_result_image, save_result_metadata
 from ml.explainability.gradcam import generate_gradcam
+from core.task_compatibility import (
+    CLASSIFICATION_TASK_TYPE,
+    require_attack_task_type,
+    require_model_task_type,
+)
 
 
 async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
@@ -26,30 +31,21 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    require_model_task_type(
+        model=model,
+        expected_task_type=CLASSIFICATION_TASK_TYPE,
+        endpoint="/attack",
+    )
+
     try:
         attack = get_attack(request.attack_type)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    model_task_type = getattr(model, "task_type", None)
-
-    if not attack.supports_task_type(model_task_type):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Attack '{request.attack_type}' is not supported "
-                f"for model task type '{model_task_type}'"
-            ),
-        )
-
-    if model_task_type != "classification":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Endpoint /attack currently supports classification attacks only. "
-                f"Use a detection-specific attack endpoint for model '{model.id}'."
-            ),
-        )
+    require_attack_task_type(
+        attack=attack,
+        task_type=model.task_type,
+    )
 
     original_prediction = model.predict(image)
 

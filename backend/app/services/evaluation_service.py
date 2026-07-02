@@ -17,7 +17,11 @@ from utils.result_files import (
     save_result_image,
     save_result_metadata,
 )
-
+from core.task_compatibility import (
+    CLASSIFICATION_TASK_TYPE,
+    require_attack_task_type,
+    require_model_task_type,
+)
 
 async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
     if not ObjectId.is_valid(request.dataset_id):
@@ -44,21 +48,24 @@ async def evaluate_dataset(request: EvaluationRequest) -> EvaluationResponse:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    model_task_type = getattr(model, "task_type", None)
-
-    if model_task_type != "classification":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Endpoint /evaluate currently supports classification models only. "
-                f"Use /detect/evaluate for detection model '{model.id}'."
-            ),
-        )
+    require_model_task_type(
+        model=model,
+        expected_task_type=CLASSIFICATION_TASK_TYPE,
+        endpoint="/evaluate",
+    )
 
     try:
         attack = get_attack(request.attack_type)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+    require_attack_task_type(
+        attack=attack,
+        task_type=model.task_type,
+    )
 
     result_id, result_path = create_result_directory(prefix="evaluation")
 

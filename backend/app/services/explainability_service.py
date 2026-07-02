@@ -17,6 +17,11 @@ from utils.result_files import (
     save_result_image,
     save_result_metadata,
 )
+from core.task_compatibility import (
+    CLASSIFICATION_TASK_TYPE,
+    DETECTION_TASK_TYPE,
+    require_model_task_type,
+)
 
 
 async def generate_gradcam_for_image(dataset_id: str, image_id: str) -> GradCamResponse:
@@ -30,14 +35,11 @@ async def generate_gradcam_for_image(dataset_id: str, image_id: str) -> GradCamR
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    if getattr(model, "task_type", None) != "classification":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Endpoint /explain/gradcam currently supports classification models only. "
-                f"Use /explain/detection for detection model '{model.id}'."
-            ),
-        )
+    require_model_task_type(
+        model=model,
+        expected_task_type=CLASSIFICATION_TASK_TYPE,
+        endpoint="/explain/gradcam",
+    )
 
     try:
         result = generate_gradcam(model, image)
@@ -91,14 +93,11 @@ async def generate_detection_explainability(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    if getattr(model, "task_type", None) != "detection":
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Active model '{model.id}' is not a detection model. "
-                "Select YOLO or another detection model before requesting detection explainability."
-            ),
-        )
+    require_model_task_type(
+        model=model,
+        expected_task_type=DETECTION_TASK_TYPE,
+        endpoint="/explain/detection",
+    )
 
     detection_response = model.detect(image)
     detections = detection_response.detections

@@ -3,7 +3,10 @@ from fastapi import HTTPException
 import api.routes.explainability as explainability_route
 
 
-def _mock_detection(label: str = "car", confidence: float = 0.91):
+def _mock_detection(
+    label: str = "car",
+    confidence: float = 0.91,
+):
     return {
         "label": label,
         "confidence": confidence,
@@ -16,8 +19,14 @@ def _mock_detection(label: str = "car", confidence: float = 0.91):
     }
 
 
-def test_gradcam_returns_explainability_response(client, monkeypatch):
-    async def fake_generate_gradcam_for_image(dataset_id: str, image_id: str):
+def test_gradcam_returns_explainability_response(
+    client,
+    monkeypatch,
+):
+    async def fake_generate_gradcam_for_image(
+        dataset_id: str,
+        image_id: str,
+    ):
         assert dataset_id == "dataset-1"
         assert image_id == "image-1"
 
@@ -25,7 +34,9 @@ def test_gradcam_returns_explainability_response(client, monkeypatch):
             "result_id": "gradcam-result-1",
             "prediction": "tabby cat",
             "confidence": 0.9342,
-            "gradcam_image_url": "/results/gradcam-result-1/gradcam.png",
+            "gradcam_image_url": (
+                "/results/gradcam-result-1/gradcam.png"
+            ),
         }
 
     monkeypatch.setattr(
@@ -49,7 +60,9 @@ def test_gradcam_returns_explainability_response(client, monkeypatch):
     assert data["result_id"] == "gradcam-result-1"
     assert data["prediction"] == "tabby cat"
     assert data["confidence"] == 0.9342
-    assert data["gradcam_image_url"] == "/results/gradcam-result-1/gradcam.png"
+    assert data["gradcam_image_url"] == (
+        "/results/gradcam-result-1/gradcam.png"
+    )
 
 
 def test_gradcam_with_missing_image_id_returns_422(client):
@@ -63,12 +76,21 @@ def test_gradcam_with_missing_image_id_returns_422(client):
     assert response.status_code == 422
 
 
-def test_gradcam_propagates_dataset_error(client, monkeypatch):
-    async def fake_generate_gradcam_for_image(dataset_id: str, image_id: str):
+def test_gradcam_propagates_dataset_error(
+    client,
+    monkeypatch,
+):
+    async def fake_generate_gradcam_for_image(
+        dataset_id: str,
+        image_id: str,
+    ):
         assert dataset_id == "dataset-1"
         assert image_id == "missing-image"
 
-        raise HTTPException(status_code=404, detail="Image not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Image not found",
+        )
 
     monkeypatch.setattr(
         explainability_route,
@@ -88,16 +110,22 @@ def test_gradcam_propagates_dataset_error(client, monkeypatch):
     assert response.json()["detail"] == "Image not found"
 
 
-def test_gradcam_propagates_incompatible_model_error(client, monkeypatch):
-    async def fake_generate_gradcam_for_image(dataset_id: str, image_id: str):
+def test_gradcam_propagates_incompatible_model_error(
+    client,
+    monkeypatch,
+):
+    async def fake_generate_gradcam_for_image(
+        dataset_id: str,
+        image_id: str,
+    ):
         assert dataset_id == "dataset-1"
         assert image_id == "image-1"
 
         raise HTTPException(
             status_code=400,
             detail=(
-                "Grad-CAM endpoint supports classification models only. "
-                "Use /explain/detection for detection models."
+                "Endpoint '/explain/gradcam' "
+                "requires a classification model"
             ),
         )
 
@@ -116,10 +144,16 @@ def test_gradcam_propagates_incompatible_model_error(client, monkeypatch):
     )
 
     assert response.status_code == 400
-    assert "classification models only" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "Endpoint '/explain/gradcam' "
+        "requires a classification model"
+    )
 
 
-def test_detection_explainability_returns_response(client, monkeypatch):
+def test_detection_explainability_returns_response(
+    client,
+    monkeypatch,
+):
     async def fake_generate_detection_explainability(request):
         assert request.dataset_id == "dataset-1"
         assert request.image_id == "image-1"
@@ -161,9 +195,9 @@ def test_detection_explainability_returns_response(client, monkeypatch):
     assert data["model_id"] == "yolov8n"
     assert data["model_name"] == "YOLOv8n pretrained"
     assert data["explanation_type"] == "eigencam"
-    assert (
-        data["explanation_image_url"]
-        == "/results/detection-explain-result-1/detection_explanation.png"
+    assert data["explanation_image_url"] == (
+        "/results/detection-explain-result-1/"
+        "detection_explanation.png"
     )
 
     assert len(data["detections"]) == 2
@@ -172,7 +206,9 @@ def test_detection_explainability_returns_response(client, monkeypatch):
     assert data["detections"][0]["bbox"]["x1"] == 10.0
 
 
-def test_detection_explainability_with_missing_image_id_returns_422(client):
+def test_detection_explainability_with_missing_image_id_returns_422(
+    client,
+):
     response = client.post(
         "/explain/detection",
         json={
@@ -183,9 +219,15 @@ def test_detection_explainability_with_missing_image_id_returns_422(client):
     assert response.status_code == 422
 
 
-def test_detection_explainability_propagates_dataset_error(client, monkeypatch):
+def test_detection_explainability_propagates_dataset_error(
+    client,
+    monkeypatch,
+):
     async def fake_generate_detection_explainability(request):
-        raise HTTPException(status_code=404, detail="Image not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Image not found",
+        )
 
     monkeypatch.setattr(
         explainability_route,
@@ -212,7 +254,10 @@ def test_detection_explainability_propagates_incompatible_model_error(
     async def fake_generate_detection_explainability(request):
         raise HTTPException(
             status_code=400,
-            detail="Detection explainability endpoint supports detection models only.",
+            detail=(
+                "Endpoint '/explain/detection' "
+                "requires a detection model"
+            ),
         )
 
     monkeypatch.setattr(
@@ -230,7 +275,10 @@ def test_detection_explainability_propagates_incompatible_model_error(
     )
 
     assert response.status_code == 400
-    assert "detection models only" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "Endpoint '/explain/detection' "
+        "requires a detection model"
+    )
 
 
 def test_detection_explainability_propagates_no_detections_error(
@@ -258,4 +306,7 @@ def test_detection_explainability_propagates_no_detections_error(
     )
 
     assert response.status_code == 400
-    assert "no detections" in response.json()["detail"].lower()
+    assert (
+        "no detections"
+        in response.json()["detail"].lower()
+    )
