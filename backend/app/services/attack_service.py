@@ -49,14 +49,11 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
 
     original_prediction = model.predict(image)
 
-    try:
-        attack_result = attack.apply(
-            model_wrapper=model,
-            image=image,
-            parameters=request.parameters,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    attack_result = attack.apply(
+        model_wrapper=model,
+        image=image,
+        parameters=request.parameters,
+    )
 
     adversarial_image = attack_result["adversarial_image"]
     perturbation_image = attack_result["perturbation_image"]

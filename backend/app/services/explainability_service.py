@@ -1,3 +1,5 @@
+from pyexpat import model
+
 from fastapi import HTTPException
 
 from ml.explainability.gradcam import (
@@ -41,10 +43,7 @@ async def generate_gradcam_for_image(dataset_id: str, image_id: str) -> GradCamR
         endpoint="/explain/gradcam",
     )
 
-    try:
-        result = generate_gradcam(model, image)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    result = generate_gradcam(model, image)
 
     result_id, result_path = create_result_directory(prefix="gradcam")
 
@@ -108,10 +107,7 @@ async def generate_detection_explainability(
             detail="No detections found in the selected image.",
         )
 
-    try:
-        heatmap_image = generate_detection_eigencam(model, image)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    heatmap_image = generate_detection_eigencam(model, image)
 
     explanation_image = draw_detections_on_image(
         image=heatmap_image,

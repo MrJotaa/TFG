@@ -75,14 +75,11 @@ async def apply_detection_attack(
         model.detect_with_visualization(image)
     )
 
-    try:
-        attack_result = attack.apply(
-            model_wrapper=model,
-            image=image,
-            parameters=request.parameters,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    attack_result = attack.apply(
+        model_wrapper=model,
+        image=image,
+        parameters=request.parameters,
+    )
 
     adversarial_image = attack_result["adversarial_image"]
     perturbation_image = attack_result["perturbation_image"]

@@ -1,4 +1,8 @@
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from core.error_handlers import register_error_handlers
 
 import api.routes.models as models_route
 from core.errors import (
@@ -113,4 +117,53 @@ def test_application_errors_are_converted_to_http_responses(
     assert response.status_code == expected_status_code
     assert response.json() == {
         "detail": detail,
+    }
+
+def test_unexpected_error_handler_is_registered():
+    assert Exception in app.exception_handlers
+
+
+def test_unexpected_error_returns_generic_500_response():
+    test_app = FastAPI()
+
+    register_error_handlers(test_app)
+
+    @test_app.get("/unexpected-error")
+    async def raise_unexpected_error():
+        raise RuntimeError(
+            "Sensitive internal database failure"
+        )
+
+    with TestClient(
+        test_app,
+        raise_server_exceptions=False,
+    ) as error_client:
+        response = error_client.get("/unexpected-error")
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": "Internal server error",
+    }
+
+    assert "Sensitive internal database failure" not in response.text
+
+
+def test_application_errors_are_not_converted_to_generic_500():
+    test_app = FastAPI()
+
+    register_error_handlers(test_app)
+
+    @test_app.get("/controlled-error")
+    async def raise_controlled_error():
+        raise BadRequestError("Invalid operation")
+
+    with TestClient(
+        test_app,
+        raise_server_exceptions=False,
+    ) as error_client:
+        response = error_client.get("/controlled-error")
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Invalid operation",
     }
