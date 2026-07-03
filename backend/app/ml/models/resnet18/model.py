@@ -6,6 +6,10 @@ from PIL import Image
 from torchvision import models, transforms
 
 from ml.models.base import BaseImageClassificationModel
+from ml.models.classification import (
+    ClassificationClassScore,
+    DetailedClassificationPrediction,
+)
 from schemas.predict import PredictResponse, TopKPrediction
 
 
@@ -18,25 +22,29 @@ class ResNet18Model(BaseImageClassificationModel):
         self.model = None
         self.categories = None
 
-    def load(self) -> None:  # Carga el modelo y los recursos necesarios.
-        # Si ya está cargado, no lo volvemos a cargar.
+    def load(self) -> None:
+        """
+        Carga el modelo ResNet18 y el catálogo de ImageNet.
+        """
         if self.is_loaded():
             return
 
         weights = models.ResNet18_Weights.DEFAULT
+
         self.model = models.resnet18(weights=weights)
         self.model.eval()
+
         self.categories = weights.meta["categories"]
 
     def unload(self) -> None:
-        # Libera referencias al modelo y categorías.
+        """
+        Libera las referencias al modelo y sus categorías.
+        """
         self.model = None
         self.categories = None
 
-        # Fuerza recolección de basura en CPU.
         gc.collect()
 
-        # Si en el futuro se usa GPU, limpia caché CUDA.
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
@@ -44,8 +52,12 @@ class ResNet18Model(BaseImageClassificationModel):
         return self.model is not None and self.categories is not None
 
     def preprocess(
-        self, image: Image.Image
-    ):  # Preprocesa la imagen de entrada según los requisitos del modelo.
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        """
+        Preprocesa una imagen usando la normalización de ImageNet.
+        """
         transform = transforms.Compose(
             [
                 transforms.Resize((224, 224)),
@@ -58,37 +70,121 @@ class ResNet18Model(BaseImageClassificationModel):
         )
 
         tensor = transform(image)
-        tensor = tensor.unsqueeze(0)
-        return tensor
 
-    def predict(self, image: Image.Image) -> PredictResponse:
+        return tensor.unsqueeze(0)
+
+    def get_class_labels(self) -> tuple[str, ...]:
         """
-        Ejecuta la inferencia sobre una imagen y devuelve una respuesta normalizada.
+        Devuelve el catálogo ordenado de clases de ImageNet.
         """
         if not self.is_loaded():
             raise ValueError("Model is not loaded")
+
+        return tuple(self.categories)
+
+    def predict_detailed(
+        self,
+        image: Image.Image,
+        top_k: int = 5,
+    ) -> DetailedClassificationPrediction:
+        """
+        Ejecuta una única inferencia y conserva todas las
+        probabilidades sin redondear.
+        """
+        if not self.is_loaded():
+            raise ValueError("Model is not loaded")
+
+        if top_k <= 0:
+            raise ValueError("top_k must be greater than zero")
 
         input_tensor = self.preprocess(image)
 
         with torch.no_grad():
             output = self.model(input_tensor)
             probabilities = F.softmax(
-                output[0], dim=0
-            )  # Convierte las salidas del modelo en probabilidades utilizando softmax
+                output[0],
+                dim=0,
+            )
 
-        top_probs, top_indices = torch.topk(probabilities, k=3)
+        class_labels = self.get_class_labels()
+
+        if probabilities.numel() != len(class_labels):
+            raise ValueError("Model category count does not match probability count")
+
+        top_k_count = min(
+            top_k,
+            probabilities.numel(),
+        )
+
+        top_probabilities, top_indices = torch.topk(
+            probabilities,
+            k=top_k_count,
+        )
+
+        class_scores = tuple(
+            ClassificationClassScore(
+                index=index.item(),
+                label=class_labels[index.item()],
+                probability=probability.item(),
+            )
+            for probability, index in zip(
+                top_probabilities,
+                top_indices,
+            )
+        )
+
+        predicted_class = class_scores[0]
+
+        prediction_margin = None
+
+        if len(class_scores) >= 2:
+            prediction_margin = (
+                class_scores[0].probability - class_scores[1].probability
+            )
+
+        full_probabilities = tuple(probabilities.detach().cpu().tolist())
+
+        return DetailedClassificationPrediction(
+            class_index=predicted_class.index,
+            class_label=predicted_class.label,
+            confidence=predicted_class.probability,
+            probabilities=full_probabilities,
+            top_k=class_scores,
+            prediction_margin=prediction_margin,
+        )
+
+    def predict(
+        self,
+        image: Image.Image,
+    ) -> PredictResponse:
+        """
+        Construye la respuesta pública utilizada por /predict.
+
+        Se mantiene el top-3 y el redondeo existentes para no
+        modificar el contrato actual del frontend.
+        """
+        detailed_prediction = self.predict_detailed(
+            image=image,
+            top_k=3,
+        )
 
         top_k_predictions = [
             TopKPrediction(
-                label=self.categories[idx.item()],
-                probability=round(prob.item(), 4),
+                label=class_score.label,
+                probability=round(
+                    class_score.probability,
+                    4,
+                ),
             )
-            for prob, idx in zip(top_probs, top_indices)
+            for class_score in detailed_prediction.top_k
         ]
 
         return PredictResponse(
-            prediction=top_k_predictions[0].label,
-            confidence=top_k_predictions[0].probability,
+            prediction=detailed_prediction.class_label,
+            confidence=round(
+                detailed_prediction.confidence,
+                4,
+            ),
             top_k=top_k_predictions,
         )
 
