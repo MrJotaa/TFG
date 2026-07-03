@@ -67,6 +67,8 @@ class UnresolvedLabel(BaseModel):
     provided_label: str
     reason: str
 
+    candidate_classes: list[ClassReference] = Field(default_factory=list)
+
 
 class LabelResolutionSummary(BaseModel):
     """

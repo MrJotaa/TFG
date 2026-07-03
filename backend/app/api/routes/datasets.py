@@ -17,6 +17,12 @@ from services.dataset_service import (
     list_images_in_dataset,
     update_image_label,
 )
+from schemas.datasets import (
+    DatasetLabelResolutionResponse,
+)
+from services.classification_label_service import (
+    get_active_dataset_label_resolution,
+)
 
 
 router = APIRouter()
@@ -39,6 +45,16 @@ async def get_datasets() -> list[DatasetResponse]:
 @router.get("/datasets/{dataset_id}", response_model=DatasetResponse)
 async def get_dataset_by_id(dataset_id: str) -> DatasetResponse:
     return await get_dataset(dataset_id)
+
+
+@router.get(
+    "/datasets/{dataset_id}/label-resolution",
+    response_model=DatasetLabelResolutionResponse,
+)
+async def get_dataset_label_resolution(
+    dataset_id: str,
+) -> DatasetLabelResolutionResponse:
+    return await get_active_dataset_label_resolution(dataset_id)
 
 
 @router.delete("/datasets/{dataset_id}")
