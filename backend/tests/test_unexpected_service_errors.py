@@ -49,6 +49,29 @@ class FakeClassificationModel:
             confidence=0.9,
         )
 
+    def get_class_labels(self):
+        return ("test-class",)
+
+    def predict_detailed(
+        self,
+        image,
+        top_k=5,
+    ):
+        return SimpleNamespace(
+            class_index=0,
+            class_label="test-class",
+            confidence=0.9,
+            probabilities=(1.0,),
+            top_k=(
+                SimpleNamespace(
+                    index=0,
+                    label="test-class",
+                    probability=1.0,
+                ),
+            ),
+            prediction_margin=None,
+        )
+
 
 class FakeDetectionModel:
     id = "fake-detector"
@@ -129,13 +152,17 @@ async def test_classification_evaluation_preserves_unexpected_error(
 ):
     async def fake_get_dataset(dataset_id: str):
         return SimpleNamespace(
+            id=dataset_id,
+            name="Test Dataset",
+            owner_id="user-1",
+            image_count=1,
             images=[
                 SimpleNamespace(
                     id="image-1",
                     filename="image.png",
                     label=None,
                 )
-            ]
+            ],
         )
 
     monkeypatch.setattr(
