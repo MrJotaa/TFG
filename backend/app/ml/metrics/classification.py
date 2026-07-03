@@ -18,9 +18,6 @@ from schemas.classification_metrics import (
     AvailabilityStatus,
     ClassReference,
     ConfusionMatrices,
-    CurveAnalysis,
-    CurveComparison,
-    CurveSeries,
     EvaluationImageDiagnostics,
     LabelResolutionSummary,
     MetricValue,
@@ -29,10 +26,9 @@ from schemas.classification_metrics import (
     RobustnessMetrics,
     SupervisedClassificationAnalysis,
 )
-
-
-CURVE_PENDING_REASON = (
-    "ROC and precision-recall metrics are not available in this analysis stage"
+from ml.metrics.classification_curves import (
+    PerClassCurveMetricValues,
+    calculate_classification_curves,
 )
 
 
@@ -96,24 +92,6 @@ def _metric_difference(
         )
 
     return _available_metric(original.value - adversarial.value)
-
-
-def _build_curve_placeholder() -> CurveAnalysis:
-    return CurveAnalysis(
-        micro=CurveComparison(
-            original=CurveSeries(
-                available=False,
-                reason=CURVE_PENDING_REASON,
-            ),
-            adversarial=CurveSeries(
-                available=False,
-                reason=CURVE_PENDING_REASON,
-            ),
-        ),
-        macro_original=_unavailable_metric(CURVE_PENDING_REASON),
-        macro_adversarial=_unavailable_metric(CURVE_PENDING_REASON),
-        per_class=[],
-    )
 
 
 def _validate_samples(
@@ -296,6 +274,8 @@ def _build_per_class_snapshot(
     f1: float,
     predicted_count: int,
     support: int,
+    roc_auc: MetricValue,
+    average_precision: MetricValue,
 ) -> PerClassMetricSnapshot:
     warning = None
 
@@ -326,8 +306,8 @@ def _build_per_class_snapshot(
             f1,
             warning=warning,
         ),
-        roc_auc=_unavailable_metric(CURVE_PENDING_REASON),
-        average_precision=_unavailable_metric(CURVE_PENDING_REASON),
+        roc_auc=roc_auc,
+        average_precision=average_precision,
     )
 
 
@@ -337,6 +317,10 @@ def _calculate_per_class_metrics(
     adversarial_predictions: list[int],
     metric_labels: list[int],
     class_labels: tuple[str, ...],
+    curve_metrics_by_class: dict[
+        int,
+        PerClassCurveMetricValues,
+    ],
 ) -> list[PerClassMetricsComparison]:
     (
         original_precision,
@@ -368,6 +352,7 @@ def _calculate_per_class_metrics(
 
     for position, class_index in enumerate(metric_labels):
         support = int(supports[position])
+        curve_metrics = curve_metrics_by_class[class_index]
 
         original_snapshot = _build_per_class_snapshot(
             precision=float(original_precision[position]),
@@ -377,6 +362,8 @@ def _calculate_per_class_metrics(
                 prediction == class_index for prediction in original_predictions
             ),
             support=support,
+            roc_auc=curve_metrics.original_roc_auc,
+            average_precision=(curve_metrics.original_average_precision),
         )
 
         adversarial_snapshot = _build_per_class_snapshot(
@@ -387,6 +374,8 @@ def _calculate_per_class_metrics(
                 prediction == class_index for prediction in adversarial_predictions
             ),
             support=support,
+            roc_auc=(curve_metrics.adversarial_roc_auc),
+            average_precision=(curve_metrics.adversarial_average_precision),
         )
 
         delta_snapshot = PerClassMetricSnapshot(
@@ -402,8 +391,14 @@ def _calculate_per_class_metrics(
                 original_snapshot.f1,
                 adversarial_snapshot.f1,
             ),
-            roc_auc=_unavailable_metric(CURVE_PENDING_REASON),
-            average_precision=_unavailable_metric(CURVE_PENDING_REASON),
+            roc_auc=_metric_difference(
+                original_snapshot.roc_auc,
+                adversarial_snapshot.roc_auc,
+            ),
+            average_precision=_metric_difference(
+                original_snapshot.average_precision,
+                adversarial_snapshot.average_precision,
+            ),
         )
 
         comparisons.append(
@@ -591,6 +586,12 @@ def calculate_advanced_classification_metrics(
 
         y_true = [sample.ground_truth.index for sample in resolved_samples]
 
+        original_detailed_predictions = [sample.original for sample in resolved_samples]
+
+        adversarial_detailed_predictions = [
+            sample.adversarial for sample in resolved_samples
+        ]
+
         original_predictions = [
             sample.original.class_index for sample in resolved_samples
         ]
@@ -617,6 +618,14 @@ def calculate_advanced_classification_metrics(
 
         metric_labels = sorted(set(y_true))
 
+        curve_metrics = calculate_classification_curves(
+            y_true=y_true,
+            original_predictions=(original_detailed_predictions),
+            adversarial_predictions=(adversarial_detailed_predictions),
+            metric_labels=metric_labels,
+            class_labels=class_labels,
+        )
+
         original_aggregate = _calculate_aggregate_snapshot(
             y_true=y_true,
             y_pred=original_predictions,
@@ -640,18 +649,15 @@ def calculate_advanced_classification_metrics(
             ),
         )
 
-        curve_placeholder = _build_curve_placeholder()
-
         supervised = SupervisedClassificationAnalysis(
             aggregate=aggregate_comparison,
-            per_class=(
-                _calculate_per_class_metrics(
-                    y_true=y_true,
-                    original_predictions=(original_predictions),
-                    adversarial_predictions=(adversarial_predictions),
-                    metric_labels=metric_labels,
-                    class_labels=class_labels,
-                )
+            per_class=_calculate_per_class_metrics(
+                y_true=y_true,
+                original_predictions=(original_predictions),
+                adversarial_predictions=(adversarial_predictions),
+                metric_labels=metric_labels,
+                class_labels=class_labels,
+                curve_metrics_by_class=(curve_metrics.per_class_metrics),
             ),
             confusion_matrices=(
                 _calculate_confusion_matrices(
@@ -661,8 +667,8 @@ def calculate_advanced_classification_metrics(
                     class_labels=class_labels,
                 )
             ),
-            roc=curve_placeholder,
-            precision_recall=(_build_curve_placeholder()),
+            roc=curve_metrics.roc,
+            precision_recall=(curve_metrics.precision_recall),
         )
 
         warning = None

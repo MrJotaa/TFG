@@ -186,6 +186,14 @@ def test_calculates_aggregate_metrics_and_deltas():
 
     assert aggregate.original.top_5_accuracy == 1.0
     assert aggregate.adversarial.top_5_accuracy == 1.0
+    assert metrics.supervised.roc.micro.original.available
+    assert metrics.supervised.precision_recall.micro.original.available
+
+    assert metrics.supervised.roc.macro_original.value == 1.0
+
+    for class_metrics in metrics.supervised.per_class:
+        assert class_metrics.original.roc_auc.available
+        assert class_metrics.original.average_precision.available
 
 
 def test_confusion_matrix_includes_predicted_only_class():
