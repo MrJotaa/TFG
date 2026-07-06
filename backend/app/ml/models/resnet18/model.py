@@ -18,9 +18,20 @@ class ResNet18Model(BaseImageClassificationModel):
     name = "ResNet18 pretrained"
     task_type = "classification"
 
+    input_size = (224, 224)
+    normalization_mean = (0.485, 0.456, 0.406)
+    normalization_std = (0.229, 0.224, 0.225)
+
     def __init__(self):
         self.model = None
         self.categories = None
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._attack_input_transform = transforms.Compose(
+            [
+                transforms.Resize(self.input_size),
+                transforms.ToTensor(),
+            ]
+        )
 
     def load(self) -> None:
         """
@@ -32,6 +43,7 @@ class ResNet18Model(BaseImageClassificationModel):
         weights = models.ResNet18_Weights.DEFAULT
 
         self.model = models.resnet18(weights=weights)
+        self.model.to(self.device)
         self.model.eval()
 
         self.categories = weights.meta["categories"]
@@ -51,27 +63,51 @@ class ResNet18Model(BaseImageClassificationModel):
     def is_loaded(self) -> bool:
         return self.model is not None and self.categories is not None
 
+    def prepare_attack_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        """
+        Lleva la imagen al espacio de entrada real de ResNet18.
+
+        Los ataques operan sobre este tensor sin normalizar para que
+        epsilon mantenga su interpretación en el rango [0, 1].
+        """
+        rgb_image = image.convert("RGB")
+        tensor = self._attack_input_transform(rgb_image)
+
+        return tensor.unsqueeze(0).to(self.device)
+
+    def normalize_attack_input(
+        self,
+        tensor: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Aplica la normalización de ImageNet a un batch [B, C, H, W].
+        """
+        mean = torch.as_tensor(
+            self.normalization_mean,
+            dtype=tensor.dtype,
+            device=tensor.device,
+        ).view(1, -1, 1, 1)
+
+        std = torch.as_tensor(
+            self.normalization_std,
+            dtype=tensor.dtype,
+            device=tensor.device,
+        ).view(1, -1, 1, 1)
+
+        return (tensor - mean) / std
+
     def preprocess(
         self,
         image: Image.Image,
     ) -> torch.Tensor:
         """
-        Preprocesa una imagen usando la normalización de ImageNet.
+        Prepara y normaliza una imagen para inferencia.
         """
-        transform = transforms.Compose(
-            [
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225],
-                ),
-            ]
-        )
-
-        tensor = transform(image)
-
-        return tensor.unsqueeze(0)
+        attack_input = self.prepare_attack_input(image)
+        return self.normalize_attack_input(attack_input)
 
     def get_class_labels(self) -> tuple[str, ...]:
         """
@@ -99,7 +135,7 @@ class ResNet18Model(BaseImageClassificationModel):
 
         input_tensor = self.preprocess(image)
 
-        with torch.no_grad():
+        with torch.inference_mode():
             output = self.model(input_tensor)
             probabilities = F.softmax(
                 output[0],

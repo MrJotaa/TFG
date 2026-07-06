@@ -22,6 +22,7 @@ class BaseAdversarialAttack(ABC):
         model_wrapper,
         image: Image.Image,
         parameters,
+        original_class_index: int | None = None,
     ):
         """
         Aplica el ataque adversario sobre una imagen.
@@ -30,6 +31,8 @@ class BaseAdversarialAttack(ABC):
             model_wrapper: modelo activo del sistema.
             image: imagen original como objeto PIL.
             parameters: parámetros específicos del ataque.
+            original_class_index: clase original ya calculada, cuando
+                el servicio puede reutilizarla y evitar una inferencia.
 
         Returns:
             Imagen adversaria y métricas asociadas a la perturbación.

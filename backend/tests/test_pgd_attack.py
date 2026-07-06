@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 from PIL import Image
+from torchvision import transforms
 
 from ml.attacks.pgd import PGDAttack
 
@@ -79,6 +80,18 @@ class FakeClassificationModelWrapper:
 
     def get_torch_model(self) -> torch.nn.Module:
         return self.model
+
+    def prepare_attack_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        return transforms.ToTensor()(image).unsqueeze(0)
+
+    def normalize_attack_input(
+        self,
+        tensor: torch.Tensor,
+    ) -> torch.Tensor:
+        return tensor
 
 
 def _create_test_image(
@@ -379,3 +392,51 @@ def test_pgd_with_zero_epsilon_does_not_modify_image(monkeypatch):
 
     assert result["perturbation_linf"] == 0.0
     assert result["perturbation_l2"] == 0.0
+
+
+def test_pgd_reuses_provided_original_class():
+    steps = 4
+
+    model = CountingGradientModel()
+    attack = PGDAttack()
+    wrapper = FakeClassificationModelWrapper(model)
+
+    attack.apply(
+        model_wrapper=wrapper,
+        image=_create_test_image(),
+        parameters=_create_parameters(
+            epsilon=0.1,
+            alpha=0.02,
+            steps=steps,
+        ),
+        original_class_index=0,
+    )
+
+    assert model.forward_calls == steps
+
+
+def test_pgd_uses_model_prepared_input_size():
+    class ResizingWrapper(FakeClassificationModelWrapper):
+        def prepare_attack_input(
+            self,
+            image: Image.Image,
+        ) -> torch.Tensor:
+            resized = image.resize((16, 16))
+            return transforms.ToTensor()(resized).unsqueeze(0)
+
+    attack = PGDAttack()
+    wrapper = ResizingWrapper(TinyGradientModel())
+
+    result = attack.apply(
+        model_wrapper=wrapper,
+        image=_create_test_image(size=(1920, 1279)),
+        parameters=_create_parameters(
+            epsilon=0.1,
+            alpha=0.02,
+            steps=2,
+        ),
+        original_class_index=0,
+    )
+
+    assert result["adversarial_image"].size == (16, 16)
+    assert result["perturbation_image"].size == (16, 16)

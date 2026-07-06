@@ -109,6 +109,7 @@ class FailingAttack:
         model_wrapper,
         image,
         parameters,
+        original_class_index=None,
     ):
         raise ValueError(INTERNAL_ERROR)
 

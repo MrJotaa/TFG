@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+import torch
 from PIL import Image
 
 from ml.models.classification import (
@@ -46,6 +47,29 @@ class BaseImageClassificationModel(BaseModel):
     """
 
     task_type = "classification"
+
+    @abstractmethod
+    def prepare_attack_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        """
+        Convierte la imagen al espacio de píxeles que consume el modelo.
+
+        El tensor debe tener forma [1, C, H, W], valores en [0, 1]
+        y estar situado en el mismo dispositivo que el modelo.
+        """
+        pass
+
+    @abstractmethod
+    def normalize_attack_input(
+        self,
+        tensor: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Normaliza un tensor de píxeles preparado para el modelo.
+        """
+        pass
 
     @abstractmethod
     def preprocess(self, image: Image.Image):

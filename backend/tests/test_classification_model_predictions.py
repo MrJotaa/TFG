@@ -253,3 +253,28 @@ def test_single_class_prediction_has_no_margin():
 
     assert prediction.class_index == 0
     assert prediction.prediction_margin is None
+
+
+def test_resnet_attack_input_uses_model_resolution():
+    model = ResNet18Model()
+
+    attack_input = model.prepare_attack_input(Image.new("RGB", (1920, 1279)))
+
+    assert attack_input.shape == (1, 3, 224, 224)
+    assert attack_input.device.type == model.device.type
+    assert attack_input.min().item() >= 0.0
+    assert attack_input.max().item() <= 1.0
+
+
+def test_resnet_preprocess_reuses_attack_input_contract():
+    model = ResNet18Model()
+    image = Image.new("RGB", (1280, 720), color=(128, 128, 128))
+
+    attack_input = model.prepare_attack_input(image)
+    preprocessed = model.preprocess(image)
+
+    assert preprocessed.shape == attack_input.shape
+    assert torch.allclose(
+        preprocessed,
+        model.normalize_attack_input(attack_input),
+    )
