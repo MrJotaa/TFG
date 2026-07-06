@@ -1,11 +1,20 @@
 import { useNavigate } from 'react-router-dom'
+import DetectionEvaluationPanel from '../components/DetectionEvaluationPanel'
 import EvaluationPanel from '../components/EvaluationPanel'
 import { useExperiment } from '../context/ExperimentContext'
-import DetectionEvaluationPanel from '../components/DetectionEvaluationPanel'
 import {
     formatAttackParameters,
     getAttackName,
 } from '../utils/attackFormatting'
+
+function ContextItem({ label, value }) {
+    return (
+        <div className="evaluation-context-item">
+            <span>{label}</span>
+            <strong>{value}</strong>
+        </div>
+    )
+}
 
 function EvaluationView() {
     const navigate = useNavigate()
@@ -17,64 +26,58 @@ function EvaluationView() {
         attackParameters,
     } = useExperiment()
 
+    const isDetection = activeModel?.task_type === 'detection'
     const attackName = getAttackName(selectedAttack)
 
     return (
-        <section className="evaluation-page">
-            <div className="comparison-header">
+        <section className="evaluation-page modern-evaluation-page">
+            <header className="evaluation-page-hero">
                 <div>
+                    <span className="evaluation-eyebrow">
+                        {isDetection ? 'Object detection' : 'Image classification'}
+                    </span>
                     <h2>
-                        {activeModel?.task_type === 'detection'
-                            ? 'Evaluación y Análisis de Detección'
-                            : 'Evaluación y Análisis de Dataset'}
+                        {isDetection
+                            ? 'Evaluación adversarial de detección'
+                            : 'Evaluación adversarial de clasificación'}
                     </h2>
                     <p>
-                        {activeModel?.task_type === 'detection'
-                            ? 'Evalúa el impacto de ataques adversarios sobre las detecciones del modelo.'
-                            : 'Evalúa el impacto del ataque adversario sobre todas las imágenes del dataset seleccionado.'}
+                        {isDetection
+                            ? 'Mide cómo cambia el comportamiento del detector ante perturbaciones adversarias.'
+                            : 'Compara rendimiento limpio, robustez, métricas multiclase y curvas antes y después del ataque.'}
                     </p>
                 </div>
 
                 <button
                     type="button"
-                    className="secondary-action"
+                    className="secondary-action evaluation-back-button"
                     onClick={() => navigate('/dashboard')}
                 >
-                    Volver al Dashboard
+                    Volver al dashboard
                 </button>
-            </div>
+            </header>
 
-            <div className="context-summary">
-                <h3>Resumen del Contexto</h3>
+            <section className="evaluation-context-strip" aria-label="Contexto del experimento">
+                <ContextItem
+                    label="Dataset"
+                    value={selectedDataset?.name || 'Sin seleccionar'}
+                />
+                <ContextItem
+                    label="Imágenes"
+                    value={selectedDataset?.image_count ?? '—'}
+                />
+                <ContextItem
+                    label="Modelo"
+                    value={activeModel?.name || 'Sin modelo activo'}
+                />
+                <ContextItem label="Ataque" value={attackName} />
+                <ContextItem
+                    label="Parámetros"
+                    value={formatAttackParameters(selectedAttack, attackParameters)}
+                />
+            </section>
 
-                <div className="context-grid">
-                    <p>
-                        <strong>Dataset:</strong>{' '}
-                        {selectedDataset?.name || 'Sin dataset seleccionado'}
-                    </p>
-
-                    <p>
-                        <strong>Imágenes Totales:</strong>{' '}
-                        {selectedDataset?.image_count ?? '-'}
-                    </p>
-
-                    <p>
-                        <strong>Modelo:</strong>{' '}
-                        {activeModel?.name || 'Sin modelo activo'}
-                    </p>
-
-                    <p>
-                        <strong>Ataque:</strong> {attackName}
-                    </p>
-
-                    <p>
-                        <strong>Parámetros:</strong>{' '}
-                        {formatAttackParameters(selectedAttack, attackParameters)}
-                    </p>
-                </div>
-            </div>
-
-            {activeModel?.task_type === 'detection' ? (
+            {isDetection ? (
                 <DetectionEvaluationPanel
                     selectedDataset={selectedDataset}
                     selectedAttack={selectedAttack}
