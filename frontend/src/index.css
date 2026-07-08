@@ -1232,7 +1232,7 @@ button {
 /* Modern classification evaluation dashboard */
 :root {
     --evaluation-original: #2563eb;
-    --evaluation-adversarial: #7c3aed;
+    --evaluation-adversarial: #dc2626;
     --evaluation-danger: #dc2626;
     --evaluation-success: #059669;
     --evaluation-ink: #0f172a;
@@ -1578,8 +1578,77 @@ button {
     height: 330px;
 }
 
+.evaluation-chart-tooltip {
+    min-width: 150px;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--evaluation-line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+}
+
+.evaluation-chart-tooltip > strong {
+    display: block;
+    margin-bottom: 0.45rem;
+    color: var(--evaluation-ink);
+    font-size: 0.78rem;
+}
+
+.evaluation-chart-tooltip div,
+.evaluation-chart-legend {
+    display: flex;
+    align-items: center;
+}
+
+.evaluation-chart-tooltip div {
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.2rem 0;
+    color: var(--evaluation-muted);
+    font-size: 0.74rem;
+}
+
+.evaluation-chart-tooltip div span,
+.evaluation-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+}
+
+.evaluation-chart-tooltip div span::before,
+.evaluation-chart-legend span::before {
+    content: '';
+    width: 0.55rem;
+    height: 0.55rem;
+    flex: 0 0 auto;
+    border-radius: 50%;
+}
+
+.evaluation-chart-tooltip .original span::before,
+.evaluation-chart-legend .original::before {
+    background: var(--evaluation-original);
+}
+
+.evaluation-chart-tooltip .adversarial span::before,
+.evaluation-chart-legend .adversarial::before {
+    background: var(--evaluation-adversarial);
+}
+
+.evaluation-chart-tooltip div strong {
+    color: var(--evaluation-ink);
+    font-size: 0.74rem;
+}
+
+.evaluation-chart-legend {
+    justify-content: center;
+    gap: 0.8rem;
+    color: #475569;
+    font-size: 0.74rem;
+    font-weight: 750;
+}
+
 .evaluation-impact-card {
-    background: linear-gradient(145deg, #ffffff, #fbfaff);
+    background: linear-gradient(145deg, #ffffff, #fffafa);
 }
 
 .evaluation-impact-visual {
@@ -1596,10 +1665,7 @@ button {
     margin: 0 auto;
     padding: 16px;
     border-radius: 50%;
-    background: conic-gradient(
-        var(--evaluation-adversarial) 0 var(--changed-angle),
-        #e8edf5 var(--changed-angle) 360deg
-    );
+    background: #e8edf5;
 }
 
 .evaluation-donut > div {
@@ -1647,8 +1713,40 @@ button {
 }
 
 .evaluation-impact-list dt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.48rem;
     color: #475569;
     font-size: 0.82rem;
+}
+
+.evaluation-impact-list dt::before {
+    content: '';
+    width: 0.58rem;
+    height: 0.58rem;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: #cbd5e1;
+}
+
+.evaluation-impact-list .tone-danger dt::before {
+    background: var(--evaluation-adversarial);
+}
+
+.evaluation-impact-list .tone-success dt::before {
+    background: var(--evaluation-success);
+}
+
+.evaluation-impact-list .tone-warning dt::before {
+    background: #f59e0b;
+}
+
+.evaluation-impact-list .tone-neutral dt::before {
+    background: #cbd5e1;
+}
+
+.evaluation-impact-list .tone-unresolved dt::before {
+    background: #64748b;
 }
 
 .evaluation-impact-list dd {

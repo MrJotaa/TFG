@@ -9,10 +9,43 @@ import {
     YAxis,
 } from 'recharts'
 
+const SERIES_ORDER = ['Original', 'Adversarial']
+
+function ComparisonTooltip({ active, label, payload }) {
+    if (!active || !payload?.length) {
+        return null
+    }
+
+    const valuesBySeries = Object.fromEntries(
+        payload.map((entry) => [entry.dataKey, entry.value]),
+    )
+
+    return (
+        <div className="evaluation-chart-tooltip">
+            <strong>{label}</strong>
+            {SERIES_ORDER.map((series) => (
+                <div key={series} className={series.toLowerCase()}>
+                    <span>{series}</span>
+                    <strong>{Number(valuesBySeries[series] ?? 0).toFixed(1)} %</strong>
+                </div>
+            ))}
+        </div>
+    )
+}
+
+function ComparisonLegend() {
+    return (
+        <div className="evaluation-chart-legend" aria-label="Leyenda del gráfico">
+            <span className="original">Original</span>
+            <span className="adversarial">Adversarial</span>
+        </div>
+    )
+}
+
 function MetricComparisonChart({ aggregate }) {
     const data = [
         {
-            metric: 'Accuracy',
+            metric: 'Exactitud',
             Original: aggregate.original.accuracy * 100,
             Adversarial: aggregate.adversarial.accuracy * 100,
         },
@@ -22,7 +55,7 @@ function MetricComparisonChart({ aggregate }) {
             Adversarial: aggregate.adversarial.f1_macro * 100,
         },
         {
-            metric: 'F1 weighted',
+            metric: 'F1 ponderado',
             Original: aggregate.original.f1_weighted * 100,
             Adversarial: aggregate.adversarial.f1_weighted * 100,
         },
@@ -46,10 +79,10 @@ function MetricComparisonChart({ aggregate }) {
                         axisLine={false}
                     />
                     <Tooltip
-                        formatter={(value) => [`${Number(value).toFixed(1)} %`]}
+                        content={<ComparisonTooltip />}
                         cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }}
                     />
-                    <Legend iconType="circle" />
+                    <Legend content={<ComparisonLegend />} />
                     <Bar dataKey="Original" fill="var(--evaluation-original)" radius={[8, 8, 0, 0]} />
                     <Bar
                         dataKey="Adversarial"
