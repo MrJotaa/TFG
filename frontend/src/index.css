@@ -2376,8 +2376,10 @@ button {
 }
 
 .confusion-matrix-controls {
-    flex: 0 0 auto;
-    display: grid;
+    flex: 0 1 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 0.55rem;
 }
 
@@ -2405,6 +2407,10 @@ button {
     background: #ffffff;
     color: var(--evaluation-original);
     box-shadow: 0 5px 14px rgba(15, 23, 42, 0.08);
+}
+
+.confusion-variant-control button.active[data-variant='adversarial'] {
+    color: var(--evaluation-adversarial);
 }
 
 .confusion-matrix-stat-grid {
@@ -2444,6 +2450,43 @@ button {
     padding: 1rem;
 }
 
+.confusion-matrix-viewport-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--evaluation-line);
+}
+
+.confusion-matrix-viewport-header div,
+.confusion-matrix-viewport-header strong,
+.confusion-matrix-viewport-header span {
+    display: block;
+}
+
+.confusion-matrix-viewport-header strong {
+    color: var(--evaluation-ink);
+    font-size: 0.82rem;
+}
+
+.confusion-matrix-viewport-header span,
+.confusion-matrix-viewport-header p {
+    color: var(--evaluation-muted);
+    font-size: 0.72rem;
+}
+
+.confusion-matrix-viewport-header span {
+    margin-top: 0.18rem;
+}
+
+.confusion-matrix-viewport-header p {
+    max-width: 360px;
+    margin: 0;
+    text-align: right;
+}
+
 .confusion-matrix-layout {
     display: grid;
     grid-template-columns: 34px minmax(0, 1fr);
@@ -2473,8 +2516,41 @@ button {
 
 .confusion-matrix-scroll {
     min-width: 0;
+    max-height: min(64vh, 660px);
     overflow: auto;
-    padding-bottom: 0.35rem;
+    padding: 0 0.35rem 0.35rem 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    scrollbar-color: #94a3b8 #e8edf5;
+    scrollbar-gutter: stable both-edges;
+    scrollbar-width: auto;
+    overscroll-behavior: contain;
+}
+
+.confusion-matrix-scroll:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.22);
+    outline-offset: 3px;
+}
+
+.confusion-matrix-scroll::-webkit-scrollbar {
+    width: 14px;
+    height: 14px;
+}
+
+.confusion-matrix-scroll::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: #e8edf5;
+}
+
+.confusion-matrix-scroll::-webkit-scrollbar-thumb {
+    border: 3px solid #e8edf5;
+    border-radius: 999px;
+    background: #94a3b8;
+}
+
+.confusion-matrix-scroll::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
 }
 
 .confusion-matrix-table {
@@ -2504,6 +2580,13 @@ button {
     text-align: center;
 }
 
+.confusion-matrix-table.is-compact th,
+.confusion-matrix-table.is-compact td {
+    min-width: 62px;
+    height: 50px;
+    padding: 0.34rem;
+}
+
 .confusion-matrix-table thead th,
 .confusion-matrix-table tbody th {
     background: #f8fafc;
@@ -2516,6 +2599,7 @@ button {
     z-index: 2;
     max-width: 88px;
     vertical-align: bottom;
+    box-shadow: 0 1px 0 #dbe3ee;
 }
 
 .confusion-matrix-table tbody th {
@@ -2525,6 +2609,12 @@ button {
     min-width: 126px;
     max-width: 126px;
     text-align: left;
+    box-shadow: 1px 0 0 #dbe3ee;
+}
+
+.confusion-matrix-table.is-compact tbody th {
+    min-width: 112px;
+    max-width: 112px;
 }
 
 .confusion-matrix-table th span,
@@ -2545,6 +2635,10 @@ button {
     text-overflow: ellipsis;
 }
 
+.confusion-matrix-table.is-compact th strong {
+    font-size: 0.64rem;
+}
+
 .confusion-matrix-table thead th strong {
     display: -webkit-box;
     -webkit-box-orient: vertical;
@@ -2558,6 +2652,10 @@ button {
     transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
+.confusion-matrix-table.is-compact td {
+    font-size: 0.72rem;
+}
+
 .confusion-matrix-table td:hover {
     position: relative;
     z-index: 3;
@@ -2566,7 +2664,7 @@ button {
 }
 
 .confusion-matrix-table td.diagonal {
-    outline: 2px solid rgba(15, 23, 42, 0.16);
+    outline: 2px solid rgba(15, 23, 42, 0.3);
     outline-offset: 1px;
 }
 
@@ -2575,6 +2673,11 @@ button {
     left: 0;
     z-index: 3 !important;
     min-width: 126px !important;
+    box-shadow: 1px 1px 0 #dbe3ee !important;
+}
+
+.confusion-matrix-table.is-compact .confusion-matrix-corner {
+    min-width: 112px !important;
 }
 
 .confusion-matrix-legend {
@@ -2598,7 +2701,7 @@ button {
 }
 
 .confusion-matrix-legend .adversarial {
-    background: linear-gradient(90deg, rgba(124, 58, 237, 0.06), rgba(124, 58, 237, 0.84));
+    background: linear-gradient(90deg, rgba(220, 38, 38, 0.06), rgba(220, 38, 38, 0.84));
 }
 
 .evaluation-info-banner {
@@ -2640,7 +2743,11 @@ button {
 
     .confusion-matrix-controls {
         width: 100%;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        justify-content: flex-start;
+    }
+
+    .confusion-matrix-controls .evaluation-segmented-control {
+        flex: 1 1 210px;
     }
 
     .evaluation-segmented-control {
@@ -2656,9 +2763,17 @@ button {
 @media (max-width: 760px) {
     .class-metrics-toolbar,
     .class-metric-main-comparison,
-    .confusion-matrix-stat-grid,
-    .confusion-matrix-controls {
+    .confusion-matrix-stat-grid {
         grid-template-columns: 1fr;
+    }
+
+    .confusion-matrix-controls {
+        flex-direction: column;
+    }
+
+    .confusion-matrix-controls .evaluation-segmented-control {
+        width: 100%;
+        flex-basis: auto;
     }
 
     .class-metrics-summary {
@@ -2696,6 +2811,14 @@ button {
         border-top: 0;
     }
 
+    .confusion-matrix-viewport-header {
+        flex-direction: column;
+    }
+
+    .confusion-matrix-viewport-header p {
+        text-align: left;
+    }
+
     .confusion-matrix-layout {
         grid-template-columns: 1fr;
     }
@@ -2708,16 +2831,32 @@ button {
         margin-left: 0;
     }
 
+    .confusion-matrix-scroll {
+        max-height: 62vh;
+    }
+
     .confusion-matrix-table th,
     .confusion-matrix-table td {
         min-width: 68px;
         height: 56px;
     }
 
+    .confusion-matrix-table.is-compact th,
+    .confusion-matrix-table.is-compact td {
+        min-width: 58px;
+        height: 48px;
+    }
+
     .confusion-matrix-table tbody th,
     .confusion-matrix-corner {
         min-width: 108px !important;
         max-width: 108px;
+    }
+
+    .confusion-matrix-table.is-compact tbody th,
+    .confusion-matrix-table.is-compact .confusion-matrix-corner {
+        min-width: 100px !important;
+        max-width: 100px;
     }
 }
 

@@ -28,7 +28,7 @@ function getCellStyle(value, maximum, mode, variant) {
     const numericValue = Number(value) || 0
     const intensity = maximum > 0 ? numericValue / maximum : 0
     const alpha = numericValue > 0 ? 0.08 + intensity * 0.72 : 0.035
-    const rgb = variant === 'original' ? '37, 99, 235' : '124, 58, 237'
+    const rgb = variant === 'original' ? '37, 99, 235' : '220, 38, 38'
 
     return {
         backgroundColor: `rgba(${rgb}, ${alpha})`,
@@ -44,6 +44,7 @@ function formatCellValue(value, mode) {
 function EvaluationConfusionMatrices({ evaluation }) {
     const [variant, setVariant] = useState('original')
     const [mode, setMode] = useState('counts')
+    const [viewMode, setViewMode] = useState('compact')
 
     const matrices = evaluation?.advanced_metrics?.supervised?.confusion_matrices
 
@@ -69,10 +70,32 @@ function EvaluationConfusionMatrices({ evaluation }) {
         return variant === 'original' ? matrices.original : matrices.adversarial
     }, [matrices, variant])
 
+    const visibleRows = useMemo(
+        () =>
+            matrix
+                .map((values, sourceIndex) => ({ sourceIndex, values }))
+                .filter(({ sourceIndex }) => {
+                    if (viewMode === 'complete') {
+                        return true
+                    }
+
+                    return (countMatrix[sourceIndex] ?? []).some(
+                        (value) => (Number(value) || 0) > 0,
+                    )
+                }),
+        [countMatrix, matrix, viewMode],
+    )
+
     const stats = useMemo(() => calculateMatrixStats(countMatrix), [countMatrix])
     const maximum = useMemo(
-        () => Math.max(0, ...matrix.flat().map((value) => Number(value) || 0)),
-        [matrix],
+        () =>
+            Math.max(
+                0,
+                ...visibleRows.flatMap(({ values }) =>
+                    values.map((value) => Number(value) || 0),
+                ),
+            ),
+        [visibleRows],
     )
 
     if (!matrices?.labels?.length || !matrix.length) {
@@ -87,6 +110,7 @@ function EvaluationConfusionMatrices({ evaluation }) {
 
     const labels = matrices.labels
     const selectedName = variant === 'original' ? 'original' : 'adversarial'
+    const hiddenRowCount = Math.max(0, labels.length - visibleRows.length)
 
     return (
         <div className="evaluation-tab-content confusion-matrix-tab">
@@ -102,13 +126,14 @@ function EvaluationConfusionMatrices({ evaluation }) {
 
                 <div className="confusion-matrix-controls">
                     <div
-                        className="evaluation-segmented-control"
+                        className="evaluation-segmented-control confusion-variant-control"
                         role="group"
                         aria-label="Predicciones mostradas"
                     >
                         <button
                             type="button"
                             className={variant === 'original' ? 'active' : ''}
+                            data-variant="original"
                             aria-pressed={variant === 'original'}
                             onClick={() => setVariant('original')}
                         >
@@ -117,6 +142,7 @@ function EvaluationConfusionMatrices({ evaluation }) {
                         <button
                             type="button"
                             className={variant === 'adversarial' ? 'active' : ''}
+                            data-variant="adversarial"
                             aria-pressed={variant === 'adversarial'}
                             onClick={() => setVariant('adversarial')}
                         >
@@ -146,6 +172,29 @@ function EvaluationConfusionMatrices({ evaluation }) {
                             Normalizada
                         </button>
                     </div>
+
+                    <div
+                        className="evaluation-segmented-control"
+                        role="group"
+                        aria-label="Densidad de la matriz"
+                    >
+                        <button
+                            type="button"
+                            className={viewMode === 'compact' ? 'active' : ''}
+                            aria-pressed={viewMode === 'compact'}
+                            onClick={() => setViewMode('compact')}
+                        >
+                            Compacta
+                        </button>
+                        <button
+                            type="button"
+                            className={viewMode === 'complete' ? 'active' : ''}
+                            aria-pressed={viewMode === 'complete'}
+                            onClick={() => setViewMode('complete')}
+                        >
+                            Completa
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -163,21 +212,47 @@ function EvaluationConfusionMatrices({ evaluation }) {
                     <strong>{formatInteger(stats.errors)}</strong>
                 </article>
                 <article>
-                    <span>Accuracy</span>
+                    <span>Exactitud</span>
                     <strong>{formatRatio(stats.accuracy)}</strong>
                 </article>
             </section>
 
             <section className="evaluation-surface confusion-matrix-surface">
+                <div className="confusion-matrix-viewport-header">
+                    <div>
+                        <strong>
+                            {viewMode === 'compact' ? 'Vista compacta' : 'Vista completa'}
+                        </strong>
+                        <span>
+                            {formatInteger(visibleRows.length)} de{' '}
+                            {formatInteger(labels.length)} filas visibles
+                            {viewMode === 'compact' && hiddenRowCount > 0
+                                ? ` · ${formatInteger(hiddenRowCount)} filas sin muestras ocultas`
+                                : ''}
+                        </span>
+                    </div>
+                    <p>Desplázate horizontal y verticalmente para explorar la matriz.</p>
+                </div>
+
                 <div className="confusion-matrix-axis-label top">Clase predicha</div>
                 <div className="confusion-matrix-layout">
                     <div className="confusion-matrix-axis-label side">Clase real</div>
 
-                    <div className="confusion-matrix-scroll">
-                        <table className="confusion-matrix-table">
+                    <div
+                        className="confusion-matrix-scroll"
+                        role="region"
+                        aria-label={`Matriz de confusión ${selectedName}`}
+                        tabIndex="0"
+                    >
+                        <table
+                            className={`confusion-matrix-table ${
+                                viewMode === 'compact' ? 'is-compact' : 'is-complete'
+                            }`}
+                        >
                             <caption>
                                 Matriz de confusión {selectedName} en modo{' '}
-                                {mode === 'counts' ? 'conteos' : 'normalizado'}
+                                {mode === 'counts' ? 'conteos' : 'normalizado'} y vista{' '}
+                                {viewMode === 'compact' ? 'compacta' : 'completa'}
                             </caption>
                             <thead>
                                 <tr>
@@ -193,14 +268,14 @@ function EvaluationConfusionMatrices({ evaluation }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {matrix.map((row, rowIndex) => (
-                                    <tr key={labels[rowIndex]?.index ?? rowIndex}>
-                                        <th scope="row" title={labels[rowIndex]?.label}>
-                                            <span>#{labels[rowIndex]?.index}</span>
-                                            <strong>{labels[rowIndex]?.label}</strong>
+                                {visibleRows.map(({ sourceIndex, values }) => (
+                                    <tr key={labels[sourceIndex]?.index ?? sourceIndex}>
+                                        <th scope="row" title={labels[sourceIndex]?.label}>
+                                            <span>#{labels[sourceIndex]?.index}</span>
+                                            <strong>{labels[sourceIndex]?.label}</strong>
                                         </th>
-                                        {row.map((value, columnIndex) => {
-                                            const realLabel = labels[rowIndex]?.label
+                                        {values.map((value, columnIndex) => {
+                                            const realLabel = labels[sourceIndex]?.label
                                             const predictedLabel = labels[columnIndex]?.label
                                             const title = `${realLabel} → ${predictedLabel}: ${formatCellValue(
                                                 value,
@@ -209,9 +284,11 @@ function EvaluationConfusionMatrices({ evaluation }) {
 
                                             return (
                                                 <td
-                                                    key={`${labels[rowIndex]?.index}-${labels[columnIndex]?.index}`}
+                                                    key={`${labels[sourceIndex]?.index}-${labels[columnIndex]?.index}`}
                                                     className={
-                                                        rowIndex === columnIndex ? 'diagonal' : ''
+                                                        sourceIndex === columnIndex
+                                                            ? 'diagonal'
+                                                            : ''
                                                     }
                                                     style={getCellStyle(
                                                         value,
@@ -243,7 +320,8 @@ function EvaluationConfusionMatrices({ evaluation }) {
                 <strong>Nota:</strong>
                 <span>
                     También aparecen clases que solo fueron predichas por el modelo, aunque no
-                    existan como etiqueta real en el dataset.
+                    existan como etiqueta real en el dataset. La vista compacta conserva esas
+                    columnas y oculta únicamente filas sin muestras reales.
                 </span>
             </div>
         </div>
