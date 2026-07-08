@@ -1,4 +1,14 @@
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+    CartesianGrid,
+    Line,
+    LineChart,
+    ReferenceLine,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts'
 import {
     formatAvailableMetric,
     formatPoints,
@@ -8,32 +18,26 @@ import {
 const CURVE_TYPES = {
     roc: {
         label: 'ROC',
-        title: 'Receiver Operating Characteristic',
-        xLabel: 'False Positive Rate',
-        yLabel: 'True Positive Rate',
+        xLabel: 'Tasa de falsos positivos',
+        yLabel: 'Tasa de verdaderos positivos',
+        tooltipXLabel: 'Falsos positivos',
+        tooltipYLabel: 'Verdaderos positivos',
         scoreLabel: 'ROC-AUC',
         description:
             'Muestra la relación entre sensibilidad y falsos positivos al variar el umbral.',
     },
     precision_recall: {
         label: 'Precision-Recall',
-        title: 'Precision frente a Recall',
         xLabel: 'Recall',
-        yLabel: 'Precision',
-        scoreLabel: 'Average Precision',
+        yLabel: 'Precisión',
+        tooltipXLabel: 'Recall',
+        tooltipYLabel: 'Precisión',
+        scoreLabel: 'Precisión media (AP)',
         description:
-            'Resume el equilibrio entre precision y recall para diferentes umbrales.',
+            'Resume el equilibrio entre precisión y recall para diferentes umbrales.',
     },
 }
 
-const SVG_WIDTH = 760
-const SVG_HEIGHT = 420
-const PADDING = {
-    top: 24,
-    right: 26,
-    bottom: 62,
-    left: 68,
-}
 const TICKS = [0, 0.25, 0.5, 0.75, 1]
 
 function isAvailable(series) {
@@ -47,6 +51,16 @@ function formatSignedPoints(value) {
 
     const prefix = value > 0 ? '+' : ''
     return `${prefix}${formatPoints(value)}`
+}
+
+function formatThreshold(value) {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+        return '—'
+    }
+
+    return new Intl.NumberFormat('es-ES', {
+        maximumFractionDigits: 4,
+    }).format(Number(value))
 }
 
 function getDeltaTone(value) {
@@ -64,7 +78,7 @@ function getScopeData(analysis, scope) {
 
     if (scope === 'micro') {
         return {
-            label: 'Micro-average',
+            label: 'Promedio micro',
             support: null,
             curves: analysis.micro,
         }
@@ -75,31 +89,72 @@ function getScopeData(analysis, scope) {
     )
 }
 
-function buildPolyline(points) {
-    if (!points?.length) {
-        return ''
-    }
-
-    const chartWidth = SVG_WIDTH - PADDING.left - PADDING.right
-    const chartHeight = SVG_HEIGHT - PADDING.top - PADDING.bottom
-
-    return points
-        .map((point) => {
-            const x = PADDING.left + Number(point.x) * chartWidth
-            const y = PADDING.top + (1 - Number(point.y)) * chartHeight
-            return `${x},${y}`
-        })
-        .join(' ')
+function normalizeCurvePoints(points) {
+    return (points ?? [])
+        .map((point) => ({
+            x: Number(point.x),
+            y: Number(point.y),
+            threshold: point.threshold,
+        }))
+        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
 }
 
-function CurveChart({ curveType, original, adversarial, scopeLabel }) {
-    const titleId = useId()
-    const descriptionId = useId()
+function CurveTooltip({ active, payload, curveType }) {
+    if (!active || !payload?.length) {
+        return null
+    }
+
     const config = CURVE_TYPES[curveType]
-    const chartWidth = SVG_WIDTH - PADDING.left - PADDING.right
-    const chartHeight = SVG_HEIGHT - PADDING.top - PADDING.bottom
+    const entries = payload.filter((entry) => entry?.payload)
+
+    if (!entries.length) {
+        return null
+    }
+
+    return (
+        <div className="curve-tooltip">
+            {entries.map((entry, index) => {
+                const point = entry.payload
+
+                return (
+                    <div
+                        className="curve-tooltip-series"
+                        key={`${entry.name}-${point.x}-${index}`}
+                    >
+                        <strong>
+                            <span
+                                aria-hidden="true"
+                                style={{ backgroundColor: entry.color }}
+                            />
+                            {entry.name}
+                        </strong>
+                        <dl>
+                            <div>
+                                <dt>{config.tooltipXLabel}</dt>
+                                <dd>{formatRatio(point.x)}</dd>
+                            </div>
+                            <div>
+                                <dt>{config.tooltipYLabel}</dt>
+                                <dd>{formatRatio(point.y)}</dd>
+                            </div>
+                            <div>
+                                <dt>Umbral</dt>
+                                <dd>{formatThreshold(point.threshold)}</dd>
+                            </div>
+                        </dl>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
+function CurveChart({ curveType, original, adversarial, scopeLabel, expanded = false }) {
+    const config = CURVE_TYPES[curveType]
     const hasOriginal = isAvailable(original)
     const hasAdversarial = isAvailable(adversarial)
+    const originalPoints = normalizeCurvePoints(original?.points)
+    const adversarialPoints = normalizeCurvePoints(adversarial?.points)
 
     if (!hasOriginal && !hasAdversarial) {
         return (
@@ -116,118 +171,101 @@ function CurveChart({ curveType, original, adversarial, scopeLabel }) {
     }
 
     return (
-        <div className="curve-chart-wrap">
-            <svg
-                className="curve-chart"
-                viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-                role="img"
-                aria-labelledby={`${titleId} ${descriptionId}`}
-            >
-                <title id={titleId}>
-                    {config.label} original y adversarial para {scopeLabel}
-                </title>
-                <desc id={descriptionId}>
-                    Comparación de la curva original y adversarial. El eje horizontal es
-                    {` ${config.xLabel}`} y el vertical es {config.yLabel}.
-                </desc>
-
-                {TICKS.map((tick) => {
-                    const x = PADDING.left + tick * chartWidth
-                    const y = PADDING.top + (1 - tick) * chartHeight
-
-                    return (
-                        <g key={tick}>
-                            <line
-                                className="curve-grid-line"
-                                x1={PADDING.left}
-                                y1={y}
-                                x2={SVG_WIDTH - PADDING.right}
-                                y2={y}
-                            />
-                            <line
-                                className="curve-grid-line"
-                                x1={x}
-                                y1={PADDING.top}
-                                x2={x}
-                                y2={SVG_HEIGHT - PADDING.bottom}
-                            />
-                            <text
-                                className="curve-axis-tick"
-                                x={PADDING.left - 14}
-                                y={y + 4}
-                                textAnchor="end"
-                            >
-                                {tick.toFixed(2)}
-                            </text>
-                            <text
-                                className="curve-axis-tick"
-                                x={x}
-                                y={SVG_HEIGHT - PADDING.bottom + 24}
-                                textAnchor="middle"
-                            >
-                                {tick.toFixed(2)}
-                            </text>
-                        </g>
-                    )
-                })}
-
-                <line
-                    className="curve-axis-line"
-                    x1={PADDING.left}
-                    y1={SVG_HEIGHT - PADDING.bottom}
-                    x2={SVG_WIDTH - PADDING.right}
-                    y2={SVG_HEIGHT - PADDING.bottom}
-                />
-                <line
-                    className="curve-axis-line"
-                    x1={PADDING.left}
-                    y1={PADDING.top}
-                    x2={PADDING.left}
-                    y2={SVG_HEIGHT - PADDING.bottom}
-                />
-
-                {curveType === 'roc' && (
-                    <line
-                        className="curve-reference-line"
-                        x1={PADDING.left}
-                        y1={SVG_HEIGHT - PADDING.bottom}
-                        x2={SVG_WIDTH - PADDING.right}
-                        y2={PADDING.top}
+        <div
+            className={`curve-chart-wrap${expanded ? ' expanded' : ''}`}
+            role="img"
+            aria-label={`${config.label} original y adversarial para ${scopeLabel}`}
+        >
+            <ResponsiveContainer width="100%" height="100%">
+                <LineChart margin={{ top: 12, right: 18, bottom: 8, left: 12 }}>
+                    <CartesianGrid stroke="#e7edf5" strokeDasharray="4 4" />
+                    <XAxis
+                        dataKey="x"
+                        type="number"
+                        domain={[0, 1]}
+                        ticks={TICKS}
+                        tickFormatter={(value) => Number(value).toFixed(2)}
+                        tick={{ fill: '#64748b', fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={{ stroke: '#94a3b8' }}
+                        height={48}
+                        label={{
+                            value: config.xLabel,
+                            position: 'insideBottom',
+                            offset: -6,
+                            fill: '#64748b',
+                            fontSize: 13,
+                            fontWeight: 750,
+                        }}
                     />
-                )}
-
-                {hasOriginal && (
-                    <polyline
-                        className="curve-series original"
-                        points={buildPolyline(original.points)}
+                    <YAxis
+                        type="number"
+                        domain={[0, 1]}
+                        ticks={TICKS}
+                        tickFormatter={(value) => Number(value).toFixed(2)}
+                        tick={{ fill: '#64748b', fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={{ stroke: '#94a3b8' }}
+                        width={72}
+                        label={{
+                            value: config.yLabel,
+                            angle: -90,
+                            position: 'insideLeft',
+                            offset: 8,
+                            fill: '#64748b',
+                            fontSize: 13,
+                            fontWeight: 750,
+                        }}
                     />
-                )}
-
-                {hasAdversarial && (
-                    <polyline
-                        className="curve-series adversarial"
-                        points={buildPolyline(adversarial.points)}
+                    <Tooltip
+                        content={<CurveTooltip curveType={curveType} />}
+                        cursor={{
+                            stroke: '#94a3b8',
+                            strokeDasharray: '4 4',
+                        }}
                     />
-                )}
 
-                <text
-                    className="curve-axis-label"
-                    x={PADDING.left + chartWidth / 2}
-                    y={SVG_HEIGHT - 14}
-                    textAnchor="middle"
-                >
-                    {config.xLabel}
-                </text>
-                <text
-                    className="curve-axis-label"
-                    x={18}
-                    y={PADDING.top + chartHeight / 2}
-                    textAnchor="middle"
-                    transform={`rotate(-90 18 ${PADDING.top + chartHeight / 2})`}
-                >
-                    {config.yLabel}
-                </text>
-            </svg>
+                    {curveType === 'roc' && (
+                        <ReferenceLine
+                            segment={[
+                                { x: 0, y: 0 },
+                                { x: 1, y: 1 },
+                            ]}
+                            stroke="#94a3b8"
+                            strokeWidth={2}
+                            strokeDasharray="8 8"
+                        />
+                    )}
+
+                    {hasOriginal && (
+                        <Line
+                            data={originalPoints}
+                            dataKey="y"
+                            name="Original"
+                            type="linear"
+                            stroke="var(--evaluation-original)"
+                            strokeWidth={3}
+                            dot={false}
+                            activeDot={{ r: 4 }}
+                            isAnimationActive={false}
+                        />
+                    )}
+
+                    {hasAdversarial && (
+                        <Line
+                            data={adversarialPoints}
+                            dataKey="y"
+                            name="Adversarial"
+                            type="linear"
+                            stroke="var(--evaluation-adversarial)"
+                            strokeWidth={3}
+                            dot={false}
+                            activeDot={{ r: 4 }}
+                            isAnimationActive={false}
+                        />
+                    )}
+                </LineChart>
+            </ResponsiveContainer>
         </div>
     )
 }
@@ -245,6 +283,8 @@ function CurveScoreCard({ label, series, tone }) {
 function EvaluationCurves({ evaluation }) {
     const [curveType, setCurveType] = useState('roc')
     const [scope, setScope] = useState('micro')
+    const [isExpanded, setIsExpanded] = useState(false)
+    const closeExpandedButtonRef = useRef(null)
 
     const supervised = evaluation?.advanced_metrics?.supervised
     const analysis = supervised?.[curveType]
@@ -269,6 +309,30 @@ function EvaluationCurves({ evaluation }) {
         originalScore !== null && adversarialScore !== null
             ? originalScore - adversarialScore
             : null
+    const scopeLabel = selectedScope?.class_reference?.label ?? 'Promedio micro'
+
+    useEffect(() => {
+        if (!isExpanded) {
+            return undefined
+        }
+
+        const previousOverflow = document.body.style.overflow
+        document.body.style.overflow = 'hidden'
+        closeExpandedButtonRef.current?.focus()
+
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                setIsExpanded(false)
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+
+        return () => {
+            document.body.style.overflow = previousOverflow
+            window.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [isExpanded])
 
     if (!evaluation?.advanced_metrics?.supervised_status?.available || !supervised) {
         return (
@@ -323,7 +387,7 @@ function EvaluationCurves({ evaluation }) {
                             value={scope}
                             onChange={(event) => setScope(event.target.value)}
                         >
-                            <option value="micro">Micro-average</option>
+                            <option value="micro">Promedio micro</option>
                             {classOptions.map((option) => (
                                 <option key={option.index} value={option.index}>
                                     {option.label} · n={option.support}
@@ -335,7 +399,11 @@ function EvaluationCurves({ evaluation }) {
             </section>
 
             <section className="curve-score-grid" aria-label="Resumen de curvas">
-                <CurveScoreCard label={`${config.scoreLabel} original`} series={original} tone="original" />
+                <CurveScoreCard
+                    label={`${config.scoreLabel} original`}
+                    series={original}
+                    tone="original"
+                />
                 <CurveScoreCard
                     label={`${config.scoreLabel} adversarial`}
                     series={adversarial}
@@ -360,14 +428,43 @@ function EvaluationCurves({ evaluation }) {
                 <div className="evaluation-section-heading curve-chart-heading">
                     <div>
                         <span className="evaluation-eyebrow">{config.label}</span>
-                        <h3>{selectedScope?.class_reference?.label ?? 'Micro-average'}</h3>
+                        <h3>{scopeLabel}</h3>
                         <p>{config.description}</p>
                     </div>
 
-                    <div className="evaluation-legend-pills" aria-label="Leyenda">
-                        <span className="original">Original</span>
-                        <span className="adversarial">Adversarial</span>
-                        {curveType === 'roc' && <span className="reference">Azar</span>}
+                    <div className="curve-chart-actions">
+                        <div className="evaluation-legend-pills" aria-label="Leyenda">
+                            <span className="original">Original</span>
+                            <span className="adversarial">Adversarial</span>
+                            {curveType === 'roc' && (
+                                <span className="reference">Azar</span>
+                            )}
+                        </div>
+
+                        <button
+                            type="button"
+                            className="curve-expand-button"
+                            onClick={() => setIsExpanded(true)}
+                        >
+                            <svg
+                                aria-hidden="true"
+                                viewBox="0 0 24 24"
+                                width="16"
+                                height="16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <path d="M8 3H3v5" />
+                                <path d="M16 3h5v5" />
+                                <path d="M21 16v5h-5" />
+                                <path d="M8 21H3v-5" />
+                            </svg>
+
+                            Ampliar gráfica
+                        </button>
                     </div>
                 </div>
 
@@ -375,9 +472,67 @@ function EvaluationCurves({ evaluation }) {
                     curveType={curveType}
                     original={original}
                     adversarial={adversarial}
-                    scopeLabel={selectedScope?.class_reference?.label ?? 'Micro-average'}
+                    scopeLabel={scopeLabel}
                 />
             </section>
+
+            {isExpanded && (
+                <div
+                    className="curve-modal-backdrop"
+                    role="presentation"
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) {
+                            setIsExpanded(false)
+                        }
+                    }}
+                >
+                    <section
+                        className="curve-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="curve-modal-title"
+                    >
+                        <header className="curve-modal-header">
+                            <div>
+                                <span className="evaluation-eyebrow">{config.label}</span>
+                                <h2 id="curve-modal-title">{scopeLabel}</h2>
+                            </div>
+
+                            <div className="curve-modal-header-actions">
+                                <div
+                                    className="evaluation-legend-pills"
+                                    aria-label="Leyenda"
+                                >
+                                    <span className="original">Original</span>
+                                    <span className="adversarial">Adversarial</span>
+                                    {curveType === 'roc' && (
+                                        <span className="reference">Azar</span>
+                                    )}
+                                </div>
+
+                                <button
+                                    ref={closeExpandedButtonRef}
+                                    type="button"
+                                    className="curve-modal-close"
+                                    onClick={() => setIsExpanded(false)}
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
+                        </header>
+
+                        <div className="curve-modal-chart-frame">
+                            <CurveChart
+                                curveType={curveType}
+                                original={original}
+                                adversarial={adversarial}
+                                scopeLabel={scopeLabel}
+                                expanded
+                            />
+                        </div>
+                    </section>
+                </div>
+            )}
 
             {(original?.warning || adversarial?.warning) && (
                 <div className="evaluation-warning-banner" role="note">

@@ -3016,63 +3016,167 @@ button {
 }
 
 .curve-chart-wrap {
-    width: 100%;
-    min-height: 360px;
-    margin-top: 0.8rem;
+    width: clamp(500px, 62vh, 680px);
+    max-width: min(100%, 72vw);
+    aspect-ratio: 1;
+    min-width: 0;
+    margin: 1rem auto 0;
+}
+
+.curve-chart-actions,
+.curve-modal-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.curve-expand-button,
+.curve-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.42rem;
+    min-height: 38px;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.curve-expand-button:hover,
+.curve-modal-close:hover {
+    border-color: #93c5fd;
+    color: var(--evaluation-original);
+}
+
+.curve-expand-button span {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.curve-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(6px);
+}
+
+.curve-modal {
+    display: flex;
+    flex-direction: column;
+    width: min(1180px, 100%);
+    height: min(940px, 100%);
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 22px;
+    background: #ffffff;
+    box-shadow: 0 30px 90px rgba(15, 23, 42, 0.38);
+}
+
+.curve-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.15rem;
+    border-bottom: 1px solid var(--evaluation-line);
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+}
+
+.curve-modal-header h2 {
+    margin: 0.2rem 0 0;
+    color: var(--evaluation-ink);
+    font-size: 1.15rem;
+}
+
+.curve-modal-chart-frame {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    overflow: auto;
+    padding: 1rem;
+}
+
+.curve-chart-wrap.expanded {
+    width: min(900px, calc(100vw - 6rem), calc(100vh - 10rem));
+    max-width: none;
+    margin: 0;
 }
 
 .curve-chart {
-    display: block;
-    width: 100%;
-    height: auto;
-    min-height: 340px;
-}
-
-.curve-grid-line {
-    stroke: #e7edf5;
-    stroke-width: 1;
-}
-
-.curve-axis-line {
-    stroke: #94a3b8;
-    stroke-width: 1.3;
-}
-
-.curve-axis-tick,
-.curve-axis-label {
-    fill: #64748b;
     font-family: inherit;
 }
 
-.curve-axis-tick {
-    font-size: 11px;
+.curve-tooltip {
+    display: grid;
+    gap: 0.65rem;
+    min-width: 210px;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--evaluation-line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+    backdrop-filter: blur(8px);
 }
 
-.curve-axis-label {
-    font-size: 12px;
-    font-weight: 750;
+.curve-tooltip-series + .curve-tooltip-series {
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--evaluation-line);
 }
 
-.curve-reference-line {
-    stroke: #94a3b8;
-    stroke-width: 1.5;
-    stroke-dasharray: 7 7;
+.curve-tooltip-series > strong {
+    display: flex;
+    align-items: center;
+    gap: 0.42rem;
+    color: var(--evaluation-ink);
+    font-size: 0.76rem;
 }
 
-.curve-series {
-    fill: none;
-    stroke-width: 4;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    vector-effect: non-scaling-stroke;
+.curve-tooltip-series > strong span {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 999px;
 }
 
-.curve-series.original {
-    stroke: var(--evaluation-original);
+.curve-tooltip-series dl {
+    display: grid;
+    gap: 0.28rem;
+    margin: 0.5rem 0 0;
 }
 
-.curve-series.adversarial {
-    stroke: var(--evaluation-adversarial);
+.curve-tooltip-series dl div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.curve-tooltip-series dt,
+.curve-tooltip-series dd {
+    margin: 0;
+    font-size: 0.7rem;
+}
+
+.curve-tooltip-series dt {
+    color: var(--evaluation-muted);
+}
+
+.curve-tooltip-series dd {
+    color: var(--evaluation-ink);
+    font-weight: 800;
 }
 
 .curve-unavailable-panel {
@@ -3489,13 +3593,46 @@ button {
     }
 
     .curve-chart-wrap {
-        min-height: 280px;
-        overflow-x: auto;
+        width: min(100%, 430px);
+        max-width: 100%;
+        aspect-ratio: 1;
     }
 
-    .curve-chart {
-        width: 680px;
-        min-height: 320px;
+    .curve-chart-heading,
+    .curve-modal-header {
+        gap: 0.8rem;
+    }
+
+    .curve-chart-actions,
+    .curve-modal-header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .curve-modal-backdrop {
+        padding: 0.6rem;
+    }
+
+    .curve-modal {
+        border-radius: 16px;
+    }
+
+    .curve-modal-header {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 0.85rem;
+    }
+
+    .curve-modal-chart-frame {
+        padding: 0.5rem;
+    }
+
+    .curve-chart-wrap.expanded {
+        width: min(calc(100vw - 2rem), calc(100vh - 11rem));
+    }
+
+    .curve-tooltip {
+        min-width: 190px;
     }
 
     .evaluation-images-summary div {
