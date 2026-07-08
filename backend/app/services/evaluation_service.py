@@ -45,10 +45,7 @@ if not logger.handlers:
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.INFO)
     handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s %(levelname)s "
-            "%(name)s %(message)s"
-        )
+        logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
     )
     logger.addHandler(handler)
 
@@ -96,10 +93,7 @@ async def evaluate_dataset(
     request: EvaluationRequest,
 ) -> EvaluationResponse:
     logger.debug(
-        (
-            "classification_evaluation_started "
-            "dataset_id=%s attack=%s steps=%s"
-        ),
+        ("classification_evaluation_started dataset_id=%s attack=%s steps=%s"),
         request.dataset_id,
         request.attack_type,
         getattr(request.parameters, "steps", None),
@@ -112,9 +106,7 @@ async def evaluate_dataset(
     dataset_load_seconds = perf_counter() - dataset_started
 
     if not dataset.images:
-        raise BadRequestError(
-            "Dataset must contain at least one image"
-        )
+        raise BadRequestError("Dataset must contain at least one image")
 
     setup_started = perf_counter()
 
@@ -142,26 +134,18 @@ async def evaluate_dataset(
         endpoint="/evaluate",
     )
 
-    resolved_by_image_id = (
-        label_resolution.resolved_by_image_id
-    )
+    resolved_by_image_id = label_resolution.resolved_by_image_id
 
     unresolved_by_image_id = {
         unresolved.image_id: unresolved
         for unresolved in label_resolution.summary.unresolved
     }
 
-    result_id, result_path = create_result_directory(
-        prefix="evaluation"
-    )
+    result_id, result_path = create_result_directory(prefix="evaluation")
 
     setup_seconds = perf_counter() - setup_started
     model_device = _get_model_device(model)
-    device_name = (
-        str(model_device)
-        if model_device is not None
-        else "unknown"
-    )
+    device_name = str(model_device) if model_device is not None else "unknown"
 
     profile_totals = {
         "load_image": 0.0,
@@ -199,18 +183,14 @@ async def evaluate_dataset(
             stage_started,
             model_device,
         )
-        profile_totals[
-            "original_prediction"
-        ] += original_prediction_seconds
+        profile_totals["original_prediction"] += original_prediction_seconds
 
         stage_started = _start_stage(model_device)
         attack_result = attack.apply(
             model_wrapper=model,
             image=image,
             parameters=request.parameters,
-            original_class_index=(
-                original_prediction.class_index
-            ),
+            original_class_index=(original_prediction.class_index),
         )
         attack_seconds = _finish_stage(
             stage_started,
@@ -218,15 +198,9 @@ async def evaluate_dataset(
         )
         profile_totals["attack"] += attack_seconds
 
-        adversarial_image = attack_result[
-            "adversarial_image"
-        ]
-        perturbation_image = attack_result[
-            "perturbation_image"
-        ]
-        attack_width, attack_height = (
-            adversarial_image.size
-        )
+        adversarial_image = attack_result["adversarial_image"]
+        perturbation_image = attack_result["perturbation_image"]
+        attack_width, attack_height = adversarial_image.size
 
         stage_started = _start_stage(model_device)
         adversarial_prediction = model.predict_detailed(
@@ -237,59 +211,42 @@ async def evaluate_dataset(
             stage_started,
             model_device,
         )
-        profile_totals[
-            "adversarial_prediction"
-        ] += adversarial_prediction_seconds
+        profile_totals["adversarial_prediction"] += adversarial_prediction_seconds
 
         resolved_label = resolved_by_image_id.get(image_id)
 
         ground_truth = (
-            resolved_label.class_reference
-            if resolved_label is not None
-            else None
+            resolved_label.class_reference if resolved_label is not None else None
         )
 
-        unresolved_label = unresolved_by_image_id.get(
-            image_id
-        )
+        unresolved_label = unresolved_by_image_id.get(image_id)
 
         label_resolution_reason = None
 
         if ground_truth is None:
             if unresolved_label is not None:
-                label_resolution_reason = (
-                    unresolved_label.reason
-                )
+                label_resolution_reason = unresolved_label.reason
             else:
-                label_resolution_reason = (
-                    "Image has no ground-truth label"
-                )
+                label_resolution_reason = "Image has no ground-truth label"
 
         diagnostics = build_evaluation_image_diagnostics(
             ground_truth=ground_truth,
             original=original_prediction,
             adversarial=adversarial_prediction,
-            label_resolution_reason=(
-                label_resolution_reason
-            ),
+            label_resolution_reason=(label_resolution_reason),
         )
 
         original_correct = None
         adversarial_correct = None
 
         if ground_truth is not None:
-            original_correct = (
-                original_prediction.class_index
-                == ground_truth.index
-            )
+            original_correct = original_prediction.class_index == ground_truth.index
             adversarial_correct = (
-                adversarial_prediction.class_index
-                == ground_truth.index
+                adversarial_prediction.class_index == ground_truth.index
             )
 
         prediction_changed = (
-            original_prediction.class_index
-            != adversarial_prediction.class_index
+            original_prediction.class_index != adversarial_prediction.class_index
         )
 
         original_confidence = round(
@@ -303,8 +260,7 @@ async def evaluate_dataset(
         )
 
         confidence_difference = round(
-            adversarial_prediction.confidence
-            - original_prediction.confidence,
+            adversarial_prediction.confidence - original_prediction.confidence,
             4,
         )
 
@@ -316,65 +272,42 @@ async def evaluate_dataset(
             image=adversarial_image,
             result_id=result_id,
             result_path=result_path,
-            filename=(
-                f"{safe_image_id}_adversarial.png"
-            ),
+            filename=(f"{safe_image_id}_adversarial.png"),
         )
 
         perturbation_image_url = save_result_image(
             image=perturbation_image,
             result_id=result_id,
             result_path=result_path,
-            filename=(
-                f"{safe_image_id}_perturbation.png"
-            ),
+            filename=(f"{safe_image_id}_perturbation.png"),
         )
 
         save_images_seconds = perf_counter() - stage_started
         profile_totals["save_images"] += save_images_seconds
 
-        original_image_url = (
-            f"/datasets/{request.dataset_id}"
-            f"/images/{image_id}"
-        )
+        original_image_url = f"/datasets/{request.dataset_id}/images/{image_id}"
 
         results.append(
             EvaluationImageResult(
                 image_id=image_id,
                 filename=filename,
                 original_image_url=original_image_url,
-                adversarial_image_url=(
-                    adversarial_image_url
-                ),
-                perturbation_image_url=(
-                    perturbation_image_url
-                ),
+                adversarial_image_url=(adversarial_image_url),
+                perturbation_image_url=(perturbation_image_url),
                 ground_truth_label=image_metadata.label,
-                original_label=(
-                    original_prediction.class_label
-                ),
-                adversarial_label=(
-                    adversarial_prediction.class_label
-                ),
+                original_label=(original_prediction.class_label),
+                adversarial_label=(adversarial_prediction.class_label),
                 original_confidence=original_confidence,
-                adversarial_confidence=(
-                    adversarial_confidence
-                ),
-                confidence_difference=(
-                    confidence_difference
-                ),
+                adversarial_confidence=(adversarial_confidence),
+                confidence_difference=(confidence_difference),
                 prediction_changed=prediction_changed,
                 # Legacy field. The new UI uses
                 # diagnostics.transition and Conditional ASR.
                 attack_success=prediction_changed,
                 original_correct=original_correct,
                 adversarial_correct=adversarial_correct,
-                perturbation_linf=attack_result[
-                    "perturbation_linf"
-                ],
-                perturbation_l2=attack_result[
-                    "perturbation_l2"
-                ],
+                perturbation_linf=attack_result["perturbation_linf"],
+                perturbation_l2=attack_result["perturbation_l2"],
                 diagnostics=diagnostics,
             )
         )
@@ -384,12 +317,8 @@ async def evaluate_dataset(
                 ground_truth=ground_truth,
                 original=original_prediction,
                 adversarial=adversarial_prediction,
-                perturbation_linf=attack_result[
-                    "perturbation_linf"
-                ],
-                perturbation_l2=attack_result[
-                    "perturbation_l2"
-                ],
+                perturbation_linf=attack_result["perturbation_linf"],
+                perturbation_l2=attack_result["perturbation_l2"],
             )
         )
 
@@ -421,93 +350,57 @@ async def evaluate_dataset(
         )
 
     metrics_started = perf_counter()
-    advanced_metrics = (
-        calculate_advanced_classification_metrics(
-            samples=metric_samples,
-            label_resolution=label_resolution.summary,
-            class_labels=model.get_class_labels(),
-        )
+    advanced_metrics = calculate_advanced_classification_metrics(
+        samples=metric_samples,
+        label_resolution=label_resolution.summary,
+        class_labels=model.get_class_labels(),
     )
     metrics_seconds = perf_counter() - metrics_started
 
     total_images = len(results)
 
     average_original_confidence = round(
-        sum(
-            result.original_confidence
-            for result in results
-        )
-        / total_images,
+        sum(result.original_confidence for result in results) / total_images,
         4,
     )
 
     average_adversarial_confidence = round(
-        sum(
-            result.adversarial_confidence
-            for result in results
-        )
-        / total_images,
+        sum(result.adversarial_confidence for result in results) / total_images,
         4,
     )
 
     average_confidence_difference = round(
-        sum(
-            result.confidence_difference
-            for result in results
-        )
-        / total_images,
+        sum(result.confidence_difference for result in results) / total_images,
         4,
     )
 
     resolved_results = [
-        result
-        for result in results
-        if result.original_correct is not None
+        result for result in results if result.original_correct is not None
     ]
 
     correct_before_attack = sum(
-        result.original_correct is True
-        for result in resolved_results
+        result.original_correct is True for result in resolved_results
     )
 
     correct_after_attack = sum(
-        result.adversarial_correct is True
-        for result in resolved_results
+        result.adversarial_correct is True for result in resolved_results
     )
 
     robustness = advanced_metrics.robustness
 
     summary = EvaluationSummary(
         total_images=total_images,
-        changed_predictions=(
-            robustness.changed_predictions
-        ),
-        unchanged_predictions=(
-            robustness.unchanged_predictions
-        ),
-        attack_success_rate=(
-            robustness.prediction_flip_rate
-        ),
-        average_original_confidence=(
-            average_original_confidence
-        ),
-        average_adversarial_confidence=(
-            average_adversarial_confidence
-        ),
-        average_confidence_difference=(
-            average_confidence_difference
-        ),
-        average_perturbation_linf=(
-            robustness.average_perturbation_linf
-        ),
-        average_perturbation_l2=(
-            robustness.average_perturbation_l2
-        ),
+        changed_predictions=(robustness.changed_predictions),
+        unchanged_predictions=(robustness.unchanged_predictions),
+        attack_success_rate=(robustness.prediction_flip_rate),
+        average_original_confidence=(average_original_confidence),
+        average_adversarial_confidence=(average_adversarial_confidence),
+        average_confidence_difference=(average_confidence_difference),
+        average_perturbation_linf=(robustness.average_perturbation_linf),
+        average_perturbation_l2=(robustness.average_perturbation_l2),
         # Legacy summary uses only resolved labels so the
         # denominator remains coherent.
-        labeled_images=(
-            label_resolution.summary.resolved_labels
-        ),
+        labeled_images=(label_resolution.summary.resolved_labels),
         original_accuracy=(
             robustness.clean_accuracy.value
             if robustness.clean_accuracy.available
@@ -523,20 +416,10 @@ async def evaluate_dataset(
             if robustness.accuracy_drop.available
             else None
         ),
-        correct_before_attack=(
-            correct_before_attack
-            if resolved_results
-            else None
-        ),
-        correct_after_attack=(
-            correct_after_attack
-            if resolved_results
-            else None
-        ),
+        correct_before_attack=(correct_before_attack if resolved_results else None),
+        correct_after_attack=(correct_after_attack if resolved_results else None),
         correct_before_wrong_after=(
-            robustness.correct_to_incorrect
-            if resolved_results
-            else None
+            robustness.correct_to_incorrect if resolved_results else None
         ),
     )
 
@@ -551,15 +434,9 @@ async def evaluate_dataset(
             "attack_type": request.attack_type,
             "parameters": request.parameters.model_dump(),
             "total_images": total_images,
-            "resolved_labels": (
-                label_resolution.summary.resolved_labels
-            ),
-            "unresolved_labels": (
-                label_resolution.summary.unresolved_labels
-            ),
-            "metrics_schema_version": (
-                advanced_metrics.metrics_schema_version
-            ),
+            "resolved_labels": (label_resolution.summary.resolved_labels),
+            "unresolved_labels": (label_resolution.summary.unresolved_labels),
+            "metrics_schema_version": (advanced_metrics.metrics_schema_version),
             "expires_in_hours": 24,
         },
     )
