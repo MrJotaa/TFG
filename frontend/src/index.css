@@ -2054,6 +2054,27 @@ button {
     color: var(--evaluation-ink);
 }
 
+.class-metrics-legend {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-height: 34px;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid var(--evaluation-line);
+    border-radius: 12px;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.74rem;
+    font-weight: 750;
+}
+
+.class-metrics-legend small {
+    margin-left: auto;
+    color: var(--evaluation-muted);
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
 .class-metrics-list {
     display: grid;
     gap: 0.9rem;
@@ -2166,9 +2187,31 @@ button {
     margin-bottom: 0.3rem;
 }
 
-.class-metric-bar-label span {
+.class-metric-bar-label > span {
     color: var(--evaluation-muted);
     font-size: 0.76rem;
+}
+
+.class-metric-series-label,
+.class-metrics-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+}
+
+.class-metric-series-dot {
+    width: 0.62rem;
+    height: 0.62rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+}
+
+.class-metric-series-dot.tone-original {
+    background: var(--evaluation-original);
+}
+
+.class-metric-series-dot.tone-adversarial {
+    background: var(--evaluation-adversarial);
 }
 
 .class-metric-bar-label strong {
@@ -2177,17 +2220,60 @@ button {
 }
 
 .class-metric-track {
+    position: relative;
     height: 10px;
     overflow: hidden;
     border-radius: 999px;
     background: #e8edf5;
 }
 
-.class-metric-track span {
+.class-metric-track > span:not(.class-metric-unavailable-label) {
     display: block;
     height: 100%;
     border-radius: inherit;
     transition: width 180ms ease;
+}
+
+.class-metric-track.is-unavailable {
+    height: 24px;
+    border: 1px dashed #cbd5e1;
+    background: repeating-linear-gradient(
+        -45deg,
+        #f8fafc,
+        #f8fafc 6px,
+        #f1f5f9 6px,
+        #f1f5f9 12px
+    );
+}
+
+.class-metric-unavailable-label {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 750;
+}
+
+.class-metric-zero-marker {
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    width: 8px;
+    height: 8px;
+    border: 2px solid #ffffff;
+    border-radius: 999px;
+    transform: translateY(-50%);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.12);
+}
+
+.class-metric-zero-marker.tone-original {
+    background: var(--evaluation-original);
+}
+
+.class-metric-zero-marker.tone-adversarial {
+    background: var(--evaluation-adversarial);
 }
 
 .class-metric-track .tone-original {
@@ -2195,7 +2281,7 @@ button {
 }
 
 .class-metric-track .tone-adversarial {
-    background: linear-gradient(90deg, #a78bfa, var(--evaluation-adversarial));
+    background: linear-gradient(90deg, #f87171, var(--evaluation-adversarial));
 }
 
 .class-metric-delta {
@@ -2269,6 +2355,10 @@ button {
 
 .class-metric-miniature strong small {
     color: #94a3b8;
+}
+
+.class-metric-miniature strong > span {
+    display: inline;
 }
 
 .class-metric-miniature em {
@@ -3627,5 +3717,16 @@ button {
 
     .evaluation-page-hero.compact p {
         display: none;
+    }
+}
+
+@media (max-width: 760px) {
+    .class-metrics-legend {
+        flex-wrap: wrap;
+    }
+
+    .class-metrics-legend small {
+        width: 100%;
+        margin-left: 0;
     }
 }

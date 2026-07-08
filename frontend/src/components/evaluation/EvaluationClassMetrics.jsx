@@ -9,7 +9,7 @@ const METRIC_OPTIONS = [
     { id: 'recall', label: 'Recall' },
     { id: 'precision', label: 'Precision' },
     { id: 'roc_auc', label: 'ROC-AUC' },
-    { id: 'average_precision', label: 'Average Precision' },
+    { id: 'average_precision', label: 'Average Precision (AP)' },
 ]
 
 const SORT_OPTIONS = [
@@ -47,6 +47,80 @@ function getDeltaTone(metric) {
     }
 
     return value > 0 ? 'tone-danger' : 'tone-success'
+}
+
+function getDeltaLabel(metric) {
+    const value = getMetricValue(metric)
+
+    if (value === null) {
+        return 'No disponible'
+    }
+
+    if (Math.abs(value) < 0.00005) {
+        return 'Sin cambio'
+    }
+
+    return value > 0 ? 'Caída' : 'Mejora'
+}
+
+function formatDeltaMagnitude(metric) {
+    const value = getMetricValue(metric)
+
+    if (value === null) {
+        return '—'
+    }
+
+    return `${Math.abs(value * 100).toFixed(1)} pp`
+}
+
+function formatMetricState(metric) {
+    return getMetricValue(metric) === null ? 'No definida' : formatAvailableMetric(metric)
+}
+
+function MetricBar({ label, metric, tone }) {
+    const value = getMetricValue(metric)
+    const unavailable = value === null
+    const zero = value !== null && Math.abs(value) < 0.00005
+    const stateLabel = unavailable ? 'No definida' : formatAvailableMetric(metric)
+    const explanation = metric?.reason ?? metric?.warning ?? undefined
+
+    return (
+        <div className="class-metric-bar-row">
+            <div className="class-metric-bar-label">
+                <span className="class-metric-series-label">
+                    <i className={`class-metric-series-dot ${tone}`} aria-hidden="true" />
+                    {label}
+                </span>
+                <strong title={explanation}>{stateLabel}</strong>
+            </div>
+            <div
+                className={[
+                    'class-metric-track',
+                    unavailable ? 'is-unavailable' : '',
+                    zero ? 'is-zero' : '',
+                ]
+                    .filter(Boolean)
+                    .join(' ')}
+                role={unavailable ? undefined : 'meter'}
+                aria-label={`${label}: ${stateLabel}`}
+                aria-valuemin={unavailable ? undefined : 0}
+                aria-valuemax={unavailable ? undefined : 100}
+                aria-valuenow={unavailable ? undefined : value * 100}
+                title={explanation}
+            >
+                {!unavailable && (
+                    <span
+                        className={tone}
+                        style={{ width: `${getBarWidth(metric)}%` }}
+                    />
+                )}
+                {zero && <i className={`class-metric-zero-marker ${tone}`} aria-hidden="true" />}
+                {unavailable && (
+                    <span className="class-metric-unavailable-label">No definida</span>
+                )}
+            </div>
+        </div>
+    )
 }
 
 function formatSignedPoints(metric) {
@@ -88,8 +162,13 @@ function ClassMetricMiniature({ classMetric, metricOption }) {
         <div className="class-metric-miniature">
             <span>{metricOption.label}</span>
             <strong>
-                {formatAvailableMetric(original)} <small>→</small>{' '}
-                {formatAvailableMetric(adversarial)}
+                <span title={original?.reason ?? original?.warning ?? undefined}>
+                    {formatMetricState(original)}
+                </span>{' '}
+                <small>→</small>{' '}
+                <span title={adversarial?.reason ?? adversarial?.warning ?? undefined}>
+                    {formatMetricState(adversarial)}
+                </span>
             </strong>
             <em className={tone}>{formatSignedPoints(delta)}</em>
         </div>
@@ -238,6 +317,21 @@ function EvaluationClassMetrics({ evaluation }) {
                 </label>
             </section>
 
+            <div className="class-metrics-legend" aria-label="Convención de las barras">
+                <span>
+                    <i className="class-metric-series-dot tone-original" aria-hidden="true" />
+                    Original
+                </span>
+                <span>
+                    <i
+                        className="class-metric-series-dot tone-adversarial"
+                        aria-hidden="true"
+                    />
+                    Adversarial
+                </span>
+                <small>La longitud representa el valor de la métrica seleccionada.</small>
+            </div>
+
             {lowSupportCount > 0 && (
                 <div className="evaluation-warning-banner">
                     <strong>Interpretación limitada por soporte bajo.</strong>
@@ -284,42 +378,22 @@ function EvaluationClassMetrics({ evaluation }) {
                                             {selectedMetricOption.label}
                                         </span>
 
-                                        <div className="class-metric-bar-row">
-                                            <div className="class-metric-bar-label">
-                                                <span>Original</span>
-                                                <strong>
-                                                    {formatAvailableMetric(original)}
-                                                </strong>
-                                            </div>
-                                            <div className="class-metric-track">
-                                                <span
-                                                    className="tone-original"
-                                                    style={{ width: `${getBarWidth(original)}%` }}
-                                                />
-                                            </div>
-                                        </div>
+                                        <MetricBar
+                                            label="Original"
+                                            metric={original}
+                                            tone="tone-original"
+                                        />
 
-                                        <div className="class-metric-bar-row">
-                                            <div className="class-metric-bar-label">
-                                                <span>Adversarial</span>
-                                                <strong>
-                                                    {formatAvailableMetric(adversarial)}
-                                                </strong>
-                                            </div>
-                                            <div className="class-metric-track">
-                                                <span
-                                                    className="tone-adversarial"
-                                                    style={{
-                                                        width: `${getBarWidth(adversarial)}%`,
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
+                                        <MetricBar
+                                            label="Adversarial"
+                                            metric={adversarial}
+                                            tone="tone-adversarial"
+                                        />
                                     </div>
 
                                     <div className={`class-metric-delta ${getDeltaTone(delta)}`}>
-                                        <span>Delta</span>
-                                        <strong>{formatSignedPoints(delta)}</strong>
+                                        <span>{getDeltaLabel(delta)}</span>
+                                        <strong>{formatDeltaMagnitude(delta)}</strong>
                                         <small>original − adversarial</small>
                                     </div>
                                 </div>
