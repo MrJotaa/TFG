@@ -105,26 +105,26 @@ function EvaluationPanel({
 
     return (
         <div className="evaluation-panel evaluation-dashboard">
-            <section className="evaluation-run-card modern">
-                <div>
-                    <span className="evaluation-eyebrow">Evaluación de robustez</span>
-                    <h3>Analiza el dataset completo con {attackName}</h3>
-                    <p>
-                        Se compararán las predicciones originales y adversariales de{' '}
-                        <strong>{selectedDataset.image_count}</strong> imágenes.
-                    </p>
-                </div>
+            {!evaluation && !loading && (
+                <section className="evaluation-run-card modern">
+                    <div>
+                        <span className="evaluation-eyebrow">Evaluación de robustez</span>
+                        <h3>Analiza el dataset completo con {attackName}</h3>
+                        <p>
+                            Se compararán las predicciones originales y adversariales de{' '}
+                            <strong>{selectedDataset.image_count}</strong> imágenes.
+                        </p>
+                    </div>
 
-                <button
-                    type="button"
-                    className="primary-action evaluation-run-button"
-                    onClick={handleEvaluate}
-                    disabled={loading}
-                    aria-busy={loading}
-                >
-                    {loading ? 'Evaluando dataset…' : evaluation ? 'Repetir evaluación' : 'Ejecutar evaluación'}
-                </button>
-            </section>
+                    <button
+                        type="button"
+                        className="primary-action evaluation-run-button"
+                        onClick={handleEvaluate}
+                    >
+                        Ejecutar evaluación
+                    </button>
+                </section>
+            )}
 
             {error && (
                 <div className="evaluation-error-banner" role="alert">
@@ -184,6 +184,24 @@ function EvaluationPanel({
                             <EvaluationImages evaluation={evaluation} />
                         )}
                     </div>
+
+                    <footer className="evaluation-rerun-footer">
+                        <div>
+                            <strong>¿Necesitas actualizar los resultados?</strong>
+                            <span>
+                                Ejecuta de nuevo la misma configuración de dataset,
+                                modelo y ataque.
+                            </span>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="secondary-action evaluation-rerun-button"
+                            onClick={handleEvaluate}
+                        >
+                            Repetir evaluación
+                        </button>
+                    </footer>
                 </section>
             )}
         </div>

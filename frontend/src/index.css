@@ -3329,3 +3329,205 @@ button {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Classification evaluation: compact page frame */
+.app-shell {
+    gap: 0.55rem;
+}
+
+.app-session-header {
+    min-height: 50px;
+    justify-content: flex-end;
+    padding: 0.45rem 0.75rem;
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.045);
+}
+
+.app-session-header .header-user-actions {
+    margin-left: auto;
+}
+
+.app-session-header .secondary-action {
+    margin: 0;
+}
+
+.modern-evaluation-page {
+    gap: 0.7rem;
+}
+
+.evaluation-page-hero.compact {
+    align-items: center;
+    gap: 1rem;
+    min-height: 0;
+    padding: 0.8rem 1rem;
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at top right, rgba(124, 58, 237, 0.1), transparent 38%),
+        radial-gradient(circle at bottom left, rgba(37, 99, 235, 0.08), transparent 42%),
+        #ffffff;
+    box-shadow: 0 9px 28px rgba(15, 23, 42, 0.05);
+}
+
+.evaluation-page-heading {
+    min-width: 0;
+}
+
+.evaluation-page-hero.compact h2 {
+    margin: 0.12rem 0 0.2rem;
+    font-size: clamp(1.4rem, 2.25vw, 1.9rem);
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+}
+
+.evaluation-page-hero.compact p {
+    max-width: 620px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.evaluation-page-hero.compact .evaluation-eyebrow {
+    font-size: 0.66rem;
+}
+
+.evaluation-page-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+}
+
+.evaluation-page-actions .secondary-action {
+    min-width: auto;
+    margin: 0;
+    padding: 0.55rem 0.8rem;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+.evaluation-context-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+}
+
+.evaluation-context-chevron {
+    display: inline-grid;
+    width: 1rem;
+    place-items: center;
+    font-size: 0.76rem;
+    line-height: 1;
+}
+
+.evaluation-context-strip {
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.045);
+}
+
+.evaluation-context-item {
+    padding: 0.7rem 0.85rem;
+}
+
+.evaluation-context-item span {
+    margin-bottom: 0.18rem;
+    font-size: 0.65rem;
+}
+
+.evaluation-context-item strong {
+    font-size: 0.84rem;
+}
+
+.evaluation-dashboard {
+    gap: 0.7rem;
+}
+
+.evaluation-rerun-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1.15rem;
+    border-top: 1px solid var(--evaluation-line);
+    background: #f8fafc;
+}
+
+.evaluation-rerun-footer strong,
+.evaluation-rerun-footer span {
+    display: block;
+}
+
+.evaluation-rerun-footer strong {
+    color: var(--evaluation-ink);
+    font-size: 0.86rem;
+}
+
+.evaluation-rerun-footer span {
+    margin-top: 0.2rem;
+    color: var(--evaluation-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.evaluation-rerun-button {
+    flex: 0 0 auto;
+    min-width: auto;
+    margin: 0;
+    padding: 0.55rem 0.85rem;
+    border-color: #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    box-shadow: none;
+}
+
+.evaluation-rerun-button:hover {
+    border-color: rgba(37, 99, 235, 0.34);
+    color: var(--evaluation-original);
+}
+
+@media (max-width: 760px) {
+    .app-shell {
+        padding: 0.5rem;
+    }
+
+    .app-session-header {
+        min-height: 46px;
+        padding: 0.35rem 0.5rem;
+    }
+
+    .evaluation-page-hero.compact {
+        gap: 0.7rem;
+        padding: 0.75rem;
+    }
+
+    .evaluation-page-actions {
+        display: grid;
+        width: 100%;
+        grid-template-columns: 1fr;
+    }
+
+    .evaluation-page-actions .secondary-action {
+        width: 100%;
+    }
+
+    .evaluation-rerun-footer {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 0.8rem;
+    }
+
+    .evaluation-rerun-button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-user-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .evaluation-page-hero.compact p {
+        display: none;
+    }
+}
