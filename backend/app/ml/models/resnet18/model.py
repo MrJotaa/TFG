@@ -133,10 +133,52 @@ class ResNet18Model(BaseImageClassificationModel):
         if top_k <= 0:
             raise ValueError("top_k must be greater than zero")
 
-        input_tensor = self.preprocess(image)
+        normalized_input = self.preprocess(image)
+
+        return self._predict_detailed_from_normalized_input(
+            normalized_input=normalized_input,
+            top_k=top_k,
+        )
+
+    def predict_detailed_from_prepared_input(
+        self,
+        prepared_input: torch.Tensor,
+        top_k: int = 5,
+    ) -> DetailedClassificationPrediction:
+        """
+        Predice desde un batch float ya adaptado a la geometría de ResNet18.
+
+        El tensor permanece en el dominio de píxel [0, 1]. Este método aplica
+        únicamente la normalización previa al forward.
+        """
+        if not self.is_loaded():
+            raise ValueError("Model is not loaded")
+
+        if top_k <= 0:
+            raise ValueError("top_k must be greater than zero")
+
+        if prepared_input.ndim != 4:
+            raise ValueError("Prepared input must have shape [N, C, H, W]")
+
+        if not prepared_input.is_floating_point():
+            raise ValueError("Prepared input must be a floating-point tensor")
+
+        normalized_input = self.normalize_attack_input(prepared_input)
+
+        return self._predict_detailed_from_normalized_input(
+            normalized_input=normalized_input,
+            top_k=top_k,
+        )
+
+    def _predict_detailed_from_normalized_input(
+        self,
+        normalized_input: torch.Tensor,
+        top_k: int,
+    ) -> DetailedClassificationPrediction:
+        """Ejecuta el forward y comparte el postprocesado de clasificación."""
 
         with torch.inference_mode():
-            output = self.model(input_tensor)
+            output = self.model(normalized_input)
             probabilities = F.softmax(
                 output[0],
                 dim=0,
@@ -189,21 +231,11 @@ class ResNet18Model(BaseImageClassificationModel):
             prediction_margin=prediction_margin,
         )
 
-    def predict(
+    def _to_predict_response(
         self,
-        image: Image.Image,
+        detailed_prediction: DetailedClassificationPrediction,
     ) -> PredictResponse:
-        """
-        Construye la respuesta pública utilizada por /predict.
-
-        Se mantiene el top-3 y el redondeo existentes para no
-        modificar el contrato actual del frontend.
-        """
-        detailed_prediction = self.predict_detailed(
-            image=image,
-            top_k=3,
-        )
-
+        """Convierte una predicción interna al contrato público existente."""
         top_k_predictions = [
             TopKPrediction(
                 label=class_score.label,
@@ -223,6 +255,35 @@ class ResNet18Model(BaseImageClassificationModel):
             ),
             top_k=top_k_predictions,
         )
+
+    def predict(
+        self,
+        image: Image.Image,
+    ) -> PredictResponse:
+        """
+        Construye la respuesta pública utilizada por /predict.
+
+        Se mantiene el top-3 y el redondeo existentes para no
+        modificar el contrato actual del frontend.
+        """
+        detailed_prediction = self.predict_detailed(
+            image=image,
+            top_k=3,
+        )
+
+        return self._to_predict_response(detailed_prediction)
+
+    def predict_from_prepared_input(
+        self,
+        prepared_input: torch.Tensor,
+    ) -> PredictResponse:
+        """Construye la respuesta pública sin reprocesado geométrico."""
+        detailed_prediction = self.predict_detailed_from_prepared_input(
+            prepared_input=prepared_input,
+            top_k=3,
+        )
+
+        return self._to_predict_response(detailed_prediction)
 
     def get_torch_model(self):
         if not self.is_loaded():

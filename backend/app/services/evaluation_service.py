@@ -37,7 +37,6 @@ from utils.result_files import (
     save_result_metadata,
 )
 
-
 logger = logging.getLogger("classification_evaluation")
 logger.setLevel(logging.INFO)
 logger.propagate = False
@@ -212,10 +211,20 @@ async def evaluate_dataset(
         attack_width, attack_height = adversarial_image.size
 
         stage_started = _start_stage(model_device)
-        adversarial_prediction = model.predict_detailed(
-            image=adversarial_image,
-            top_k=5,
-        )
+
+        if isinstance(attack_result, AdversarialAttackResult):
+            adversarial_prediction = model.predict_detailed_from_prepared_input(
+                prepared_input=attack_result.adversarial_model_input,
+                top_k=5,
+            )
+        else:
+            adversarial_prediction = model.predict_detailed(
+                image=adversarial_image,
+                top_k=5,
+            )
+
+        del attack_result
+
         adversarial_prediction_seconds = _finish_stage(
             stage_started,
             model_device,

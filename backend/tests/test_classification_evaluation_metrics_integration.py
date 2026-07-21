@@ -14,7 +14,6 @@ from schemas.attack import AttackType
 from schemas.datasets import DatasetImage, DatasetResponse
 from schemas.evaluation import EvaluationRequest
 
-
 CLASS_LABELS = (
     "cat",
     "dog",
@@ -32,6 +31,7 @@ class FakeClassificationModel:
         predictions: Sequence[DetailedClassificationPrediction],
     ):
         self._predictions = iter(predictions)
+        self.prepared_inputs: list[torch.Tensor] = []
 
     def predict_detailed(
         self,
@@ -40,6 +40,15 @@ class FakeClassificationModel:
     ) -> DetailedClassificationPrediction:
         assert image.mode == "RGB"
         assert top_k == 5
+        return next(self._predictions)
+
+    def predict_detailed_from_prepared_input(
+        self,
+        prepared_input: torch.Tensor,
+        top_k: int = 5,
+    ) -> DetailedClassificationPrediction:
+        assert top_k == 5
+        self.prepared_inputs.append(prepared_input)
         return next(self._predictions)
 
     def get_class_labels(self) -> tuple[str, ...]:
@@ -59,6 +68,7 @@ class FakeClassificationAttack:
     ):
         self._perturbations = iter(perturbations)
         self.original_class_indices: list[int | None] = []
+        self.adversarial_model_inputs: list[torch.Tensor] = []
 
     def supports_task_type(self, task_type: str) -> bool:
         return task_type in self.supported_task_types
@@ -79,6 +89,7 @@ class FakeClassificationAttack:
         clean_model_input = torch.zeros(1, 3, 224, 224)
         adversarial_model_input = clean_model_input.clone()
         model_space_delta = adversarial_model_input - clean_model_input
+        self.adversarial_model_inputs.append(adversarial_model_input)
 
         return AdversarialAttackResult(
             clean_model_input=clean_model_input,
@@ -250,6 +261,15 @@ async def _run_evaluation(
         EvaluationRequest(
             dataset_id=dataset.id,
             attack_type=AttackType.PGD,
+        )
+    )
+
+    assert len(model.prepared_inputs) == len(attack.adversarial_model_inputs)
+    assert all(
+        predicted_input is attack_input
+        for predicted_input, attack_input in zip(
+            model.prepared_inputs,
+            attack.adversarial_model_inputs,
         )
     )
 

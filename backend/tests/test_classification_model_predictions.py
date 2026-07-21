@@ -22,12 +22,14 @@ class FixedLogitModel(torch.nn.Module):
         )
 
         self.forward_calls = 0
+        self.last_input = None
 
     def forward(
         self,
         inputs: torch.Tensor,
     ) -> torch.Tensor:
         self.forward_calls += 1
+        self.last_input = inputs.detach().clone()
 
         batch_size = inputs.shape[0]
 
@@ -278,3 +280,69 @@ def test_resnet_preprocess_reuses_attack_input_contract():
         preprocessed,
         model.normalize_attack_input(attack_input),
     )
+
+
+def test_predict_from_prepared_input_only_normalizes_before_forward():
+    model, torch_model = _create_loaded_model([0.1, 0.2, 0.3])
+    prepared_input = torch.full(
+        (1, 3, 2, 2),
+        0.5,
+        dtype=torch.float32,
+    )
+    original_input = prepared_input.clone()
+    normalization_calls = 0
+    normalize_attack_input = model.normalize_attack_input
+
+    def track_normalization(tensor: torch.Tensor) -> torch.Tensor:
+        nonlocal normalization_calls
+        normalization_calls += 1
+        assert tensor is prepared_input
+        return normalize_attack_input(tensor)
+
+    model.normalize_attack_input = track_normalization
+    model.preprocess = lambda image: (_ for _ in ()).throw(
+        AssertionError("Image preprocessing must not run")
+    )
+
+    prediction = model.predict_detailed_from_prepared_input(
+        prepared_input=prepared_input,
+        top_k=3,
+    )
+
+    assert prediction.class_index == 2
+    assert normalization_calls == 1
+    assert torch_model.forward_calls == 1
+    assert torch.equal(
+        torch_model.last_input,
+        normalize_attack_input(prepared_input),
+    )
+    assert torch.equal(prepared_input, original_input)
+
+
+def test_image_and_prepared_input_paths_share_prediction_postprocessing():
+    model, torch_model = _create_loaded_model([0.1, 0.2, 0.3, 0.4])
+    prepared_input = torch.zeros(1, 3, 2, 2)
+
+    image_prediction = model.predict_detailed(
+        image=_create_image(),
+        top_k=3,
+    )
+    tensor_prediction = model.predict_detailed_from_prepared_input(
+        prepared_input=prepared_input,
+        top_k=3,
+    )
+
+    assert tensor_prediction == image_prediction
+    assert torch_model.forward_calls == 2
+
+
+def test_predict_from_prepared_input_preserves_public_contract():
+    model, _ = _create_loaded_model([0.1, 0.2, 0.3, 0.4])
+
+    response = model.predict_from_prepared_input(
+        torch.zeros(1, 3, 2, 2),
+    )
+
+    assert response.prediction == "class-3"
+    assert len(response.top_k) == 3
+    assert response.confidence == round(response.top_k[0].probability, 4)

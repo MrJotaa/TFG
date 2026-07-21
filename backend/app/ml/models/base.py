@@ -91,10 +91,34 @@ class BaseImageClassificationModel(BaseModel):
         pass
 
     @abstractmethod
+    def predict_detailed_from_prepared_input(
+        self,
+        prepared_input: torch.Tensor,
+        top_k: int = 5,
+    ) -> DetailedClassificationPrediction:
+        """
+        Predice desde un tensor float ya adaptado a la geometría del modelo.
+
+        La implementación debe aplicar la normalización del modelo, pero no
+        debe repetir transformaciones geométricas ni conversiones de imagen.
+        """
+        pass
+
+    @abstractmethod
     def predict(self, image: Image.Image) -> PredictResponse:
         """
         Ejecuta la inferencia y construye la respuesta pública
         utilizada por el endpoint /predict.
+        """
+        pass
+
+    @abstractmethod
+    def predict_from_prepared_input(
+        self,
+        prepared_input: torch.Tensor,
+    ) -> PredictResponse:
+        """
+        Construye la respuesta pública desde una entrada ya preparada.
         """
         pass
 

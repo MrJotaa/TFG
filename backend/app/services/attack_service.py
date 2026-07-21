@@ -1,5 +1,12 @@
+from core.errors import BadRequestError
+from core.task_compatibility import (
+    CLASSIFICATION_TASK_TYPE,
+    require_attack_task_type,
+    require_model_task_type,
+)
 from ml.attacks.base import AdversarialAttackResult
 from ml.attacks.registry import get_attack
+from ml.explainability.gradcam import generate_gradcam
 from schemas.attack import (
     AttackComparison,
     AttackRequest,
@@ -12,13 +19,6 @@ from utils.result_files import (
     save_result_image,
     save_result_metadata,
 )
-from ml.explainability.gradcam import generate_gradcam
-from core.task_compatibility import (
-    CLASSIFICATION_TASK_TYPE,
-    require_attack_task_type,
-    require_model_task_type,
-)
-from core.errors import BadRequestError
 
 
 async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
@@ -58,13 +58,15 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         perturbation_image = attack_result.perturbation_image
         perturbation_linf = attack_result.perturbation_linf
         perturbation_l2 = attack_result.perturbation_l2
+        adversarial_prediction = model.predict_from_prepared_input(
+            attack_result.adversarial_model_input
+        )
     else:
         adversarial_image = attack_result["adversarial_image"]
         perturbation_image = attack_result["perturbation_image"]
         perturbation_linf = attack_result["perturbation_linf"]
         perturbation_l2 = attack_result["perturbation_l2"]
-
-    adversarial_prediction = model.predict(adversarial_image)
+        adversarial_prediction = model.predict(adversarial_image)
 
     original_gradcam_result = generate_gradcam(model, image)
     adversarial_gradcam_result = generate_gradcam(model, adversarial_image)
