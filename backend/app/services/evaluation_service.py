@@ -11,6 +11,7 @@ from core.task_compatibility import (
     require_model_task_type,
 )
 from ml.attacks.base import AdversarialAttackResult
+from ml.attacks.presentation import reconstruct_attack_in_source_geometry
 from ml.attacks.registry import get_attack
 from ml.metrics.classification import (
     ClassificationEvaluationSample,
@@ -200,12 +201,10 @@ async def evaluate_dataset(
 
         if isinstance(attack_result, AdversarialAttackResult):
             adversarial_image = attack_result.adversarial_image
-            perturbation_image = attack_result.perturbation_image
             perturbation_linf = attack_result.perturbation_linf
             perturbation_l2 = attack_result.perturbation_l2
         else:
             adversarial_image = attack_result["adversarial_image"]
-            perturbation_image = attack_result["perturbation_image"]
             perturbation_linf = attack_result["perturbation_linf"]
             perturbation_l2 = attack_result["perturbation_l2"]
         attack_width, attack_height = adversarial_image.size
@@ -223,13 +222,27 @@ async def evaluate_dataset(
                 top_k=5,
             )
 
-        del attack_result
-
         adversarial_prediction_seconds = _finish_stage(
             stage_started,
             model_device,
         )
         profile_totals["adversarial_prediction"] += adversarial_prediction_seconds
+
+        if isinstance(attack_result, AdversarialAttackResult):
+            reconstruction = reconstruct_attack_in_source_geometry(
+                source_image=image,
+                model_space_delta=attack_result.model_space_delta,
+            )
+            adversarial_image_to_persist = reconstruction.adversarial_image
+            perturbation_image_to_persist = (
+                reconstruction.perturbation_visualization
+            )
+            del reconstruction
+        else:
+            adversarial_image_to_persist = adversarial_image
+            perturbation_image_to_persist = attack_result["perturbation_image"]
+
+        del attack_result
 
         resolved_label = resolved_by_image_id.get(image_id)
 
@@ -287,14 +300,14 @@ async def evaluate_dataset(
         stage_started = perf_counter()
 
         adversarial_image_url = save_result_image(
-            image=adversarial_image,
+            image=adversarial_image_to_persist,
             result_id=result_id,
             result_path=result_path,
             filename=(f"{safe_image_id}_adversarial.png"),
         )
 
         perturbation_image_url = save_result_image(
-            image=perturbation_image,
+            image=perturbation_image_to_persist,
             result_id=result_id,
             result_path=result_path,
             filename=(f"{safe_image_id}_perturbation.png"),
@@ -366,6 +379,11 @@ async def evaluate_dataset(
             save_images_seconds,
             image_total_seconds,
         )
+
+        del adversarial_image_to_persist
+        del perturbation_image_to_persist
+        del adversarial_image
+        del image
 
     metrics_started = perf_counter()
     advanced_metrics = calculate_advanced_classification_metrics(
