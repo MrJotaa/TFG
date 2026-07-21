@@ -4,6 +4,7 @@ from PIL import Image
 from torchvision import transforms
 
 from ml.attacks.base import AdversarialAttackResult, BaseAdversarialAttack
+from ml.attacks.presentation import perturbation_to_visualization
 
 
 class FGSMAttack(BaseAdversarialAttack):
@@ -110,12 +111,4 @@ class FGSMAttack(BaseAdversarialAttack):
         self,
         perturbation: torch.Tensor,
     ) -> Image.Image:
-        perturbation = perturbation.detach().cpu().squeeze(0)
-        perturbation = perturbation.abs()
-
-        min_value = perturbation.min()
-        max_value = perturbation.max()
-
-        perturbation = (perturbation - min_value) / (max_value - min_value + 1e-8)
-
-        return self.to_pil(perturbation)
+        return perturbation_to_visualization(perturbation)
