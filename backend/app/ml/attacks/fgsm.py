@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
-from ml.attacks.base import BaseAdversarialAttack
+from ml.attacks.base import AdversarialAttackResult, BaseAdversarialAttack
 
 
 class FGSMAttack(BaseAdversarialAttack):
@@ -21,7 +21,7 @@ class FGSMAttack(BaseAdversarialAttack):
         image: Image.Image,
         parameters,
         original_class_index: int | None = None,
-    ):
+    ) -> AdversarialAttackResult:
         """
         Aplica FGSM en el espacio de entrada real del modelo.
 
@@ -72,26 +72,31 @@ class FGSMAttack(BaseAdversarialAttack):
                 max=1.0,
             )
 
-        perturbation = adversarial_tensor - original_tensor.detach()
+        clean_model_input = original_tensor.detach().clone()
+        adversarial_model_input = adversarial_tensor.detach().clone()
+        model_space_delta = adversarial_model_input - clean_model_input
 
-        perturbation_linf = perturbation.abs().max().item()
-        perturbation_l2 = torch.linalg.vector_norm(perturbation).item()
+        perturbation_linf = model_space_delta.abs().max().item()
+        perturbation_l2 = torch.linalg.vector_norm(model_space_delta).item()
 
-        adversarial_image = self._tensor_to_image(adversarial_tensor)
-        perturbation_image = self._perturbation_to_image(perturbation)
+        adversarial_image = self._tensor_to_image(adversarial_model_input)
+        perturbation_image = self._perturbation_to_image(model_space_delta)
 
-        return {
-            "adversarial_image": adversarial_image,
-            "perturbation_image": perturbation_image,
-            "perturbation_linf": round(
+        return AdversarialAttackResult(
+            clean_model_input=clean_model_input,
+            adversarial_model_input=adversarial_model_input,
+            model_space_delta=model_space_delta,
+            adversarial_image=adversarial_image,
+            perturbation_image=perturbation_image,
+            perturbation_linf=round(
                 perturbation_linf,
                 4,
             ),
-            "perturbation_l2": round(
+            perturbation_l2=round(
                 perturbation_l2,
                 4,
             ),
-        }
+        )
 
     def _tensor_to_image(
         self,

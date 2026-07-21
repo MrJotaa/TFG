@@ -1,6 +1,23 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
+import torch
 from PIL import Image
+
+
+@dataclass(frozen=True, slots=True)
+class AdversarialAttackResult:
+    """Resultado tensorial de un ataque en la entrada de clasificación."""
+
+    clean_model_input: torch.Tensor
+    adversarial_model_input: torch.Tensor
+    model_space_delta: torch.Tensor
+
+    adversarial_image: Image.Image
+    perturbation_image: Image.Image
+
+    perturbation_linf: float
+    perturbation_l2: float
 
 
 class BaseAdversarialAttack(ABC):
@@ -35,6 +52,6 @@ class BaseAdversarialAttack(ABC):
                 el servicio puede reutilizarla y evitar una inferencia.
 
         Returns:
-            Imagen adversaria y métricas asociadas a la perturbación.
+            Resultado interno definido por el ataque concreto.
         """
         pass

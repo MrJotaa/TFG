@@ -10,6 +10,7 @@ from core.task_compatibility import (
     require_attack_task_type,
     require_model_task_type,
 )
+from ml.attacks.base import AdversarialAttackResult
 from ml.attacks.registry import get_attack
 from ml.metrics.classification import (
     ClassificationEvaluationSample,
@@ -198,8 +199,16 @@ async def evaluate_dataset(
         )
         profile_totals["attack"] += attack_seconds
 
-        adversarial_image = attack_result["adversarial_image"]
-        perturbation_image = attack_result["perturbation_image"]
+        if isinstance(attack_result, AdversarialAttackResult):
+            adversarial_image = attack_result.adversarial_image
+            perturbation_image = attack_result.perturbation_image
+            perturbation_linf = attack_result.perturbation_linf
+            perturbation_l2 = attack_result.perturbation_l2
+        else:
+            adversarial_image = attack_result["adversarial_image"]
+            perturbation_image = attack_result["perturbation_image"]
+            perturbation_linf = attack_result["perturbation_linf"]
+            perturbation_l2 = attack_result["perturbation_l2"]
         attack_width, attack_height = adversarial_image.size
 
         stage_started = _start_stage(model_device)
@@ -306,8 +315,8 @@ async def evaluate_dataset(
                 attack_success=prediction_changed,
                 original_correct=original_correct,
                 adversarial_correct=adversarial_correct,
-                perturbation_linf=attack_result["perturbation_linf"],
-                perturbation_l2=attack_result["perturbation_l2"],
+                perturbation_linf=perturbation_linf,
+                perturbation_l2=perturbation_l2,
                 diagnostics=diagnostics,
             )
         )
@@ -317,8 +326,8 @@ async def evaluate_dataset(
                 ground_truth=ground_truth,
                 original=original_prediction,
                 adversarial=adversarial_prediction,
-                perturbation_linf=attack_result["perturbation_linf"],
-                perturbation_l2=attack_result["perturbation_l2"],
+                perturbation_linf=perturbation_linf,
+                perturbation_l2=perturbation_l2,
             )
         )
 

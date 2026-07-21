@@ -1,3 +1,4 @@
+from ml.attacks.base import AdversarialAttackResult
 from ml.attacks.registry import get_attack
 from schemas.attack import (
     AttackComparison,
@@ -52,8 +53,16 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         parameters=request.parameters,
     )
 
-    adversarial_image = attack_result["adversarial_image"]
-    perturbation_image = attack_result["perturbation_image"]
+    if isinstance(attack_result, AdversarialAttackResult):
+        adversarial_image = attack_result.adversarial_image
+        perturbation_image = attack_result.perturbation_image
+        perturbation_linf = attack_result.perturbation_linf
+        perturbation_l2 = attack_result.perturbation_l2
+    else:
+        adversarial_image = attack_result["adversarial_image"]
+        perturbation_image = attack_result["perturbation_image"]
+        perturbation_linf = attack_result["perturbation_linf"]
+        perturbation_l2 = attack_result["perturbation_l2"]
 
     adversarial_prediction = model.predict(adversarial_image)
 
@@ -77,8 +86,8 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         confidence_difference=confidence_difference,
         prediction_changed=prediction_changed,
         attack_success=prediction_changed,
-        perturbation_linf=attack_result["perturbation_linf"],
-        perturbation_l2=attack_result["perturbation_l2"],
+        perturbation_linf=perturbation_linf,
+        perturbation_l2=perturbation_l2,
     )
 
     result_id, result_path = create_result_directory(prefix="attack")

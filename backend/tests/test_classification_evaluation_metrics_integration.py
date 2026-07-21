@@ -1,9 +1,11 @@
 from collections.abc import Sequence
 
 import pytest
+import torch
 from PIL import Image
 
 import services.evaluation_service as evaluation_service
+from ml.attacks.base import AdversarialAttackResult
 from ml.models.classification import (
     ClassificationClassScore,
     DetailedClassificationPrediction,
@@ -74,20 +76,27 @@ class FakeClassificationAttack:
         self.original_class_indices.append(original_class_index)
         perturbation_linf, perturbation_l2 = next(self._perturbations)
 
-        return {
-            "adversarial_image": Image.new(
+        clean_model_input = torch.zeros(1, 3, 224, 224)
+        adversarial_model_input = clean_model_input.clone()
+        model_space_delta = adversarial_model_input - clean_model_input
+
+        return AdversarialAttackResult(
+            clean_model_input=clean_model_input,
+            adversarial_model_input=adversarial_model_input,
+            model_space_delta=model_space_delta,
+            adversarial_image=Image.new(
                 "RGB",
                 (224, 224),
                 color=(20, 30, 40),
             ),
-            "perturbation_image": Image.new(
+            perturbation_image=Image.new(
                 "RGB",
                 (224, 224),
                 color=(127, 127, 127),
             ),
-            "perturbation_linf": perturbation_linf,
-            "perturbation_l2": perturbation_l2,
-        }
+            perturbation_linf=perturbation_linf,
+            perturbation_l2=perturbation_l2,
+        )
 
 
 def _prediction(
