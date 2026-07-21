@@ -4,6 +4,7 @@ from PIL import Image
 
 import services.attack_service as attack_service
 from ml.attacks.base import AdversarialAttackResult
+from ml.attacks.presentation import SourceGeometryAttackReconstruction
 from schemas.attack import AttackRequest, AttackType
 from schemas.predict import PredictResponse, TopKPrediction
 
@@ -90,8 +91,10 @@ async def _run_service(
     result,
     model,
     attack_type: AttackType = AttackType.FGSM,
+    source_image: Image.Image | None = None,
 ):
-    source_image = Image.new("RGB", (8, 6), color=(128, 128, 128))
+    if source_image is None:
+        source_image = Image.new("RGB", (8, 6), color=(128, 128, 128))
     saved_images = []
 
     async def fake_get_image_from_dataset(dataset_id: str, image_id: str):
@@ -163,16 +166,103 @@ async def test_structured_attack_predicts_from_exact_adversarial_tensor(
     assert model.image_predictions == 1
     assert model.tensor_predictions == 1
     assert response.adversarial_prediction.prediction == "adversarial"
-    assert (result.adversarial_image, "adversarial.png") in saved_images
-    assert (result.perturbation_image, "perturbation.png") in saved_images
+    saved_by_filename = {filename: image for image, filename in saved_images}
+    assert saved_by_filename["adversarial.png"].size == (8, 6)
+    assert saved_by_filename["perturbation.png"].size == (8, 6)
+    assert saved_by_filename["adversarial.png"] is not result.adversarial_image
+    assert saved_by_filename["perturbation.png"] is not result.perturbation_image
+    assert saved_by_filename["adversarial_gradcam.png"] is result.adversarial_image
+    assert response.comparison.perturbation_linf == result.perturbation_linf
+    assert response.comparison.perturbation_l2 == result.perturbation_l2
     assert torch.equal(result.clean_model_input, clean_before)
     assert torch.equal(result.adversarial_model_input, adversarial_before)
     assert torch.equal(result.model_space_delta, delta_before)
 
 
+@pytest.mark.parametrize("attack_type", [AttackType.FGSM, AttackType.PGD])
+@pytest.mark.parametrize("source_size", [(19, 7), (6, 21), (13, 13)])
+@pytest.mark.asyncio
+async def test_structured_attack_persists_source_geometry_for_fgsm_and_pgd(
+    monkeypatch,
+    attack_type,
+    source_size,
+):
+    result = _structured_result()
+    model = FakeClassificationModel(result.adversarial_model_input)
+    source_image = Image.new("RGB", source_size, color=(128, 128, 128))
+
+    response, saved_images = await _run_service(
+        monkeypatch,
+        result,
+        model,
+        attack_type=attack_type,
+        source_image=source_image,
+    )
+
+    saved_by_filename = {filename: image for image, filename in saved_images}
+    assert saved_by_filename["adversarial.png"].size == source_size
+    assert saved_by_filename["perturbation.png"].size == source_size
+    assert response.adversarial_image_url.endswith("/adversarial.png")
+    assert response.perturbation_image_url.endswith("/perturbation.png")
+
+
+@pytest.mark.asyncio
+async def test_structured_attack_projects_exact_delta_once(monkeypatch):
+    result = _structured_result()
+    model = FakeClassificationModel(result.adversarial_model_input)
+    source_image = Image.new("RGB", (9, 5), color=(128, 128, 128))
+    reconstructed_adversarial = Image.new("RGB", source_image.size, color=(1, 2, 3))
+    reconstructed_perturbation = Image.new("RGB", source_image.size, color=(4, 5, 6))
+    projector_calls = 0
+
+    def fake_reconstruct_attack_in_source_geometry(
+        source_image: Image.Image,
+        model_space_delta: torch.Tensor,
+    ) -> SourceGeometryAttackReconstruction:
+        nonlocal projector_calls
+        projector_calls += 1
+        assert source_image is source_image_from_dataset
+        assert model_space_delta is result.model_space_delta
+        return SourceGeometryAttackReconstruction(
+            source_space_delta=torch.empty(0),
+            adversarial_image=reconstructed_adversarial,
+            perturbation_visualization=reconstructed_perturbation,
+        )
+
+    source_image_from_dataset = source_image
+    monkeypatch.setattr(
+        attack_service,
+        "reconstruct_attack_in_source_geometry",
+        fake_reconstruct_attack_in_source_geometry,
+    )
+
+    _, saved_images = await _run_service(
+        monkeypatch,
+        result,
+        model,
+        source_image=source_image,
+    )
+
+    saved_by_filename = {filename: image for image, filename in saved_images}
+    assert projector_calls == 1
+    assert saved_by_filename["adversarial.png"] is reconstructed_adversarial
+    assert saved_by_filename["perturbation.png"] is reconstructed_perturbation
+    assert model.image_predictions == 1
+    assert model.tensor_predictions == 1
+
+
 @pytest.mark.asyncio
 async def test_random_noise_result_keeps_pil_prediction_path(monkeypatch):
     result = _legacy_result()
+
+    def fail_if_reconstruction_is_used(source_image, model_space_delta):
+        raise AssertionError("Random Noise must not use source reconstruction")
+
+    monkeypatch.setattr(
+        attack_service,
+        "reconstruct_attack_in_source_geometry",
+        fail_if_reconstruction_is_used,
+    )
 
     class RandomNoiseModel(FakeClassificationModel):
         def predict(self, image: Image.Image) -> PredictResponse:
@@ -189,7 +279,7 @@ async def test_random_noise_result_keeps_pil_prediction_path(monkeypatch):
 
     model = RandomNoiseModel(torch.empty(0))
 
-    response, _ = await _run_service(
+    response, saved_images = await _run_service(
         monkeypatch,
         result,
         model,
@@ -199,3 +289,5 @@ async def test_random_noise_result_keeps_pil_prediction_path(monkeypatch):
     assert model.image_predictions == 2
     assert model.tensor_predictions == 0
     assert response.adversarial_prediction.prediction == "adversarial"
+    assert (result["adversarial_image"], "adversarial.png") in saved_images
+    assert (result["perturbation_image"], "perturbation.png") in saved_images

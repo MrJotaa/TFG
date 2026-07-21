@@ -5,6 +5,7 @@ from core.task_compatibility import (
     require_model_task_type,
 )
 from ml.attacks.base import AdversarialAttackResult
+from ml.attacks.presentation import reconstruct_attack_in_source_geometry
 from ml.attacks.registry import get_attack
 from ml.explainability.gradcam import generate_gradcam
 from schemas.attack import (
@@ -55,7 +56,6 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
 
     if isinstance(attack_result, AdversarialAttackResult):
         adversarial_image = attack_result.adversarial_image
-        perturbation_image = attack_result.perturbation_image
         perturbation_linf = attack_result.perturbation_linf
         perturbation_l2 = attack_result.perturbation_l2
         adversarial_prediction = model.predict_from_prepared_input(
@@ -63,7 +63,8 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         )
     else:
         adversarial_image = attack_result["adversarial_image"]
-        perturbation_image = attack_result["perturbation_image"]
+        adversarial_image_to_persist = adversarial_image
+        perturbation_image_to_persist = attack_result["perturbation_image"]
         perturbation_linf = attack_result["perturbation_linf"]
         perturbation_l2 = attack_result["perturbation_l2"]
         adversarial_prediction = model.predict(adversarial_image)
@@ -92,17 +93,26 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         perturbation_l2=perturbation_l2,
     )
 
+    if isinstance(attack_result, AdversarialAttackResult):
+        reconstruction = reconstruct_attack_in_source_geometry(
+            source_image=image,
+            model_space_delta=attack_result.model_space_delta,
+        )
+        adversarial_image_to_persist = reconstruction.adversarial_image
+        perturbation_image_to_persist = reconstruction.perturbation_visualization
+        del reconstruction
+
     result_id, result_path = create_result_directory(prefix="attack")
 
     adversarial_image_url = save_result_image(
-        image=adversarial_image,
+        image=adversarial_image_to_persist,
         result_id=result_id,
         result_path=result_path,
         filename="adversarial.png",
     )
 
     perturbation_image_url = save_result_image(
-        image=perturbation_image,
+        image=perturbation_image_to_persist,
         result_id=result_id,
         result_path=result_path,
         filename="perturbation.png",
