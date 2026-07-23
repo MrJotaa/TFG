@@ -1,6 +1,8 @@
 import asyncio
+import builtins
 import json
 import os
+import sys
 import time
 from pathlib import Path
 
@@ -35,6 +37,68 @@ class _EvaluationModel:
 
     def get_torch_model(self):
         raise NotImplementedError
+
+
+class _CountingGradCamTorchModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.target_layer = torch.nn.Conv2d(3, 2, kernel_size=1, bias=False)
+        self.forward_count = 0
+        with torch.no_grad():
+            self.target_layer.weight.copy_(
+                torch.tensor(
+                    [
+                        [[[1.0]], [[0.0]], [[0.0]]],
+                        [[[0.0]], [[1.0]], [[0.0]]],
+                    ]
+                )
+            )
+
+    def forward(self, model_input):
+        self.forward_count += 1
+        return self.target_layer(model_input).mean(dim=(2, 3))
+
+
+class _NoAttackRecalculationModel:
+    id = "test-model"
+    task_type = "classification"
+    input_size = (5, 7)
+    device = torch.device("cpu")
+    categories = ("red", "green")
+    normalization_mean = (0.485, 0.456, 0.406)
+    normalization_std = (0.229, 0.224, 0.225)
+
+    def __init__(self, clean_input, adversarial_input):
+        self.model = _CountingGradCamTorchModel()
+        self.expected_inputs = (clean_input, adversarial_input)
+        self.normalization_inputs = []
+
+    def get_torch_model(self):
+        return self.model
+
+    def get_gradcam_target_layer(self):
+        return self.model.target_layer
+
+    def normalize_attack_input(self, model_input):
+        assert any(model_input is expected for expected in self.expected_inputs)
+        self.normalization_inputs.append(model_input)
+        mean = torch.as_tensor(
+            self.normalization_mean,
+            dtype=model_input.dtype,
+            device=model_input.device,
+        ).view(1, -1, 1, 1)
+        std = torch.as_tensor(
+            self.normalization_std,
+            dtype=model_input.dtype,
+            device=model_input.device,
+        ).view(1, -1, 1, 1)
+        return (model_input - mean) / std
+
+    def prepare_attack_input(self, image):
+        raise AssertionError("Grad-CAM must not prepare an input from PIL")
+
+    def preprocess(self, image):
+        raise AssertionError("Grad-CAM must not preprocess an input from PIL")
 
 
 def _write_evaluation(
@@ -266,6 +330,139 @@ async def test_on_demand_gradcam_passes_loaded_tensors_by_identity(
     assert received_inputs == [clean_model_input, adversarial_model_input]
 
 
+@pytest.mark.asyncio
+async def test_random_noise_gradcam_never_recalculates_attack_and_caches(
+    monkeypatch,
+    tmp_path,
+):
+    evaluation_id = "evaluation_random_noise_no_recalculation"
+    image_id = "image-1"
+    result_path, image_entry = _write_evaluation(
+        tmp_path,
+        evaluation_id=evaluation_id,
+        image_id=image_id,
+    )
+    metadata_path = result_path / "metadata.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata["attack_type"] = "random_noise"
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+    clean_model_input = torch.full((1, 3, 5, 7), 0.2)
+    adversarial_model_input = torch.full((1, 3, 5, 7), 0.7)
+    scientific_artifact = {
+        "schema_version": 1,
+        "evaluation_id": evaluation_id,
+        "image_id": image_id,
+        "model_id": "test-model",
+        "clean_model_input": clean_model_input,
+        "adversarial_model_input": adversarial_model_input,
+    }
+    model = _NoAttackRecalculationModel(
+        clean_model_input,
+        adversarial_model_input,
+    )
+    scientific_loads = 0
+
+    def tracked_load(artifact_path):
+        nonlocal scientific_loads
+        scientific_loads += 1
+        return scientific_artifact
+
+    def forbidden_attack_operation(*args, **kwargs):
+        raise AssertionError("Evaluate Grad-CAM must not recalculate an attack")
+
+    attack_registry = sys.modules["ml.attacks.registry"]
+    monkeypatch.setattr(
+        attack_registry,
+        "get_attack",
+        forbidden_attack_operation,
+    )
+    monkeypatch.setattr(
+        gradcam_service,
+        "get_attack",
+        forbidden_attack_operation,
+        raising=False,
+    )
+    for module_name, class_name in (
+        ("ml.attacks.random_noise", "RandomNoiseAttack"),
+        ("ml.attacks.fgsm", "FGSMAttack"),
+        ("ml.attacks.pgd", "PGDAttack"),
+    ):
+        attack_class = getattr(sys.modules[module_name], class_name)
+        monkeypatch.setattr(
+            attack_class,
+            "__init__",
+            forbidden_attack_operation,
+        )
+        monkeypatch.setattr(
+            attack_class,
+            "apply",
+            forbidden_attack_operation,
+        )
+    monkeypatch.setattr(
+        gradcam_service,
+        "reconstruct_attack_in_source_geometry",
+        forbidden_attack_operation,
+        raising=False,
+    )
+
+    real_import = builtins.__import__
+
+    def fail_runtime_attack_import(name, *args, **kwargs):
+        if name == "ml.attacks" or name.startswith("ml.attacks."):
+            raise AssertionError("Evaluate Grad-CAM must not import attack modules")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fail_runtime_attack_import)
+    monkeypatch.setattr(gradcam_service, "RESULTS_BASE_PATH", str(tmp_path))
+    monkeypatch.setattr(
+        gradcam_service,
+        "get_active_model_instance",
+        lambda: model,
+    )
+    monkeypatch.setattr(
+        gradcam_service,
+        "load_evaluation_model_inputs",
+        tracked_load,
+    )
+
+    first_response = await gradcam_service.generate_evaluation_image_gradcam(
+        evaluation_id=evaluation_id,
+        image_id=image_id,
+        current_user_id="user-1",
+    )
+    assert model.normalization_inputs == [
+        clean_model_input,
+        adversarial_model_input,
+    ]
+    assert model.model.forward_count == 2
+    assert scientific_loads == 1
+
+    second_response = await gradcam_service.generate_evaluation_image_gradcam(
+        evaluation_id=evaluation_id,
+        image_id=image_id,
+        current_user_id="user-1",
+    )
+
+    assert second_response == first_response
+    assert model.normalization_inputs == [
+        clean_model_input,
+        adversarial_model_input,
+    ]
+    assert model.model.forward_count == 2
+    assert scientific_loads == 1
+    assert first_response.model_dump() == {
+        "evaluation_id": evaluation_id,
+        "image_id": image_id,
+        "original_gradcam_image_url": (
+            f"/results/{evaluation_id}/{image_entry['original_gradcam_filename']}"
+        ),
+        "adversarial_gradcam_image_url": (
+            f"/results/{evaluation_id}/{image_entry['adversarial_gradcam_filename']}"
+        ),
+    }
+
+
 @pytest.mark.parametrize(
     ("scenario", "exception", "message"),
     [
@@ -468,9 +665,17 @@ async def test_persistence_failure_does_not_mark_gradcam_as_generated(
     assert metadata["images"][image_id]["gradcam_generated"] is False
 
 
-def test_pair_publication_rolls_back_if_second_publish_fails(
+@pytest.mark.parametrize(
+    "failed_filename",
+    [
+        "original_gradcam.png",
+        "adversarial_gradcam.png",
+    ],
+)
+def test_pair_publication_rolls_back_if_publish_fails(
     monkeypatch,
     tmp_path,
+    failed_filename,
 ):
     original_filename = "original_gradcam.png"
     adversarial_filename = "adversarial_gradcam.png"
@@ -480,14 +685,16 @@ def test_pair_publication_rolls_back_if_second_publish_fails(
     Image.new("RGB", (5, 3), color=(4, 5, 6)).save(adversarial_path)
     real_replace = gradcam_service.os.replace
 
-    def fail_second_publish(source, destination):
-        if str(source).endswith(".tmp") and destination == str(adversarial_path):
-            raise OSError("second publish failed")
+    failed_path = tmp_path / failed_filename
+
+    def fail_selected_publish(source, destination):
+        if str(source).endswith(".tmp") and destination == str(failed_path):
+            raise OSError("publish failed")
         real_replace(source, destination)
 
-    monkeypatch.setattr(gradcam_service.os, "replace", fail_second_publish)
+    monkeypatch.setattr(gradcam_service.os, "replace", fail_selected_publish)
 
-    with pytest.raises(OSError, match="second publish failed"):
+    with pytest.raises(OSError, match="publish failed"):
         gradcam_service._persist_gradcam_pair(
             result_path=str(tmp_path),
             original_filename=original_filename,
@@ -506,6 +713,123 @@ def test_pair_publication_rolls_back_if_second_publish_fails(
         assert adversarial.getpixel((0, 0)) == (4, 5, 6)
     assert not list(tmp_path.glob("*.tmp"))
     assert not list(tmp_path.glob("*.backup"))
+
+
+@pytest.mark.parametrize("failed_image", ["original", "adversarial"])
+def test_pair_publication_cleans_up_if_temporary_write_fails(
+    tmp_path,
+    failed_image,
+):
+    class _FailingImage:
+        def save(self, path, format):
+            assert format == "PNG"
+            raise OSError(f"{failed_image} temporary write failed")
+
+    original_gradcam = Image.new("RGB", (5, 3), color=(10, 20, 30))
+    adversarial_gradcam = Image.new("RGB", (5, 3), color=(40, 50, 60))
+    if failed_image == "original":
+        original_gradcam = _FailingImage()
+    else:
+        adversarial_gradcam = _FailingImage()
+
+    with pytest.raises(OSError, match=f"{failed_image} temporary write failed"):
+        gradcam_service._persist_gradcam_pair(
+            result_path=str(tmp_path),
+            original_filename="original_gradcam.png",
+            adversarial_filename="adversarial_gradcam.png",
+            original_gradcam=original_gradcam,
+            adversarial_gradcam=adversarial_gradcam,
+        )
+
+    assert not (tmp_path / "original_gradcam.png").exists()
+    assert not (tmp_path / "adversarial_gradcam.png").exists()
+    assert not list(tmp_path.glob("*.tmp"))
+    assert not list(tmp_path.glob("*.backup"))
+
+
+def test_pair_publication_succeeds_without_transient_files(tmp_path):
+    original_path = tmp_path / "original_gradcam.png"
+    adversarial_path = tmp_path / "adversarial_gradcam.png"
+
+    gradcam_service._persist_gradcam_pair(
+        result_path=str(tmp_path),
+        original_filename=original_path.name,
+        adversarial_filename=adversarial_path.name,
+        original_gradcam=Image.new("RGB", (5, 3), color=(10, 20, 30)),
+        adversarial_gradcam=Image.new("RGB", (5, 3), color=(40, 50, 60)),
+    )
+
+    with Image.open(original_path) as original:
+        assert original.getpixel((0, 0)) == (10, 20, 30)
+    with Image.open(adversarial_path) as adversarial:
+        assert adversarial.getpixel((0, 0)) == (40, 50, 60)
+    assert not list(tmp_path.glob("*.tmp"))
+    assert not list(tmp_path.glob("*.backup"))
+
+
+def test_pair_publication_preserves_primary_error_if_restore_also_fails(
+    monkeypatch,
+    tmp_path,
+    caplog,
+):
+    original_path = tmp_path / "original_gradcam.png"
+    adversarial_path = tmp_path / "adversarial_gradcam.png"
+    Image.new("RGB", (5, 3), color=(1, 2, 3)).save(original_path)
+    Image.new("RGB", (5, 3), color=(4, 5, 6)).save(adversarial_path)
+    primary_error = OSError("adversarial publish failed")
+    secondary_error = OSError("adversarial restore failed")
+    replace_calls = []
+    real_replace = gradcam_service.os.replace
+
+    def fail_publish_and_adversarial_restore(source, destination):
+        source = str(source)
+        destination = str(destination)
+        replace_calls.append((source, destination))
+        if source.endswith(".tmp") and destination == str(adversarial_path):
+            raise primary_error
+        if source.endswith(".backup") and destination == str(adversarial_path):
+            raise secondary_error
+        real_replace(source, destination)
+
+    monkeypatch.setattr(
+        gradcam_service.os,
+        "replace",
+        fail_publish_and_adversarial_restore,
+    )
+
+    with caplog.at_level("ERROR", logger=gradcam_service.__name__):
+        with pytest.raises(OSError) as captured_error:
+            gradcam_service._persist_gradcam_pair(
+                result_path=str(tmp_path),
+                original_filename=original_path.name,
+                adversarial_filename=adversarial_path.name,
+                original_gradcam=Image.new("RGB", (5, 3), color=(10, 20, 30)),
+                adversarial_gradcam=Image.new(
+                    "RGB",
+                    (5, 3),
+                    color=(40, 50, 60),
+                ),
+            )
+
+    assert captured_error.value is primary_error
+    assert any(
+        record.message == "gradcam_pair_rollback_restore_failed"
+        and record.exc_info is not None
+        and record.exc_info[1] is secondary_error
+        for record in caplog.records
+    )
+    assert any(
+        source.endswith(".backup") and destination == str(original_path)
+        for source, destination in replace_calls
+    )
+    with Image.open(original_path) as original:
+        assert original.getpixel((0, 0)) == (1, 2, 3)
+    assert not adversarial_path.exists()
+    retained_backups = list(tmp_path.glob("*.backup"))
+    assert len(retained_backups) == 1
+    with Image.open(retained_backups[0]) as adversarial_backup:
+        assert adversarial_backup.getpixel((0, 0)) == (4, 5, 6)
+    assert not list(tmp_path.glob("*.tmp"))
 
 
 @pytest.mark.asyncio

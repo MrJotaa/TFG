@@ -19,5 +19,6 @@ grad-cam
 pytest
 pytest-asyncio
 httpx
+httpx2
 ruff
 scikit-learn==1.7.2

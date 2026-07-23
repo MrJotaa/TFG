@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+import torch
 from PIL import Image
 
 import services.attack_service as attack_service
@@ -40,6 +41,14 @@ class FakeClassificationModel:
     name = "Fake Classifier"
     task_type = "classification"
 
+    def prepare_attack_input(self, image: Image.Image):
+        return torch.full(
+            (1, 3, image.height, image.width),
+            0.5,
+            dtype=torch.float32,
+            device="cpu",
+        )
+
     def preprocess(self, image: Image.Image):
         return "prepared-input"
 
@@ -72,6 +81,19 @@ class FakeClassificationModel:
             prediction_margin=None,
         )
 
+    def predict_detailed_from_prepared_input(
+        self,
+        prepared_input,
+        top_k=5,
+    ):
+        assert prepared_input.ndim == 4
+        assert prepared_input.shape[0] == 1
+        assert prepared_input.shape[1] == 3
+        assert prepared_input.is_floating_point()
+        assert torch.isfinite(prepared_input).all()
+        assert prepared_input.device.type == "cpu"
+        return self.predict_detailed(None, top_k=top_k)
+
 
 class FakeDetectionModel:
     id = "fake-detector"
@@ -98,6 +120,9 @@ class FakeDetectionModel:
 class FailingAttack:
     id = "random_noise"
 
+    def __init__(self):
+        self.apply_calls = 0
+
     def supports_task_type(self, task_type: str) -> bool:
         return task_type in {
             "classification",
@@ -111,6 +136,7 @@ class FailingAttack:
         parameters,
         original_class_index=None,
     ):
+        self.apply_calls += 1
         raise ValueError(INTERNAL_ERROR)
 
 
@@ -151,6 +177,8 @@ async def test_classification_attack_preserves_unexpected_error(
 async def test_classification_evaluation_preserves_unexpected_error(
     monkeypatch,
 ):
+    failing_attack = FailingAttack()
+
     async def fake_get_dataset(dataset_id: str):
         return SimpleNamespace(
             id=dataset_id,
@@ -184,7 +212,7 @@ async def test_classification_evaluation_preserves_unexpected_error(
     monkeypatch.setattr(
         evaluation_service,
         "get_attack",
-        lambda attack_type: FailingAttack(),
+        lambda attack_type: failing_attack,
     )
     monkeypatch.setattr(
         evaluation_service,
@@ -202,6 +230,8 @@ async def test_classification_evaluation_preserves_unexpected_error(
         match=INTERNAL_ERROR,
     ):
         await evaluation_service.evaluate_dataset(request)
+
+    assert failing_attack.apply_calls == 1
 
 
 @pytest.mark.asyncio

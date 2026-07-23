@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import pickle
 import threading
@@ -27,6 +28,7 @@ from utils.evaluation_artifacts import (
 from utils.result_files import RESULTS_BASE_PATH
 
 _generation_lock = threading.Lock()
+logger = logging.getLogger(__name__)
 
 
 async def generate_evaluation_image_gradcam(
@@ -296,23 +298,81 @@ def _persist_gradcam_pair(
         published_paths.append(original_path)
         os.replace(temporary_adversarial, adversarial_path)
         published_paths.append(adversarial_path)
-    except Exception:
-        for published_path in published_paths:
-            if os.path.exists(published_path):
-                os.remove(published_path)
-        for final_path, backup_path in backup_paths:
-            if os.path.exists(backup_path):
-                os.replace(backup_path, final_path)
+    except OSError:
+        unrestored_backup_paths = _rollback_gradcam_pair(
+            published_paths=published_paths,
+            backup_paths=backup_paths,
+        )
+        _remove_transient_paths(
+            tuple(
+                transient_path
+                for transient_path in (
+                    temporary_original,
+                    temporary_adversarial,
+                    backup_original,
+                    backup_adversarial,
+                )
+                if transient_path not in unrestored_backup_paths
+            ),
+            preserve_active_error=True,
+        )
         raise
-    finally:
-        for transient_path in (
+
+    _remove_transient_paths(
+        (
             temporary_original,
             temporary_adversarial,
             backup_original,
             backup_adversarial,
-        ):
+        ),
+        preserve_active_error=False,
+    )
+
+
+def _rollback_gradcam_pair(
+    *,
+    published_paths: list[str],
+    backup_paths: list[tuple[str, str]],
+) -> set[str]:
+    unrestored_backup_paths = set()
+
+    for published_path in reversed(published_paths):
+        try:
+            if os.path.exists(published_path):
+                os.remove(published_path)
+        except OSError:
+            logger.exception("gradcam_pair_rollback_remove_failed")
+
+    for final_path, backup_path in reversed(backup_paths):
+        try:
+            if os.path.exists(backup_path):
+                os.replace(backup_path, final_path)
+        except OSError:
+            unrestored_backup_paths.add(backup_path)
+            logger.exception("gradcam_pair_rollback_restore_failed")
+
+    return unrestored_backup_paths
+
+
+def _remove_transient_paths(
+    transient_paths: tuple[str, ...],
+    *,
+    preserve_active_error: bool,
+) -> None:
+    first_cleanup_error = None
+
+    for transient_path in transient_paths:
+        try:
             if os.path.exists(transient_path):
                 os.remove(transient_path)
+        except OSError as error:
+            if preserve_active_error:
+                logger.exception("gradcam_pair_transient_cleanup_failed")
+            elif first_cleanup_error is None:
+                first_cleanup_error = error
+
+    if first_cleanup_error is not None:
+        raise first_cleanup_error
 
 
 def _save_metadata_atomically(result_path: str, metadata: dict) -> None:

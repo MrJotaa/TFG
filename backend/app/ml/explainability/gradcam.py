@@ -13,29 +13,28 @@ def _calculate_gradcam(model_wrapper, model_input: torch.Tensor):
     target_layer = model_wrapper.get_gradcam_target_layer()
 
     activations = []
-    gradients = []
 
     def forward_hook(module, input, output):
         activations.append(output)
 
-    def backward_hook(module, grad_input, grad_output):
-        gradients.append(grad_output[0])
-
     forward_handle = target_layer.register_forward_hook(forward_hook)
-    backward_handle = target_layer.register_full_backward_hook(backward_hook)
 
     try:
-        output = model(model_input)
-        probabilities = F.softmax(output[0], dim=0)
+        with torch.enable_grad():
+            output = model(model_input)
+            probabilities = F.softmax(output[0], dim=0)
 
-        confidence, predicted_index = torch.max(probabilities, dim=0)
-        predicted_label = model_wrapper.categories[predicted_index.item()]
+            confidence, predicted_index = torch.max(probabilities, dim=0)
+            predicted_label = model_wrapper.categories[predicted_index.item()]
 
-        model.zero_grad()
-        output[0, predicted_index].backward()
+            activation = activations[0]
+            (gradient,) = torch.autograd.grad(
+                outputs=output[0, predicted_index],
+                inputs=activation,
+            )
 
-        activation = activations[0].detach()
-        gradient = gradients[0].detach()
+        activation = activation.detach()
+        gradient = gradient.detach()
 
         weights = gradient.mean(dim=(2, 3), keepdim=True)
         cam = (weights * activation).sum(dim=1).squeeze()
@@ -53,10 +52,7 @@ def _calculate_gradcam(model_wrapper, model_input: torch.Tensor):
         }
     finally:
         forward_handle.remove()
-        backward_handle.remove()
         activations.clear()
-        gradients.clear()
-        model.zero_grad()
 
 
 def _render_gradcam_on_source(

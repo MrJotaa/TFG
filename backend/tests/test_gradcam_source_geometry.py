@@ -121,6 +121,68 @@ def test_clean_gradcam_preserves_source_geometry_and_visual_semantics(
     assert all(parameter.grad is None for parameter in wrapper.model.parameters())
 
 
+def test_gradcam_numeric_map_matches_independent_reference_without_warnings(recwarn):
+    wrapper = _TrackingWrapper()
+    model_input = torch.zeros((1, 3, 5, 7))
+    model_input[:, 0] = torch.linspace(0.1, 0.9, steps=35).reshape(5, 7)
+    model_input[:, 1] = 0.05
+    target_layer = wrapper.get_gradcam_target_layer()
+
+    assert model_input.requires_grad is False
+    assert model_input.device.type == "cpu"
+
+    result = gradcam_module._calculate_gradcam(wrapper, model_input)
+
+    activation = model_input[:, :2]
+    reference_gradient = torch.zeros_like(activation)
+    reference_gradient[:, 0] = 1.0 / (5 * 7)
+    reference_weights = reference_gradient.mean(dim=(2, 3), keepdim=True)
+    reference_cam = torch.relu(
+        (reference_weights * activation).sum(dim=1).squeeze()
+    ).numpy()
+    reference_cam = reference_cam - np.min(reference_cam)
+    reference_cam = reference_cam / (np.max(reference_cam) + 1e-8)
+
+    torch.testing.assert_close(
+        torch.from_numpy(result["normalized_cam"]),
+        torch.from_numpy(reference_cam),
+        rtol=1e-6,
+        atol=1e-7,
+    )
+    assert result["prediction"] == "red"
+    assert result["normalized_cam"].shape == (5, 7)
+    assert np.isfinite(result["normalized_cam"]).all()
+    assert wrapper.model.forward_count == 1
+    assert len(target_layer._forward_hooks) == 0
+    assert len(target_layer._backward_hooks) == 0
+    assert all(parameter.grad is None for parameter in wrapper.model.parameters())
+    assert not [
+        warning
+        for warning in recwarn
+        if "Full backward hook is firing" in str(warning.message)
+    ]
+
+
+def test_gradcam_does_not_modify_existing_parameter_gradients():
+    wrapper = _TrackingWrapper()
+    expected_gradients = []
+
+    for parameter in wrapper.model.parameters():
+        parameter.grad = torch.full_like(parameter, 0.25)
+        expected_gradients.append(parameter.grad.clone())
+
+    gradcam_module._calculate_gradcam(
+        wrapper,
+        torch.rand((1, 3, 5, 7)),
+    )
+
+    for parameter, expected_gradient in zip(
+        wrapper.model.parameters(),
+        expected_gradients,
+    ):
+        torch.testing.assert_close(parameter.grad, expected_gradient)
+
+
 def test_clean_gradcam_removes_hooks_when_forward_fails(monkeypatch):
     wrapper = _TrackingWrapper()
     target_layer = wrapper.get_gradcam_target_layer()
@@ -140,6 +202,60 @@ def test_clean_gradcam_removes_hooks_when_forward_fails(monkeypatch):
 
     assert len(target_layer._forward_hooks) == 0
     assert len(target_layer._backward_hooks) == 0
+
+
+def test_clean_gradcam_removes_hook_when_gradient_calculation_fails(monkeypatch):
+    wrapper = _TrackingWrapper()
+    target_layer = wrapper.get_gradcam_target_layer()
+
+    def disconnected_forward(model_input):
+        activation = target_layer(model_input)
+        return activation.detach().mean(dim=(2, 3))
+
+    monkeypatch.setattr(wrapper.model, "forward", disconnected_forward)
+
+    with pytest.raises(RuntimeError, match="does not require grad"):
+        gradcam_module.generate_clean_gradcam(
+            model_wrapper=wrapper,
+            model_input=torch.zeros((1, 3, 5, 7)),
+            source_image=Image.new("RGB", (19, 11)),
+        )
+
+    assert len(target_layer._forward_hooks) == 0
+    assert len(target_layer._backward_hooks) == 0
+
+
+def test_gradcam_preserves_model_training_state():
+    wrapper = _TrackingWrapper()
+    wrapper.model.train()
+
+    gradcam_module._calculate_gradcam(
+        wrapper,
+        torch.rand((1, 3, 5, 7)),
+    )
+
+    assert wrapper.model.training is True
+
+
+@pytest.mark.skipif(
+    not torch.cuda.is_available(),
+    reason="CUDA is not available",
+)
+def test_gradcam_runs_on_cuda_without_backward_hooks():
+    wrapper = _TrackingWrapper()
+    wrapper.model.cuda()
+
+    result = gradcam_module._calculate_gradcam(
+        wrapper,
+        torch.rand((1, 3, 5, 7), device="cuda"),
+    )
+
+    assert result["normalized_cam"].shape == (5, 7)
+    assert np.isfinite(result["normalized_cam"]).all()
+    assert wrapper.model.forward_count == 1
+    assert len(wrapper.model.target_layer._forward_hooks) == 0
+    assert len(wrapper.model.target_layer._backward_hooks) == 0
+    assert all(parameter.grad is None for parameter in wrapper.model.parameters())
 
 
 def test_legacy_gradcam_consumer_keeps_preprocessing_contract():
@@ -288,13 +404,21 @@ async def test_gradcam_http_contract_remains_unchanged(monkeypatch):
         fake_generate_gradcam_for_image,
     )
 
-    gradcam_route = next(
+    gradcam_routes = [
         route
-        for route in app.routes
-        if getattr(route, "path", None) == "/explain/gradcam"
-    )
+        for route in explainability_route.router.routes
+        if route.path == "/explain/gradcam"
+    ]
+    assert len(gradcam_routes) == 1
+    gradcam_route = gradcam_routes[0]
     assert gradcam_route.methods == {"POST"}
     assert gradcam_route.response_model is GradCamResponse
+    assert gradcam_route.endpoint is explainability_route.gradcam
+    assert len(gradcam_route.dependant.body_params) == 1
+    assert (
+        gradcam_route.dependant.body_params[0].field_info.annotation is GradCamRequest
+    )
+    assert gradcam_route.dependant.dependencies == []
 
     response = await explainability_route.gradcam(
         GradCamRequest(
@@ -309,3 +433,15 @@ async def test_gradcam_http_contract_remains_unchanged(monkeypatch):
         "confidence": 0.75,
         "gradcam_image_url": "/results/gradcam-result/gradcam.png",
     }
+
+
+def test_gradcam_router_is_included_in_application_openapi():
+    path_item = app.openapi()["paths"]["/explain/gradcam"]
+
+    assert set(path_item) == {"post"}
+    assert path_item["post"]["requestBody"]["content"]["application/json"][
+        "schema"
+    ] == {"$ref": "#/components/schemas/GradCamRequest"}
+    assert path_item["post"]["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ] == {"$ref": "#/components/schemas/GradCamResponse"}
