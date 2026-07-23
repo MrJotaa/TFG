@@ -1,7 +1,13 @@
+from core.errors import BadRequestError
+from core.task_compatibility import (
+    CLASSIFICATION_TASK_TYPE,
+    DETECTION_TASK_TYPE,
+    require_model_task_type,
+)
 from ml.explainability.gradcam import (
     draw_detections_on_image,
+    generate_clean_gradcam,
     generate_detection_eigencam,
-    generate_gradcam,
 )
 from schemas.explainability import (
     DetectionExplainRequest,
@@ -15,12 +21,6 @@ from utils.result_files import (
     save_result_image,
     save_result_metadata,
 )
-from core.task_compatibility import (
-    CLASSIFICATION_TASK_TYPE,
-    DETECTION_TASK_TYPE,
-    require_model_task_type,
-)
-from core.errors import BadRequestError
 
 
 async def generate_gradcam_for_image(dataset_id: str, image_id: str) -> GradCamResponse:
@@ -37,7 +37,13 @@ async def generate_gradcam_for_image(dataset_id: str, image_id: str) -> GradCamR
         endpoint="/explain/gradcam",
     )
 
-    result = generate_gradcam(model, image)
+    source_image = image.copy().convert("RGB")
+    model_input = model.preprocess(image)
+    result = generate_clean_gradcam(
+        model_wrapper=model,
+        model_input=model_input,
+        source_image=source_image,
+    )
 
     result_id, result_path = create_result_directory(prefix="gradcam")
 

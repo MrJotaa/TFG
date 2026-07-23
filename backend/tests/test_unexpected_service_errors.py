@@ -3,6 +3,11 @@ from types import SimpleNamespace
 import pytest
 from PIL import Image
 
+import services.attack_service as attack_service
+import services.detection_attack_service as detection_attack_service
+import services.detection_evaluation_service as detection_evaluation_service
+import services.evaluation_service as evaluation_service
+import services.explainability_service as explainability_service
 from schemas.attack import AttackRequest, AttackType
 from schemas.detection_attack import DetectionAttackRequest
 from schemas.detection_evaluation import (
@@ -10,14 +15,6 @@ from schemas.detection_evaluation import (
 )
 from schemas.evaluation import EvaluationRequest
 from schemas.explainability import DetectionExplainRequest
-
-import services.attack_service as attack_service
-import services.detection_attack_service as detection_attack_service
-import services.detection_evaluation_service as detection_evaluation_service
-
-import services.evaluation_service as evaluation_service
-import services.explainability_service as explainability_service
-
 
 INTERNAL_ERROR = "Sensitive internal model failure"
 VALID_DATASET_ID = "507f1f77bcf86cd799439011"
@@ -42,6 +39,9 @@ class FakeClassificationModel:
     id = "fake-classifier"
     name = "Fake Classifier"
     task_type = "classification"
+
+    def preprocess(self, image: Image.Image):
+        return "prepared-input"
 
     def predict(self, image: Image.Image):
         return SimpleNamespace(
@@ -290,7 +290,7 @@ async def test_detection_evaluation_preserves_unexpected_error(
 async def test_gradcam_preserves_unexpected_error(
     monkeypatch,
 ):
-    def fake_generate_gradcam(model, image):
+    def fake_generate_clean_gradcam(model_wrapper, model_input, source_image):
         raise ValueError(INTERNAL_ERROR)
 
     monkeypatch.setattr(
@@ -305,8 +305,8 @@ async def test_gradcam_preserves_unexpected_error(
     )
     monkeypatch.setattr(
         explainability_service,
-        "generate_gradcam",
-        fake_generate_gradcam,
+        "generate_clean_gradcam",
+        fake_generate_clean_gradcam,
     )
 
     with pytest.raises(
