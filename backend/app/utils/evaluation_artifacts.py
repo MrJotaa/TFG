@@ -136,9 +136,7 @@ def _validate_prepared_input(
         raise ValueError(f"{label} model input must be detached")
     if not torch.isfinite(tensor).all().item():
         raise ValueError(f"{label} model input contains non-finite values")
-    if tensor.numel() and (
-        tensor.min().item() < 0.0 or tensor.max().item() > 1.0
-    ):
+    if tensor.numel() and (tensor.min().item() < 0.0 or tensor.max().item() > 1.0):
         raise ValueError(f"{label} model input must be in the [0, 1] domain")
 
     if expected_input_size is not None:

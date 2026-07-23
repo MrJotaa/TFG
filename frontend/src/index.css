@@ -3468,6 +3468,98 @@ button {
     color: #1d4ed8;
 }
 
+.evaluation-gradcam-section {
+    display: grid;
+    gap: 0.85rem;
+    padding: 0 1rem 1rem;
+}
+
+.evaluation-gradcam-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem;
+    border: 1px solid #dbeafe;
+    border-radius: 14px;
+    background: #f8fbff;
+}
+
+.evaluation-gradcam-action strong,
+.evaluation-gradcam-action span {
+    display: block;
+}
+
+.evaluation-gradcam-action strong {
+    color: var(--evaluation-ink);
+    font-size: 0.82rem;
+}
+
+.evaluation-gradcam-action span {
+    margin-top: 0.2rem;
+    color: var(--evaluation-muted);
+    font-size: 0.72rem;
+}
+
+.evaluation-gradcam-button {
+    flex: 0 0 auto;
+    min-height: 42px;
+    margin: 0;
+    padding: 0.62rem 0.85rem;
+    border: 1px solid #93c5fd;
+    border-radius: 11px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.76rem;
+    font-weight: 850;
+}
+
+.evaluation-gradcam-button:hover:not(:disabled) {
+    border-color: #60a5fa;
+    background: #dbeafe;
+}
+
+.evaluation-gradcam-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.68;
+}
+
+.evaluation-gradcam-status {
+    margin: 0;
+    color: #1d4ed8;
+    font-size: 0.76rem;
+}
+
+.evaluation-gradcam-error {
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    background: #fef2f2;
+    color: #991b1b;
+    font-size: 0.76rem;
+}
+
+.evaluation-gradcam-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.evaluation-gradcam-grid .evaluation-image-preview img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: auto;
+    object-fit: contain;
+}
+
+.evaluation-image-preview.gradcam-original figcaption {
+    color: #7c3aed;
+}
+
+.evaluation-image-preview.gradcam-adversarial figcaption {
+    color: #be123c;
+}
+
 .evaluation-image-diagnostics {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -3656,6 +3748,19 @@ button {
 
     .evaluation-image-card-header {
         flex-direction: column;
+    }
+
+    .evaluation-gradcam-action {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .evaluation-gradcam-button {
+        width: 100%;
+    }
+
+    .evaluation-gradcam-grid {
+        grid-template-columns: 1fr;
     }
 
     .evaluation-image-diagnostics div,

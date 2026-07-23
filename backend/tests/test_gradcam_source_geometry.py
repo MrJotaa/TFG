@@ -105,10 +105,7 @@ def test_clean_gradcam_preserves_source_geometry_and_visual_semantics(
         assert reopened_png.mode == "RGB"
 
     expected_pixel = tuple(
-        np.uint8(
-            0.45 * np.array([255, 0, 0])
-            + 0.55 * np.array([20, 40, 60])
-        )
+        np.uint8(0.45 * np.array([255, 0, 0]) + 0.55 * np.array([20, 40, 60]))
     )
 
     assert result["gradcam_pil_image"].size == source_size
@@ -192,9 +189,7 @@ async def test_explain_endpoint_service_separates_model_input_and_source(
 
         def preprocess(self, image):
             assert image is source_image
-            captured["preprocess_calls"] = (
-                captured.get("preprocess_calls", 0) + 1
-            )
+            captured["preprocess_calls"] = captured.get("preprocess_calls", 0) + 1
             return model_input
 
     async def fake_get_image_from_dataset(dataset_id, image_id):

@@ -406,8 +406,7 @@ async def test_evaluation_persists_each_structured_result_in_source_geometry(
     ]
     assert projector_inputs == expected_projector_inputs
     assert all(
-        projected_delta_ref() is None
-        for projected_delta_ref in projected_delta_refs
+        projected_delta_ref() is None for projected_delta_ref in projected_delta_refs
     )
 
     for index, (image_metadata, source_size) in enumerate(
@@ -442,10 +441,7 @@ async def test_evaluation_persists_each_structured_result_in_source_geometry(
         manifest_entry = saved_metadata["images"][image_metadata.id]
         assert manifest_entry["image_id"] == image_metadata.id
         assert manifest_entry["gradcam_generated"] is False
-        assert (
-            manifest_entry["adversarial_visual_filename"]
-            == adversarial_filename
-        )
+        assert manifest_entry["adversarial_visual_filename"] == adversarial_filename
 
     assert [result.perturbation_linf for result in response.results] == [
         0.03,
@@ -486,21 +482,15 @@ async def test_random_noise_evaluation_keeps_legacy_visual_flow(monkeypatch):
     )
 
     assert (
-        attack.saved_images["image-1_adversarial.png"]
-        is attack.adversarial_images[0]
+        attack.saved_images["image-1_adversarial.png"] is attack.adversarial_images[0]
     )
     assert (
-        attack.saved_images["image-1_perturbation.png"]
-        is attack.perturbation_images[0]
+        attack.saved_images["image-1_perturbation.png"] is attack.perturbation_images[0]
     )
     scientific_inputs = attack.saved_scientific_inputs["image-1"]
+    assert scientific_inputs["clean_model_input"] is attack.model.prepared_inputs[0]
     assert (
-        scientific_inputs["clean_model_input"]
-        is attack.model.prepared_inputs[0]
-    )
-    assert (
-        scientific_inputs["adversarial_model_input"]
-        is attack.model.prepared_inputs[1]
+        scientific_inputs["adversarial_model_input"] is attack.model.prepared_inputs[1]
     )
     assert response.results[0].perturbation_linf == 0.03
     assert response.results[0].perturbation_l2 == 1.0
@@ -638,9 +628,7 @@ async def test_evaluation_exposes_complete_advanced_metrics(
         "metrics_schema_version": "1.0",
         "expires_in_hours": 24,
     }
-    assert {
-        key: saved_metadata[key] for key in expected_metadata
-    } == expected_metadata
+    assert {key: saved_metadata[key] for key in expected_metadata} == expected_metadata
     assert saved_metadata["status"] == "completed"
     assert saved_metadata["owner_id"] == "user-1"
     assert set(saved_metadata["images"]) == {

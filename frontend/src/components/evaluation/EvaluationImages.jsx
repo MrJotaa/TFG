@@ -4,8 +4,12 @@ import {
     formatInteger,
     formatRatio,
 } from '../../utils/metricFormatting'
+import { resolveApiUrl } from '../../api/client'
+import {
+    getEvaluationGradCamEntry,
+    getEvaluationGradCamKey,
+} from '../../utils/evaluationGradCamState'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 const PAGE_SIZE = 6
 
 const FILTERS = [
@@ -34,18 +38,6 @@ const TRANSITION_LABELS = {
         label: 'Sigue incorrecta',
         tone: 'warning',
     },
-}
-
-function resolveImageUrl(path) {
-    if (!path) {
-        return null
-    }
-
-    if (/^https?:\/\//i.test(path)) {
-        return path
-    }
-
-    return `${API_BASE_URL}${path}`
 }
 
 function getStatus(result) {
@@ -105,7 +97,7 @@ function BooleanValue({ value }) {
 }
 
 function ImagePreview({ label, path, alt, variant }) {
-    const url = resolveImageUrl(path)
+    const url = resolveApiUrl(path)
 
     return (
         <figure className={`evaluation-image-preview ${variant}`}>
@@ -119,12 +111,23 @@ function ImagePreview({ label, path, alt, variant }) {
     )
 }
 
-function EvaluationImageCard({ result }) {
+function EvaluationImageCard({
+    evaluationId,
+    result,
+    gradCamEntry,
+    onGenerateGradCam,
+}) {
     const [expanded, setExpanded] = useState(false)
     const titleId = useId()
     const diagnosticsId = useId()
+    const gradCamErrorId = useId()
     const diagnostics = result.diagnostics ?? {}
     const status = getStatus(result)
+    const gradCamLoading = gradCamEntry.status === 'loading'
+    const gradCamReady = gradCamEntry.status === 'success'
+    const gradCamError = gradCamEntry.status === 'error'
+        ? gradCamEntry.error
+        : ''
 
     return (
         <article className="evaluation-image-card" aria-labelledby={titleId}>
@@ -203,6 +206,80 @@ function EvaluationImageCard({ result }) {
                 </div>
             </div>
 
+            <section
+                className="evaluation-gradcam-section"
+                aria-label={`Grad-CAM de ${result.filename}`}
+            >
+                <div className="evaluation-gradcam-action">
+                    <div>
+                        <strong>Explicabilidad Grad-CAM</strong>
+                        <span>
+                            Genera los mapas únicamente para esta imagen evaluada.
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        className="evaluation-gradcam-button"
+                        disabled={gradCamLoading || gradCamReady}
+                        aria-describedby={gradCamError ? gradCamErrorId : undefined}
+                        onClick={() =>
+                            onGenerateGradCam(evaluationId, result.image_id)
+                        }
+                    >
+                        {gradCamLoading
+                            ? 'Generando Grad-CAM…'
+                            : gradCamReady
+                              ? 'Grad-CAM generado'
+                              : gradCamError
+                                ? 'Reintentar Grad-CAM'
+                                : 'Generar Grad-CAM'}
+                    </button>
+                </div>
+
+                {gradCamLoading && (
+                    <p
+                        className="evaluation-gradcam-status"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        Generando Grad-CAM original y adversarial para esta imagen.
+                    </p>
+                )}
+
+                {gradCamError && (
+                    <div
+                        id={gradCamErrorId}
+                        className="evaluation-gradcam-error"
+                        role="alert"
+                    >
+                        {gradCamError}
+                    </div>
+                )}
+
+                {gradCamReady && (
+                    <div className="evaluation-gradcam-grid">
+                        <ImagePreview
+                            label="Grad-CAM original"
+                            path={
+                                gradCamEntry.data
+                                    .original_gradcam_image_url
+                            }
+                            alt={`Grad-CAM original de ${result.filename}`}
+                            variant="gradcam-original"
+                        />
+                        <ImagePreview
+                            label="Grad-CAM adversarial"
+                            path={
+                                gradCamEntry.data
+                                    .adversarial_gradcam_image_url
+                            }
+                            alt={`Grad-CAM adversarial de ${result.filename}`}
+                            variant="gradcam-adversarial"
+                        />
+                    </div>
+                )}
+            </section>
+
             <div
                 id={diagnosticsId}
                 className="evaluation-image-diagnostics"
@@ -266,7 +343,11 @@ function EvaluationImageCard({ result }) {
     )
 }
 
-function EvaluationImages({ evaluation }) {
+function EvaluationImages({
+    evaluation,
+    gradCamStates,
+    onGenerateGradCam,
+}) {
     const [filter, setFilter] = useState('all')
     const [search, setSearch] = useState('')
     const [page, setPage] = useState(1)
@@ -386,7 +467,19 @@ function EvaluationImages({ evaluation }) {
             {pageResults.length ? (
                 <div className="evaluation-image-list" aria-label="Resultados por imagen">
                     {pageResults.map((result) => (
-                        <EvaluationImageCard key={result.image_id} result={result} />
+                        <EvaluationImageCard
+                            key={result.image_id}
+                            evaluationId={evaluation.result_id}
+                            result={result}
+                            gradCamEntry={getEvaluationGradCamEntry(
+                                gradCamStates,
+                                getEvaluationGradCamKey(
+                                    evaluation.result_id,
+                                    result.image_id,
+                                ),
+                            )}
+                            onGenerateGradCam={onGenerateGradCam}
+                        />
                     ))}
                 </div>
             ) : (

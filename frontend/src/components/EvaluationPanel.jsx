@@ -1,11 +1,22 @@
-import { useMemo, useState } from 'react'
-import { evaluateDataset } from '../api/evaluation'
+import { useMemo, useReducer, useRef, useState } from 'react'
+import {
+    evaluateDataset,
+    generateEvaluationGradCam,
+} from '../api/evaluation'
 import EvaluationClassMetrics from './evaluation/EvaluationClassMetrics'
 import EvaluationConfusionMatrices from './evaluation/EvaluationConfusionMatrices'
 import EvaluationCurves from './evaluation/EvaluationCurves'
 import EvaluationImages from './evaluation/EvaluationImages'
 import EvaluationOverview from './evaluation/EvaluationOverview'
 import EvaluationTabs from './evaluation/EvaluationTabs'
+import {
+    canRequestEvaluationGradCam,
+    evaluationGradCamReducer,
+    getEvaluationGradCamEntry,
+    getEvaluationGradCamErrorMessage,
+    getEvaluationGradCamKey,
+    isEvaluationGradCamResponse,
+} from '../utils/evaluationGradCamState'
 
 const ATTACK_NAMES = {
     fgsm: 'FGSM',
@@ -28,6 +39,12 @@ function EvaluationPanel({
     const [activeTab, setActiveTab] = useState('overview')
     const [loading, setLoading] = useState(false)
     const [errorState, setErrorState] = useState(null)
+    const [gradCamStates, dispatchGradCam] = useReducer(
+        evaluationGradCamReducer,
+        {},
+    )
+    const gradCamRequests = useRef(new Set())
+    const gradCamRun = useRef(0)
 
     const epsilon = attackParameters.epsilon
     const alpha = attackParameters.alpha
@@ -70,6 +87,9 @@ function EvaluationPanel({
         try {
             setLoading(true)
             setErrorState(null)
+            gradCamRun.current += 1
+            gradCamRequests.current.clear()
+            dispatchGradCam({ type: 'reset' })
 
             const result = await evaluateDataset({
                 datasetId: selectedDataset.id,
@@ -85,6 +105,65 @@ function EvaluationPanel({
             setErrorState({ contextKey, message: err.message })
         } finally {
             setLoading(false)
+        }
+    }
+
+    async function handleGenerateGradCam(evaluationId, imageId) {
+        const key = getEvaluationGradCamKey(evaluationId, imageId)
+        const requestRun = gradCamRun.current
+        const currentEntry = getEvaluationGradCamEntry(gradCamStates, key)
+
+        if (
+            !canRequestEvaluationGradCam(
+                currentEntry,
+                gradCamRequests.current.has(key),
+            )
+        ) {
+            return
+        }
+
+        gradCamRequests.current.add(key)
+        dispatchGradCam({ type: 'loading', key })
+
+        try {
+            const response = await generateEvaluationGradCam(
+                evaluationId,
+                imageId,
+            )
+
+            if (
+                !isEvaluationGradCamResponse(
+                    response,
+                    evaluationId,
+                    imageId,
+                )
+            ) {
+                throw new Error('Invalid Grad-CAM response')
+            }
+
+            if (requestRun !== gradCamRun.current) {
+                return
+            }
+
+            dispatchGradCam({
+                type: 'success',
+                key,
+                data: response,
+            })
+        } catch (err) {
+            if (requestRun !== gradCamRun.current) {
+                return
+            }
+
+            dispatchGradCam({
+                type: 'error',
+                key,
+                error: getEvaluationGradCamErrorMessage(err),
+            })
+        } finally {
+            if (requestRun === gradCamRun.current) {
+                gradCamRequests.current.delete(key)
+            }
         }
     }
 
@@ -181,7 +260,11 @@ function EvaluationPanel({
                         )}
 
                         {activeTab === 'images' && (
-                            <EvaluationImages evaluation={evaluation} />
+                            <EvaluationImages
+                                evaluation={evaluation}
+                                gradCamStates={gradCamStates}
+                                onGenerateGradCam={handleGenerateGradCam}
+                            />
                         )}
                     </div>
 

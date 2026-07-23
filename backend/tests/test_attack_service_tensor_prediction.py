@@ -230,8 +230,7 @@ async def test_structured_attack_predicts_from_exact_adversarial_tensor(
     assert gradcam_calls[0]["visualization_image"].size == source_image.size
     assert gradcam_calls[0]["visualization_image"].tobytes() == source_before
     assert (
-        saved_by_filename["original_gradcam.png"]
-        is gradcam_calls[0]["rendered_image"]
+        saved_by_filename["original_gradcam.png"] is gradcam_calls[0]["rendered_image"]
     )
     assert (
         saved_by_filename["adversarial_gradcam.png"]

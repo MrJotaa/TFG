@@ -347,9 +347,7 @@ async def test_on_demand_gradcam_rejects_corrupt_scientific_artifacts(
     artifact = {
         "schema_version": 1,
         "evaluation_id": (
-            "evaluation_other"
-            if corruption == "wrong_identity"
-            else evaluation_id
+            "evaluation_other" if corruption == "wrong_identity" else evaluation_id
         ),
         "image_id": image_id,
         "model_id": "test-model",
@@ -421,9 +419,7 @@ async def test_gradcam_failure_does_not_publish_or_mark_partial_pair(
 
     assert not (result_path / image_entry["original_gradcam_filename"]).exists()
     assert not (result_path / image_entry["adversarial_gradcam_filename"]).exists()
-    metadata = json.loads(
-        (result_path / "metadata.json").read_text(encoding="utf-8")
-    )
+    metadata = json.loads((result_path / "metadata.json").read_text(encoding="utf-8"))
     assert metadata["images"][image_id]["gradcam_generated"] is False
 
 
@@ -456,9 +452,7 @@ async def test_persistence_failure_does_not_mark_gradcam_as_generated(
     monkeypatch.setattr(
         gradcam_service,
         "_persist_gradcam_pair",
-        lambda **kwargs: (_ for _ in ()).throw(
-            OSError("persistence failed")
-        ),
+        lambda **kwargs: (_ for _ in ()).throw(OSError("persistence failed")),
     )
 
     with pytest.raises(OSError, match="persistence failed"):
@@ -470,9 +464,7 @@ async def test_persistence_failure_does_not_mark_gradcam_as_generated(
 
     assert not (result_path / image_entry["original_gradcam_filename"]).exists()
     assert not (result_path / image_entry["adversarial_gradcam_filename"]).exists()
-    metadata = json.loads(
-        (result_path / "metadata.json").read_text(encoding="utf-8")
-    )
+    metadata = json.loads((result_path / "metadata.json").read_text(encoding="utf-8"))
     assert metadata["images"][image_id]["gradcam_generated"] is False
 
 
@@ -489,10 +481,7 @@ def test_pair_publication_rolls_back_if_second_publish_fails(
     real_replace = gradcam_service.os.replace
 
     def fail_second_publish(source, destination):
-        if (
-            str(source).endswith(".tmp")
-            and destination == str(adversarial_path)
-        ):
+        if str(source).endswith(".tmp") and destination == str(adversarial_path):
             raise OSError("second publish failed")
         real_replace(source, destination)
 
@@ -651,8 +640,7 @@ def test_evaluation_gradcam_route_is_authenticated_post():
     route = next(
         route
         for route in evaluate_route.router.routes
-        if route.path
-        == "/evaluations/{evaluation_id}/images/{image_id}/gradcam"
+        if route.path == "/evaluations/{evaluation_id}/images/{image_id}/gradcam"
     )
 
     assert route.methods == {"POST"}

@@ -59,14 +59,10 @@ async def generate_evaluation_image_gradcam(
         require_model_task_type(
             model=model,
             expected_task_type=CLASSIFICATION_TASK_TYPE,
-            endpoint=(
-                f"/evaluations/{evaluation_id}/images/{image_id}/gradcam"
-            ),
+            endpoint=(f"/evaluations/{evaluation_id}/images/{image_id}/gradcam"),
         )
         if model.id != metadata.get("model_id"):
-            raise BadRequestError(
-                "The model used by this evaluation is not active"
-            )
+            raise BadRequestError("The model used by this evaluation is not active")
 
         clean_model_input, adversarial_model_input = _load_scientific_inputs(
             result_path=result_path,
@@ -85,9 +81,7 @@ async def generate_evaluation_image_gradcam(
         )
 
         if original_image.size != adversarial_image.size:
-            raise BadRequestError(
-                "Evaluation visual artifact geometries do not match"
-            )
+            raise BadRequestError("Evaluation visual artifact geometries do not match")
 
         clean_model_input = _move_to_model_device(clean_model_input, model)
         adversarial_model_input = _move_to_model_device(
@@ -380,11 +374,9 @@ def _build_response(
         evaluation_id=evaluation_id,
         image_id=image_id,
         original_gradcam_image_url=(
-            f"/results/{evaluation_id}/"
-            f"{image_entry['original_gradcam_filename']}"
+            f"/results/{evaluation_id}/{image_entry['original_gradcam_filename']}"
         ),
         adversarial_gradcam_image_url=(
-            f"/results/{evaluation_id}/"
-            f"{image_entry['adversarial_gradcam_filename']}"
+            f"/results/{evaluation_id}/{image_entry['adversarial_gradcam_filename']}"
         ),
     )

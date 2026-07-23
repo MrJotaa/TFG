@@ -1,4 +1,4 @@
-import { apiRequest } from './client'
+import { apiRequest } from './client.js'
 
 export function evaluateDataset({ datasetId, attackType, epsilon, alpha, steps }) {
     return apiRequest('/evaluate', {
@@ -16,4 +16,16 @@ export function evaluateDataset({ datasetId, attackType, epsilon, alpha, steps }
             },
         }),
     })
+}
+
+export function generateEvaluationGradCam(evaluationId, imageId) {
+    const encodedEvaluationId = encodeURIComponent(evaluationId)
+    const encodedImageId = encodeURIComponent(imageId)
+
+    return apiRequest(
+        `/evaluations/${encodedEvaluationId}/images/${encodedImageId}/gradcam`,
+        {
+            method: 'POST',
+        },
+    )
 }

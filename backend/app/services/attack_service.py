@@ -69,9 +69,7 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
             model_space_delta=attack_result.model_space_delta,
         )
         adversarial_image_to_persist = reconstruction.adversarial_image
-        perturbation_image_to_persist = (
-            reconstruction.perturbation_visualization
-        )
+        perturbation_image_to_persist = reconstruction.perturbation_visualization
         del reconstruction
 
         original_gradcam_result = generate_gradcam_from_prepared_input(

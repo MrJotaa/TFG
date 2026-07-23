@@ -65,9 +65,7 @@ def _render_gradcam_on_source(
 ) -> Image.Image:
     """Proyecta el mapa y lo mezcla sobre una copia RGB de la imagen fuente."""
     source_rgb = source_image.copy().convert("RGB")
-    cam_image = Image.fromarray(np.uint8(normalized_cam * 255)).resize(
-        source_rgb.size
-    )
+    cam_image = Image.fromarray(np.uint8(normalized_cam * 255)).resize(source_rgb.size)
     heatmap = cm.jet(np.array(cam_image) / 255.0)[:, :, :3]
     heatmap = np.uint8(heatmap * 255)
 

@@ -254,9 +254,7 @@ async def evaluate_dataset(
                 model_space_delta=attack_result.model_space_delta,
             )
             adversarial_image_to_persist = reconstruction.adversarial_image
-            perturbation_image_to_persist = (
-                reconstruction.perturbation_visualization
-            )
+            perturbation_image_to_persist = reconstruction.perturbation_visualization
             del reconstruction
         else:
             adversarial_image_to_persist = adversarial_image
@@ -357,19 +355,11 @@ async def evaluate_dataset(
         evaluation_images_manifest[image_id] = {
             "image_id": image_id,
             "filename": filename,
-            "original_visual_filename": (
-                artifact_filenames["original_visual"]
-            ),
-            "adversarial_visual_filename": (
-                f"{safe_image_id}_adversarial.png"
-            ),
+            "original_visual_filename": (artifact_filenames["original_visual"]),
+            "adversarial_visual_filename": (f"{safe_image_id}_adversarial.png"),
             "model_inputs_filename": artifact_filenames["model_inputs"],
-            "original_gradcam_filename": (
-                artifact_filenames["original_gradcam"]
-            ),
-            "adversarial_gradcam_filename": (
-                artifact_filenames["adversarial_gradcam"]
-            ),
+            "original_gradcam_filename": (artifact_filenames["original_gradcam"]),
+            "adversarial_gradcam_filename": (artifact_filenames["adversarial_gradcam"]),
             "gradcam_generated": False,
         }
 
