@@ -6,6 +6,9 @@ from ultralytics.engine.results import Results
 from ml.detection_categories import DetectionClassCatalog
 from ml.models.base import BaseObjectDetectionModel
 from ml.models.detection import DetectionResult
+from ml.models.detection_inference import (
+    DetectionEvaluationInferenceConfiguration,
+)
 from ml.models.yolo.adapter import UltralyticsDetectionAdapter
 from ml.models.yolo.catalog import (
     UltralyticsClassCatalogError,
@@ -73,12 +76,25 @@ class YOLODetectionModel(BaseObjectDetectionModel):
             names=names,
         )
 
-    def _run_inference(self, image: Image.Image) -> Results:
+    def _run_inference(
+        self,
+        image: Image.Image,
+        configuration: DetectionEvaluationInferenceConfiguration | None = None,
+    ) -> Results:
         if self.model is None:
             self.load()
 
         with torch.no_grad():
-            results = self.model(image)
+            if configuration is None:
+                results = self.model(image)
+            else:
+                results = self.model(
+                    image,
+                    conf=configuration.score_floor,
+                    iou=configuration.nms_iou_threshold,
+                    max_det=configuration.max_detections_per_image,
+                    verbose=False,
+                )
 
         return results[0]
 
@@ -104,6 +120,21 @@ class YOLODetectionModel(BaseObjectDetectionModel):
 
     def detect(self, image: Image.Image) -> DetectionResult:
         result = self._run_inference(image)
+        return self._result_to_prediction(result, image)
+
+    def detect_for_evaluation(
+        self,
+        image: Image.Image,
+        configuration: DetectionEvaluationInferenceConfiguration,
+    ) -> DetectionResult:
+        if not isinstance(
+            configuration,
+            DetectionEvaluationInferenceConfiguration,
+        ):
+            raise TypeError(
+                "configuration must be a DetectionEvaluationInferenceConfiguration"
+            )
+        result = self._run_inference(image, configuration)
         return self._result_to_prediction(result, image)
 
     def get_annotated_image(self, image: Image.Image) -> Image.Image:

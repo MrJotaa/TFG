@@ -5,6 +5,9 @@ from core.task_compatibility import (
     require_model_task_type,
 )
 from ml.attacks.registry import get_attack
+from ml.models.detection_inference import (
+    DetectionEvaluationInferenceConfiguration,
+)
 from schemas.detection import to_detection_predictions
 from schemas.detection_evaluation import (
     DetectionEvaluationImageResult,
@@ -13,6 +16,15 @@ from schemas.detection_evaluation import (
     DetectionEvaluationSummary,
 )
 from services.dataset_service import get_dataset, get_image_from_dataset
+from services.detection_annotation_snapshot import (
+    read_detection_annotation_snapshot,
+)
+from services.detection_supervised_evaluation import (
+    build_detection_supervised_metrics,
+    build_legacy_detection_result,
+    prepare_detection_supervised_evaluation,
+    requires_detection_supervised_catalog,
+)
 from services.model_service import get_active_model_instance
 from utils.detection_metrics import (
     average,
@@ -43,7 +55,27 @@ async def evaluate_detection_dataset(
         task_type=model.task_type,
     )
 
+    annotation_snapshot = await read_detection_annotation_snapshot(request.dataset_id)
+    catalog = (
+        model.get_detection_class_catalog()
+        if requires_detection_supervised_catalog(annotation_snapshot)
+        else None
+    )
+    supervised_context = prepare_detection_supervised_evaluation(
+        snapshot=annotation_snapshot,
+        catalog=catalog,
+    )
+    inference_configuration = (
+        DetectionEvaluationInferenceConfiguration(
+            score_floor=request.supervised_configuration.score_floor,
+        )
+        if supervised_context.available
+        else None
+    )
+
     image_results = []
+    original_supervised_results = {}
+    adversarial_supervised_results = {}
 
     total_original_detections = 0
     total_adversarial_detections = 0
@@ -71,10 +103,34 @@ async def evaluate_detection_dataset(
 
         adversarial_image = attack_result["adversarial_image"]
 
-        original_detection_result = model.detect(image)
-        original_detections = original_detection_result.detections
+        if supervised_context.available:
+            original_scientific_result = model.detect_for_evaluation(
+                image,
+                inference_configuration,
+            )
+            adversarial_scientific_result = model.detect_for_evaluation(
+                adversarial_image,
+                inference_configuration,
+            )
+            if image_metadata.id in supervised_context.snapshot.reviewed_image_ids:
+                original_supervised_results[image_metadata.id] = (
+                    original_scientific_result
+                )
+                adversarial_supervised_results[image_metadata.id] = (
+                    adversarial_scientific_result
+                )
 
-        adversarial_detection_result = model.detect(adversarial_image)
+            original_detection_result = build_legacy_detection_result(
+                original_scientific_result
+            )
+            adversarial_detection_result = build_legacy_detection_result(
+                adversarial_scientific_result
+            )
+        else:
+            original_detection_result = model.detect(image)
+            adversarial_detection_result = model.detect(adversarial_image)
+
+        original_detections = original_detection_result.detections
         adversarial_detections = adversarial_detection_result.detections
 
         metrics = calculate_detection_comparison(
@@ -159,6 +215,12 @@ async def evaluate_detection_dataset(
         average_perturbation_linf=average(perturbation_linf_values),
         average_perturbation_l2=average(perturbation_l2_values),
     )
+    supervised = build_detection_supervised_metrics(
+        context=supervised_context,
+        original_results_by_image_id=original_supervised_results,
+        adversarial_results_by_image_id=adversarial_supervised_results,
+        configuration=request.supervised_configuration,
+    )
 
     return DetectionEvaluationResponse(
         model_id=model.id,
@@ -168,4 +230,5 @@ async def evaluate_detection_dataset(
         parameters=request.parameters,
         summary=summary,
         results=image_results,
+        supervised=supervised,
     )

@@ -1,14 +1,21 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from schemas.attack import AttackParameters, AttackType
 from schemas.detection import DetectionPrediction
-from schemas.detection_metrics import DetectionMetricsContract
+from schemas.detection_metrics import (
+    DetectionMetricsContract,
+    DetectionSupervisedConfiguration,
+    DetectionSupervisedMetrics,
+)
 
 
 class DetectionEvaluationRequest(BaseModel):
     dataset_id: str
     attack_type: AttackType = AttackType.YOLO_CONFIDENCE
     parameters: AttackParameters = AttackParameters()
+    supervised_configuration: DetectionSupervisedConfiguration = Field(
+        default_factory=DetectionSupervisedConfiguration
+    )
 
 
 class DetectionEvaluationImageResult(BaseModel):
@@ -76,3 +83,4 @@ class DetectionEvaluationResponse(DetectionMetricsContract):
 
     summary: DetectionEvaluationSummary
     results: list[DetectionEvaluationImageResult]
+    supervised: DetectionSupervisedMetrics | None = None

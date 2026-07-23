@@ -1,3 +1,4 @@
+import pytest
 from fastapi import HTTPException
 
 import api.routes.detection_evaluate as detection_evaluate_route
@@ -23,6 +24,9 @@ def test_detect_evaluate_returns_detection_evaluation_response(client, monkeypat
         assert request.parameters.epsilon == 0.05
         assert request.parameters.alpha == 0.01
         assert request.parameters.steps == 10
+        assert request.supervised_configuration.score_floor == 0.001
+        assert request.supervised_configuration.confidence_threshold == 0.25
+        assert request.supervised_configuration.iou_threshold == 0.5
 
         return {
             "metrics_schema_version": "1.0",
@@ -243,6 +247,44 @@ def test_detect_evaluate_with_invalid_attack_type_returns_422(client):
         json={
             "dataset_id": "dataset-1",
             "attack_type": "invalid_attack",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "supervised_configuration",
+    [
+        {
+            "score_floor": 0.3,
+            "confidence_threshold": 0.3,
+        },
+        {
+            "score_floor": 0.2,
+            "confidence_threshold": 0.1,
+        },
+        {
+            "iou_threshold": 0.51,
+        },
+        {
+            "max_detections_per_image": 99,
+        },
+        {
+            "nms_iou_threshold": 0.6,
+        },
+    ],
+)
+def test_detect_evaluate_rejects_invalid_supervised_thresholds(
+    client,
+    supervised_configuration,
+):
+    response = client.post(
+        "/detect/evaluate",
+        json={
+            "dataset_id": "dataset-1",
+            "attack_type": "random_noise",
+            "supervised_configuration": supervised_configuration,
         },
     )
 

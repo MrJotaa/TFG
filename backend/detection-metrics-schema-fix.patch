@@ -1,0 +1,494 @@
+--- a/app/schemas/detection_metrics.py
++++ b/app/schemas/detection_metrics.py
+@@ -11,12 +11,38 @@
+ )
+ 
+ PUBLIC_DETECTION_METRIC_TOLERANCE = 1e-6
++PUBLIC_DETECTION_PERCENTAGE_DECIMAL_PLACES = 2
++PUBLIC_DETECTION_RECALL_THRESHOLD_COUNT = 101
+ 
+ 
+ def _fraction_or_none(numerator: int, denominator: int) -> float | None:
+     return numerator / denominator if denominator else None
+ 
+ 
++def _rounded_percentage(numerator: int, denominator: int) -> float:
++    if denominator == 0:
++        return 0.0
++    return round(
++        numerator / denominator * 100.0,
++        PUBLIC_DETECTION_PERCENTAGE_DECIMAL_PLACES,
++    )
++
++
++def _require_metric_close(
++    *,
++    field_name: str,
++    actual: float,
++    expected: float,
++) -> None:
++    if not math.isclose(
++        actual,
++        expected,
++        rel_tol=0.0,
++        abs_tol=PUBLIC_DETECTION_METRIC_TOLERANCE,
++    ):
++        raise ValueError(f"{field_name} is mathematically inconsistent")
++
++
+ def _require_optional_metric(
+     *,
+     field_name: str,
+@@ -25,7 +51,7 @@
+ ) -> None:
+     if expected is None:
+         if actual is not None:
+-            raise ValueError(f"{field_name} must be null for these counts")
++            raise ValueError(f"{field_name} must be null for this metric state")
+         return
+     if actual is None or not math.isclose(
+         actual,
+@@ -33,7 +59,7 @@
+         rel_tol=0.0,
+         abs_tol=PUBLIC_DETECTION_METRIC_TOLERANCE,
+     ):
+-        raise ValueError(f"{field_name} is inconsistent with its counts")
++        raise ValueError(f"{field_name} is mathematically inconsistent")
+ 
+ 
+ class DetectionMetricsContract(BaseModel):
+@@ -146,6 +172,60 @@
+     iscrowd_objects: int = Field(ge=0)
+     object_coverage_percentage: float = Field(ge=0.0, le=100.0)
+ 
++    @model_validator(mode="after")
++    def validate_totals_and_percentages(self):
++        if self.reviewed_images + self.unreviewed_images != self.total_images:
++            raise ValueError(
++                "reviewed_images and unreviewed_images must sum to total_images"
++            )
++        if (
++            self.reviewed_empty_images + self.reviewed_with_objects_images
++            != self.reviewed_images
++        ):
++            raise ValueError(
++                "reviewed image statuses must sum to reviewed_images"
++            )
++
++        categorized = (
++            self.resolved_categories
++            + self.unresolved_categories
++            + self.ambiguous_categories
++            + self.conflicting_categories
++        )
++        if categorized > self.total_categories:
++            raise ValueError(
++                "category resolution counts must not exceed total_categories"
++            )
++
++        if (
++            self.evaluable_objects + self.objects_excluded_by_resolution
++            > self.total_objects
++        ):
++            raise ValueError(
++                "evaluable and resolution-excluded objects must not exceed "
++                "total_objects"
++            )
++        if self.iscrowd_objects > self.total_objects:
++            raise ValueError("iscrowd_objects must not exceed total_objects")
++
++        _require_metric_close(
++            field_name="coverage_percentage",
++            actual=self.coverage_percentage,
++            expected=_rounded_percentage(
++                self.reviewed_images,
++                self.total_images,
++            ),
++        )
++        _require_metric_close(
++            field_name="object_coverage_percentage",
++            actual=self.object_coverage_percentage,
++            expected=_rounded_percentage(
++                self.evaluable_objects,
++                self.total_objects,
++            ),
++        )
++        return self
++
+ 
+ class DetectionClassReference(DetectionMetricModel):
+     category_internal_id: str
+@@ -177,6 +257,20 @@
+     max_detections: int = Field(ge=1)
+     points: tuple[DetectionPrecisionRecallPoint, ...]
+ 
++    @model_validator(mode="after")
++    def validate_recall_grid(self):
++        if len(self.points) != PUBLIC_DETECTION_RECALL_THRESHOLD_COUNT:
++            raise ValueError(
++                "precision-recall curves must contain the 101 COCO recall points"
++            )
++        for index, point in enumerate(self.points):
++            _require_metric_close(
++                field_name=f"points[{index}].recall",
++                actual=point.recall,
++                expected=index / 100.0,
++            )
++        return self
++
+ 
+ class DetectionOperatingPointMetrics(DetectionMetricModel):
+     true_positives: int = Field(ge=0)
+@@ -256,6 +350,14 @@
+     def validate_support_contract(self):
+         if self.images_with_objects > self.support:
+             raise ValueError("images_with_objects must not exceed support")
++        if (
++            self.operating_point.true_positives
++            + self.operating_point.false_negatives
++            != self.support
++        ):
++            raise ValueError(
++                "true_positives plus false_negatives must equal support"
++            )
+         calculated_values = (
+             self.average_precision,
+             self.average_recall,
+@@ -265,6 +367,15 @@
+             raise ValueError("zero-support classes require null AP, AR and PR curve")
+         if self.support > 0 and any(value is None for value in calculated_values):
+             raise ValueError("positive-support classes require AP, AR and PR curve")
++        if self.support > 0:
++            expected_average_precision = sum(
++                point.precision for point in self.precision_recall_curve.points
++            ) / len(self.precision_recall_curve.points)
++            _require_optional_metric(
++                field_name="average_precision",
++                actual=self.average_precision,
++                expected=expected_average_precision,
++            )
+         return self
+ 
+ 
+@@ -274,6 +385,48 @@
+     operating_point: DetectionOperatingPointMetrics
+     per_class: tuple[DetectionPerClassCocoMetrics, ...]
+ 
++    @model_validator(mode="after")
++    def validate_aggregate_contract(self):
++        has_supported_class = any(item.support > 0 for item in self.per_class)
++        if has_supported_class != (self.precision_recall_curve is not None):
++            raise ValueError(
++                "aggregate precision-recall curve presence must match class support"
++            )
++
++        aggregate_counts = {
++            "true_positives": self.operating_point.true_positives,
++            "false_positives": self.operating_point.false_positives,
++            "false_negatives": self.operating_point.false_negatives,
++        }
++        for field_name, aggregate_value in aggregate_counts.items():
++            per_class_total = sum(
++                getattr(item.operating_point, field_name) for item in self.per_class
++            )
++            if aggregate_value != per_class_total:
++                raise ValueError(
++                    f"aggregate {field_name} must equal the per-class sum"
++                )
++
++        if self.precision_recall_curve is None:
++            if self.aggregate.map_50_95 is not None:
++                raise ValueError(
++                    "map_50_95 requires an aggregate precision-recall curve"
++                )
++        else:
++            if self.aggregate.map_50_95 is None:
++                raise ValueError(
++                    "an aggregate precision-recall curve requires map_50_95"
++                )
++            expected_map = sum(
++                point.precision for point in self.precision_recall_curve.points
++            ) / len(self.precision_recall_curve.points)
++            _require_optional_metric(
++                field_name="map_50_95",
++                actual=self.aggregate.map_50_95,
++                expected=expected_map,
++            )
++        return self
++
+ 
+ class DetectionMetricDelta(DetectionMetricModel):
+     absolute: float | None
+--- a/tests/test_detection_supervised_metrics_contract.py
++++ b/tests/test_detection_supervised_metrics_contract.py
+@@ -7,7 +7,10 @@
+ from ml.models.detection import Detection, DetectionBox, DetectionResult
+ from schemas.detection_evaluation import DetectionEvaluationRequest
+ from schemas.detection_metrics import (
++    DetectionAnnotationCoverage,
+     DetectionClassReference,
++    DetectionCocoAggregateMetrics,
++    DetectionCocoAnalysis,
+     DetectionOperatingPointMetrics,
+     DetectionPerClassCocoMetrics,
+     DetectionPrecisionRecallCurve,
+@@ -240,6 +243,113 @@
+     )
+ 
+ 
++def _precision_recall_curve(precision=1.0):
++    return DetectionPrecisionRecallCurve(
++        iou_thresholds=(0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95),
++        area="all",
++        max_detections=100,
++        points=tuple(
++            DetectionPrecisionRecallPoint(
++                recall=index / 100.0,
++                precision=precision,
++            )
++            for index in range(101)
++        ),
++    )
++
++
++def _positive_class_metrics(
++    *,
++    support=1,
++    true_positives=1,
++    false_positives=0,
++    false_negatives=0,
++    average_precision=1.0,
++    curve_precision=1.0,
++):
++    precision = (
++        true_positives / (true_positives + false_positives)
++        if true_positives + false_positives
++        else None
++    )
++    recall = (
++        true_positives / (true_positives + false_negatives)
++        if true_positives + false_negatives
++        else None
++    )
++    f1 = (
++        2 * precision * recall / (precision + recall)
++        if precision is not None
++        and recall is not None
++        and precision + recall > 0
++        else None
++    )
++    return DetectionPerClassCocoMetrics(
++        reference=_class_reference(),
++        support=support,
++        images_with_objects=1,
++        iscrowd_objects=0,
++        average_precision=average_precision,
++        average_recall=1.0,
++        precision_recall_curve=_precision_recall_curve(curve_precision),
++        operating_point=DetectionOperatingPointMetrics(
++            true_positives=true_positives,
++            false_positives=false_positives,
++            false_negatives=false_negatives,
++            precision=precision,
++            recall=recall,
++            f1=f1,
++        ),
++    )
++
++
++def _annotation_coverage(**overrides):
++    values = {
++        "total_images": 3,
++        "reviewed_images": 2,
++        "unreviewed_images": 1,
++        "reviewed_empty_images": 1,
++        "reviewed_with_objects_images": 1,
++        "coverage_percentage": 66.67,
++        "total_categories": 2,
++        "resolved_categories": 1,
++        "unresolved_categories": 1,
++        "ambiguous_categories": 0,
++        "conflicting_categories": 0,
++        "total_objects": 3,
++        "evaluable_objects": 1,
++        "objects_excluded_by_resolution": 1,
++        "iscrowd_objects": 1,
++        "object_coverage_percentage": 33.33,
++    }
++    values.update(overrides)
++    return DetectionAnnotationCoverage(**values)
++
++
++def test_annotation_coverage_contract_accepts_coherent_totals_and_percentages():
++    coverage = _annotation_coverage()
++
++    assert coverage.reviewed_images == 2
++    assert coverage.object_coverage_percentage == 33.33
++
++
++@pytest.mark.parametrize(
++    "overrides",
++    [
++        {"reviewed_images": 99},
++        {"reviewed_empty_images": 2},
++        {"resolved_categories": 2},
++        {"evaluable_objects": 3, "objects_excluded_by_resolution": 1},
++        {"iscrowd_objects": 4},
++        {"coverage_percentage": 50.0},
++        {"object_coverage_percentage": 50.0},
++    ],
++)
++def test_annotation_coverage_contract_rejects_incoherent_totals(overrides):
++    with pytest.raises(ValidationError):
++        _annotation_coverage(**overrides)
++
++
+ def test_per_class_contract_allows_zero_support_with_crowd_objects():
+     metrics = DetectionPerClassCocoMetrics(
+         reference=_class_reference(),
+@@ -291,37 +401,118 @@
+ 
+ 
+ def test_per_class_contract_accepts_positive_support_with_complete_metrics():
+-    curve = DetectionPrecisionRecallCurve(
+-        iou_thresholds=(0.5,),
+-        area="all",
+-        max_detections=100,
+-        points=(
+-            DetectionPrecisionRecallPoint(
+-                recall=0.0,
++    metrics = _positive_class_metrics()
++
++    assert metrics.support == 1
++
++
++def test_precision_recall_curve_contract_rejects_empty_points():
++    with pytest.raises(ValidationError):
++        DetectionPrecisionRecallCurve(
++            iou_thresholds=(0.5,),
++            area="all",
++            max_detections=100,
++            points=(),
++        )
++
++
++def test_precision_recall_curve_contract_rejects_non_coco_recall_grid():
++    points = list(_precision_recall_curve().points)
++    points[50] = DetectionPrecisionRecallPoint(recall=0.51, precision=1.0)
++
++    with pytest.raises(ValidationError):
++        DetectionPrecisionRecallCurve(
++            iou_thresholds=(0.5,),
++            area="all",
++            max_detections=100,
++            points=tuple(points),
++        )
++
++
++@pytest.mark.parametrize(
++    "overrides",
++    [
++        {
++            "support": 1,
++            "true_positives": 2,
++            "false_negatives": 0,
++        },
++        {
++            "average_precision": 0.5,
++            "curve_precision": 1.0,
++        },
++    ],
++)
++def test_per_class_contract_rejects_incoherent_counts_and_curve(overrides):
++    with pytest.raises(ValidationError):
++        _positive_class_metrics(**overrides)
++
++
++def test_coco_analysis_contract_accepts_aggregate_per_class_sums():
++    per_class = _positive_class_metrics()
++    analysis = DetectionCocoAnalysis(
++        aggregate=DetectionCocoAggregateMetrics(map_50_95=1.0),
++        precision_recall_curve=_precision_recall_curve(),
++        operating_point=per_class.operating_point,
++        per_class=(per_class,),
++    )
++
++    assert analysis.operating_point.true_positives == 1
++
++
++@pytest.mark.parametrize(
++    "aggregate,curve,operating_point",
++    [
++        (
++            DetectionCocoAggregateMetrics(map_50_95=1.0),
++            _precision_recall_curve(),
++            DetectionOperatingPointMetrics(
++                true_positives=0,
++                false_positives=0,
++                false_negatives=0,
++                precision=None,
++                recall=None,
++                f1=None,
++            ),
++        ),
++        (
++            DetectionCocoAggregateMetrics(map_50_95=0.5),
++            _precision_recall_curve(1.0),
++            DetectionOperatingPointMetrics(
++                true_positives=1,
++                false_positives=0,
++                false_negatives=0,
+                 precision=1.0,
++                recall=1.0,
++                f1=1.0,
+             ),
+         ),
+-    )
+-
+-    metrics = DetectionPerClassCocoMetrics(
+-        reference=_class_reference(),
+-        support=1,
+-        images_with_objects=1,
+-        iscrowd_objects=0,
+-        average_precision=1.0,
+-        average_recall=1.0,
+-        precision_recall_curve=curve,
+-        operating_point=DetectionOperatingPointMetrics(
+-            true_positives=1,
+-            false_positives=0,
+-            false_negatives=0,
+-            precision=1.0,
+-            recall=1.0,
+-            f1=1.0,
++        (
++            DetectionCocoAggregateMetrics(map_50_95=1.0),
++            None,
++            DetectionOperatingPointMetrics(
++                true_positives=1,
++                false_positives=0,
++                false_negatives=0,
++                precision=1.0,
++                recall=1.0,
++                f1=1.0,
++            ),
+         ),
+-    )
+-
+-    assert metrics.support == 1
++    ],
++)
++def test_coco_analysis_contract_rejects_incoherent_aggregate(
++    aggregate,
++    curve,
++    operating_point,
++):
++    with pytest.raises(ValidationError):
++        DetectionCocoAnalysis(
++            aggregate=aggregate,
++            precision_recall_curve=curve,
++            operating_point=operating_point,
++            per_class=(_positive_class_metrics(),),
++        )
+ 
+ 
+ def test_available_supervised_metrics_include_partial_coverage_and_deltas():

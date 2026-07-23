@@ -11,6 +11,9 @@ import services.detection_attack_service as detection_attack_service
 import services.detection_service as detection_service
 import services.explainability_service as explainability_service
 from ml.models.detection import Detection, DetectionBox, DetectionResult
+from ml.models.detection_inference import (
+    DetectionEvaluationInferenceConfiguration,
+)
 from ml.models.yolo.adapter import (
     DetectionAdapterError,
     UltralyticsDetectionAdapter,
@@ -264,6 +267,56 @@ def test_ultralytics_adapter_converts_native_rows_once_per_result(monkeypatch):
 
     assert len(result.detections) == 2
     assert conversions == {"to_cpu": 1, "to_list": 1}
+
+
+def test_yolo_evaluation_inference_uses_explicit_scientific_configuration():
+    source_image = Image.new("RGB", (640, 320))
+    native = _native_result([])
+    calls = []
+
+    class _LoadedModel:
+        def __call__(self, image, **kwargs):
+            calls.append((image, kwargs))
+            return [native]
+
+    model = YOLODetectionModel()
+    model.model = _LoadedModel()
+    configuration = DetectionEvaluationInferenceConfiguration(
+        score_floor=0.005,
+    )
+
+    result = model.detect_for_evaluation(source_image, configuration)
+
+    assert result == DetectionResult(source_width=640, source_height=320)
+    assert calls == [
+        (
+            source_image,
+            {
+                "conf": 0.005,
+                "iou": 0.7,
+                "max_det": 300,
+                "verbose": False,
+            },
+        )
+    ]
+
+
+def test_yolo_normal_detection_keeps_provider_defaults():
+    source_image = Image.new("RGB", (640, 320))
+    native = _native_result([])
+    calls = []
+
+    class _LoadedModel:
+        def __call__(self, image, **kwargs):
+            calls.append((image, kwargs))
+            return [native]
+
+    model = YOLODetectionModel()
+    model.model = _LoadedModel()
+
+    model.detect(source_image)
+
+    assert calls == [(source_image, {})]
 
 
 @pytest.mark.asyncio

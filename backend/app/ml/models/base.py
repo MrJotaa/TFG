@@ -8,6 +8,9 @@ from ml.models.classification import (
     DetailedClassificationPrediction,
 )
 from ml.models.detection import DetectionResult
+from ml.models.detection_inference import (
+    DetectionEvaluationInferenceConfiguration,
+)
 from schemas.predict import PredictResponse
 
 
@@ -154,6 +157,21 @@ class BaseObjectDetectionModel(BaseModel):
         Ejecuta detección de objetos sobre una imagen.
         """
         pass
+
+    def detect_for_evaluation(
+        self,
+        image: Image.Image,
+        configuration: DetectionEvaluationInferenceConfiguration,
+    ) -> DetectionResult:
+        """
+        Ejecuta una inferencia configurada para métricas basadas en scores.
+
+        Los detectores concretos deben implementarla sin reutilizar
+        silenciosamente los defaults interactivos.
+        """
+        raise NotImplementedError(
+            f"Model '{self.id}' does not support configured detection evaluation"
+        )
 
     def get_annotated_image(
         self,

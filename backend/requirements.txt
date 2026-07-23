@@ -7,6 +7,7 @@ pillow
 torch
 torchvision
 numpy
+pycocotools==2.0.11
 email-validator
 pymongo
 python-dotenv

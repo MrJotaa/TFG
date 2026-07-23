@@ -17,6 +17,9 @@ from schemas.detection_evaluation import (
 )
 from schemas.evaluation import EvaluationRequest
 from schemas.explainability import DetectionExplainRequest
+from services.detection_annotation_snapshot import (
+    MaterializedDetectionAnnotationSnapshot,
+)
 
 INTERNAL_ERROR = "Sensitive internal model failure"
 VALID_DATASET_ID = "507f1f77bcf86cd799439011"
@@ -293,6 +296,16 @@ async def test_detection_evaluation_preserves_unexpected_error(
     async def fake_get_dataset(dataset_id: str):
         return dataset
 
+    async def fake_read_snapshot(dataset_id: str):
+        return MaterializedDetectionAnnotationSnapshot(
+            dataset_id=dataset_id,
+            dataset_revision=0,
+            snapshot_id=None,
+            images=(),
+            categories=(),
+            annotations=(),
+        )
+
     monkeypatch.setattr(
         detection_evaluation_service,
         "get_dataset",
@@ -302,6 +315,11 @@ async def test_detection_evaluation_preserves_unexpected_error(
         detection_evaluation_service,
         "get_image_from_dataset",
         _fake_get_image_from_dataset,
+    )
+    monkeypatch.setattr(
+        detection_evaluation_service,
+        "read_detection_annotation_snapshot",
+        fake_read_snapshot,
     )
     monkeypatch.setattr(
         detection_evaluation_service,
