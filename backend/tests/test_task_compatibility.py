@@ -1,7 +1,15 @@
-from PIL import Image
-import pytest
 from types import SimpleNamespace
 
+import pytest
+from PIL import Image
+
+import services.attack_service as attack_service
+import services.detection_attack_service as detection_attack_service
+import services.detection_evaluation_service as detection_evaluation_service
+import services.detection_service as detection_service
+import services.evaluation_service as evaluation_service
+import services.explainability_service as explainability_service
+import services.inference_service as inference_service
 from core.errors import BadRequestError
 from core.task_compatibility import (
     CLASSIFICATION_TASK_TYPE,
@@ -9,14 +17,6 @@ from core.task_compatibility import (
     require_attack_task_type,
     require_model_task_type,
 )
-
-import services.attack_service as attack_service
-import services.evaluation_service as evaluation_service
-import services.inference_service as inference_service
-import services.detection_attack_service as detection_attack_service
-import services.detection_evaluation_service as detection_evaluation_service
-import services.detection_service as detection_service
-import services.explainability_service as explainability_service
 
 
 class FakeModel:

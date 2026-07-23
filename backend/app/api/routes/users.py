@@ -18,7 +18,6 @@ from services.user_service import (
     update_user,
 )
 
-
 router = APIRouter()
 
 

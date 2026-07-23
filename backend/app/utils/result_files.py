@@ -1,11 +1,11 @@
+import json
 import os
 import shutil
 import time
 import uuid
-from PIL import Image
-
-import json
 from datetime import datetime, timezone
+
+from PIL import Image
 
 RESULTS_BASE_PATH = "uploads/results"
 RESULTS_TTL_SECONDS = 24 * 60 * 60  # 24 horas

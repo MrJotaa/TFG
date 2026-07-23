@@ -2,7 +2,6 @@ from core.errors import BadRequestError
 from services.annotation_importers.base import AnnotationImporter
 from services.annotation_importers.coco import CocoAnnotationImporter
 
-
 _IMPORTERS: dict[str, AnnotationImporter] = {
     "coco": CocoAnnotationImporter(),
 }

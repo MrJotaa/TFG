@@ -13,7 +13,6 @@ from services.dataset_service import (
 )
 from utils.security import hash_password, verify_password
 
-
 INVALID_USER_ID_MESSAGE = "Invalid user id"
 USER_NOT_FOUND_MESSAGE = "User not found"
 USER_ALREADY_EXISTS_MESSAGE = "User with this email already exists"

@@ -1,19 +1,19 @@
+from core.errors import BadRequestError
+from core.task_compatibility import (
+    DETECTION_TASK_TYPE,
+    require_attack_task_type,
+    require_model_task_type,
+)
 from ml.attacks.registry import get_attack
+from schemas.detection import to_detection_predictions
 from schemas.detection_evaluation import (
     DetectionEvaluationImageResult,
     DetectionEvaluationRequest,
     DetectionEvaluationResponse,
     DetectionEvaluationSummary,
 )
-from schemas.detection import to_detection_predictions
 from services.dataset_service import get_dataset, get_image_from_dataset
 from services.model_service import get_active_model_instance
-from core.task_compatibility import (
-    DETECTION_TASK_TYPE,
-    require_attack_task_type,
-    require_model_task_type,
-)
-from core.errors import BadRequestError
 from utils.detection_metrics import (
     average,
     calculate_detection_comparison,

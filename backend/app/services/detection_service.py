@@ -1,3 +1,7 @@
+from core.task_compatibility import (
+    DETECTION_TASK_TYPE,
+    require_model_task_type,
+)
 from schemas.detection import (
     DetectionRequest,
     DetectionResponse,
@@ -9,10 +13,6 @@ from utils.result_files import (
     create_result_directory,
     save_result_image,
     save_result_metadata,
-)
-from core.task_compatibility import (
-    DETECTION_TASK_TYPE,
-    require_model_task_type,
 )
 
 

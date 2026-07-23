@@ -11,6 +11,9 @@ from schemas.datasets import (
     DatasetResponse,
 )
 from schemas.users import UserResponse
+from services.classification_label_service import (
+    get_active_dataset_label_resolution,
+)
 from services.dataset_annotation_service import (
     get_annotation_coverage,
     import_coco_annotations,
@@ -26,10 +29,6 @@ from services.dataset_service import (
     list_images_in_dataset,
     update_image_label,
 )
-from services.classification_label_service import (
-    get_active_dataset_label_resolution,
-)
-
 
 router = APIRouter()
 

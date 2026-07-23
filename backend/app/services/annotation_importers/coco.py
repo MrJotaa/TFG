@@ -12,7 +12,6 @@ from services.annotation_importers.base import (
     DatasetImageIdentity,
 )
 
-
 WINDOWS_DRIVE_PATTERN = re.compile(r"^[A-Za-z]:")
 
 

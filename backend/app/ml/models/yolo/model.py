@@ -1,11 +1,16 @@
-from PIL import Image
 import torch
+from PIL import Image
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
 
+from ml.detection_categories import DetectionClassCatalog
 from ml.models.base import BaseObjectDetectionModel
 from ml.models.detection import DetectionResult
 from ml.models.yolo.adapter import UltralyticsDetectionAdapter
+from ml.models.yolo.catalog import (
+    UltralyticsClassCatalogError,
+    build_ultralytics_class_catalog,
+)
 
 
 class YOLODetectionModel(BaseObjectDetectionModel):
@@ -43,6 +48,30 @@ class YOLODetectionModel(BaseObjectDetectionModel):
         # Capa profunda antes del head de detección.
         # Para YOLOv8n suele ser una buena primera opción para EigenCAM.
         return self.model.model.model[-2]
+
+    def get_detection_class_catalog(self) -> DetectionClassCatalog:
+        if self.model is None:
+            try:
+                self.load()
+            except Exception as error:
+                raise UltralyticsClassCatalogError(
+                    f"could not load Ultralytics model {self.id!r} "
+                    f"({self.name!r}) to obtain its detection class catalog"
+                ) from error
+
+        try:
+            names = self.model.names
+        except Exception as error:
+            raise UltralyticsClassCatalogError(
+                f"could not read the detection class catalog for loaded "
+                f"Ultralytics model {self.id!r} ({self.name!r})"
+            ) from error
+
+        return build_ultralytics_class_catalog(
+            model_id=self.id,
+            model_name=self.name,
+            names=names,
+        )
 
     def _run_inference(self, image: Image.Image) -> Results:
         if self.model is None:

@@ -3,8 +3,8 @@ from types import SimpleNamespace
 import pytest
 
 import services.detection_evaluation_service as detection_evaluation_service
-from schemas.attack import AttackType
 from ml.models.detection import Detection, DetectionBox, DetectionResult
+from schemas.attack import AttackType
 from schemas.detection_evaluation import DetectionEvaluationRequest
 
 

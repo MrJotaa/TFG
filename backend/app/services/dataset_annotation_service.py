@@ -32,7 +32,6 @@ from services.dataset_service import (
     _validate_dataset_id,
 )
 
-
 logger = logging.getLogger(__name__)
 
 COCO_MAX_UPLOAD_BYTES = int(os.getenv("COCO_MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))

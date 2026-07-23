@@ -4,19 +4,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from api.routes.predict import router as predict_router
-from api.routes.models import router as models_router
-from api.routes.users import router as users_router
-from api.routes.datasets import router as datasets_router
-from api.routes.explainability import router as explainability_router
 from api.routes.attack import router as attack_router
-from api.routes.evaluate import router as evaluate_router
 from api.routes.auth import router as auth_router
+from api.routes.datasets import router as datasets_router
 from api.routes.detect import router as detect_router
 from api.routes.detection_attack import router as detection_attack_router
 from api.routes.detection_evaluate import router as detection_evaluate_router
+from api.routes.evaluate import router as evaluate_router
+from api.routes.explainability import router as explainability_router
+from api.routes.models import router as models_router
+from api.routes.predict import router as predict_router
+from api.routes.users import router as users_router
 from core.error_handlers import register_error_handlers
-
 from db.database import get_database
 from db.migrations import upgrade_coco_annotations_schema
 

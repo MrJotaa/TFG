@@ -9,12 +9,12 @@ from ml.explainability.gradcam import (
     generate_clean_gradcam,
     generate_detection_eigencam,
 )
+from schemas.detection import to_detection_predictions
 from schemas.explainability import (
     DetectionExplainRequest,
     DetectionExplainResponse,
     GradCamResponse,
 )
-from schemas.detection import to_detection_predictions
 from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
 from utils.result_files import (

@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from pymongo import MongoClient
 
-
 TEST_DB_NAME = "tfg_adversarial_ai_test"
 TEST_UPLOADS_DATASETS_PATH = "uploads/test_datasets"
 

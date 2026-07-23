@@ -1,6 +1,5 @@
 import pytest
 
-
 INVALID_OBJECT_ID = "invalid-id"
 UNKNOWN_OBJECT_ID = "507f1f77bcf86cd799439011"
 

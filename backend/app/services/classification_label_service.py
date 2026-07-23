@@ -22,7 +22,6 @@ from schemas.models import (
 from services.dataset_service import get_dataset
 from services.model_service import get_active_model_instance
 
-
 _NON_WORD_PATTERN = re.compile(
     r"[^\w\s]",
     flags=re.UNICODE,

@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import torch
 from PIL import Image
 
+from ml.detection_categories import DetectionClassCatalog
 from ml.models.classification import (
     DetailedClassificationPrediction,
 )
@@ -139,6 +140,13 @@ class BaseObjectDetectionModel(BaseModel):
     """
 
     task_type = "detection"
+
+    @abstractmethod
+    def get_detection_class_catalog(self) -> DetectionClassCatalog:
+        """
+        Devuelve el catálogo completo de clases sin ejecutar inferencia.
+        """
+        pass
 
     @abstractmethod
     def detect(self, image: Image.Image) -> DetectionResult:

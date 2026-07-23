@@ -6,7 +6,6 @@ from schemas.classification_metrics import (
     LabelResolutionSummary,
 )
 
-
 AnnotationReviewStatus = Literal[
     "unreviewed",
     "reviewed_empty",
