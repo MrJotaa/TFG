@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -16,8 +18,16 @@ from api.routes.detection_evaluate import router as detection_evaluate_router
 from core.error_handlers import register_error_handlers
 
 from db.database import get_database
+from db.migrations import upgrade_coco_annotations_schema
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await upgrade_coco_annotations_schema()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 register_error_handlers(app)
 

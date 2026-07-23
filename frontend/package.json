@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "test:gradcam": "node --test tests/evaluationGradCam.test.js",
+    "test:coco": "node --test tests/cocoAnnotations.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

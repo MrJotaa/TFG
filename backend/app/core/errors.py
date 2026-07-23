@@ -9,7 +9,7 @@ class ApplicationError(Exception):
     status_code = 500
     default_detail = "Application error"
 
-    def __init__(self, detail: str | None = None):
+    def __init__(self, detail: str | dict | None = None):
         self.detail = detail if detail is not None else self.default_detail
 
         super().__init__(self.detail)
@@ -39,6 +39,13 @@ class ForbiddenError(ApplicationError):
 
     status_code = 403
     default_detail = "Forbidden"
+
+
+class ConflictError(ApplicationError):
+    """El estado del recurso cambió durante una operación concurrente."""
+
+    status_code = 409
+    default_detail = "Conflict"
 
 
 class NotFoundError(ApplicationError):

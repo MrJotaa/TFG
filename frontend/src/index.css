@@ -2068,7 +2068,7 @@ button {
     font-weight: 750;
 }
 
-.class-metrics-legend small {
+    .class-metrics-legend small {
     margin-left: auto;
     color: var(--evaluation-muted);
     font-size: 0.7rem;
@@ -4106,8 +4106,84 @@ button {
         flex-wrap: wrap;
     }
 
-    .class-metrics-legend small {
+.class-metrics-legend small {
         width: 100%;
         margin-left: 0;
     }
+}
+
+.coco-annotation-panel {
+    display: grid;
+    gap: 1rem;
+    margin: 1.25rem 0;
+    padding: 1rem;
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+.coco-annotation-panel h4,
+.coco-annotation-panel h5 {
+    margin: 0 0 0.4rem;
+}
+
+.coco-import-form {
+    display: flex;
+    gap: 0.8rem;
+    align-items: end;
+    flex-wrap: wrap;
+}
+
+.coco-import-form label {
+    display: grid;
+    flex: 1 1 280px;
+    gap: 0.4rem;
+    font-weight: 600;
+}
+
+.annotation-coverage-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.annotation-category-distribution ul {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.annotation-category-distribution li {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.55rem 0.7rem;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.annotation-status {
+    display: inline-flex;
+    width: fit-content;
+    margin: 0 0 0.65rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.annotation-status.reviewed_empty {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.annotation-status.reviewed_with_objects {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.success-message {
+    color: #166534;
+    font-weight: 600;
 }

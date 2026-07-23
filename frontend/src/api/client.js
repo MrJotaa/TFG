@@ -54,8 +54,15 @@ export async function apiRequest(path, options = {}) {
             detail: 'Unexpected API error',
         }))
 
-        const requestError = new Error(error.detail || 'Unexpected API error')
+        const detail = error.detail
+        const message =
+            typeof detail === 'string'
+                ? detail
+                : detail?.message || 'Unexpected API error'
+        const requestError = new Error(message)
         requestError.status = response.status
+        requestError.details =
+            detail && typeof detail === 'object' ? detail : null
         throw requestError
     }
 
