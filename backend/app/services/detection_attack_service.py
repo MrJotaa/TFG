@@ -4,6 +4,7 @@ from schemas.detection_attack import (
     DetectionAttackRequest,
     DetectionAttackResponse,
 )
+from schemas.detection import to_detection_predictions
 from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
 from utils.result_files import (
@@ -52,7 +53,7 @@ async def apply_detection_attack(
         task_type=model.task_type,
     )
 
-    original_detection_response, original_annotated_image = (
+    original_detection_result, original_annotated_image = (
         model.detect_with_visualization(image)
     )
 
@@ -65,12 +66,12 @@ async def apply_detection_attack(
     adversarial_image = attack_result["adversarial_image"]
     perturbation_image = attack_result["perturbation_image"]
 
-    adversarial_detection_response, adversarial_annotated_image = (
+    adversarial_detection_result, adversarial_annotated_image = (
         model.detect_with_visualization(adversarial_image)
     )
 
-    original_detections = original_detection_response.detections
-    adversarial_detections = adversarial_detection_response.detections
+    original_detections = original_detection_result.detections
+    adversarial_detections = adversarial_detection_result.detections
 
     original_explanation_image = draw_detections_on_image(
         image=generate_detection_eigencam(model, image),
@@ -177,8 +178,8 @@ async def apply_detection_attack(
         adversarial_image_url=adversarial_image_url,
         adversarial_annotated_image_url=adversarial_annotated_image_url,
         perturbation_image_url=perturbation_image_url,
-        original_detections=original_detections,
-        adversarial_detections=adversarial_detections,
+        original_detections=to_detection_predictions(original_detections),
+        adversarial_detections=to_detection_predictions(adversarial_detections),
         comparison=comparison,
         original_explanation_image_url=original_explanation_image_url,
         adversarial_explanation_image_url=adversarial_explanation_image_url,

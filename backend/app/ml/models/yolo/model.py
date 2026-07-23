@@ -1,9 +1,11 @@
 from PIL import Image
-from ultralytics import YOLO
 import torch
+from ultralytics import YOLO
+from ultralytics.engine.results import Results
 
 from ml.models.base import BaseObjectDetectionModel
-from schemas.detection import BoundingBox, DetectionPrediction, DetectionResponse
+from ml.models.detection import DetectionResult
+from ml.models.yolo.adapter import UltralyticsDetectionAdapter
 
 
 class YOLODetectionModel(BaseObjectDetectionModel):
@@ -14,6 +16,7 @@ class YOLODetectionModel(BaseObjectDetectionModel):
     def __init__(self):
         self.model = None
         self.model_path = "yolov8n.pt"
+        self._prediction_adapter = UltralyticsDetectionAdapter()
 
     def load(self) -> None:
         if self.model is not None:
@@ -41,7 +44,7 @@ class YOLODetectionModel(BaseObjectDetectionModel):
         # Para YOLOv8n suele ser una buena primera opción para EigenCAM.
         return self.model.model.model[-2]
 
-    def _run_inference(self, image: Image.Image):
+    def _run_inference(self, image: Image.Image) -> Results:
         if self.model is None:
             self.load()
 
@@ -50,37 +53,18 @@ class YOLODetectionModel(BaseObjectDetectionModel):
 
         return results[0]
 
-    def _result_to_response(self, result) -> DetectionResponse:
-        detections = []
-
-        if result.boxes is not None:
-            for box in result.boxes:
-                xyxy = box.xyxy[0].tolist()
-                confidence = float(box.conf[0].item())
-                class_id = int(box.cls[0].item())
-                label = result.names[class_id]
-
-                detections.append(
-                    DetectionPrediction(
-                        label=label,
-                        confidence=round(confidence, 4),
-                        bbox=BoundingBox(
-                            x1=round(float(xyxy[0]), 2),
-                            y1=round(float(xyxy[1]), 2),
-                            x2=round(float(xyxy[2]), 2),
-                            y2=round(float(xyxy[3]), 2),
-                        ),
-                    )
-                )
-
-        return DetectionResponse(
-            model_id=self.id,
-            model_name=self.name,
-            detections=detections,
-            annotated_image_url=None,
+    def _result_to_prediction(
+        self,
+        result: Results,
+        image: Image.Image,
+    ) -> DetectionResult:
+        return self._prediction_adapter.adapt(
+            result,
+            source_width=image.width,
+            source_height=image.height,
         )
 
-    def _result_to_annotated_image(self, result) -> Image.Image:
+    def _result_to_annotated_image(self, result: Results) -> Image.Image:
         annotated_array = result.plot()
 
         # Ultralytics/OpenCV puede devolver la imagen anotada en BGR.
@@ -89,9 +73,9 @@ class YOLODetectionModel(BaseObjectDetectionModel):
 
         return Image.fromarray(annotated_array)
 
-    def detect(self, image: Image.Image) -> DetectionResponse:
+    def detect(self, image: Image.Image) -> DetectionResult:
         result = self._run_inference(image)
-        return self._result_to_response(result)
+        return self._result_to_prediction(result, image)
 
     def get_annotated_image(self, image: Image.Image) -> Image.Image:
         result = self._run_inference(image)
@@ -100,10 +84,10 @@ class YOLODetectionModel(BaseObjectDetectionModel):
     def detect_with_visualization(
         self,
         image: Image.Image,
-    ) -> tuple[DetectionResponse, Image.Image]:
+    ) -> tuple[DetectionResult, Image.Image]:
         result = self._run_inference(image)
 
-        detection_response = self._result_to_response(result)
+        detection_result = self._result_to_prediction(result, image)
         annotated_image = self._result_to_annotated_image(result)
 
-        return detection_response, annotated_image
+        return detection_result, annotated_image

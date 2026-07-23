@@ -5,6 +5,7 @@ from schemas.detection_evaluation import (
     DetectionEvaluationResponse,
     DetectionEvaluationSummary,
 )
+from schemas.detection import to_detection_predictions
 from services.dataset_service import get_dataset, get_image_from_dataset
 from services.model_service import get_active_model_instance
 from core.task_compatibility import (
@@ -70,11 +71,11 @@ async def evaluate_detection_dataset(
 
         adversarial_image = attack_result["adversarial_image"]
 
-        original_detection_response = model.detect(image)
-        original_detections = original_detection_response.detections
+        original_detection_result = model.detect(image)
+        original_detections = original_detection_result.detections
 
-        adversarial_detection_response = model.detect(adversarial_image)
-        adversarial_detections = adversarial_detection_response.detections
+        adversarial_detection_result = model.detect(adversarial_image)
+        adversarial_detections = adversarial_detection_result.detections
 
         metrics = calculate_detection_comparison(
             original_detections=original_detections,
@@ -121,8 +122,8 @@ async def evaluate_detection_dataset(
                 attack_success=metrics.attack_success,
                 perturbation_linf=attack_result["perturbation_linf"],
                 perturbation_l2=attack_result["perturbation_l2"],
-                original_detections=original_detections,
-                adversarial_detections=adversarial_detections,
+                original_detections=to_detection_predictions(original_detections),
+                adversarial_detections=to_detection_predictions(adversarial_detections),
             )
         )
 

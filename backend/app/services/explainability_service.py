@@ -14,6 +14,7 @@ from schemas.explainability import (
     DetectionExplainResponse,
     GradCamResponse,
 )
+from schemas.detection import to_detection_predictions
 from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
 from utils.result_files import (
@@ -92,8 +93,8 @@ async def generate_detection_explainability(
         endpoint="/explain/detection",
     )
 
-    detection_response = model.detect(image)
-    detections = detection_response.detections
+    detection_result = model.detect(image)
+    detections = detection_result.detections
 
     if not detections:
         raise BadRequestError("No detections found in the selected image.")
@@ -135,5 +136,5 @@ async def generate_detection_explainability(
         model_name=model.name,
         explanation_type="eigencam",
         explanation_image_url=explanation_image_url,
-        detections=detections,
+        detections=to_detection_predictions(detections),
     )

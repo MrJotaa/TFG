@@ -6,7 +6,7 @@ from PIL import Image
 from ml.models.classification import (
     DetailedClassificationPrediction,
 )
-from schemas.detection import DetectionResponse
+from ml.models.detection import DetectionResult
 from schemas.predict import PredictResponse
 
 
@@ -141,7 +141,7 @@ class BaseObjectDetectionModel(BaseModel):
     task_type = "detection"
 
     @abstractmethod
-    def detect(self, image: Image.Image) -> DetectionResponse:
+    def detect(self, image: Image.Image) -> DetectionResult:
         """
         Ejecuta detección de objetos sobre una imagen.
         """
@@ -162,17 +162,17 @@ class BaseObjectDetectionModel(BaseModel):
     def detect_with_visualization(
         self,
         image: Image.Image,
-    ) -> tuple[DetectionResponse, Image.Image]:
+    ) -> tuple[DetectionResult, Image.Image]:
         """
         Ejecuta detección y devuelve también una imagen anotada.
 
         Los modelos concretos pueden sobrescribirlo para evitar
         ejecutar inferencia dos veces.
         """
-        detection_response = self.detect(image)
+        detection_result = self.detect(image)
         annotated_image = self.get_annotated_image(image)
 
-        return detection_response, annotated_image
+        return detection_result, annotated_image
 
     def get_torch_model(self):
         """

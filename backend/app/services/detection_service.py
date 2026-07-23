@@ -1,4 +1,8 @@
-from schemas.detection import DetectionRequest, DetectionResponse
+from schemas.detection import (
+    DetectionRequest,
+    DetectionResponse,
+    to_detection_predictions,
+)
 from services.dataset_service import get_image_from_dataset
 from services.model_service import get_active_model_instance
 from utils.result_files import (
@@ -26,7 +30,7 @@ async def detect_objects(request: DetectionRequest) -> DetectionResponse:
         endpoint="/detect",
     )
 
-    detection_response, annotated_image = model.detect_with_visualization(image)
+    detection_result, annotated_image = model.detect_with_visualization(image)
 
     result_id, result_path = create_result_directory(prefix="detection")
 
@@ -46,11 +50,14 @@ async def detect_objects(request: DetectionRequest) -> DetectionResponse:
             "image_id": request.image_id,
             "model_id": model.id,
             "model_name": model.name,
-            "detections_count": len(detection_response.detections),
+            "detections_count": len(detection_result.detections),
             "expires_in_hours": 24,
         },
     )
 
-    detection_response.annotated_image_url = annotated_image_url
-
-    return detection_response
+    return DetectionResponse(
+        model_id=model.id,
+        model_name=model.name,
+        detections=to_detection_predictions(detection_result.detections),
+        annotated_image_url=annotated_image_url,
+    )

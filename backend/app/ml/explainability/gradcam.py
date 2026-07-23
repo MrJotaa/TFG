@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import matplotlib.cm as cm
 import numpy as np
 import torch
@@ -5,6 +7,8 @@ import torch.nn.functional as F
 from PIL import Image, ImageDraw
 from pytorch_grad_cam import EigenCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
+
+from ml.models.detection import Detection
 
 
 def _calculate_gradcam(model_wrapper, model_input: torch.Tensor):
@@ -204,7 +208,10 @@ def generate_detection_eigencam(model_wrapper, image: Image.Image) -> Image.Imag
     return Image.fromarray(cam_image).resize(image.size)
 
 
-def draw_detections_on_image(image: Image.Image, detections: list) -> Image.Image:
+def draw_detections_on_image(
+    image: Image.Image,
+    detections: Sequence[Detection],
+) -> Image.Image:
     """
     Dibuja bounding boxes y etiquetas sobre una imagen PIL.
     """
@@ -212,14 +219,14 @@ def draw_detections_on_image(image: Image.Image, detections: list) -> Image.Imag
     draw = ImageDraw.Draw(output_image)
 
     for detection in detections:
-        bbox = detection.bbox
+        bbox = detection.box
 
-        x1 = float(bbox.x1)
-        y1 = float(bbox.y1)
-        x2 = float(bbox.x2)
-        y2 = float(bbox.y2)
+        x1 = bbox.x_min
+        y1 = bbox.y_min
+        x2 = bbox.x_max
+        y2 = bbox.y_max
 
-        label = detection.label
+        label = detection.class_name or str(detection.class_id)
         confidence = detection.confidence
 
         draw.rectangle(

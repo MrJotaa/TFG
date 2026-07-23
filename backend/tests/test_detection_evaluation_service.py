@@ -4,15 +4,16 @@ import pytest
 
 import services.detection_evaluation_service as detection_evaluation_service
 from schemas.attack import AttackType
-from schemas.detection import BoundingBox, DetectionPrediction
+from ml.models.detection import Detection, DetectionBox, DetectionResult
 from schemas.detection_evaluation import DetectionEvaluationRequest
 
 
-def _detection(confidence: float) -> DetectionPrediction:
-    return DetectionPrediction(
-        label="object",
+def _detection(confidence: float) -> Detection:
+    return Detection(
+        class_id=0,
+        class_name="object",
         confidence=confidence,
-        bbox=BoundingBox(x1=0, y1=0, x2=1, y2=1),
+        box=DetectionBox(x_min=0, y_min=0, x_max=1, y_max=1),
     )
 
 
@@ -42,7 +43,11 @@ class _FakeDetectionModel:
             "image-2": [],
             "adversarial-image-2": [_detection(0.6)],
         }
-        return SimpleNamespace(detections=detections_by_image[image])
+        return DetectionResult(
+            source_width=1,
+            source_height=1,
+            detections=detections_by_image[image],
+        )
 
 
 @pytest.mark.asyncio

@@ -34,6 +34,24 @@ def average_detection_confidence(
     return sum(detection.confidence for detection in detections) / len(detections)
 
 
+def _legacy_average_detection_confidence(
+    detections: Sequence[DetectionWithConfidence],
+) -> float:
+    """
+    Reproduce la media histórica sobre confianzas ya presentadas por YOLO.
+
+    Antes del contrato canónico, cada confianza se redondeaba a cuatro
+    decimales al crear ``DetectionPrediction``. Esta normalización se limita a
+    la clasificación legacy de éxito y no afecta a las métricas canónicas.
+    """
+    if not detections:
+        return 0.0
+
+    return sum(round(detection.confidence, 4) for detection in detections) / len(
+        detections
+    )
+
+
 def calculate_detection_comparison(
     original_detections: Sequence[DetectionWithConfidence],
     adversarial_detections: Sequence[DetectionWithConfidence],
@@ -48,9 +66,9 @@ def calculate_detection_comparison(
       calidad porque todavía no existe ground truth.
 
     ``attack_success`` mantiene deliberadamente la definición legacy previa.
-    Esta comparaba promedios redondeados a cuatro decimales y se conserva
-    separada del signo canónico para que corregir los deltas no reclasifique
-    muestras.
+    Esta redondeaba individualmente cada confianza a cuatro decimales antes de
+    calcular y comparar las medias. Se conserva separada del signo canónico
+    para que corregir los deltas no reclasifique muestras.
     """
 
     original_count = len(original_detections)
@@ -65,9 +83,12 @@ def calculate_detection_comparison(
         average_original_confidence - average_adversarial_confidence
     )
 
+    legacy_original_average = _legacy_average_detection_confidence(original_detections)
+    legacy_adversarial_average = _legacy_average_detection_confidence(
+        adversarial_detections
+    )
     legacy_confidence_difference = round(
-        round(average_adversarial_confidence, 4)
-        - round(average_original_confidence, 4),
+        round(legacy_adversarial_average, 4) - round(legacy_original_average, 4),
         4,
     )
 
