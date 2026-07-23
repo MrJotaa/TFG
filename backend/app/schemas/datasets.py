@@ -1,5 +1,9 @@
 from pydantic import BaseModel
 
+from schemas.classification_metrics import (
+    LabelResolutionSummary,
+)
+
 
 class DatasetImage(BaseModel):
     id: str
@@ -18,3 +22,15 @@ class DatasetResponse(BaseModel):
 
 class DatasetImageLabelUpdate(BaseModel):
     label: str | None = None
+
+
+class DatasetLabelResolutionResponse(BaseModel):
+    """
+    Diagnóstico de las etiquetas de un dataset para el modelo
+    de clasificación activo.
+    """
+
+    dataset_id: str
+    model_id: str
+    model_name: str
+    summary: LabelResolutionSummary

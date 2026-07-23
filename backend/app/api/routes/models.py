@@ -6,7 +6,12 @@ from services.model_service import (
     list_models,
     select_model,
 )
-
+from schemas.models import (
+    ModelClassCatalog,
+)
+from services.classification_label_service import (
+    get_active_model_class_catalog,
+)
 
 router = APIRouter()
 
@@ -19,6 +24,14 @@ async def get_models() -> list[ModelInfo]:
 @router.get("/models/active", response_model=ModelInfo)
 async def get_current_model() -> ModelInfo:
     return get_active_model()
+
+
+@router.get(
+    "/models/active/classes",
+    response_model=ModelClassCatalog,
+)
+async def get_active_model_classes() -> ModelClassCatalog:
+    return get_active_model_class_catalog()
 
 
 @router.post(

@@ -3,7 +3,8 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
-from ml.attacks.base import BaseAdversarialAttack
+from ml.attacks.base import AdversarialAttackResult, BaseAdversarialAttack
+from ml.attacks.presentation import perturbation_to_visualization
 
 
 class FGSMAttack(BaseAdversarialAttack):
@@ -11,112 +12,103 @@ class FGSMAttack(BaseAdversarialAttack):
     name = "Fast Gradient Sign Method"
     supported_task_types = ["classification"]
 
-    def __init__(self):  # Inicializa las transformaciones necesarias para el ataque.
+    def __init__(self):
         self.to_tensor = transforms.ToTensor()
-
-        self.normalize = transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225],
-        )
-
         self.to_pil = transforms.ToPILImage()
 
-    def apply(self, model_wrapper, image: Image.Image, parameters):
+    def apply(
+        self,
+        model_wrapper,
+        image: Image.Image,
+        parameters,
+        original_class_index: int | None = None,
+    ) -> AdversarialAttackResult:
         """
-        Aplica FGSM sobre una imagen usando el modelo activo.
+        Aplica FGSM en el espacio de entrada real del modelo.
 
-        El ataque se aplica en espacio [0, 1], antes de la normalización.
-        Esto hace que epsilon sea más interpretable.
+        El ataque trabaja sobre píxeles en [0, 1]. El propio modelo
+        decide el tamaño de entrada y la normalización necesaria.
         """
         if not model_wrapper.is_loaded():
             raise ValueError("Model is not loaded")
 
-        # Extraemos el valor de epsilon de los parámetros del ataque.
         epsilon = parameters.epsilon
         model = model_wrapper.get_torch_model()
+        model.eval()
 
-        # Convertimos la imagen a tensor y habilitamos el cálculo de gradientes.
-        original_tensor = self.to_tensor(image).unsqueeze(0)
-        original_tensor.requires_grad = True
-
-        # Normalizamos el tensor para que el modelo lo procese correctamente.
-        normalized_input = self._normalize_batch(original_tensor)
-
-        # Ejecutamos la inferencia para obtener la predicción original y calcular el gradiente.
-        output = model(normalized_input)
-        probabilities = F.softmax(output[0], dim=0)
-
-        # Obtenemos la clase original para calcular la pérdida y el gradiente.
-        _, original_class = torch.max(probabilities, dim=0)
-
-        # Calculamos la pérdida de entropía cruzada para la clase original.
-        loss = F.cross_entropy(
-            output,
-            original_class.unsqueeze(0),
+        original_tensor = (
+            model_wrapper.prepare_attack_input(image).detach().requires_grad_(True)
         )
 
-        # Calculamos el gradiente de la pérdida con respecto a la imagen de entrada.
-        model.zero_grad()
-        loss.backward()
+        normalized_input = model_wrapper.normalize_attack_input(original_tensor)
 
-        # Obtenemos el signo del gradiente para cada píxel.
-        gradient_sign = original_tensor.grad.data.sign()
+        output = model(normalized_input)
 
-        # Creamos la imagen adversaria sumando la perturbación al tensor original.
-        adversarial_tensor = original_tensor + epsilon * gradient_sign
-        adversarial_tensor = torch.clamp(adversarial_tensor, 0, 1)
+        if original_class_index is None:
+            target = output.detach().argmax(dim=1)
+        else:
+            if not 0 <= original_class_index < output.shape[1]:
+                raise ValueError(
+                    "Original class index is outside the model output range"
+                )
 
-        # Calculamos la perturbación aplicada para métricas de comparación.
-        perturbation = adversarial_tensor - original_tensor
+            target = torch.tensor(
+                [original_class_index],
+                device=output.device,
+                dtype=torch.long,
+            )
 
-        # Calculamos las métricas de la perturbación: norma L-infinito y L2.
-        perturbation_linf = torch.max(torch.abs(perturbation)).item()
-        perturbation_l2 = torch.norm(perturbation).item()
+        loss = F.cross_entropy(output, target)
 
-        # Convertimos el tensor adversario y la perturbación a imágenes para la respuesta.
-        adversarial_image = self._tensor_to_image(adversarial_tensor)
-        perturbation_image = self._perturbation_to_image(perturbation)
+        gradient = torch.autograd.grad(
+            loss,
+            original_tensor,
+            only_inputs=True,
+        )[0]
 
-        return {  # Devolvemos la imagen adversaria y las métricas de la perturbación.
-            "adversarial_image": adversarial_image,
-            "perturbation_image": perturbation_image,
-            "perturbation_linf": round(perturbation_linf, 4),
-            "perturbation_l2": round(perturbation_l2, 4),
-        }
+        with torch.no_grad():
+            adversarial_tensor = torch.clamp(
+                original_tensor + epsilon * gradient.sign(),
+                min=0.0,
+                max=1.0,
+            )
 
-    def _normalize_batch(self, tensor: torch.Tensor) -> torch.Tensor:
-        """
-        Normaliza un batch de imágenes en formato [B, C, H, W].
-        """
-        normalized_images = []
+        clean_model_input = original_tensor.detach().clone()
+        adversarial_model_input = adversarial_tensor.detach().clone()
+        model_space_delta = adversarial_model_input - clean_model_input
 
-        for image_tensor in tensor:
-            normalized_images.append(self.normalize(image_tensor))
+        perturbation_linf = model_space_delta.abs().max().item()
+        perturbation_l2 = torch.linalg.vector_norm(model_space_delta).item()
 
-        return torch.stack(normalized_images)
+        adversarial_image = self._tensor_to_image(adversarial_model_input)
+        perturbation_image = self._perturbation_to_image(model_space_delta)
 
-    def _tensor_to_image(self, tensor: torch.Tensor) -> Image.Image:
-        """
-        Convierte un tensor [1, C, H, W] en imagen PIL.
-        """
+        return AdversarialAttackResult(
+            clean_model_input=clean_model_input,
+            adversarial_model_input=adversarial_model_input,
+            model_space_delta=model_space_delta,
+            adversarial_image=adversarial_image,
+            perturbation_image=perturbation_image,
+            perturbation_linf=round(
+                perturbation_linf,
+                4,
+            ),
+            perturbation_l2=round(
+                perturbation_l2,
+                4,
+            ),
+        )
+
+    def _tensor_to_image(
+        self,
+        tensor: torch.Tensor,
+    ) -> Image.Image:
         tensor = tensor.detach().cpu().squeeze(0)
         tensor = torch.clamp(tensor, 0, 1)
         return self.to_pil(tensor)
 
-    def _perturbation_to_image(self, perturbation: torch.Tensor) -> Image.Image:
-        """
-        Convierte la perturbación en una imagen visible.
-
-        La perturbación real puede ser casi imperceptible, así que se normaliza
-        visualmente para que pueda interpretarse en la interfaz.
-        """
-        perturbation = perturbation.detach().cpu().squeeze(0)
-
-        perturbation = perturbation.abs()
-
-        min_value = perturbation.min()
-        max_value = perturbation.max()
-
-        perturbation = (perturbation - min_value) / (max_value - min_value + 1e-8)
-
-        return self.to_pil(perturbation)
+    def _perturbation_to_image(
+        self,
+        perturbation: torch.Tensor,
+    ) -> Image.Image:
+        return perturbation_to_visualization(perturbation)

@@ -4,7 +4,9 @@ from types import SimpleNamespace
 import pytest
 import torch
 from PIL import Image
+from torchvision import transforms
 
+from ml.attacks.base import AdversarialAttackResult
 from ml.attacks.pgd import PGDAttack
 
 
@@ -80,6 +82,18 @@ class FakeClassificationModelWrapper:
     def get_torch_model(self) -> torch.nn.Module:
         return self.model
 
+    def prepare_attack_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        return transforms.ToTensor()(image).unsqueeze(0)
+
+    def normalize_attack_input(
+        self,
+        tensor: torch.Tensor,
+    ) -> torch.Tensor:
+        return tensor
+
 
 def _create_test_image(
     size: tuple[int, int] = (8, 8),
@@ -145,21 +159,35 @@ def test_pgd_returns_expected_result_structure():
         ),
     )
 
-    assert set(result) == {
-        "adversarial_image",
-        "perturbation_image",
-        "perturbation_linf",
-        "perturbation_l2",
-    }
+    assert isinstance(result, AdversarialAttackResult)
 
-    assert isinstance(result["adversarial_image"], Image.Image)
-    assert isinstance(result["perturbation_image"], Image.Image)
+    assert isinstance(result.adversarial_image, Image.Image)
+    assert isinstance(result.perturbation_image, Image.Image)
 
-    assert result["adversarial_image"].size == original_image.size
-    assert result["perturbation_image"].size == original_image.size
+    assert result.adversarial_image.size == original_image.size
+    assert result.perturbation_image.size == original_image.size
 
-    assert result["adversarial_image"].mode == "RGB"
-    assert result["perturbation_image"].mode == "RGB"
+    assert result.adversarial_image.mode == "RGB"
+    assert result.perturbation_image.mode == "RGB"
+
+    tensors = (
+        result.clean_model_input,
+        result.adversarial_model_input,
+        result.model_space_delta,
+    )
+
+    assert all(tensor.shape == tensors[0].shape for tensor in tensors)
+    assert all(tensor.is_floating_point() for tensor in tensors)
+    assert all(not tensor.requires_grad for tensor in tensors)
+    assert result.adversarial_model_input.min().item() >= 0.0
+    assert result.adversarial_model_input.max().item() <= 1.0
+    assert torch.equal(
+        result.model_space_delta,
+        result.adversarial_model_input - result.clean_model_input,
+    )
+    assert result.model_space_delta.abs().max().item() <= 0.1 + 1e-7
+    assert isinstance(result.perturbation_linf, float)
+    assert isinstance(result.perturbation_l2, float)
 
 
 def test_pgd_requires_loaded_model():
@@ -220,14 +248,14 @@ def test_pgd_uses_alpha_in_each_iteration(monkeypatch):
 
     assert torch.all(adversarial_tensor < original_tensor)
 
-    assert result["perturbation_linf"] == pytest.approx(
+    assert result.perturbation_linf == pytest.approx(
         expected_perturbation,
         abs=1e-4,
     )
 
     expected_l2 = expected_perturbation * math.sqrt(original_tensor.numel())
 
-    assert result["perturbation_l2"] == pytest.approx(
+    assert result.perturbation_l2 == pytest.approx(
         round(expected_l2, 4),
         abs=1e-4,
     )
@@ -274,14 +302,14 @@ def test_pgd_projects_perturbation_to_epsilon(monkeypatch):
     assert observed_linf <= epsilon + 1e-7
     assert observed_linf == pytest.approx(epsilon, abs=1e-6)
 
-    assert result["perturbation_linf"] == pytest.approx(
+    assert result.perturbation_linf == pytest.approx(
         epsilon,
         abs=1e-4,
     )
 
     expected_l2 = epsilon * math.sqrt(original_tensor.numel())
 
-    assert result["perturbation_l2"] == pytest.approx(
+    assert result.perturbation_l2 == pytest.approx(
         round(expected_l2, 4),
         abs=1e-4,
     )
@@ -344,7 +372,7 @@ def test_pgd_output_remains_in_valid_pixel_range(monkeypatch):
     assert torch.any(adversarial_tensor == 1.0)
 
     assert observed_linf <= 0.2 + 1e-7
-    assert result["perturbation_linf"] <= 0.2
+    assert result.perturbation_linf <= 0.2
 
 
 def test_pgd_with_zero_epsilon_does_not_modify_image(monkeypatch):
@@ -375,7 +403,55 @@ def test_pgd_with_zero_epsilon_does_not_modify_image(monkeypatch):
         original_tensor,
     )
 
-    assert result["adversarial_image"].tobytes() == original_image.tobytes()
+    assert result.adversarial_image.tobytes() == original_image.tobytes()
 
-    assert result["perturbation_linf"] == 0.0
-    assert result["perturbation_l2"] == 0.0
+    assert result.perturbation_linf == 0.0
+    assert result.perturbation_l2 == 0.0
+
+
+def test_pgd_reuses_provided_original_class():
+    steps = 4
+
+    model = CountingGradientModel()
+    attack = PGDAttack()
+    wrapper = FakeClassificationModelWrapper(model)
+
+    attack.apply(
+        model_wrapper=wrapper,
+        image=_create_test_image(),
+        parameters=_create_parameters(
+            epsilon=0.1,
+            alpha=0.02,
+            steps=steps,
+        ),
+        original_class_index=0,
+    )
+
+    assert model.forward_calls == steps
+
+
+def test_pgd_uses_model_prepared_input_size():
+    class ResizingWrapper(FakeClassificationModelWrapper):
+        def prepare_attack_input(
+            self,
+            image: Image.Image,
+        ) -> torch.Tensor:
+            resized = image.resize((16, 16))
+            return transforms.ToTensor()(resized).unsqueeze(0)
+
+    attack = PGDAttack()
+    wrapper = ResizingWrapper(TinyGradientModel())
+
+    result = attack.apply(
+        model_wrapper=wrapper,
+        image=_create_test_image(size=(1920, 1279)),
+        parameters=_create_parameters(
+            epsilon=0.1,
+            alpha=0.02,
+            steps=2,
+        ),
+        original_class_index=0,
+    )
+
+    assert result.adversarial_image.size == (16, 16)
+    assert result.perturbation_image.size == (16, 16)

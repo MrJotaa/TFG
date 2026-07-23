@@ -16,7 +16,13 @@ class YOLOConfidenceAttack(BaseAdversarialAttack):
         self.to_pil = transforms.ToPILImage()
         self.attack_size = 640
 
-    def apply(self, model_wrapper, image: Image.Image, parameters):
+    def apply(
+        self,
+        model_wrapper,
+        image: Image.Image,
+        parameters,
+        original_class_index: int | None = None,
+    ):
         """
         Ataque específico para detección.
 

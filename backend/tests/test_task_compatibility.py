@@ -41,7 +41,13 @@ class FakeAttack:
     def supports_task_type(self, task_type: str) -> bool:
         return task_type in self.supported_task_types
 
-    def apply(self, model_wrapper, image, parameters):
+    def apply(
+        self,
+        model_wrapper,
+        image,
+        parameters,
+        original_class_index=None,
+    ):
         raise AssertionError("Attack must not run when it is incompatible")
 
 

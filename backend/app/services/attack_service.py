@@ -1,4 +1,16 @@
+from core.errors import BadRequestError
+from core.task_compatibility import (
+    CLASSIFICATION_TASK_TYPE,
+    require_attack_task_type,
+    require_model_task_type,
+)
+from ml.attacks.base import AdversarialAttackResult
+from ml.attacks.presentation import reconstruct_attack_in_source_geometry
 from ml.attacks.registry import get_attack
+from ml.explainability.gradcam import (
+    generate_gradcam,
+    generate_gradcam_from_prepared_input,
+)
 from schemas.attack import (
     AttackComparison,
     AttackRequest,
@@ -11,13 +23,6 @@ from utils.result_files import (
     save_result_image,
     save_result_metadata,
 )
-from ml.explainability.gradcam import generate_gradcam
-from core.task_compatibility import (
-    CLASSIFICATION_TASK_TYPE,
-    require_attack_task_type,
-    require_model_task_type,
-)
-from core.errors import BadRequestError
 
 
 async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
@@ -52,13 +57,41 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         parameters=request.parameters,
     )
 
-    adversarial_image = attack_result["adversarial_image"]
-    perturbation_image = attack_result["perturbation_image"]
+    if isinstance(attack_result, AdversarialAttackResult):
+        perturbation_linf = attack_result.perturbation_linf
+        perturbation_l2 = attack_result.perturbation_l2
+        adversarial_prediction = model.predict_from_prepared_input(
+            attack_result.adversarial_model_input
+        )
 
-    adversarial_prediction = model.predict(adversarial_image)
+        reconstruction = reconstruct_attack_in_source_geometry(
+            source_image=image,
+            model_space_delta=attack_result.model_space_delta,
+        )
+        adversarial_image_to_persist = reconstruction.adversarial_image
+        perturbation_image_to_persist = reconstruction.perturbation_visualization
+        del reconstruction
 
-    original_gradcam_result = generate_gradcam(model, image)
-    adversarial_gradcam_result = generate_gradcam(model, adversarial_image)
+        original_gradcam_result = generate_gradcam_from_prepared_input(
+            model_wrapper=model,
+            model_input=attack_result.clean_model_input,
+            visualization_image=image.copy().convert("RGB"),
+        )
+        adversarial_gradcam_result = generate_gradcam_from_prepared_input(
+            model_wrapper=model,
+            model_input=attack_result.adversarial_model_input,
+            visualization_image=adversarial_image_to_persist,
+        )
+    else:
+        adversarial_image = attack_result["adversarial_image"]
+        adversarial_image_to_persist = adversarial_image
+        perturbation_image_to_persist = attack_result["perturbation_image"]
+        perturbation_linf = attack_result["perturbation_linf"]
+        perturbation_l2 = attack_result["perturbation_l2"]
+        adversarial_prediction = model.predict(adversarial_image)
+
+        original_gradcam_result = generate_gradcam(model, image)
+        adversarial_gradcam_result = generate_gradcam(model, adversarial_image)
 
     confidence_difference = round(
         adversarial_prediction.confidence - original_prediction.confidence,
@@ -77,21 +110,21 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         confidence_difference=confidence_difference,
         prediction_changed=prediction_changed,
         attack_success=prediction_changed,
-        perturbation_linf=attack_result["perturbation_linf"],
-        perturbation_l2=attack_result["perturbation_l2"],
+        perturbation_linf=perturbation_linf,
+        perturbation_l2=perturbation_l2,
     )
 
     result_id, result_path = create_result_directory(prefix="attack")
 
     adversarial_image_url = save_result_image(
-        image=adversarial_image,
+        image=adversarial_image_to_persist,
         result_id=result_id,
         result_path=result_path,
         filename="adversarial.png",
     )
 
     perturbation_image_url = save_result_image(
-        image=perturbation_image,
+        image=perturbation_image_to_persist,
         result_id=result_id,
         result_path=result_path,
         filename="perturbation.png",

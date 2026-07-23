@@ -1,8 +1,14 @@
 from types import SimpleNamespace
 
 import pytest
+import torch
 from PIL import Image
 
+import services.attack_service as attack_service
+import services.detection_attack_service as detection_attack_service
+import services.detection_evaluation_service as detection_evaluation_service
+import services.evaluation_service as evaluation_service
+import services.explainability_service as explainability_service
 from schemas.attack import AttackRequest, AttackType
 from schemas.detection_attack import DetectionAttackRequest
 from schemas.detection_evaluation import (
@@ -10,14 +16,6 @@ from schemas.detection_evaluation import (
 )
 from schemas.evaluation import EvaluationRequest
 from schemas.explainability import DetectionExplainRequest
-
-import services.attack_service as attack_service
-import services.detection_attack_service as detection_attack_service
-import services.detection_evaluation_service as detection_evaluation_service
-
-import services.evaluation_service as evaluation_service
-import services.explainability_service as explainability_service
-
 
 INTERNAL_ERROR = "Sensitive internal model failure"
 VALID_DATASET_ID = "507f1f77bcf86cd799439011"
@@ -43,11 +41,58 @@ class FakeClassificationModel:
     name = "Fake Classifier"
     task_type = "classification"
 
+    def prepare_attack_input(self, image: Image.Image):
+        return torch.full(
+            (1, 3, image.height, image.width),
+            0.5,
+            dtype=torch.float32,
+            device="cpu",
+        )
+
+    def preprocess(self, image: Image.Image):
+        return "prepared-input"
+
     def predict(self, image: Image.Image):
         return SimpleNamespace(
             prediction="test-class",
             confidence=0.9,
         )
+
+    def get_class_labels(self):
+        return ("test-class",)
+
+    def predict_detailed(
+        self,
+        image,
+        top_k=5,
+    ):
+        return SimpleNamespace(
+            class_index=0,
+            class_label="test-class",
+            confidence=0.9,
+            probabilities=(1.0,),
+            top_k=(
+                SimpleNamespace(
+                    index=0,
+                    label="test-class",
+                    probability=1.0,
+                ),
+            ),
+            prediction_margin=None,
+        )
+
+    def predict_detailed_from_prepared_input(
+        self,
+        prepared_input,
+        top_k=5,
+    ):
+        assert prepared_input.ndim == 4
+        assert prepared_input.shape[0] == 1
+        assert prepared_input.shape[1] == 3
+        assert prepared_input.is_floating_point()
+        assert torch.isfinite(prepared_input).all()
+        assert prepared_input.device.type == "cpu"
+        return self.predict_detailed(None, top_k=top_k)
 
 
 class FakeDetectionModel:
@@ -75,6 +120,9 @@ class FakeDetectionModel:
 class FailingAttack:
     id = "random_noise"
 
+    def __init__(self):
+        self.apply_calls = 0
+
     def supports_task_type(self, task_type: str) -> bool:
         return task_type in {
             "classification",
@@ -86,7 +134,9 @@ class FailingAttack:
         model_wrapper,
         image,
         parameters,
+        original_class_index=None,
     ):
+        self.apply_calls += 1
         raise ValueError(INTERNAL_ERROR)
 
 
@@ -127,15 +177,21 @@ async def test_classification_attack_preserves_unexpected_error(
 async def test_classification_evaluation_preserves_unexpected_error(
     monkeypatch,
 ):
+    failing_attack = FailingAttack()
+
     async def fake_get_dataset(dataset_id: str):
         return SimpleNamespace(
+            id=dataset_id,
+            name="Test Dataset",
+            owner_id="user-1",
+            image_count=1,
             images=[
                 SimpleNamespace(
                     id="image-1",
                     filename="image.png",
                     label=None,
                 )
-            ]
+            ],
         )
 
     monkeypatch.setattr(
@@ -156,7 +212,7 @@ async def test_classification_evaluation_preserves_unexpected_error(
     monkeypatch.setattr(
         evaluation_service,
         "get_attack",
-        lambda attack_type: FailingAttack(),
+        lambda attack_type: failing_attack,
     )
     monkeypatch.setattr(
         evaluation_service,
@@ -174,6 +230,8 @@ async def test_classification_evaluation_preserves_unexpected_error(
         match=INTERNAL_ERROR,
     ):
         await evaluation_service.evaluate_dataset(request)
+
+    assert failing_attack.apply_calls == 1
 
 
 @pytest.mark.asyncio
@@ -262,7 +320,7 @@ async def test_detection_evaluation_preserves_unexpected_error(
 async def test_gradcam_preserves_unexpected_error(
     monkeypatch,
 ):
-    def fake_generate_gradcam(model, image):
+    def fake_generate_clean_gradcam(model_wrapper, model_input, source_image):
         raise ValueError(INTERNAL_ERROR)
 
     monkeypatch.setattr(
@@ -277,8 +335,8 @@ async def test_gradcam_preserves_unexpected_error(
     )
     monkeypatch.setattr(
         explainability_service,
-        "generate_gradcam",
-        fake_generate_gradcam,
+        "generate_clean_gradcam",
+        fake_generate_clean_gradcam,
     )
 
     with pytest.raises(

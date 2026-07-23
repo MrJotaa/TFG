@@ -3,7 +3,8 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
-from ml.attacks.base import BaseAdversarialAttack
+from ml.attacks.base import AdversarialAttackResult, BaseAdversarialAttack
+from ml.attacks.presentation import perturbation_to_visualization
 
 
 class PGDAttack(BaseAdversarialAttack):
@@ -15,19 +16,19 @@ class PGDAttack(BaseAdversarialAttack):
         self.to_tensor = transforms.ToTensor()
         self.to_pil = transforms.ToPILImage()
 
-        self.normalize = transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225],
-        )
-
-    def apply(self, model_wrapper, image: Image.Image, parameters):
+    def apply(
+        self,
+        model_wrapper,
+        image: Image.Image,
+        parameters,
+        original_class_index: int | None = None,
+    ) -> AdversarialAttackResult:
         """
-        Aplica PGD sobre una imagen usando el modelo activo.
+        Aplica PGD en el espacio de entrada real del modelo.
 
-        PGD es una versión iterativa de FGSM:
-        - aplica varios pasos de tamaño alpha
-        - proyecta la perturbación para que no supere epsilon
-        - mantiene la imagen en el rango [0, 1]
+        El propio modelo define el tamaño y la normalización. PGD
+        mantiene la perturbación dentro de la bola L-infinito de
+        radio epsilon y los píxeles dentro del rango [0, 1].
         """
         if not model_wrapper.is_loaded():
             raise ValueError("Model is not loaded")
@@ -37,80 +38,103 @@ class PGDAttack(BaseAdversarialAttack):
         steps = parameters.steps
 
         model = model_wrapper.get_torch_model()
+        model.eval()
 
-        original_tensor = self.to_tensor(image).unsqueeze(0)
-        adversarial_tensor = original_tensor.clone().detach()
+        original_tensor = model_wrapper.prepare_attack_input(image).detach()
+        adversarial_tensor = original_tensor.clone()
 
-        normalized_original = self._normalize_batch(original_tensor)
-        original_output = model(normalized_original)
-        probabilities = F.softmax(original_output[0], dim=0)
+        target = None
 
-        _, original_class = torch.max(probabilities, dim=0)
-        target = original_class.unsqueeze(0)
+        if original_class_index is not None:
+            target = torch.tensor(
+                [original_class_index],
+                device=original_tensor.device,
+                dtype=torch.long,
+            )
+        else:
+            with torch.no_grad():
+                original_output = model(
+                    model_wrapper.normalize_attack_input(original_tensor)
+                )
+                target = original_output.argmax(dim=1)
 
-        for _ in range(steps):
-            adversarial_tensor.requires_grad = True
+        for step_index in range(steps):
+            adversarial_tensor = adversarial_tensor.detach().requires_grad_(True)
 
-            normalized_adversarial = self._normalize_batch(adversarial_tensor)
+            normalized_adversarial = model_wrapper.normalize_attack_input(
+                adversarial_tensor
+            )
+
             output = model(normalized_adversarial)
+
+            if (
+                step_index == 0
+                and original_class_index is not None
+                and not 0 <= original_class_index < output.shape[1]
+            ):
+                raise ValueError(
+                    "Original class index is outside the model output range"
+                )
 
             loss = F.cross_entropy(output, target)
 
-            model.zero_grad()
-            loss.backward()
+            gradient = torch.autograd.grad(
+                loss,
+                adversarial_tensor,
+                only_inputs=True,
+            )[0]
 
-            gradient_sign = adversarial_tensor.grad.data.sign()
+            with torch.no_grad():
+                stepped_tensor = adversarial_tensor + alpha * gradient.sign()
 
-            adversarial_tensor = adversarial_tensor + alpha * gradient_sign
+                perturbation = torch.clamp(
+                    stepped_tensor - original_tensor,
+                    min=-epsilon,
+                    max=epsilon,
+                )
 
-            perturbation = torch.clamp(
-                adversarial_tensor - original_tensor,
-                min=-epsilon,
-                max=epsilon,
-            )
+                adversarial_tensor = torch.clamp(
+                    original_tensor + perturbation,
+                    min=0.0,
+                    max=1.0,
+                )
 
-            adversarial_tensor = torch.clamp(
-                original_tensor + perturbation,
-                min=0,
-                max=1,
-            ).detach()
+        clean_model_input = original_tensor.detach().clone()
+        adversarial_model_input = adversarial_tensor.detach().clone()
+        model_space_delta = adversarial_model_input - clean_model_input
 
-        perturbation = adversarial_tensor - original_tensor
+        perturbation_linf = model_space_delta.abs().max().item()
+        perturbation_l2 = torch.linalg.vector_norm(model_space_delta).item()
 
-        perturbation_linf = torch.max(torch.abs(perturbation)).item()
-        perturbation_l2 = torch.norm(perturbation).item()
+        adversarial_image = self._tensor_to_image(adversarial_model_input)
+        perturbation_image = self._perturbation_to_image(model_space_delta)
 
-        adversarial_image = self._tensor_to_image(adversarial_tensor)
-        perturbation_image = self._perturbation_to_image(perturbation)
+        return AdversarialAttackResult(
+            clean_model_input=clean_model_input,
+            adversarial_model_input=adversarial_model_input,
+            model_space_delta=model_space_delta,
+            adversarial_image=adversarial_image,
+            perturbation_image=perturbation_image,
+            perturbation_linf=round(
+                perturbation_linf,
+                4,
+            ),
+            perturbation_l2=round(
+                perturbation_l2,
+                4,
+            ),
+        )
 
-        return {
-            "adversarial_image": adversarial_image,
-            "perturbation_image": perturbation_image,
-            "perturbation_linf": round(perturbation_linf, 4),
-            "perturbation_l2": round(perturbation_l2, 4),
-        }
-
-    def _normalize_batch(self, tensor: torch.Tensor) -> torch.Tensor:
-        normalized_images = []
-
-        for image_tensor in tensor:
-            normalized_images.append(self.normalize(image_tensor))
-
-        return torch.stack(normalized_images)
-
-    def _tensor_to_image(self, tensor: torch.Tensor) -> Image.Image:
+    def _tensor_to_image(
+        self,
+        tensor: torch.Tensor,
+    ) -> Image.Image:
         tensor = tensor.detach().cpu().squeeze(0)
         tensor = torch.clamp(tensor, 0, 1)
-
         return self.to_pil(tensor)
 
-    def _perturbation_to_image(self, perturbation: torch.Tensor) -> Image.Image:
-        perturbation = perturbation.detach().cpu().squeeze(0)
-        perturbation = perturbation.abs()
-
-        min_value = perturbation.min()
-        max_value = perturbation.max()
-
-        perturbation = (perturbation - min_value) / (max_value - min_value + 1e-8)
-
-        return self.to_pil(perturbation)
+    def _perturbation_to_image(
+        self,
+        perturbation: torch.Tensor,
+    ) -> Image.Image:
+        return perturbation_to_visualization(perturbation)

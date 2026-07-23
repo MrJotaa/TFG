@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const API_BASE_URL =
+    import.meta.env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 
 const AUTH_TOKEN_KEY = 'auth_token'
 
@@ -12,6 +13,18 @@ export function setStoredToken(token) {
 
 export function removeStoredToken() {
     localStorage.removeItem(AUTH_TOKEN_KEY)
+}
+
+export function resolveApiUrl(path) {
+    if (!path) {
+        return null
+    }
+
+    if (/^https?:\/\//i.test(path)) {
+        return path
+    }
+
+    return `${API_BASE_URL}${path}`
 }
 
 export async function apiRequest(path, options = {}) {
@@ -31,7 +44,7 @@ export async function apiRequest(path, options = {}) {
         delete headers['Content-Type']
     }
 
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    const response = await fetch(resolveApiUrl(path), {
         ...options,
         headers,
     })
@@ -41,7 +54,9 @@ export async function apiRequest(path, options = {}) {
             detail: 'Unexpected API error',
         }))
 
-        throw new Error(error.detail || 'Unexpected API error')
+        const requestError = new Error(error.detail || 'Unexpected API error')
+        requestError.status = response.status
+        throw requestError
     }
 
     if (response.status === 204) {

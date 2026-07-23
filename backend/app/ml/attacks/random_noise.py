@@ -14,7 +14,13 @@ class RandomNoiseAttack(BaseAdversarialAttack):
         self.to_tensor = transforms.ToTensor()
         self.to_pil = transforms.ToPILImage()
 
-    def apply(self, model_wrapper, image: Image.Image, parameters):
+    def apply(
+        self,
+        model_wrapper,
+        image: Image.Image,
+        parameters,
+        original_class_index: int | None = None,
+    ):
         """
         Aplica ruido aleatorio uniforme sobre la imagen.
 

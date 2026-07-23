@@ -15,9 +15,10 @@ function AppLayout() {
 
     return (
         <main className="app-shell">
-            <header className="app-header app-header-with-actions">
-                <h1>Adversarial AI App</h1>
-
+            <header
+                className="app-header app-header-with-actions app-session-header"
+                aria-label="Sesión de usuario"
+            >
                 <div className="header-user-actions">
                     {user && (
                         <button

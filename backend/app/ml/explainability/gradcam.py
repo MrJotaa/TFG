@@ -7,65 +7,125 @@ from pytorch_grad_cam import EigenCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
 
-def generate_gradcam(model_wrapper, image: Image.Image):
-    """
-    Genera Grad-CAM para la clase predicha por un modelo de clasificación.
-    """
+def _calculate_gradcam(model_wrapper, model_input: torch.Tensor):
+    """Calcula el mapa normalizado sobre la entrada científica del modelo."""
     model = model_wrapper.get_torch_model()
     target_layer = model_wrapper.get_gradcam_target_layer()
 
     activations = []
-    gradients = []
 
     def forward_hook(module, input, output):
         activations.append(output)
 
-    def backward_hook(module, grad_input, grad_output):
-        gradients.append(grad_output[0])
-
     forward_handle = target_layer.register_forward_hook(forward_hook)
-    backward_handle = target_layer.register_full_backward_hook(backward_hook)
 
-    input_tensor = model_wrapper.preprocess(image)
+    try:
+        with torch.enable_grad():
+            output = model(model_input)
+            probabilities = F.softmax(output[0], dim=0)
 
-    output = model(input_tensor)
-    probabilities = F.softmax(output[0], dim=0)
+            confidence, predicted_index = torch.max(probabilities, dim=0)
+            predicted_label = model_wrapper.categories[predicted_index.item()]
 
-    confidence, predicted_index = torch.max(probabilities, dim=0)
-    predicted_label = model_wrapper.categories[predicted_index.item()]
+            activation = activations[0]
+            (gradient,) = torch.autograd.grad(
+                outputs=output[0, predicted_index],
+                inputs=activation,
+            )
 
-    model.zero_grad()
-    output[0, predicted_index].backward()
+        activation = activation.detach()
+        gradient = gradient.detach()
 
-    activation = activations[0].detach()
-    gradient = gradients[0].detach()
+        weights = gradient.mean(dim=(2, 3), keepdim=True)
+        cam = (weights * activation).sum(dim=1).squeeze()
 
-    weights = gradient.mean(dim=(2, 3), keepdim=True)
-    cam = (weights * activation).sum(dim=1).squeeze()
+        cam = torch.relu(cam)
+        cam = cam.cpu().numpy()
 
-    cam = torch.relu(cam)
-    cam = cam.cpu().numpy()
+        cam = cam - np.min(cam)
+        cam = cam / (np.max(cam) + 1e-8)
 
-    cam = cam - np.min(cam)
-    cam = cam / (np.max(cam) + 1e-8)
+        return {
+            "prediction": predicted_label,
+            "confidence": round(confidence.item(), 4),
+            "normalized_cam": cam,
+        }
+    finally:
+        forward_handle.remove()
+        activations.clear()
 
-    cam_image = Image.fromarray(np.uint8(cam * 255)).resize(image.size)
 
+def _render_gradcam_on_source(
+    normalized_cam: np.ndarray,
+    source_image: Image.Image,
+) -> Image.Image:
+    """Proyecta el mapa y lo mezcla sobre una copia RGB de la imagen fuente."""
+    source_rgb = source_image.copy().convert("RGB")
+    cam_image = Image.fromarray(np.uint8(normalized_cam * 255)).resize(source_rgb.size)
     heatmap = cm.jet(np.array(cam_image) / 255.0)[:, :, :3]
     heatmap = np.uint8(heatmap * 255)
 
-    original = np.array(image.convert("RGB"))
+    original = np.array(source_rgb)
     overlay = np.uint8(0.45 * heatmap + 0.55 * original)
 
-    overlay_image = Image.fromarray(overlay)
+    return Image.fromarray(overlay, mode="RGB")
 
-    forward_handle.remove()
-    backward_handle.remove()
+
+def generate_clean_gradcam(
+    model_wrapper,
+    model_input: torch.Tensor,
+    source_image: Image.Image,
+):
+    """
+    Genera el Grad-CAM limpio usando representaciones científica y visual separadas.
+    """
+    result = _calculate_gradcam(model_wrapper, model_input)
+    overlay_image = _render_gradcam_on_source(
+        normalized_cam=result["normalized_cam"],
+        source_image=source_image,
+    )
 
     return {
-        "prediction": predicted_label,
-        "confidence": round(confidence.item(), 4),
+        "prediction": result["prediction"],
+        "confidence": result["confidence"],
         "gradcam_pil_image": overlay_image,
+    }
+
+
+def generate_gradcam_from_prepared_input(
+    model_wrapper,
+    model_input: torch.Tensor,
+    visualization_image: Image.Image,
+):
+    """
+    Genera Grad-CAM desde un tensor de ataque preparado en el dominio [0, 1].
+
+    Solo aplica la normalización del modelo; la imagen visual no participa en
+    el forward.
+    """
+    normalized_model_input = model_wrapper.normalize_attack_input(model_input)
+    return generate_clean_gradcam(
+        model_wrapper=model_wrapper,
+        model_input=normalized_model_input,
+        source_image=visualization_image,
+    )
+
+
+def generate_gradcam(model_wrapper, image: Image.Image):
+    """
+    Genera Grad-CAM con el contrato legacy utilizado por los ataques.
+    """
+    model_input = model_wrapper.preprocess(image)
+    result = generate_clean_gradcam(
+        model_wrapper=model_wrapper,
+        model_input=model_input,
+        source_image=image,
+    )
+
+    return {
+        "prediction": result["prediction"],
+        "confidence": result["confidence"],
+        "gradcam_pil_image": result["gradcam_pil_image"],
     }
 
 

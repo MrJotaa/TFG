@@ -34,6 +34,13 @@ class UnauthorizedError(ApplicationError):
     default_detail = "Unauthorized"
 
 
+class ForbiddenError(ApplicationError):
+    """El usuario autenticado no puede acceder al recurso solicitado."""
+
+    status_code = 403
+    default_detail = "Forbidden"
+
+
 class NotFoundError(ApplicationError):
     """
     El recurso solicitado no existe.
@@ -41,3 +48,10 @@ class NotFoundError(ApplicationError):
 
     status_code = 404
     default_detail = "Resource not found"
+
+
+class GoneError(ApplicationError):
+    """El recurso existió, pero sus artefactos temporales ya no están disponibles."""
+
+    status_code = 410
+    default_detail = "Resource is no longer available"

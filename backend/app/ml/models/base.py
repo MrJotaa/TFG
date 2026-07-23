@@ -1,6 +1,11 @@
 from abc import ABC, abstractmethod
+
+import torch
 from PIL import Image
 
+from ml.models.classification import (
+    DetailedClassificationPrediction,
+)
 from schemas.detection import DetectionResponse
 from schemas.predict import PredictResponse
 
@@ -44,6 +49,29 @@ class BaseImageClassificationModel(BaseModel):
     task_type = "classification"
 
     @abstractmethod
+    def prepare_attack_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        """
+        Convierte la imagen al espacio de píxeles que consume el modelo.
+
+        El tensor debe tener forma [1, C, H, W], valores en [0, 1]
+        y estar situado en el mismo dispositivo que el modelo.
+        """
+        pass
+
+    @abstractmethod
+    def normalize_attack_input(
+        self,
+        tensor: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Normaliza un tensor de píxeles preparado para el modelo.
+        """
+        pass
+
+    @abstractmethod
     def preprocess(self, image: Image.Image):
         """
         Preprocesa la imagen de entrada según los requisitos del modelo.
@@ -51,9 +79,56 @@ class BaseImageClassificationModel(BaseModel):
         pass
 
     @abstractmethod
+    def predict_detailed(
+        self,
+        image: Image.Image,
+        top_k: int = 5,
+    ) -> DetailedClassificationPrediction:
+        """
+        Ejecuta una única inferencia y devuelve el vector completo
+        de probabilidades junto con información de la predicción.
+        """
+        pass
+
+    @abstractmethod
+    def predict_detailed_from_prepared_input(
+        self,
+        prepared_input: torch.Tensor,
+        top_k: int = 5,
+    ) -> DetailedClassificationPrediction:
+        """
+        Predice desde un tensor float ya adaptado a la geometría del modelo.
+
+        La implementación debe aplicar la normalización del modelo, pero no
+        debe repetir transformaciones geométricas ni conversiones de imagen.
+        """
+        pass
+
+    @abstractmethod
     def predict(self, image: Image.Image) -> PredictResponse:
         """
-        Ejecuta la inferencia de clasificación sobre una imagen.
+        Ejecuta la inferencia y construye la respuesta pública
+        utilizada por el endpoint /predict.
+        """
+        pass
+
+    @abstractmethod
+    def predict_from_prepared_input(
+        self,
+        prepared_input: torch.Tensor,
+    ) -> PredictResponse:
+        """
+        Construye la respuesta pública desde una entrada ya preparada.
+        """
+        pass
+
+    @abstractmethod
+    def get_class_labels(self) -> tuple[str, ...]:
+        """
+        Devuelve el catálogo canónico y ordenado de clases.
+
+        El índice de cada etiqueta coincide con la posición de su
+        probabilidad en predict_detailed().
         """
         pass
 
@@ -72,7 +147,10 @@ class BaseObjectDetectionModel(BaseModel):
         """
         pass
 
-    def get_annotated_image(self, image: Image.Image) -> Image.Image:
+    def get_annotated_image(
+        self,
+        image: Image.Image,
+    ) -> Image.Image:
         """
         Devuelve una imagen anotada con las detecciones.
 
@@ -86,10 +164,10 @@ class BaseObjectDetectionModel(BaseModel):
         image: Image.Image,
     ) -> tuple[DetectionResponse, Image.Image]:
         """
-        Ejecuta detección y devuelve también una imagen visualmente anotada.
+        Ejecuta detección y devuelve también una imagen anotada.
 
-        Los modelos concretos pueden sobrescribirlo para evitar ejecutar
-        inferencia dos veces.
+        Los modelos concretos pueden sobrescribirlo para evitar
+        ejecutar inferencia dos veces.
         """
         detection_response = self.detect(image)
         annotated_image = self.get_annotated_image(image)
@@ -99,7 +177,6 @@ class BaseObjectDetectionModel(BaseModel):
     def get_torch_model(self):
         """
         Devuelve el modelo PyTorch interno si el detector lo expone.
-        Necesario para técnicas de explainability como EigenCAM.
         """
         raise NotImplementedError(f"Model '{self.id}' does not expose a torch model")
 

@@ -1,14 +1,25 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import DetectionEvaluationPanel from '../components/DetectionEvaluationPanel'
 import EvaluationPanel from '../components/EvaluationPanel'
 import { useExperiment } from '../context/ExperimentContext'
-import DetectionEvaluationPanel from '../components/DetectionEvaluationPanel'
 import {
     formatAttackParameters,
     getAttackName,
 } from '../utils/attackFormatting'
 
+function ContextItem({ label, value }) {
+    return (
+        <div className="evaluation-context-item">
+            <span>{label}</span>
+            <strong title={String(value)}>{value}</strong>
+        </div>
+    )
+}
+
 function EvaluationView() {
     const navigate = useNavigate()
+    const [isContextOpen, setIsContextOpen] = useState(false)
 
     const {
         selectedDataset,
@@ -17,64 +28,86 @@ function EvaluationView() {
         attackParameters,
     } = useExperiment()
 
+    const isDetection = activeModel?.task_type === 'detection'
     const attackName = getAttackName(selectedAttack)
+    const contextPanelId = 'evaluation-context-panel'
 
     return (
-        <section className="evaluation-page">
-            <div className="comparison-header">
-                <div>
+        <section className="evaluation-page modern-evaluation-page">
+            <header className="evaluation-page-hero compact">
+                <div className="evaluation-page-heading">
+                    <span className="evaluation-eyebrow">
+                        {isDetection ? 'Object detection' : 'Image classification'}
+                    </span>
                     <h2>
-                        {activeModel?.task_type === 'detection'
-                            ? 'Evaluación y Análisis de Detección'
-                            : 'Evaluación y Análisis de Dataset'}
+                        {isDetection
+                            ? 'Evaluación de detección'
+                            : 'Evaluación de clasificación'}
                     </h2>
                     <p>
-                        {activeModel?.task_type === 'detection'
-                            ? 'Evalúa el impacto de ataques adversarios sobre las detecciones del modelo.'
-                            : 'Evalúa el impacto del ataque adversario sobre todas las imágenes del dataset seleccionado.'}
+                        {isDetection
+                            ? 'Compara el comportamiento original y adversarial del detector.'
+                            : 'Compara el rendimiento original y adversarial del modelo.'}
                     </p>
                 </div>
 
-                <button
-                    type="button"
-                    className="secondary-action"
-                    onClick={() => navigate('/dashboard')}
+                <div className="evaluation-page-actions">
+                    <button
+                        type="button"
+                        className="secondary-action evaluation-context-toggle"
+                        aria-expanded={isContextOpen}
+                        aria-controls={contextPanelId}
+                        onClick={() => setIsContextOpen((current) => !current)}
+                    >
+                        <span>Contexto de evaluación</span>
+                        <span
+                            className="evaluation-context-chevron"
+                            aria-hidden="true"
+                        >
+                            {isContextOpen ? '▴' : '▾'}
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        className="secondary-action evaluation-back-button"
+                        onClick={() => navigate('/dashboard')}
+                    >
+                        Volver al dashboard
+                    </button>
+                </div>
+            </header>
+
+            {isContextOpen && (
+                <section
+                    id={contextPanelId}
+                    className="evaluation-context-strip"
+                    aria-label="Contexto del experimento"
                 >
-                    Volver al Dashboard
-                </button>
-            </div>
+                    <ContextItem
+                        label="Dataset"
+                        value={selectedDataset?.name || 'Sin seleccionar'}
+                    />
+                    <ContextItem
+                        label="Imágenes"
+                        value={selectedDataset?.image_count ?? '—'}
+                    />
+                    <ContextItem
+                        label="Modelo"
+                        value={activeModel?.name || 'Sin modelo activo'}
+                    />
+                    <ContextItem label="Ataque" value={attackName} />
+                    <ContextItem
+                        label="Parámetros"
+                        value={formatAttackParameters(
+                            selectedAttack,
+                            attackParameters,
+                        )}
+                    />
+                </section>
+            )}
 
-            <div className="context-summary">
-                <h3>Resumen del Contexto</h3>
-
-                <div className="context-grid">
-                    <p>
-                        <strong>Dataset:</strong>{' '}
-                        {selectedDataset?.name || 'Sin dataset seleccionado'}
-                    </p>
-
-                    <p>
-                        <strong>Imágenes Totales:</strong>{' '}
-                        {selectedDataset?.image_count ?? '-'}
-                    </p>
-
-                    <p>
-                        <strong>Modelo:</strong>{' '}
-                        {activeModel?.name || 'Sin modelo activo'}
-                    </p>
-
-                    <p>
-                        <strong>Ataque:</strong> {attackName}
-                    </p>
-
-                    <p>
-                        <strong>Parámetros:</strong>{' '}
-                        {formatAttackParameters(selectedAttack, attackParameters)}
-                    </p>
-                </div>
-            </div>
-
-            {activeModel?.task_type === 'detection' ? (
+            {isDetection ? (
                 <DetectionEvaluationPanel
                     selectedDataset={selectedDataset}
                     selectedAttack={selectedAttack}
