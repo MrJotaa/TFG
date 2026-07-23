@@ -33,15 +33,16 @@ class FakeClassificationModel:
     ):
         self._predictions = iter(predictions)
         self.prepared_inputs: list[torch.Tensor] = []
+        self.prepared_image_inputs: list[torch.Tensor] = []
 
-    def predict_detailed(
+    def prepare_attack_input(
         self,
         image: Image.Image,
-        top_k: int = 5,
-    ) -> DetailedClassificationPrediction:
+    ) -> torch.Tensor:
         assert image.mode == "RGB"
-        assert top_k == 5
-        return next(self._predictions)
+        prepared_input = torch.zeros((1, 3, 224, 224))
+        self.prepared_image_inputs.append(prepared_input)
+        return prepared_input
 
     def predict_detailed_from_prepared_input(
         self,
@@ -231,6 +232,7 @@ async def _run_evaluation(
     attack = attack_override or FakeClassificationAttack(perturbations)
     saved_metadata: dict = {}
     saved_images: dict[str, Image.Image] = {}
+    saved_scientific_inputs: dict[str, dict] = {}
 
     if source_sizes is None:
         source_sizes = [
@@ -273,6 +275,9 @@ async def _run_evaluation(
         saved_images[filename] = image
         return f"/results/{result_id}/{filename}"
 
+    def fake_save_evaluation_model_inputs(**kwargs):
+        saved_scientific_inputs[kwargs["image_id"]] = kwargs
+
     monkeypatch.setattr(
         evaluation_service,
         "get_dataset",
@@ -311,6 +316,11 @@ async def _run_evaluation(
         "save_result_metadata",
         fake_save_result_metadata,
     )
+    monkeypatch.setattr(
+        evaluation_service,
+        "save_evaluation_model_inputs",
+        fake_save_evaluation_model_inputs,
+    )
 
     response = await evaluation_service.evaluate_dataset(
         EvaluationRequest(
@@ -320,17 +330,22 @@ async def _run_evaluation(
     )
 
     if hasattr(attack, "adversarial_model_inputs"):
-        assert len(model.prepared_inputs) == len(attack.adversarial_model_inputs)
+        adversarial_prediction_inputs = model.prepared_inputs[1::2]
+        assert len(adversarial_prediction_inputs) == len(
+            attack.adversarial_model_inputs
+        )
         assert all(
             predicted_input is attack_input
             for predicted_input, attack_input in zip(
-                model.prepared_inputs,
+                adversarial_prediction_inputs,
                 attack.adversarial_model_inputs,
             )
         )
 
     attack.saved_images = saved_images
     attack.source_images_by_id = images_by_id
+    attack.saved_scientific_inputs = saved_scientific_inputs
+    attack.model = model
 
     return response, attack, saved_metadata
 
@@ -373,7 +388,7 @@ async def test_evaluation_persists_each_structured_result_in_source_geometry(
         tracked_reconstruct,
     )
 
-    response, attack, _ = await _run_evaluation(
+    response, attack, saved_metadata = await _run_evaluation(
         monkeypatch,
         dataset=dataset,
         prediction_pairs=prediction_pairs,
@@ -414,6 +429,22 @@ async def test_evaluation_persists_each_structured_result_in_source_geometry(
         )
         assert response.results[index].perturbation_image_url.endswith(
             f"/{perturbation_filename}"
+        )
+        scientific_inputs = attack.saved_scientific_inputs[image_metadata.id]
+        assert (
+            scientific_inputs["clean_model_input"]
+            is attack.model.prepared_inputs[index * 2]
+        )
+        assert (
+            scientific_inputs["adversarial_model_input"]
+            is attack.adversarial_model_inputs[index]
+        )
+        manifest_entry = saved_metadata["images"][image_metadata.id]
+        assert manifest_entry["image_id"] == image_metadata.id
+        assert manifest_entry["gradcam_generated"] is False
+        assert (
+            manifest_entry["adversarial_visual_filename"]
+            == adversarial_filename
         )
 
     assert [result.perturbation_linf for result in response.results] == [
@@ -461,6 +492,15 @@ async def test_random_noise_evaluation_keeps_legacy_visual_flow(monkeypatch):
     assert (
         attack.saved_images["image-1_perturbation.png"]
         is attack.perturbation_images[0]
+    )
+    scientific_inputs = attack.saved_scientific_inputs["image-1"]
+    assert (
+        scientific_inputs["clean_model_input"]
+        is attack.model.prepared_inputs[0]
+    )
+    assert (
+        scientific_inputs["adversarial_model_input"]
+        is attack.model.prepared_inputs[1]
     )
     assert response.results[0].perturbation_linf == 0.03
     assert response.results[0].perturbation_l2 == 1.0
@@ -581,7 +621,7 @@ async def test_evaluation_exposes_complete_advanced_metrics(
 
     assert attack.original_class_indices == [0, 1, 1, 2]
 
-    assert saved_metadata == {
+    expected_metadata = {
         "result_id": "evaluation-result",
         "result_type": "evaluation",
         "dataset_id": "dataset-1",
@@ -597,6 +637,17 @@ async def test_evaluation_exposes_complete_advanced_metrics(
         "unresolved_labels": 0,
         "metrics_schema_version": "1.0",
         "expires_in_hours": 24,
+    }
+    assert {
+        key: saved_metadata[key] for key in expected_metadata
+    } == expected_metadata
+    assert saved_metadata["status"] == "completed"
+    assert saved_metadata["owner_id"] == "user-1"
+    assert set(saved_metadata["images"]) == {
+        "image-1",
+        "image-2",
+        "image-3",
+        "image-4",
     }
 
 

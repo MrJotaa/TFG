@@ -88,3 +88,10 @@ class EvaluationResponse(BaseModel):
     advanced_metrics: AdvancedClassificationMetrics | None = None
 
     results: list[EvaluationImageResult]
+
+
+class EvaluationGradCamResponse(BaseModel):
+    evaluation_id: str
+    image_id: str
+    original_gradcam_image_url: str
+    adversarial_gradcam_image_url: str

@@ -32,6 +32,10 @@ from services.dataset_service import (
     get_image_from_dataset,
 )
 from services.model_service import get_active_model_instance
+from utils.evaluation_artifacts import (
+    evaluation_image_artifact_filenames,
+    save_evaluation_model_inputs,
+)
 from utils.result_files import (
     create_result_directory,
     save_result_image,
@@ -143,6 +147,23 @@ async def evaluate_dataset(
     }
 
     result_id, result_path = create_result_directory(prefix="evaluation")
+    evaluation_images_manifest: dict[str, dict] = {}
+
+    save_result_metadata(
+        result_path=result_path,
+        metadata={
+            "result_id": result_id,
+            "result_type": "evaluation",
+            "status": "processing",
+            "owner_id": str(dataset.owner_id),
+            "dataset_id": request.dataset_id,
+            "model_id": model.id,
+            "attack_type": request.attack_type,
+            "parameters": request.parameters.model_dump(),
+            "images": evaluation_images_manifest,
+            "expires_in_hours": 24,
+        },
+    )
 
     setup_seconds = perf_counter() - setup_started
     model_device = _get_model_device(model)
@@ -176,8 +197,9 @@ async def evaluate_dataset(
         image_width, image_height = image.size
 
         stage_started = _start_stage(model_device)
-        original_prediction = model.predict_detailed(
-            image=image,
+        clean_model_input = model.prepare_attack_input(image).detach()
+        original_prediction = model.predict_detailed_from_prepared_input(
+            prepared_input=clean_model_input,
             top_k=5,
         )
         original_prediction_seconds = _finish_stage(
@@ -201,26 +223,24 @@ async def evaluate_dataset(
 
         if isinstance(attack_result, AdversarialAttackResult):
             adversarial_image = attack_result.adversarial_image
+            adversarial_model_input = attack_result.adversarial_model_input
             perturbation_linf = attack_result.perturbation_linf
             perturbation_l2 = attack_result.perturbation_l2
         else:
             adversarial_image = attack_result["adversarial_image"]
+            adversarial_model_input = model.prepare_attack_input(
+                adversarial_image
+            ).detach()
             perturbation_linf = attack_result["perturbation_linf"]
             perturbation_l2 = attack_result["perturbation_l2"]
         attack_width, attack_height = adversarial_image.size
 
         stage_started = _start_stage(model_device)
 
-        if isinstance(attack_result, AdversarialAttackResult):
-            adversarial_prediction = model.predict_detailed_from_prepared_input(
-                prepared_input=attack_result.adversarial_model_input,
-                top_k=5,
-            )
-        else:
-            adversarial_prediction = model.predict_detailed(
-                image=adversarial_image,
-                top_k=5,
-            )
+        adversarial_prediction = model.predict_detailed_from_prepared_input(
+            prepared_input=adversarial_model_input,
+            top_k=5,
+        )
 
         adversarial_prediction_seconds = _finish_stage(
             stage_started,
@@ -296,8 +316,19 @@ async def evaluate_dataset(
         )
 
         safe_image_id = image_id.replace("/", "_")
+        artifact_filenames = evaluation_image_artifact_filenames(
+            result_id,
+            image_id,
+        )
 
         stage_started = perf_counter()
+
+        save_result_image(
+            image=image.copy().convert("RGB"),
+            result_id=result_id,
+            result_path=result_path,
+            filename=artifact_filenames["original_visual"],
+        )
 
         adversarial_image_url = save_result_image(
             image=adversarial_image_to_persist,
@@ -312,6 +343,35 @@ async def evaluate_dataset(
             result_path=result_path,
             filename=(f"{safe_image_id}_perturbation.png"),
         )
+
+        save_evaluation_model_inputs(
+            result_path=result_path,
+            filename=artifact_filenames["model_inputs"],
+            evaluation_id=result_id,
+            image_id=image_id,
+            model_id=model.id,
+            clean_model_input=clean_model_input,
+            adversarial_model_input=adversarial_model_input,
+        )
+
+        evaluation_images_manifest[image_id] = {
+            "image_id": image_id,
+            "filename": filename,
+            "original_visual_filename": (
+                artifact_filenames["original_visual"]
+            ),
+            "adversarial_visual_filename": (
+                f"{safe_image_id}_adversarial.png"
+            ),
+            "model_inputs_filename": artifact_filenames["model_inputs"],
+            "original_gradcam_filename": (
+                artifact_filenames["original_gradcam"]
+            ),
+            "adversarial_gradcam_filename": (
+                artifact_filenames["adversarial_gradcam"]
+            ),
+            "gradcam_generated": False,
+        }
 
         save_images_seconds = perf_counter() - stage_started
         profile_totals["save_images"] += save_images_seconds
@@ -383,6 +443,8 @@ async def evaluate_dataset(
         del adversarial_image_to_persist
         del perturbation_image_to_persist
         del adversarial_image
+        del clean_model_input
+        del adversarial_model_input
         del image
 
     metrics_started = perf_counter()
@@ -465,6 +527,8 @@ async def evaluate_dataset(
         metadata={
             "result_id": result_id,
             "result_type": "evaluation",
+            "status": "completed",
+            "owner_id": str(dataset.owner_id),
             "dataset_id": request.dataset_id,
             "model_id": model.id,
             "attack_type": request.attack_type,
@@ -473,6 +537,7 @@ async def evaluate_dataset(
             "resolved_labels": (label_resolution.summary.resolved_labels),
             "unresolved_labels": (label_resolution.summary.unresolved_labels),
             "metrics_schema_version": (advanced_metrics.metrics_schema_version),
+            "images": evaluation_images_manifest,
             "expires_in_hours": 24,
         },
     )
