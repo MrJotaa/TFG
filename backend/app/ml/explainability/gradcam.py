@@ -98,6 +98,25 @@ def generate_clean_gradcam(
     }
 
 
+def generate_gradcam_from_prepared_input(
+    model_wrapper,
+    model_input: torch.Tensor,
+    visualization_image: Image.Image,
+):
+    """
+    Genera Grad-CAM desde un tensor de ataque preparado en el dominio [0, 1].
+
+    Solo aplica la normalización del modelo; la imagen visual no participa en
+    el forward.
+    """
+    normalized_model_input = model_wrapper.normalize_attack_input(model_input)
+    return generate_clean_gradcam(
+        model_wrapper=model_wrapper,
+        model_input=normalized_model_input,
+        source_image=visualization_image,
+    )
+
+
 def generate_gradcam(model_wrapper, image: Image.Image):
     """
     Genera Grad-CAM con el contrato legacy utilizado por los ataques.

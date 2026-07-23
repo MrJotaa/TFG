@@ -41,6 +41,9 @@ class _TrackingWrapper:
     def __init__(self):
         self.model = _TrackingModel()
         self.preprocess_calls = 0
+        self.normalization_calls = 0
+        self.prepared_input = None
+        self.normalized_input = None
 
     def get_torch_model(self):
         return self.model
@@ -51,6 +54,12 @@ class _TrackingWrapper:
     def preprocess(self, image):
         self.preprocess_calls += 1
         return torch.full((1, 3, 5, 7), 0.25)
+
+    def normalize_attack_input(self, prepared_input):
+        self.normalization_calls += 1
+        self.prepared_input = prepared_input
+        self.normalized_input = prepared_input + 0.1
+        return self.normalized_input
 
 
 def _constant_red_colormap(values):
@@ -147,6 +156,25 @@ def test_legacy_gradcam_consumer_keeps_preprocessing_contract():
     assert wrapper.model.forward_count == 1
     assert result["gradcam_pil_image"].size == image.size
     assert result["gradcam_pil_image"].mode == "RGB"
+
+
+def test_prepared_input_gradcam_normalizes_exact_tensor_without_pil_preprocess():
+    wrapper = _TrackingWrapper()
+    prepared_input = torch.zeros((1, 3, 5, 7))
+    visualization_image = Image.new("RGB", (21, 9), color=(20, 40, 60))
+
+    result = gradcam_module.generate_gradcam_from_prepared_input(
+        model_wrapper=wrapper,
+        model_input=prepared_input,
+        visualization_image=visualization_image,
+    )
+
+    assert wrapper.prepared_input is prepared_input
+    assert wrapper.model.received_input is wrapper.normalized_input
+    assert wrapper.normalization_calls == 1
+    assert wrapper.preprocess_calls == 0
+    assert wrapper.model.forward_count == 1
+    assert result["gradcam_pil_image"].size == visualization_image.size
 
 
 @pytest.mark.asyncio

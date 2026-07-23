@@ -54,11 +54,13 @@ class FakeAttack:
 
     def __init__(self, result):
         self.result = result
+        self.apply_calls = 0
 
     def supports_task_type(self, task_type: str) -> bool:
         return task_type in self.supported_task_types
 
     def apply(self, model_wrapper, image, parameters, original_class_index=None):
+        self.apply_calls += 1
         return self.result
 
 
@@ -96,6 +98,9 @@ async def _run_service(
     if source_image is None:
         source_image = Image.new("RGB", (8, 6), color=(128, 128, 128))
     saved_images = []
+    prepared_gradcam_calls = []
+    legacy_gradcam_calls = []
+    fake_attack = FakeAttack(result)
 
     async def fake_get_image_from_dataset(dataset_id: str, image_id: str):
         return source_image
@@ -117,12 +122,43 @@ async def _run_service(
     monkeypatch.setattr(
         attack_service,
         "get_attack",
-        lambda attack_type: FakeAttack(result),
+        lambda attack_type: fake_attack,
     )
+
+    def fake_generate_gradcam_from_prepared_input(
+        model_wrapper,
+        model_input,
+        visualization_image,
+    ):
+        rendered_image = visualization_image.copy()
+        prepared_gradcam_calls.append(
+            {
+                "model_wrapper": model_wrapper,
+                "model_input": model_input,
+                "visualization_image": visualization_image,
+                "rendered_image": rendered_image,
+            }
+        )
+        return {"gradcam_pil_image": rendered_image}
+
+    def fake_generate_gradcam(model_wrapper, image):
+        legacy_gradcam_calls.append(
+            {
+                "model_wrapper": model_wrapper,
+                "image": image,
+            }
+        )
+        return {"gradcam_pil_image": image}
+
     monkeypatch.setattr(
         attack_service,
         "generate_gradcam",
-        lambda model, image: {"gradcam_pil_image": image},
+        fake_generate_gradcam,
+    )
+    monkeypatch.setattr(
+        attack_service,
+        "generate_gradcam_from_prepared_input",
+        fake_generate_gradcam_from_prepared_input,
     )
     monkeypatch.setattr(
         attack_service,
@@ -148,7 +184,13 @@ async def _run_service(
         )
     )
 
-    return response, saved_images
+    return {
+        "response": response,
+        "saved_images": saved_images,
+        "prepared_gradcam_calls": prepared_gradcam_calls,
+        "legacy_gradcam_calls": legacy_gradcam_calls,
+        "attack_apply_calls": fake_attack.apply_calls,
+    }
 
 
 @pytest.mark.asyncio
@@ -160,8 +202,17 @@ async def test_structured_attack_predicts_from_exact_adversarial_tensor(
     clean_before = result.clean_model_input.clone()
     adversarial_before = result.adversarial_model_input.clone()
     delta_before = result.model_space_delta.clone()
+    source_image = Image.new("RGB", (8, 6), color=(128, 128, 128))
+    source_before = source_image.tobytes()
 
-    response, saved_images = await _run_service(monkeypatch, result, model)
+    execution = await _run_service(
+        monkeypatch,
+        result,
+        model,
+        source_image=source_image,
+    )
+    response = execution["response"]
+    saved_images = execution["saved_images"]
 
     assert model.image_predictions == 1
     assert model.tensor_predictions == 1
@@ -171,7 +222,27 @@ async def test_structured_attack_predicts_from_exact_adversarial_tensor(
     assert saved_by_filename["perturbation.png"].size == (8, 6)
     assert saved_by_filename["adversarial.png"] is not result.adversarial_image
     assert saved_by_filename["perturbation.png"] is not result.perturbation_image
-    assert saved_by_filename["adversarial_gradcam.png"] is result.adversarial_image
+    gradcam_calls = execution["prepared_gradcam_calls"]
+    assert len(gradcam_calls) == 2
+    assert gradcam_calls[0]["model_input"] is result.clean_model_input
+    assert gradcam_calls[1]["model_input"] is result.adversarial_model_input
+    assert gradcam_calls[0]["visualization_image"] is not source_image
+    assert gradcam_calls[0]["visualization_image"].size == source_image.size
+    assert gradcam_calls[0]["visualization_image"].tobytes() == source_before
+    assert (
+        saved_by_filename["original_gradcam.png"]
+        is gradcam_calls[0]["rendered_image"]
+    )
+    assert (
+        saved_by_filename["adversarial_gradcam.png"]
+        is gradcam_calls[1]["rendered_image"]
+    )
+    assert execution["legacy_gradcam_calls"] == []
+    assert execution["attack_apply_calls"] == 1
+    assert source_image.tobytes() == source_before
+    assert response.original_prediction.prediction == "clean"
+    assert response.comparison.prediction_changed is True
+    assert response.comparison.attack_success is True
     assert response.comparison.perturbation_linf == result.perturbation_linf
     assert response.comparison.perturbation_l2 == result.perturbation_l2
     assert torch.equal(result.clean_model_input, clean_before)
@@ -191,17 +262,21 @@ async def test_structured_attack_persists_source_geometry_for_fgsm_and_pgd(
     model = FakeClassificationModel(result.adversarial_model_input)
     source_image = Image.new("RGB", source_size, color=(128, 128, 128))
 
-    response, saved_images = await _run_service(
+    execution = await _run_service(
         monkeypatch,
         result,
         model,
         attack_type=attack_type,
         source_image=source_image,
     )
+    response = execution["response"]
+    saved_images = execution["saved_images"]
 
     saved_by_filename = {filename: image for image, filename in saved_images}
     assert saved_by_filename["adversarial.png"].size == source_size
     assert saved_by_filename["perturbation.png"].size == source_size
+    assert saved_by_filename["original_gradcam.png"].size == source_size
+    assert saved_by_filename["adversarial_gradcam.png"].size == source_size
     assert response.adversarial_image_url.endswith("/adversarial.png")
     assert response.perturbation_image_url.endswith("/perturbation.png")
 
@@ -236,17 +311,25 @@ async def test_structured_attack_projects_exact_delta_once(monkeypatch):
         fake_reconstruct_attack_in_source_geometry,
     )
 
-    _, saved_images = await _run_service(
+    execution = await _run_service(
         monkeypatch,
         result,
         model,
         source_image=source_image,
     )
+    saved_images = execution["saved_images"]
 
     saved_by_filename = {filename: image for image, filename in saved_images}
+    gradcam_calls = execution["prepared_gradcam_calls"]
     assert projector_calls == 1
     assert saved_by_filename["adversarial.png"] is reconstructed_adversarial
     assert saved_by_filename["perturbation.png"] is reconstructed_perturbation
+    assert gradcam_calls[1]["visualization_image"] is reconstructed_adversarial
+    assert (
+        saved_by_filename["adversarial_gradcam.png"]
+        is gradcam_calls[1]["rendered_image"]
+    )
+    assert result.adversarial_image is not reconstructed_adversarial
     assert model.image_predictions == 1
     assert model.tensor_predictions == 1
 
@@ -278,16 +361,28 @@ async def test_random_noise_result_keeps_pil_prediction_path(monkeypatch):
             raise AssertionError("Random Noise must keep the PIL prediction path")
 
     model = RandomNoiseModel(torch.empty(0))
+    source_image = Image.new("RGB", (8, 6), color=(128, 128, 128))
 
-    response, saved_images = await _run_service(
+    execution = await _run_service(
         monkeypatch,
         result,
         model,
         attack_type=AttackType.RANDOM_NOISE,
+        source_image=source_image,
     )
+    response = execution["response"]
+    saved_images = execution["saved_images"]
 
     assert model.image_predictions == 2
     assert model.tensor_predictions == 0
+    assert execution["attack_apply_calls"] == 1
+    assert execution["prepared_gradcam_calls"] == []
+    assert [call["image"] for call in execution["legacy_gradcam_calls"]] == [
+        source_image,
+        result["adversarial_image"],
+    ]
     assert response.adversarial_prediction.prediction == "adversarial"
+    assert response.comparison.perturbation_linf == result["perturbation_linf"]
+    assert response.comparison.perturbation_l2 == result["perturbation_l2"]
     assert (result["adversarial_image"], "adversarial.png") in saved_images
     assert (result["perturbation_image"], "perturbation.png") in saved_images
