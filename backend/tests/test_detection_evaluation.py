@@ -25,6 +25,8 @@ def test_detect_evaluate_returns_detection_evaluation_response(client, monkeypat
         assert request.parameters.steps == 10
 
         return {
+            "metrics_schema_version": "1.0",
+            "delta_convention": "original_minus_adversarial",
             "dataset_id": "dataset-1",
             "model_id": "yolov8n",
             "model_name": "YOLOv8n pretrained",
@@ -118,12 +120,16 @@ def test_detect_evaluate_returns_detection_evaluation_response(client, monkeypat
     assert data["model_id"] == "yolov8n"
     assert data["model_name"] == "YOLOv8n pretrained"
     assert data["attack_type"] == "yolo_confidence"
+    assert data["metrics_schema_version"] == "1.0"
+    assert data["delta_convention"] == "original_minus_adversarial"
 
     summary = data["summary"]
 
     assert summary["total_images"] == 2
     assert summary["total_original_detections"] == 3
     assert summary["total_adversarial_detections"] == 1
+    assert summary["detections_difference"] == 2
+    assert summary["average_confidence_difference"] == 0.46
     assert summary["images_with_reduced_detections"] == 2
     assert summary["images_with_no_adversarial_detections"] == 1
     assert summary["attack_success_rate"] == 1.0
@@ -141,6 +147,8 @@ def test_detect_evaluate_uses_default_parameters(client, monkeypatch):
         assert request.parameters.steps == 10
 
         return {
+            "metrics_schema_version": "1.0",
+            "delta_convention": "original_minus_adversarial",
             "dataset_id": request.dataset_id,
             "model_id": "yolov8n",
             "model_name": "YOLOv8n pretrained",
@@ -211,6 +219,8 @@ def test_detect_evaluate_uses_default_parameters(client, monkeypatch):
     assert data["model_id"] == "yolov8n"
     assert data["model_name"] == "YOLOv8n pretrained"
     assert data["attack_type"] == "random_noise"
+    assert data["metrics_schema_version"] == "1.0"
+    assert data["delta_convention"] == "original_minus_adversarial"
     assert data["parameters"]["epsilon"] == 0.03
     assert data["parameters"]["alpha"] == 0.01
     assert data["parameters"]["steps"] == 10

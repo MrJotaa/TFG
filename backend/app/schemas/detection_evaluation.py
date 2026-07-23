@@ -2,6 +2,7 @@ from pydantic import BaseModel
 
 from schemas.attack import AttackParameters, AttackType
 from schemas.detection import DetectionPrediction
+from schemas.detection_metrics import DetectionMetricsContract
 
 
 class DetectionEvaluationRequest(BaseModel):
@@ -11,6 +12,13 @@ class DetectionEvaluationRequest(BaseModel):
 
 
 class DetectionEvaluationImageResult(BaseModel):
+    """
+    Métricas por imagen con deltas ``original - adversarial``.
+
+    ``attack_success`` es una clasificación legacy basada en reducción de
+    conteo o confianza, no una evaluación por objetos contra ground truth.
+    """
+
     image_id: str
     filename: str
 
@@ -31,6 +39,12 @@ class DetectionEvaluationImageResult(BaseModel):
 
 
 class DetectionEvaluationSummary(BaseModel):
+    """
+    Resumen básico con deltas ``original - adversarial``.
+
+    ``attack_success_rate`` agrega la clasificación legacy de cada imagen.
+    """
+
     total_images: int
 
     total_original_detections: int
@@ -53,7 +67,7 @@ class DetectionEvaluationSummary(BaseModel):
     average_perturbation_l2: float
 
 
-class DetectionEvaluationResponse(BaseModel):
+class DetectionEvaluationResponse(DetectionMetricsContract):
     model_id: str
     model_name: str
     dataset_id: str

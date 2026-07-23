@@ -165,8 +165,9 @@ function DetectionEvaluationPanel({
                                     />
 
                                     <MetricCard
-                                        title="Diferencia de detecciones"
+                                        title="Diferencia de detecciones (original − adversaria)"
                                         value={summary.detections_difference}
+                                        subtitle="Positiva: hay menos detecciones adversarias; no determina calidad sin ground truth."
                                     />
 
                                     <MetricCard
@@ -190,8 +191,9 @@ function DetectionEvaluationPanel({
                                     />
 
                                     <MetricCard
-                                        title="Diferencia media confianza"
+                                        title="Diferencia media de confianza (original − adversaria)"
                                         value={summary.average_confidence_difference}
+                                        subtitle="Positiva: la confianza adversaria ha bajado."
                                     />
 
                                     <MetricCard
@@ -205,8 +207,9 @@ function DetectionEvaluationPanel({
                                     />
 
                                     <MetricCard
-                                        title="Tasa de éxito del ataque"
+                                        title="Tasa de éxito legacy"
                                         value={summary.attack_success_rate}
+                                        subtitle="Criterio legacy: reducción de detecciones o de confianza media."
                                     />
 
                                     <MetricCard
@@ -311,7 +314,16 @@ function DetectionEvaluationPanel({
                                     <strong>
                                         {summary.average_confidence_difference}
                                     </strong>
-                                    .
+                                    {' '}
+                                    (original − adversaria). Un valor positivo indica
+                                    una caída de confianza.
+                                </p>
+
+                                <p>
+                                    La diferencia de detecciones usa también original
+                                    − adversaria. Un valor positivo indica menos
+                                    detecciones adversarias, pero no permite concluir
+                                    una mejora o degradación sin ground truth.
                                 </p>
                             </section>
 
@@ -325,11 +337,11 @@ function DetectionEvaluationPanel({
                                                 <th>Imagen</th>
                                                 <th>Det. Originales</th>
                                                 <th>Det. Adv.</th>
-                                                <th>Diferencia</th>
+                                                <th>Δ det. (orig. − adv.)</th>
                                                 <th>Conf. Original</th>
                                                 <th>Conf. Adv.</th>
-                                                <th>Conf. Δ</th>
-                                                <th>Ataque</th>
+                                                <th>Δ conf. (orig. − adv.)</th>
+                                                <th>Éxito legacy</th>
                                                 <th>Original</th>
                                                 <th>Adversaria</th>
                                             </tr>
@@ -371,8 +383,8 @@ function DetectionEvaluationPanel({
                                                     </td>
                                                     <td>
                                                         {result.attack_success
-                                                            ? 'Exitoso'
-                                                            : 'No exitoso'}
+                                                            ? 'Sí'
+                                                            : 'No'}
                                                     </td>
                                                     <td className="detections-cell">
                                                         {formatDetections(

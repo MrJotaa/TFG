@@ -91,9 +91,15 @@ async def apply_detection_attack(
         original_detection_count=metrics.original_count,
         adversarial_detection_count=metrics.adversarial_count,
         detections_difference=metrics.detections_difference,
-        average_original_confidence=(metrics.average_original_confidence),
-        average_adversarial_confidence=(metrics.average_adversarial_confidence),
-        average_confidence_difference=(metrics.average_confidence_difference),
+        average_original_confidence=round(metrics.average_original_confidence, 4),
+        average_adversarial_confidence=round(
+            metrics.average_adversarial_confidence,
+            4,
+        ),
+        average_confidence_difference=round(
+            metrics.average_confidence_difference,
+            4,
+        ),
         attack_success=metrics.attack_success,
         perturbation_linf=attack_result["perturbation_linf"],
         perturbation_l2=attack_result["perturbation_l2"],

@@ -463,7 +463,10 @@ function DetectionView() {
                                     </article>
 
                                     <article className="metric-card">
-                                        <span>Diferencia de detecciones</span>
+                                        <span>
+                                            Diferencia de detecciones (original −
+                                            adversaria)
+                                        </span>
                                         <strong>
                                             {
                                                 attackResult.comparison
@@ -493,7 +496,10 @@ function DetectionView() {
                                     </article>
 
                                     <article className="metric-card">
-                                        <span>Diferencia de confianza</span>
+                                        <span>
+                                            Diferencia de confianza (original −
+                                            adversaria)
+                                        </span>
                                         <strong>
                                             {
                                                 attackResult.comparison
@@ -503,7 +509,7 @@ function DetectionView() {
                                     </article>
 
                                     <article className="metric-card">
-                                        <span>Resultado del ataque</span>
+                                        <span>Resultado legacy del ataque</span>
                                         <strong>
                                             {attackResult.comparison.attack_success
                                                 ? 'Exitoso'
@@ -525,6 +531,13 @@ function DetectionView() {
                                         </strong>
                                     </article>
                                 </div>
+
+                                <p className="muted-text">
+                                    Una diferencia positiva de confianza indica una
+                                    caída tras el ataque. Una diferencia positiva de
+                                    detecciones indica que hay menos detecciones
+                                    adversarias, pero no mide calidad sin ground truth.
+                                </p>
                             </section>
 
                             <section className="comparison-detail-card">

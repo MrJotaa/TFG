@@ -26,6 +26,8 @@ def test_detect_attack_returns_detection_attack_response(client, monkeypatch):
         assert request.parameters.steps == 10
 
         return {
+            "metrics_schema_version": "1.0",
+            "delta_convention": "original_minus_adversarial",
             "result_id": "detection-attack-result-1",
             "attack_type": "yolo_confidence",
             "parameters": {
@@ -85,6 +87,8 @@ def test_detect_attack_returns_detection_attack_response(client, monkeypatch):
     assert data["result_id"] == "detection-attack-result-1"
     assert data["attack_type"] == "yolo_confidence"
     assert data["parameters"]["epsilon"] == 0.05
+    assert data["metrics_schema_version"] == "1.0"
+    assert data["delta_convention"] == "original_minus_adversarial"
 
     assert data["original_annotated_image_url"]
     assert data["adversarial_image_url"]
@@ -108,6 +112,8 @@ def test_detect_attack_uses_default_parameters(client, monkeypatch):
         assert request.parameters.steps == 10
 
         return {
+            "metrics_schema_version": "1.0",
+            "delta_convention": "original_minus_adversarial",
             "result_id": "detection-attack-defaults",
             "attack_type": "random_noise",
             "parameters": {
@@ -160,6 +166,8 @@ def test_detect_attack_uses_default_parameters(client, monkeypatch):
     data = response.json()
 
     assert data["attack_type"] == "random_noise"
+    assert data["metrics_schema_version"] == "1.0"
+    assert data["delta_convention"] == "original_minus_adversarial"
     assert data["parameters"]["epsilon"] == 0.03
     assert data["parameters"]["alpha"] == 0.01
     assert data["parameters"]["steps"] == 10
