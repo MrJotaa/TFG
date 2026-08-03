@@ -293,13 +293,7 @@ button {
 
 .summary-actions {
     display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin-top: 1.25rem;
-}
-
-.summary-actions {
-    display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 1rem;
     margin-top: 1.25rem;
@@ -307,9 +301,12 @@ button {
 
 .summary-actions .primary-action,
 .summary-actions .secondary-action {
-    width: 130px;
-    height: 48px;
+    width: auto;
+    min-width: 140px;
+    min-height: 48px;
+    height: auto;
     margin: 0;
+    white-space: nowrap;
 }
 
 .primary-action,
@@ -5001,5 +4998,738 @@ button {
 
     .detection-prediction-list dl div {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Explorador visual original-adversaria */
+.adversarial-explorer {
+    margin-top: 0;
+    padding: 24px;
+    border: 1px solid #cfd9e8;
+    border-radius: 18px;
+    background: #f8fbff;
+    box-shadow: 0 16px 38px rgba(25, 45, 78, 0.08);
+}
+
+.adversarial-explorer-header,
+.adversarial-explorer-toolbar,
+.adversarial-image-navigation,
+.adversarial-explorer-loading,
+.adversarial-perturbation-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.adversarial-explorer-header h3,
+.adversarial-explorer-header p,
+.adversarial-perturbation-panel p {
+    margin: 0;
+}
+
+.adversarial-explorer-header h3 {
+    margin-top: 4px;
+    color: #17233b;
+    font-size: 1.35rem;
+}
+
+.adversarial-explorer-header p {
+    margin-top: 6px;
+    color: #5d6b82;
+}
+
+.adversarial-explorer-identity {
+    display: grid;
+    min-width: 180px;
+    gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid #d8e2ef;
+    border-radius: 12px;
+    background: #fff;
+    text-align: right;
+}
+
+.adversarial-explorer-identity strong {
+    overflow-wrap: anywhere;
+    color: #1d2a44;
+}
+
+.adversarial-explorer-identity span {
+    color: #6b7890;
+    font-size: 0.82rem;
+}
+
+.adversarial-explorer-toolbar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin: 22px 0 16px;
+    padding: 12px;
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    background: #fff;
+}
+
+.adversarial-explorer-segmented {
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid #cbd7e7;
+    border-radius: 10px;
+    background: #eef3f9;
+}
+
+.adversarial-explorer-segmented button,
+.adversarial-zoom-controls button {
+    min-height: 34px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #43516a;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.adversarial-explorer-segmented button {
+    padding: 6px 12px;
+}
+
+.adversarial-explorer-segmented button.active {
+    background: #fff;
+    color: #175ac6;
+    box-shadow: 0 2px 7px rgba(28, 58, 104, 0.13);
+}
+
+.adversarial-explorer-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #42516a;
+    font-size: 0.88rem;
+    font-weight: 650;
+}
+
+.adversarial-explorer-toggle input {
+    width: 17px;
+    height: 17px;
+    accent-color: #1f6feb;
+}
+
+.adversarial-zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.adversarial-zoom-controls button {
+    padding: 5px 10px;
+    border: 1px solid #c8d5e6;
+    background: #fff;
+}
+
+.adversarial-zoom-controls button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.adversarial-zoom-controls label {
+    display: grid;
+    grid-template-columns: auto minmax(90px, 160px) 48px;
+    align-items: center;
+    gap: 8px;
+    color: #536078;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.adversarial-zoom-controls input {
+    accent-color: #1f6feb;
+}
+
+.adversarial-zoom-controls output {
+    color: #1c2b45;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.adversarial-explorer-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.adversarial-explorer-figure {
+    min-width: 0;
+    margin: 0;
+}
+
+.adversarial-explorer-figure figcaption,
+.adversarial-perturbation-panel h4 {
+    margin-bottom: 8px;
+    color: #253451;
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.adversarial-perturbation-panel h4 {
+    margin-top: 0;
+}
+
+.adversarial-explorer-figure:first-child figcaption {
+    color: #1768c5;
+}
+
+.adversarial-explorer-figure:last-child figcaption {
+    color: #c63645;
+}
+
+.adversarial-explorer-viewport {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: 390px;
+    overflow: hidden;
+    border: 1px solid #c9d5e5;
+    border-radius: 14px;
+    background:
+        linear-gradient(45deg, #e7edf5 25%, transparent 25%),
+        linear-gradient(-45deg, #e7edf5 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e7edf5 75%),
+        linear-gradient(-45deg, transparent 75%, #e7edf5 75%),
+        #f4f7fb;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    background-size: 16px 16px;
+    cursor: default;
+    touch-action: none;
+}
+
+.adversarial-explorer-viewport.is-zoomed {
+    cursor: grab;
+}
+
+.adversarial-explorer-viewport.is-zoomed:active {
+    cursor: grabbing;
+}
+
+.adversarial-explorer-viewport:focus-visible {
+    outline: 3px solid rgba(31, 111, 235, 0.45);
+    outline-offset: 2px;
+}
+
+.adversarial-explorer-viewport img,
+.adversarial-overlay-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.adversarial-explorer-viewport img {
+    object-fit: contain;
+    transform-origin: center;
+    transition: transform 90ms ease-out;
+    user-select: none;
+}
+
+.adversarial-explorer-viewport:active img {
+    transition: none;
+}
+
+.adversarial-explorer-missing {
+    color: #748198;
+    font-weight: 650;
+}
+
+.adversarial-overlay-comparison {
+    max-width: 1050px;
+    margin: 0 auto;
+}
+
+.adversarial-explorer-viewport.overlay {
+    min-height: 560px;
+}
+
+.adversarial-overlay-layer {
+    overflow: hidden;
+}
+
+.adversarial-overlay-divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(19, 36, 66, 0.35);
+    transform: translateX(-1px);
+    pointer-events: none;
+}
+
+.adversarial-overlay-label {
+    position: absolute;
+    top: 14px;
+    z-index: 2;
+    padding: 5px 9px;
+    border-radius: 7px;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+.adversarial-overlay-label.original {
+    left: 14px;
+    background: rgba(20, 91, 181, 0.9);
+}
+
+.adversarial-overlay-label.adversarial {
+    right: 14px;
+    background: rgba(190, 43, 59, 0.9);
+}
+
+.adversarial-split-control {
+    display: grid;
+    grid-template-columns: auto minmax(160px, 1fr) 105px;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    color: #4a5870;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.adversarial-split-control input {
+    width: 100%;
+    accent-color: #be2b3b;
+}
+
+.adversarial-split-control output {
+    color: #263551;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.adversarial-explorer-help {
+    margin: 12px 0 0;
+    color: #68758a;
+    font-size: 0.82rem;
+    text-align: center;
+}
+
+.adversarial-perturbation-panel {
+    align-items: stretch;
+    margin: 20px 0 0;
+    padding: 16px;
+    border: 1px solid #d7dfec;
+    border-radius: 14px;
+    background: #fff;
+}
+
+.adversarial-perturbation-panel > div {
+    align-self: center;
+    max-width: 360px;
+}
+
+.adversarial-perturbation-panel p {
+    color: #68758a;
+    font-size: 0.84rem;
+}
+
+.adversarial-perturbation-panel img {
+    width: min(46%, 520px);
+    max-height: 280px;
+    border: 1px solid #d0dae8;
+    border-radius: 10px;
+    background: #f4f7fa;
+    object-fit: contain;
+}
+
+.adversarial-image-navigation {
+    flex: 1;
+    margin: 0;
+}
+
+.adversarial-image-navigation span {
+    color: #5a6880;
+    font-size: 0.88rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.adversarial-explorer-loading {
+    justify-content: center;
+    margin-top: 0;
+    padding: 26px;
+    border: 1px solid #d7e1ef;
+    border-radius: 14px;
+    background: #f7faff;
+}
+
+.adversarial-explorer-loading p {
+    margin: 4px 0 0;
+    color: #68758a;
+}
+
+.adversarial-topk-grid,
+.adversarial-detection-lists {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.adversarial-topk-grid .analysis-card {
+    min-width: 0;
+}
+
+.adversarial-topk-grid h4 {
+    margin: 0 0 12px;
+}
+
+.adversarial-detection-list {
+    min-width: 0;
+    border: 1px solid #d5dfed;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.adversarial-detection-list summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    color: #263651;
+    cursor: pointer;
+    font-weight: 750;
+}
+
+.adversarial-detection-list summary span {
+    min-width: 28px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #e9f0fa;
+    text-align: center;
+}
+
+.adversarial-detection-list .evaluation-table-wrapper,
+.adversarial-detection-list > p {
+    margin: 0 14px 14px;
+}
+
+.metric-card.tone-danger {
+    border-color: #efb6bd;
+    background: #fff7f8;
+}
+
+.metric-card.tone-success {
+    border-color: #b5dfc8;
+    background: #f6fcf8;
+}
+
+.individual-analysis-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 12px;
+    border: 1px solid #d5dfed;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(25, 45, 78, 0.06);
+}
+
+.individual-analysis-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 10px;
+}
+
+.individual-analysis-actions .primary-action,
+.individual-analysis-actions .secondary-action {
+    min-height: 46px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.individual-analysis-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 6px;
+    border: 1px solid #d5dfed;
+    border-radius: 14px;
+    background: #eaf0f8;
+}
+
+.individual-analysis-tabs button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: #52627a;
+    font-weight: 750;
+}
+
+.individual-analysis-tabs button span {
+    color: #97a6ba;
+    font-size: 0.68rem;
+}
+
+.individual-analysis-tabs button.active {
+    border-color: #c4d2e5;
+    background: #fff;
+    color: #175fb4;
+    box-shadow: 0 4px 12px rgba(25, 45, 78, 0.08);
+}
+
+.individual-analysis-tabs button.active span {
+    color: #21805a;
+}
+
+.individual-analysis-tabs button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.clean-prediction-result {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr);
+    gap: 24px;
+    padding: 24px;
+    border: 1px solid #cfd9e8;
+    border-radius: 18px;
+    background: #f8fbff;
+    box-shadow: 0 16px 38px rgba(25, 45, 78, 0.08);
+}
+
+.clean-detection-result,
+.detection-explainability-result {
+    display: grid;
+    grid-template-columns: minmax(360px, 1.25fr) minmax(300px, 0.75fr);
+    gap: 24px;
+    padding: 24px;
+    border: 1px solid #cfd9e8;
+    border-radius: 18px;
+    background: #f8fbff;
+    box-shadow: 0 16px 38px rgba(25, 45, 78, 0.08);
+}
+
+.clean-detection-image,
+.clean-detection-summary {
+    min-width: 0;
+}
+
+.clean-detection-image img {
+    display: block;
+    width: 100%;
+    height: min(58vh, 560px);
+    min-height: 360px;
+    margin-top: 10px;
+    border: 1px solid #c9d5e5;
+    border-radius: 14px;
+    background: #f4f7fb;
+    object-fit: contain;
+}
+
+.clean-detection-summary {
+    align-self: center;
+}
+
+.clean-detection-summary h3 {
+    margin: 8px 0;
+    color: #17233b;
+    font-size: clamp(1.65rem, 4vw, 2.6rem);
+}
+
+.clean-detection-summary .adversarial-detection-list {
+    margin-top: 18px;
+    background: #fff;
+}
+
+.clean-prediction-image,
+.clean-prediction-summary {
+    min-width: 0;
+}
+
+.clean-prediction-image img {
+    display: block;
+    width: 100%;
+    height: 390px;
+    margin-top: 10px;
+    border: 1px solid #c9d5e5;
+    border-radius: 14px;
+    background: #f4f7fb;
+    object-fit: contain;
+}
+
+.clean-prediction-summary {
+    align-self: center;
+    padding: 12px 8px;
+}
+
+.clean-prediction-summary h3 {
+    margin: 8px 0 4px;
+    color: #17233b;
+    font-size: clamp(1.55rem, 3vw, 2.25rem);
+    overflow-wrap: anywhere;
+}
+
+.clean-prediction-confidence {
+    margin: 0 0 20px;
+    color: #5a6880;
+    font-size: 1rem;
+}
+
+.clean-prediction-confidence strong {
+    color: #1768c5;
+    font-size: 1.15rem;
+}
+
+.clean-prediction-summary .muted-text {
+    margin: 18px 0 0;
+}
+
+.individual-analysis-empty {
+    padding: 22px 24px;
+    border: 1px dashed #bdcbe0;
+    border-radius: 14px;
+    background: #f8fbff;
+    color: #263651;
+    text-align: center;
+}
+
+.individual-analysis-empty p {
+    max-width: 760px;
+    margin: 6px auto 0;
+    color: #68758a;
+}
+
+@media (max-width: 980px) {
+    .adversarial-explorer-grid,
+    .adversarial-topk-grid,
+    .adversarial-detection-lists {
+        grid-template-columns: 1fr;
+    }
+
+    .adversarial-explorer-viewport,
+    .adversarial-explorer-viewport.overlay {
+        min-height: 440px;
+    }
+
+    .adversarial-zoom-controls {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .adversarial-zoom-controls label {
+        flex: 1;
+    }
+
+    .individual-analysis-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .clean-prediction-result {
+        grid-template-columns: 1fr;
+    }
+
+    .clean-detection-result,
+    .detection-explainability-result {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .adversarial-explorer {
+        padding: 16px;
+        border-radius: 14px;
+    }
+
+    .adversarial-explorer-header,
+    .adversarial-image-navigation,
+    .adversarial-perturbation-panel {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .adversarial-explorer-identity {
+        text-align: left;
+    }
+
+    .adversarial-explorer-segmented {
+        flex: 1;
+    }
+
+    .adversarial-explorer-segmented button {
+        flex: 1;
+    }
+
+    .adversarial-zoom-controls {
+        flex-wrap: wrap;
+    }
+
+    .adversarial-zoom-controls label {
+        order: 2;
+        grid-template-columns: auto minmax(80px, 1fr) 48px;
+        width: 100%;
+        flex-basis: 100%;
+    }
+
+    .adversarial-explorer-viewport,
+    .adversarial-explorer-viewport.overlay {
+        min-height: 310px;
+    }
+
+    .adversarial-split-control {
+        grid-template-columns: 1fr auto;
+    }
+
+    .adversarial-split-control input {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .adversarial-perturbation-panel img {
+        width: 100%;
+    }
+
+    .adversarial-image-navigation button {
+        width: 100%;
+    }
+
+    .individual-analysis-actions {
+        flex-direction: column;
+    }
+
+    .individual-analysis-actions .primary-action,
+    .individual-analysis-actions .secondary-action {
+        width: 100%;
+    }
+
+    .individual-analysis-tabs {
+        grid-template-columns: 1fr;
+    }
+
+    .clean-prediction-result {
+        padding: 16px;
+    }
+
+    .clean-prediction-image img {
+        height: 310px;
+    }
+
+    .clean-detection-image img {
+        height: 310px;
+        min-height: 0;
     }
 }
