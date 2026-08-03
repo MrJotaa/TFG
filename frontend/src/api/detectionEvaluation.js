@@ -6,6 +6,7 @@ export function evaluateDetectionDataset({
     epsilon,
     alpha,
     steps,
+    supervisedConfiguration,
 }) {
     return apiRequest('/detect/evaluate', {
         method: 'POST',
@@ -20,6 +21,7 @@ export function evaluateDetectionDataset({
                 alpha,
                 steps,
             },
+            supervised_configuration: supervisedConfiguration,
         }),
     })
 }

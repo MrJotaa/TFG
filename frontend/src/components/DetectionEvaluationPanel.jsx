@@ -1,5 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { evaluateDetectionDataset } from '../api/detectionEvaluation'
+import DetectionClassMetrics from './detectionEvaluation/DetectionClassMetrics'
+import DetectionCocoMetrics from './detectionEvaluation/DetectionCocoMetrics'
+import DetectionImageResults from './detectionEvaluation/DetectionImageResults'
+import DetectionObjectAnalysis from './detectionEvaluation/DetectionObjectAnalysis'
+import DetectionOverview from './detectionEvaluation/DetectionOverview'
+import DetectionPrecisionRecall from './detectionEvaluation/DetectionPrecisionRecall'
+import EvaluationTabs from './evaluation/EvaluationTabs'
 
 const ATTACK_NAMES = {
     random_noise: 'Random Noise',
@@ -7,404 +14,237 @@ const ATTACK_NAMES = {
 }
 
 const SUPPORTED_DETECTION_ATTACKS = ['random_noise', 'yolo_confidence']
-
-function MetricCard({ title, value, subtitle }) {
-    return (
-        <article className="metric-card">
-            <span>{title}</span>
-            <strong>{value}</strong>
-            {subtitle && <small>{subtitle}</small>}
-        </article>
-    )
-}
-
-function SimpleBar({ label, value, max = 1 }) {
-    const safeMax = max || 1
-    const percentage = Math.max(0, Math.min(100, (value / safeMax) * 100))
-
-    return (
-        <div className="simple-bar-row">
-            <div className="simple-bar-label">
-                <span>{label}</span>
-                <strong>{value}</strong>
-            </div>
-
-            <div className="simple-bar-track">
-                <div
-                    className="simple-bar-fill"
-                    style={{ width: `${percentage}%` }}
-                />
-            </div>
-        </div>
-    )
-}
-
-function formatDetections(detections) {
-    if (!detections || detections.length === 0) {
-        return '-'
-    }
-
-    return detections
-        .map((detection) => `${detection.label} (${detection.confidence})`)
-        .join(', ')
-}
+const IOU_THRESHOLDS = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
 
 function DetectionEvaluationPanel({
     selectedDataset,
     selectedAttack,
     attackParameters,
 }) {
-    const [evaluation, setEvaluation] = useState(null)
+    const [evaluationState, setEvaluationState] = useState(null)
+    const [activeTab, setActiveTab] = useState('overview')
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState('')
+    const [errorState, setErrorState] = useState(null)
+    const [configuration, setConfiguration] = useState({
+        confidence_threshold: 0.25,
+        iou_threshold: 0.5,
+        include_object_level_details: false,
+    })
 
     const isSupportedAttack = SUPPORTED_DETECTION_ATTACKS.includes(selectedAttack)
+    const isConfigurationValid =
+        Number.isFinite(configuration.confidence_threshold) &&
+        configuration.confidence_threshold >= 0.001 &&
+        configuration.confidence_threshold <= 1
     const attackName = ATTACK_NAMES[selectedAttack] || selectedAttack
+    const contextKey = [
+        selectedDataset?.id ?? '',
+        selectedAttack,
+        attackParameters.epsilon,
+        attackParameters.alpha,
+        attackParameters.steps,
+        configuration.confidence_threshold,
+        configuration.iou_threshold,
+        configuration.include_object_level_details,
+    ].join(':')
 
-    useEffect(() => {
-        setEvaluation(null)
-        setError('')
-    }, [selectedDataset, selectedAttack, attackParameters])
+    const evaluation =
+        evaluationState?.contextKey === contextKey ? evaluationState.data : null
+    const error = errorState?.contextKey === contextKey ? errorState.message : ''
+
+    const tabs = useMemo(() => {
+        const supervised = evaluation?.supervised
+        const classCount = supervised?.available ? supervised.original.per_class.length : null
+        const objectCount = supervised?.object_analysis?.total_evaluable_objects
+        return [
+            { id: 'overview', label: 'Resumen' },
+            { id: 'coco', label: 'Métricas COCO' },
+            { id: 'classes', label: 'Por clase', badge: classCount },
+            { id: 'curves', label: 'Curvas PR' },
+            { id: 'objects', label: 'Por objeto', badge: objectCount },
+            { id: 'images', label: 'Imágenes', badge: evaluation?.results?.length },
+        ]
+    }, [evaluation])
 
     async function handleEvaluate() {
         if (!selectedDataset) {
-            setError('Debes seleccionar un dataset.')
+            setErrorState({ contextKey, message: 'Debes seleccionar un dataset.' })
             return
         }
-
         if (!isSupportedAttack) {
-            setError(
-                'Para evaluar un modelo de detección debes seleccionar Random Noise o YOLO Confidence.',
-            )
+            setErrorState({
+                contextKey,
+                message:
+                    'Para evaluar un detector selecciona Random Noise o YOLO Confidence.',
+            })
             return
         }
 
         try {
             setLoading(true)
-            setError('')
-            setEvaluation(null)
-
+            setErrorState(null)
             const result = await evaluateDetectionDataset({
                 datasetId: selectedDataset.id,
                 attackType: selectedAttack,
                 epsilon: attackParameters.epsilon,
                 alpha: attackParameters.alpha,
                 steps: attackParameters.steps,
+                supervisedConfiguration: configuration,
             })
-
-            setEvaluation(result)
-        } catch (err) {
-            setError(err.message)
+            setEvaluationState({ contextKey, data: result })
+            setActiveTab('overview')
+        } catch (error) {
+            setErrorState({ contextKey, message: error.message })
         } finally {
             setLoading(false)
         }
     }
 
-    const summary = evaluation?.summary
+    function updateConfiguration(field, value) {
+        setConfiguration((current) => ({ ...current, [field]: value }))
+    }
+
+    if (!selectedDataset) {
+        return (
+            <div className="evaluation-empty-panel">
+                <span className="evaluation-eyebrow">Configuración incompleta</span>
+                <h3>No hay dataset seleccionado</h3>
+                <p>Vuelve al dashboard y selecciona un dataset antes de ejecutar la evaluación.</p>
+            </div>
+        )
+    }
 
     return (
-        <div className="evaluation-panel">
-            {!selectedDataset ? (
-                <div className="empty-state">
-                    <h3>No hay dataset seleccionado</h3>
-                    <p>
-                        Vuelve al Dashboard y selecciona un dataset antes de ejecutar
-                        la evaluación.
-                    </p>
-                </div>
-            ) : (
-                <>
-                    <div className="evaluation-run-card">
-                        <div>
-                            <h3>Evaluación de Detección</h3>
-                            <p>
-                                Se evaluará el impacto de{' '}
-                                <strong>{attackName}</strong> sobre todas las imágenes
-                                del dataset usando el modelo de detección activo.
-                            </p>
-
-                            {!isSupportedAttack && (
-                                <p className="muted-text">
-                                    Ataque no compatible con detección. Selecciona
-                                    Random Noise o YOLO Confidence en el Dashboard.
-                                </p>
-                            )}
-                        </div>
-
-                        <button
-                            type="button"
-                            className="primary-action"
-                            onClick={handleEvaluate}
-                            disabled={loading || !isSupportedAttack}
-                        >
-                            {loading ? 'Evaluando dataset...' : 'Ejecutar evaluación'}
-                        </button>
+        <div className="evaluation-panel evaluation-dashboard detection-evaluation-dashboard">
+            {!evaluation && !loading && (
+                <section className="evaluation-run-card modern detection-run-card">
+                    <div className="detection-run-copy">
+                        <span className="evaluation-eyebrow">Evaluación de robustez COCO</span>
+                        <h3>Analiza el detector con {attackName}</h3>
+                        <p>
+                            Se compararán predicciones originales y adversariales en{' '}
+                            <strong>{selectedDataset.image_count}</strong> imágenes. Si las anotaciones son evaluables, se calcularán métricas COCO y transiciones por objeto.
+                        </p>
+                        {!isSupportedAttack && (
+                            <p className="muted-text">El ataque activo no es compatible con detección.</p>
+                        )}
                     </div>
 
-                    {error && <p className="error">{error}</p>}
+                    <div className="detection-run-controls" aria-label="Configuración supervisada">
+                        <label>
+                            <span>Confianza</span>
+                            <input
+                                type="number"
+                                min="0.001"
+                                max="1"
+                                step="0.01"
+                                value={configuration.confidence_threshold}
+                                onChange={(event) =>
+                                    updateConfiguration(
+                                        'confidence_threshold',
+                                        Number(event.target.value),
+                                    )
+                                }
+                            />
+                        </label>
+                        <label>
+                            <span>IoU</span>
+                            <select
+                                value={configuration.iou_threshold}
+                                onChange={(event) =>
+                                    updateConfiguration(
+                                        'iou_threshold',
+                                        Number(event.target.value),
+                                    )
+                                }
+                            >
+                                {IOU_THRESHOLDS.map((threshold) => (
+                                    <option key={threshold} value={threshold}>
+                                        {threshold.toFixed(2)}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="detection-details-toggle">
+                            <input
+                                type="checkbox"
+                                checked={configuration.include_object_level_details}
+                                onChange={(event) =>
+                                    updateConfiguration(
+                                        'include_object_level_details',
+                                        event.target.checked,
+                                    )
+                                }
+                            />
+                            <span>Incluir detalle por objeto</span>
+                        </label>
+                        {!isConfigurationValid && (
+                            <p className="detection-configuration-error" role="alert">
+                                La confianza debe estar entre 0.001 y 1.
+                            </p>
+                        )}
+                        <button
+                            type="button"
+                            className="primary-action evaluation-run-button"
+                            onClick={handleEvaluate}
+                            disabled={!isSupportedAttack || !isConfigurationValid}
+                        >
+                            Ejecutar evaluación
+                        </button>
+                    </div>
+                </section>
+            )}
 
-                    {evaluation && (
-                        <>
-                            <section className="metrics-section">
-                                <h3>Métricas de Detección</h3>
+            {error && (
+                <div className="evaluation-error-banner" role="alert">
+                    <strong>No se pudo completar la evaluación.</strong>
+                    <span>{error}</span>
+                </div>
+            )}
 
-                                <div className="metric-grid">
-                                    <MetricCard
-                                        title="Imágenes totales"
-                                        value={summary.total_images}
-                                    />
+            {loading && (
+                <section className="evaluation-loading-card" role="status" aria-live="polite">
+                    <div className="evaluation-loader" aria-hidden="true" />
+                    <div>
+                        <strong>Evaluando detecciones y calculando métricas COCO</strong>
+                        <p>El ataque y las inferencias se ejecutan una sola vez por imagen.</p>
+                    </div>
+                </section>
+            )}
 
-                                    <MetricCard
-                                        title="Detecciones originales"
-                                        value={summary.total_original_detections}
-                                    />
+            {evaluation && (
+                <section className="evaluation-results-shell">
+                    <header className="detection-result-header">
+                        <div>
+                            <span className="evaluation-eyebrow">Evaluación completada</span>
+                            <h3>{evaluation.model_name}</h3>
+                            <p>ID {evaluation.result_id} · revisión {evaluation.dataset_revision}</p>
+                        </div>
+                        <button
+                            type="button"
+                            className="secondary-action"
+                            onClick={() => setEvaluationState(null)}
+                        >
+                            Nueva evaluación
+                        </button>
+                    </header>
 
-                                    <MetricCard
-                                        title="Detecciones adversarias"
-                                        value={summary.total_adversarial_detections}
-                                    />
+                    <EvaluationTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-                                    <MetricCard
-                                        title="Diferencia de detecciones (original − adversaria)"
-                                        value={summary.detections_difference}
-                                        subtitle="Positiva: hay menos detecciones adversarias; no determina calidad sin ground truth."
-                                    />
-
-                                    <MetricCard
-                                        title="Media detecciones original"
-                                        value={summary.average_original_detections_per_image}
-                                    />
-
-                                    <MetricCard
-                                        title="Media detecciones adversaria"
-                                        value={summary.average_adversarial_detections_per_image}
-                                    />
-
-                                    <MetricCard
-                                        title="Confianza media original"
-                                        value={summary.average_original_confidence}
-                                    />
-
-                                    <MetricCard
-                                        title="Confianza media adversaria"
-                                        value={summary.average_adversarial_confidence}
-                                    />
-
-                                    <MetricCard
-                                        title="Diferencia media de confianza (original − adversaria)"
-                                        value={summary.average_confidence_difference}
-                                        subtitle="Positiva: la confianza adversaria ha bajado."
-                                    />
-
-                                    <MetricCard
-                                        title="Imágenes con menos detecciones"
-                                        value={summary.images_with_reduced_detections}
-                                    />
-
-                                    <MetricCard
-                                        title="Sin detecciones adversarias"
-                                        value={summary.images_with_no_adversarial_detections}
-                                    />
-
-                                    <MetricCard
-                                        title="Tasa de éxito legacy"
-                                        value={summary.attack_success_rate}
-                                        subtitle="Criterio legacy: reducción de detecciones o de confianza media."
-                                    />
-
-                                    <MetricCard
-                                        title="Perturbación media L∞"
-                                        value={summary.average_perturbation_linf}
-                                    />
-
-                                    <MetricCard
-                                        title="Perturbación media L2"
-                                        value={summary.average_perturbation_l2}
-                                    />
-                                </div>
-                            </section>
-
-                            <section className="charts-section">
-                                <article className="analysis-card">
-                                    <h3>Detecciones Totales</h3>
-
-                                    <SimpleBar
-                                        label="Originales"
-                                        value={summary.total_original_detections}
-                                        max={Math.max(
-                                            summary.total_original_detections,
-                                            summary.total_adversarial_detections,
-                                            1,
-                                        )}
-                                    />
-
-                                    <SimpleBar
-                                        label="Adversarias"
-                                        value={summary.total_adversarial_detections}
-                                        max={Math.max(
-                                            summary.total_original_detections,
-                                            summary.total_adversarial_detections,
-                                            1,
-                                        )}
-                                    />
-                                </article>
-
-                                <article className="analysis-card">
-                                    <h3>Confianza Media</h3>
-
-                                    <SimpleBar
-                                        label="Original"
-                                        value={summary.average_original_confidence}
-                                        max={1}
-                                    />
-
-                                    <SimpleBar
-                                        label="Adversaria"
-                                        value={summary.average_adversarial_confidence}
-                                        max={1}
-                                    />
-                                </article>
-
-                                <article className="analysis-card">
-                                    <h3>Impacto del Ataque</h3>
-
-                                    <SimpleBar
-                                        label="Imágenes afectadas"
-                                        value={summary.images_with_reduced_detections}
-                                        max={summary.total_images}
-                                    />
-
-                                    <SimpleBar
-                                        label="Sin detecciones"
-                                        value={summary.images_with_no_adversarial_detections}
-                                        max={summary.total_images}
-                                    />
-                                </article>
-                            </section>
-
-                            <section className="comparison-detail-card">
-                                <h3>Resumen del Análisis</h3>
-
-                                <p>
-                                    El ataque redujo las detecciones en{' '}
-                                    <strong>
-                                        {summary.images_with_reduced_detections}
-                                    </strong>{' '}
-                                    de <strong>{summary.total_images}</strong> imágenes.
-                                </p>
-
-                                <p>
-                                    El número total de detecciones pasó de{' '}
-                                    <strong>{summary.total_original_detections}</strong>{' '}
-                                    a{' '}
-                                    <strong>
-                                        {summary.total_adversarial_detections}
-                                    </strong>
-                                    .
-                                </p>
-
-                                <p>
-                                    La confianza media cambió de{' '}
-                                    <strong>{summary.average_original_confidence}</strong>{' '}
-                                    a{' '}
-                                    <strong>
-                                        {summary.average_adversarial_confidence}
-                                    </strong>
-                                    , con una diferencia media de{' '}
-                                    <strong>
-                                        {summary.average_confidence_difference}
-                                    </strong>
-                                    {' '}
-                                    (original − adversaria). Un valor positivo indica
-                                    una caída de confianza.
-                                </p>
-
-                                <p>
-                                    La diferencia de detecciones usa también original
-                                    − adversaria. Un valor positivo indica menos
-                                    detecciones adversarias, pero no permite concluir
-                                    una mejora o degradación sin ground truth.
-                                </p>
-                            </section>
-
-                            <section className="comparison-detail-card">
-                                <h3>Resultados por Imagen</h3>
-
-                                <div className="evaluation-table-wrapper">
-                                    <table className="evaluation-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Imagen</th>
-                                                <th>Det. Originales</th>
-                                                <th>Det. Adv.</th>
-                                                <th>Δ det. (orig. − adv.)</th>
-                                                <th>Conf. Original</th>
-                                                <th>Conf. Adv.</th>
-                                                <th>Δ conf. (orig. − adv.)</th>
-                                                <th>Éxito legacy</th>
-                                                <th>Original</th>
-                                                <th>Adversaria</th>
-                                            </tr>
-                                        </thead>
-
-                                        <tbody>
-                                            {evaluation.results.map((result) => (
-                                                <tr key={result.image_id}>
-                                                    <td>{result.filename}</td>
-                                                    <td>
-                                                        {
-                                                            result.original_detection_count
-                                                        }
-                                                    </td>
-                                                    <td>
-                                                        {
-                                                            result.adversarial_detection_count
-                                                        }
-                                                    </td>
-                                                    <td>
-                                                        {
-                                                            result.detections_difference
-                                                        }
-                                                    </td>
-                                                    <td>
-                                                        {
-                                                            result.average_original_confidence
-                                                        }
-                                                    </td>
-                                                    <td>
-                                                        {
-                                                            result.average_adversarial_confidence
-                                                        }
-                                                    </td>
-                                                    <td>
-                                                        {
-                                                            result.average_confidence_difference
-                                                        }
-                                                    </td>
-                                                    <td>
-                                                        {result.attack_success
-                                                            ? 'Sí'
-                                                            : 'No'}
-                                                    </td>
-                                                    <td className="detections-cell">
-                                                        {formatDetections(
-                                                            result.original_detections,
-                                                        )}
-                                                    </td>
-                                                    <td className="detections-cell">
-                                                        {formatDetections(
-                                                            result.adversarial_detections,
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </section>
-                        </>
-                    )}
-                </>
+                    <div
+                        id={`evaluation-panel-${activeTab}`}
+                        className="evaluation-tab-panel"
+                        role="tabpanel"
+                        aria-labelledby={`evaluation-tab-${activeTab}`}
+                    >
+                        {activeTab === 'overview' && <DetectionOverview evaluation={evaluation} />}
+                        {activeTab === 'coco' && <DetectionCocoMetrics evaluation={evaluation} />}
+                        {activeTab === 'classes' && <DetectionClassMetrics evaluation={evaluation} />}
+                        {activeTab === 'curves' && <DetectionPrecisionRecall evaluation={evaluation} />}
+                        {activeTab === 'objects' && <DetectionObjectAnalysis evaluation={evaluation} />}
+                        {activeTab === 'images' && <DetectionImageResults evaluation={evaluation} />}
+                    </div>
+                </section>
             )}
         </div>
     )
