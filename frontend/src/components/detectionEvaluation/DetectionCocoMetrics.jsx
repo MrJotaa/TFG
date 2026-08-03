@@ -72,11 +72,14 @@ function DetectionCocoMetrics({ evaluation }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {COCO_METRIC_ROWS.map(([field, label]) => {
+                            {COCO_METRIC_ROWS.map(([field, label, description]) => {
                                 const delta = supervised.deltas.aggregate[field]
                                 return (
                                     <tr key={field}>
-                                        <th scope="row">{label}</th>
+                                        <th scope="row" className="detection-explained-metric">
+                                            <strong>{label}</strong>
+                                            <small>{description}</small>
+                                        </th>
                                         <td>{formatRatio(supervised.original.aggregate[field])}</td>
                                         <td>{formatRatio(supervised.adversarial.aggregate[field])}</td>
                                         <td className={`tone-${getDeltaTone(delta.absolute)}`}>

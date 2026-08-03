@@ -6,9 +6,11 @@ import {
 import DetectionClassMetrics from './detectionEvaluation/DetectionClassMetrics'
 import DetectionCocoMetrics from './detectionEvaluation/DetectionCocoMetrics'
 import DetectionImageResults from './detectionEvaluation/DetectionImageResults'
+import DetectionMetricGuide from './detectionEvaluation/DetectionMetricGuide'
 import DetectionObjectAnalysis from './detectionEvaluation/DetectionObjectAnalysis'
 import DetectionOverview from './detectionEvaluation/DetectionOverview'
 import DetectionPrecisionRecall from './detectionEvaluation/DetectionPrecisionRecall'
+import DetectionTideAnalysis from './detectionEvaluation/DetectionTideAnalysis'
 import EvaluationTabs from './evaluation/EvaluationTabs'
 import {
     canRequestDetectionEigenCam,
@@ -79,6 +81,9 @@ function DetectionEvaluationPanel({
             { id: 'classes', label: 'Por clase', badge: classCount },
             { id: 'curves', label: 'Curvas PR' },
             { id: 'objects', label: 'Por objeto', badge: objectCount },
+            ...(supervised?.tide_analysis
+                ? [{ id: 'tide', label: 'TIDE' }]
+                : []),
             { id: 'images', label: 'Imágenes', badge: evaluation?.results?.length },
         ]
     }, [evaluation])
@@ -188,7 +193,7 @@ function DetectionEvaluationPanel({
                         <h3>Analiza el detector con {attackName}</h3>
                         <p>
                             Se compararán predicciones originales y adversariales en{' '}
-                            <strong>{selectedDataset.image_count}</strong> imágenes. Si las anotaciones son evaluables, se calcularán métricas COCO y transiciones por objeto.
+                            <strong>{selectedDataset.image_count}</strong> imágenes. Si las anotaciones son evaluables, se calcularán métricas COCO, diagnóstico TIDE y transiciones por objeto.
                         </p>
                         {!isSupportedAttack && (
                             <p className="muted-text">El ataque activo no es compatible con detección.</p>
@@ -271,7 +276,7 @@ function DetectionEvaluationPanel({
                 <section className="evaluation-loading-card" role="status" aria-live="polite">
                     <div className="evaluation-loader" aria-hidden="true" />
                     <div>
-                        <strong>Evaluando detecciones y calculando métricas COCO</strong>
+                        <strong>Evaluando detecciones y calculando COCO y TIDE</strong>
                         <p>El ataque y las inferencias se ejecutan una sola vez por imagen.</p>
                     </div>
                 </section>
@@ -300,6 +305,7 @@ function DetectionEvaluationPanel({
                     </header>
 
                     <EvaluationTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+                    <DetectionMetricGuide />
 
                     <div
                         id={`evaluation-panel-${activeTab}`}
@@ -312,6 +318,7 @@ function DetectionEvaluationPanel({
                         {activeTab === 'classes' && <DetectionClassMetrics evaluation={evaluation} />}
                         {activeTab === 'curves' && <DetectionPrecisionRecall evaluation={evaluation} />}
                         {activeTab === 'objects' && <DetectionObjectAnalysis evaluation={evaluation} />}
+                        {activeTab === 'tide' && <DetectionTideAnalysis evaluation={evaluation} />}
                         {activeTab === 'images' && (
                             <DetectionImageResults
                                 evaluation={evaluation}

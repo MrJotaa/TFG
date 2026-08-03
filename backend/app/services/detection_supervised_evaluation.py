@@ -18,6 +18,7 @@ from ml.metrics.coco_detection import (
     PrecisionRecallCurve,
     evaluate_coco_detections,
 )
+from ml.metrics.tide_detection import TideDetectionAnalysis, evaluate_tide_detections
 from ml.models.detection import DetectionBox, DetectionResult
 from ml.models.detection_inference import (
     LEGACY_DETECTION_CONFIDENCE_THRESHOLD,
@@ -40,6 +41,11 @@ from schemas.detection_metrics import (
     DetectionSupervisedEffectiveConfiguration,
     DetectionSupervisedMetrics,
     DetectionSupervisedUnavailableReason,
+    DetectionTideAnalysis,
+    DetectionTideConfiguration,
+    DetectionTideErrorChange,
+    DetectionTideErrorMetric,
+    DetectionTideRun,
 )
 from services.detection_annotation_snapshot import (
     MaterializedDetectionAnnotationSnapshot,
@@ -49,6 +55,16 @@ from services.detection_object_adversarial_analysis import (
 )
 
 PUBLIC_METRIC_DECIMAL_PLACES = 6
+TIDE_ERROR_TYPE_BY_CODE = {
+    "Cls": "classification",
+    "Loc": "localization",
+    "Both": "classification_localization",
+    "Dupe": "duplicate",
+    "Bkg": "background",
+    "Miss": "missed",
+    "FalsePos": "false_positive",
+    "FalseNeg": "false_negative",
+}
 
 
 class DetectionSupervisedEvaluationError(RuntimeError):
@@ -474,6 +490,65 @@ def _deltas(
     )
 
 
+def _tide_error(metric) -> DetectionTideErrorMetric:
+    try:
+        error_type = TIDE_ERROR_TYPE_BY_CODE[metric.code]
+    except KeyError as error:
+        raise DetectionSupervisedEvaluationError(
+            f"TIDE returned unsupported error code '{metric.code}'"
+        ) from error
+    return DetectionTideErrorMetric(
+        error_type=error_type,
+        delta_ap=_round_metric(metric.delta_ap),
+        count=metric.count,
+    )
+
+
+def _tide_run(analysis: TideDetectionAnalysis) -> DetectionTideRun:
+    return DetectionTideRun(
+        ap_50=_round_metric(analysis.ap_50),
+        main_errors=tuple(_tide_error(item) for item in analysis.main_errors),
+        special_errors=tuple(_tide_error(item) for item in analysis.special_errors),
+    )
+
+
+def _tide_analysis(
+    *,
+    original: TideDetectionAnalysis,
+    adversarial: TideDetectionAnalysis,
+) -> DetectionTideAnalysis:
+    original_run = _tide_run(original)
+    adversarial_run = _tide_run(adversarial)
+    changes = tuple(
+        DetectionTideErrorChange(
+            error_type=original_error.error_type,
+            impact_change=_round_metric(
+                adversarial_error.delta_ap - original_error.delta_ap
+            ),
+            count_change=adversarial_error.count - original_error.count,
+        )
+        for original_error, adversarial_error in zip(
+            original_run.main_errors,
+            adversarial_run.main_errors,
+            strict=True,
+        )
+    )
+    dominant_metric = max(
+        adversarial_run.main_errors,
+        key=lambda item: item.delta_ap,
+    )
+    dominant = (
+        dominant_metric.error_type if dominant_metric.delta_ap > 0.0 else None
+    )
+    return DetectionTideAnalysis(
+        configuration=DetectionTideConfiguration(),
+        original=original_run,
+        adversarial=adversarial_run,
+        changes=changes,
+        dominant_adversarial_error=dominant,
+    )
+
+
 def build_detection_supervised_metrics(
     *,
     context: PreparedDetectionSupervisedEvaluation,
@@ -493,30 +568,33 @@ def build_detection_supervised_metrics(
             adversarial=None,
             deltas=None,
             object_analysis=None,
+            tide_analysis=None,
         )
 
     operating_point = CocoOperatingPointConfiguration(
         confidence_threshold=configuration.confidence_threshold,
         iou_threshold=configuration.iou_threshold,
     )
+    original_predictions = _predictions_for_context(
+        context=context,
+        results_by_image_id=original_results_by_image_id,
+    )
+    adversarial_predictions = _predictions_for_context(
+        context=context,
+        results_by_image_id=adversarial_results_by_image_id,
+    )
     original = evaluate_coco_detections(
         images=context.images,
         classes=context.classes,
         ground_truths=context.ground_truths,
-        predictions=_predictions_for_context(
-            context=context,
-            results_by_image_id=original_results_by_image_id,
-        ),
+        predictions=original_predictions,
         operating_point=operating_point,
     )
     adversarial = evaluate_coco_detections(
         images=context.images,
         classes=context.classes,
         ground_truths=context.ground_truths,
-        predictions=_predictions_for_context(
-            context=context,
-            results_by_image_id=adversarial_results_by_image_id,
-        ),
+        predictions=adversarial_predictions,
         operating_point=operating_point,
     )
     object_analysis = build_detection_object_adversarial_analysis(
@@ -529,6 +607,20 @@ def build_detection_supervised_metrics(
         iou_threshold=configuration.iou_threshold,
         include_details=configuration.include_object_level_details,
     )
+    original_tide = evaluate_tide_detections(
+        images=context.images,
+        classes=context.classes,
+        ground_truths=context.ground_truths,
+        predictions=original_predictions,
+        name="original",
+    )
+    adversarial_tide = evaluate_tide_detections(
+        images=context.images,
+        classes=context.classes,
+        ground_truths=context.ground_truths,
+        predictions=adversarial_predictions,
+        name="adversarial",
+    )
 
     return DetectionSupervisedMetrics(
         available=True,
@@ -540,6 +632,10 @@ def build_detection_supervised_metrics(
         adversarial=_analysis(adversarial),
         deltas=_deltas(original, adversarial),
         object_analysis=object_analysis,
+        tide_analysis=_tide_analysis(
+            original=original_tide,
+            adversarial=adversarial_tide,
+        ),
     )
 
 

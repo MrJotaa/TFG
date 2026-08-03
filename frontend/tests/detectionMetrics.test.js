@@ -5,8 +5,10 @@ import {
     findClassMetrics,
     formatBoundingBox,
     formatSignedPercentagePoints,
+    formatTidePoints,
     getDetectionUnavailableMessage,
     getObjectOutcomeItems,
+    getTideErrorRows,
     mergePrecisionRecallCurves,
 } from '../src/utils/detectionMetrics.js'
 
@@ -16,6 +18,44 @@ test('traduce los motivos tipados de indisponibilidad supervisada', () => {
         /snapshot de anotaciones/,
     )
     assert.match(getDetectionUnavailableMessage('unknown'), /no están disponibles/)
+})
+
+test('formatea valores TIDE en puntos de AP sin reescalarlos', () => {
+    assert.equal(formatTidePoints(3.456), '3.5 pp AP')
+    assert.equal(formatTidePoints(2.5, 1, true), '+2.5 pp AP')
+    assert.equal(formatTidePoints(-1.25, 1, true), '-1.3 pp AP')
+    assert.equal(formatTidePoints(null), '—')
+})
+
+test('combina TIDE original, adversarial y cambios por tipo tipado', () => {
+    const analysis = {
+        original: {
+            main_errors: [
+                { error_type: 'classification', delta_ap: 1, count: 2 },
+                { error_type: 'missed', delta_ap: 3, count: 4 },
+            ],
+        },
+        adversarial: {
+            main_errors: [
+                { error_type: 'classification', delta_ap: 2.5, count: 3 },
+                { error_type: 'missed', delta_ap: 5, count: 7 },
+            ],
+        },
+        changes: [
+            { error_type: 'classification', impact_change: 1.5, count_change: 1 },
+            { error_type: 'missed', impact_change: 2, count_change: 3 },
+        ],
+    }
+
+    const rows = getTideErrorRows(analysis)
+
+    assert.deepEqual(rows.map((row) => row.errorType), [
+        'classification',
+        'missed',
+    ])
+    assert.equal(rows[0].adversarial.delta_ap, 2.5)
+    assert.equal(rows[1].change.count_change, 3)
+    assert.match(rows[0].description, /clase incorrecta/)
 })
 
 test('formatea deltas conservando signo y nulos', () => {

@@ -10,19 +10,62 @@ const UNAVAILABLE_REASON_MESSAGES = {
 }
 
 export const COCO_METRIC_ROWS = [
-    ['map_50_95', 'mAP@[.50:.95]'],
-    ['ap_50', 'AP@0.50'],
-    ['ap_75', 'AP@0.75'],
-    ['ar_1', 'AR@1'],
-    ['ar_10', 'AR@10'],
-    ['ar_100', 'AR@100'],
-    ['ap_small', 'AP small'],
-    ['ap_medium', 'AP medium'],
-    ['ap_large', 'AP large'],
-    ['ar_small', 'AR small'],
-    ['ar_medium', 'AR medium'],
-    ['ar_large', 'AR large'],
+    ['map_50_95', 'mAP@[.50:.95]', 'Precisión media en diez umbrales de IoU; es la referencia COCO principal.'],
+    ['ap_50', 'AP@0.50', 'Precisión media exigiendo al menos un 50 % de solapamiento.'],
+    ['ap_75', 'AP@0.75', 'Precisión media con una localización más estricta: IoU mínimo de 0,75.'],
+    ['ar_1', 'AR@1', 'Recall medio permitiendo como máximo una detección por imagen.'],
+    ['ar_10', 'AR@10', 'Recall medio permitiendo como máximo diez detecciones por imagen.'],
+    ['ar_100', 'AR@100', 'Recall medio permitiendo como máximo cien detecciones por imagen.'],
+    ['ap_small', 'AP small', 'Precisión media para objetos con área inferior a 32² píxeles.'],
+    ['ap_medium', 'AP medium', 'Precisión media para objetos con área entre 32² y 96² píxeles.'],
+    ['ap_large', 'AP large', 'Precisión media para objetos con área igual o superior a 96² píxeles.'],
+    ['ar_small', 'AR small', 'Recall medio para objetos pequeños según la escala COCO.'],
+    ['ar_medium', 'AR medium', 'Recall medio para objetos medianos según la escala COCO.'],
+    ['ar_large', 'AR large', 'Recall medio para objetos grandes según la escala COCO.'],
 ]
+
+export const TIDE_ERROR_DEFINITIONS = {
+    classification: {
+        label: 'Clasificación',
+        shortLabel: 'Clas.',
+        description: 'La caja localiza un objeto, pero predice una clase incorrecta.',
+    },
+    localization: {
+        label: 'Localización',
+        shortLabel: 'Localiz.',
+        description: 'La clase es correcta, pero la caja no alcanza IoU 0,50.',
+    },
+    classification_localization: {
+        label: 'Clasificación y localización',
+        shortLabel: 'Ambos',
+        description: 'La detección falla simultáneamente en la clase y en la localización.',
+    },
+    duplicate: {
+        label: 'Duplicados',
+        shortLabel: 'Duplic.',
+        description: 'Varias detecciones compiten por un objeto ya asignado.',
+    },
+    background: {
+        label: 'Fondo',
+        shortLabel: 'Fondo',
+        description: 'La detección no solapa suficientemente ningún objeto (IoU inferior a 0,10).',
+    },
+    missed: {
+        label: 'Objetos omitidos',
+        shortLabel: 'Omitidos',
+        description: 'Un objeto anotado no queda cubierto por ninguna detección válida.',
+    },
+    false_positive: {
+        label: 'Falsos positivos',
+        shortLabel: 'FP',
+        description: 'Impacto global de corregir todos los falsos positivos sin modificar el recall.',
+    },
+    false_negative: {
+        label: 'Falsos negativos',
+        shortLabel: 'FN',
+        description: 'Impacto global de recuperar el recall perfecto sin modificar la precisión.',
+    },
+}
 
 export const OBJECT_OUTCOMES = [
     ['preserved_count', 'Preservados', 'preserved'],
@@ -64,6 +107,38 @@ export function getDeltaTone(value) {
     }
 
     return Number(value) > 0 ? 'danger' : 'success'
+}
+
+export function formatTidePoints(value, digits = 1, signed = false) {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+        return '—'
+    }
+
+    const numericValue = Number(value)
+    const prefix = signed && numericValue > 0 ? '+' : ''
+    return `${prefix}${numericValue.toFixed(digits)} pp AP`
+}
+
+export function getTideErrorRows(tideAnalysis) {
+    const originalByType = new Map(
+        (tideAnalysis?.original?.main_errors ?? []).map((item) => [item.error_type, item]),
+    )
+    const adversarialByType = new Map(
+        (tideAnalysis?.adversarial?.main_errors ?? []).map((item) => [item.error_type, item]),
+    )
+    const changeByType = new Map(
+        (tideAnalysis?.changes ?? []).map((item) => [item.error_type, item]),
+    )
+
+    return Object.keys(TIDE_ERROR_DEFINITIONS)
+        .filter((errorType) => originalByType.has(errorType))
+        .map((errorType) => ({
+            errorType,
+            ...TIDE_ERROR_DEFINITIONS[errorType],
+            original: originalByType.get(errorType),
+            adversarial: adversarialByType.get(errorType),
+            change: changeByType.get(errorType),
+        }))
 }
 
 export function getObjectOutcomeItems(aggregate) {

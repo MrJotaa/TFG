@@ -13,6 +13,15 @@ from ml.models.detection_inference import (
 PUBLIC_DETECTION_METRIC_TOLERANCE = 1e-6
 PUBLIC_DETECTION_PERCENTAGE_DECIMAL_PLACES = 2
 PUBLIC_DETECTION_RECALL_THRESHOLD_COUNT = 101
+TIDE_MAIN_ERROR_TYPES = (
+    "classification",
+    "localization",
+    "classification_localization",
+    "duplicate",
+    "background",
+    "missed",
+)
+TIDE_SPECIAL_ERROR_TYPES = ("false_positive", "false_negative")
 
 
 def _fraction_or_none(numerator: int, denominator: int) -> float | None:
@@ -915,6 +924,112 @@ class DetectionCocoDeltas(DetectionMetricModel):
     per_class: tuple[DetectionPerClassDeltas, ...]
 
 
+class DetectionTideConfiguration(DetectionMetricModel):
+    methodology_version: Literal["tidecv_1.0.1_bbox"] = "tidecv_1.0.1_bbox"
+    iou_threshold: Literal[0.5] = 0.5
+    background_threshold: Literal[0.1] = 0.1
+    max_detections_per_image: Literal[100] = 100
+    value_unit: Literal["ap_percentage_points"] = "ap_percentage_points"
+
+
+class DetectionTideErrorMetric(DetectionMetricModel):
+    error_type: Literal[
+        "classification",
+        "localization",
+        "classification_localization",
+        "duplicate",
+        "background",
+        "missed",
+        "false_positive",
+        "false_negative",
+    ]
+    delta_ap: float = Field(ge=0.0, le=100.0)
+    count: int = Field(ge=0)
+
+
+class DetectionTideRun(DetectionMetricModel):
+    ap_50: float = Field(ge=0.0, le=100.0)
+    main_errors: tuple[DetectionTideErrorMetric, ...]
+    special_errors: tuple[DetectionTideErrorMetric, ...]
+
+    @model_validator(mode="after")
+    def validate_error_order(self):
+        if tuple(item.error_type for item in self.main_errors) != (
+            TIDE_MAIN_ERROR_TYPES
+        ):
+            raise ValueError("TIDE main errors must use the canonical order")
+        if tuple(item.error_type for item in self.special_errors) != (
+            TIDE_SPECIAL_ERROR_TYPES
+        ):
+            raise ValueError("TIDE special errors must use the canonical order")
+        return self
+
+
+class DetectionTideErrorChange(DetectionMetricModel):
+    error_type: Literal[
+        "classification",
+        "localization",
+        "classification_localization",
+        "duplicate",
+        "background",
+        "missed",
+    ]
+    impact_change: float = Field(ge=-100.0, le=100.0)
+    count_change: int
+
+
+class DetectionTideAnalysis(DetectionMetricModel):
+    configuration: DetectionTideConfiguration
+    original: DetectionTideRun
+    adversarial: DetectionTideRun
+    changes: tuple[DetectionTideErrorChange, ...]
+    dominant_adversarial_error: (
+        Literal[
+            "classification",
+            "localization",
+            "classification_localization",
+            "duplicate",
+            "background",
+            "missed",
+        ]
+        | None
+    )
+
+    @model_validator(mode="after")
+    def validate_comparison(self):
+        if tuple(item.error_type for item in self.changes) != TIDE_MAIN_ERROR_TYPES:
+            raise ValueError("TIDE changes must use the canonical order")
+        for original, adversarial, change in zip(
+            self.original.main_errors,
+            self.adversarial.main_errors,
+            self.changes,
+            strict=True,
+        ):
+            if not (
+                original.error_type
+                == adversarial.error_type
+                == change.error_type
+            ):
+                raise ValueError("TIDE comparison error types must match")
+            _require_metric_close(
+                field_name=f"tide.{change.error_type}.impact_change",
+                actual=change.impact_change,
+                expected=adversarial.delta_ap - original.delta_ap,
+            )
+            if change.count_change != adversarial.count - original.count:
+                raise ValueError("TIDE count change is mathematically inconsistent")
+        dominant_metric = max(
+            self.adversarial.main_errors,
+            key=lambda item: item.delta_ap,
+        )
+        expected_dominant = (
+            dominant_metric.error_type if dominant_metric.delta_ap > 0.0 else None
+        )
+        if self.dominant_adversarial_error != expected_dominant:
+            raise ValueError("TIDE dominant error is inconsistent")
+        return self
+
+
 class DetectionSupervisedMetrics(DetectionMetricModel):
     available: bool
     reason: DetectionSupervisedUnavailableReason | None = None
@@ -925,6 +1040,7 @@ class DetectionSupervisedMetrics(DetectionMetricModel):
     adversarial: DetectionCocoAnalysis | None = None
     deltas: DetectionCocoDeltas | None = None
     object_analysis: DetectionObjectAdversarialAnalysis | None = None
+    tide_analysis: DetectionTideAnalysis | None = None
 
     @model_validator(mode="after")
     def validate_availability(self):
@@ -965,6 +1081,7 @@ class DetectionSupervisedMetrics(DetectionMetricModel):
             self.reason is None
             or any(value is not None for value in analyses)
             or self.object_analysis is not None
+            or self.tide_analysis is not None
         ):
             raise ValueError(
                 "unavailable supervised metrics require a reason and no analyses"
