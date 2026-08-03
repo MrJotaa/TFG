@@ -264,6 +264,7 @@ def _supervised_snapshot():
                 bbox_y2=30.0,
                 area=400.0,
                 iscrowd=0,
+                object_internal_id="object-1001",
             ),
         ),
     )
@@ -339,6 +340,10 @@ async def test_detection_evaluation_integrates_supervised_metrics_once(
     assert supervised.deltas.aggregate.map_50_95.absolute == 1.0
     assert supervised.original.per_class[0].support == 1
     assert supervised.original.per_class[1].support == 0
+    assert supervised.object_analysis.summary.suppressed_count == 1
+    assert supervised.object_analysis.details_included is False
+    assert supervised.object_analysis.by_image is None
+    assert supervised.object_analysis.objects is None
     assert len(response.results) == 2
     assert response.results[0].attack_success is True
     assert response.results[1].attack_success is True
@@ -443,6 +448,7 @@ async def test_detection_evaluation_skips_catalog_and_scientific_inference_witho
 
     assert response.supervised.available is False
     assert response.supervised.reason == "no_reviewed_images"
+    assert response.supervised.object_analysis is None
     assert model.legacy_calls == ["image-1", "adversarial-image-1"]
 
 
@@ -561,6 +567,7 @@ async def test_detection_evaluation_uses_legacy_after_required_resolution_is_una
             score_floor=0.25,
             confidence_threshold=0.9,
             iou_threshold=0.95,
+            include_object_level_details=True,
         ),
     ],
 )
@@ -650,6 +657,9 @@ async def test_allowed_supervised_configuration_does_not_change_legacy_contract(
     assert response.summary.attack_success_rate == 1.0
     assert response.summary.total_original_detections == 1
     assert response.summary.total_adversarial_detections == 0
+    assert response.supervised.object_analysis.details_included is (
+        configuration.include_object_level_details
+    )
 
 
 @pytest.mark.asyncio

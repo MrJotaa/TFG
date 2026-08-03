@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import pytest
 from pydantic import ValidationError
@@ -27,6 +28,7 @@ from services.detection_annotation_snapshot import (
     MaterializedDetectionAnnotationSnapshot,
 )
 from services.detection_supervised_evaluation import (
+    DetectionGroundTruthIdentityError,
     build_detection_supervised_metrics,
     prepare_detection_supervised_evaluation,
 )
@@ -68,6 +70,7 @@ def _annotation(
         bbox_y2=30.0,
         area=400.0,
         iscrowd=iscrowd,
+        object_internal_id=f"object-{external_id}",
     )
 
 
@@ -127,6 +130,20 @@ def _result(*detections):
         source_height=100,
         detections=detections,
     )
+
+
+def test_preparation_rejects_snapshot_object_without_persisted_internal_id():
+    snapshot = _snapshot(
+        annotations=(replace(_annotation(1001), object_internal_id=None),),
+    )
+
+    with pytest.raises(
+        DetectionGroundTruthIdentityError, match="persisted internal ID"
+    ):
+        prepare_detection_supervised_evaluation(
+            snapshot=snapshot,
+            catalog=_catalog((0, "person")),
+        )
 
 
 def _detection(box=(10.0, 10.0, 30.0, 30.0), confidence=0.9):
@@ -279,9 +296,7 @@ def _positive_class_metrics(
     )
     f1 = (
         2 * precision * recall / (precision + recall)
-        if precision is not None
-        and recall is not None
-        and precision + recall > 0
+        if precision is not None and recall is not None and precision + recall > 0
         else None
     )
     return DetectionPerClassCocoMetrics(

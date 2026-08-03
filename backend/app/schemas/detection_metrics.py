@@ -104,6 +104,7 @@ class DetectionSupervisedConfiguration(DetectionMetricModel):
     score_floor: float = Field(default=0.001, ge=0.0, le=1.0)
     confidence_threshold: float = Field(default=0.25, ge=0.0, le=1.0)
     iou_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    include_object_level_details: bool = Field(default=False, strict=True)
 
     @model_validator(mode="after")
     def validate_thresholds(self):
@@ -182,9 +183,7 @@ class DetectionAnnotationCoverage(DetectionMetricModel):
             self.reviewed_empty_images + self.reviewed_with_objects_images
             != self.reviewed_images
         ):
-            raise ValueError(
-                "reviewed image statuses must sum to reviewed_images"
-            )
+            raise ValueError("reviewed image statuses must sum to reviewed_images")
 
         categorized = (
             self.resolved_categories
@@ -351,13 +350,10 @@ class DetectionPerClassCocoMetrics(DetectionMetricModel):
         if self.images_with_objects > self.support:
             raise ValueError("images_with_objects must not exceed support")
         if (
-            self.operating_point.true_positives
-            + self.operating_point.false_negatives
+            self.operating_point.true_positives + self.operating_point.false_negatives
             != self.support
         ):
-            raise ValueError(
-                "true_positives plus false_negatives must equal support"
-            )
+            raise ValueError("true_positives plus false_negatives must equal support")
         calculated_values = (
             self.average_precision,
             self.average_recall,
@@ -403,9 +399,7 @@ class DetectionCocoAnalysis(DetectionMetricModel):
                 getattr(item.operating_point, field_name) for item in self.per_class
             )
             if aggregate_value != per_class_total:
-                raise ValueError(
-                    f"aggregate {field_name} must equal the per-class sum"
-                )
+                raise ValueError(f"aggregate {field_name} must equal the per-class sum")
 
         if self.precision_recall_curve is None:
             if self.aggregate.map_50_95 is not None:
@@ -425,6 +419,460 @@ class DetectionCocoAnalysis(DetectionMetricModel):
                 actual=self.aggregate.map_50_95,
                 expected=expected_map,
             )
+        return self
+
+
+class DetectionObjectOutcome(str, Enum):
+    PRESERVED = "preserved"
+    SUPPRESSED = "suppressed"
+    RECOVERED = "recovered"
+    MISSED_BOTH = "missed_both"
+
+
+class DetectionObjectSizeBucket(str, Enum):
+    SMALL = "small"
+    MEDIUM = "medium"
+    LARGE = "large"
+
+
+class DetectionMetricBoundingBox(DetectionMetricModel):
+    x1: float = Field(ge=0.0)
+    y1: float = Field(ge=0.0)
+    x2: float = Field(gt=0.0)
+    y2: float = Field(gt=0.0)
+
+    @model_validator(mode="after")
+    def validate_geometry(self):
+        if self.x1 >= self.x2 or self.y1 >= self.y2:
+            raise ValueError("bounding box must have positive width and height")
+        return self
+
+
+class DetectionObjectOperatingPointConfiguration(DetectionMetricModel):
+    confidence_threshold: float = Field(ge=0.0, le=1.0)
+    iou_threshold: float = Field(ge=0.0, le=1.0)
+    max_detections_per_image: Literal[100] = 100
+    confidence_comparison: Literal["greater_than_or_equal"] = "greater_than_or_equal"
+
+
+class DetectionMatchedObjectObservation(DetectionMetricModel):
+    confidence: float = Field(ge=0.0, le=1.0)
+    iou_with_ground_truth: float = Field(ge=0.0, le=1.0)
+    detection_box: DetectionMetricBoundingBox
+
+
+class DetectionObjectResult(DetectionMetricModel):
+    object_id: str
+    image_id: str
+    category: DetectionClassReference
+    ground_truth_box: DetectionMetricBoundingBox
+    area: float = Field(gt=0.0)
+    size_bucket: DetectionObjectSizeBucket
+    outcome: DetectionObjectOutcome
+    original_observation: DetectionMatchedObjectObservation | None = None
+    adversarial_observation: DetectionMatchedObjectObservation | None = None
+    confidence_drop: float | None = None
+    iou_drop: float | None = None
+
+    @model_validator(mode="after")
+    def validate_outcome(self):
+        if not self.object_id.strip() or not self.image_id.strip():
+            raise ValueError("object and image IDs must be non-empty")
+        expected_size = (
+            DetectionObjectSizeBucket.SMALL
+            if self.area < 32.0**2
+            else DetectionObjectSizeBucket.MEDIUM
+            if self.area < 96.0**2
+            else DetectionObjectSizeBucket.LARGE
+        )
+        if self.size_bucket is not expected_size:
+            raise ValueError("size_bucket is inconsistent with ground-truth area")
+        expected_presence = {
+            DetectionObjectOutcome.PRESERVED: (True, True, True),
+            DetectionObjectOutcome.SUPPRESSED: (True, False, False),
+            DetectionObjectOutcome.RECOVERED: (False, True, False),
+            DetectionObjectOutcome.MISSED_BOTH: (False, False, False),
+        }[self.outcome]
+        actual_presence = (
+            self.original_observation is not None,
+            self.adversarial_observation is not None,
+            self.confidence_drop is not None and self.iou_drop is not None,
+        )
+        if actual_presence != expected_presence:
+            raise ValueError("object outcome fields are inconsistent")
+        if (self.confidence_drop is None) != (self.iou_drop is None):
+            raise ValueError("object deltas must be both present or both null")
+        if self.outcome is DetectionObjectOutcome.PRESERVED:
+            _require_metric_close(
+                field_name="confidence_drop",
+                actual=self.confidence_drop,
+                expected=(
+                    self.original_observation.confidence
+                    - self.adversarial_observation.confidence
+                ),
+            )
+            _require_metric_close(
+                field_name="iou_drop",
+                actual=self.iou_drop,
+                expected=(
+                    self.original_observation.iou_with_ground_truth
+                    - self.adversarial_observation.iou_with_ground_truth
+                ),
+            )
+        return self
+
+
+class DetectionObjectAggregate(DetectionMetricModel):
+    total_objects: int = Field(ge=0)
+    preserved_count: int = Field(ge=0)
+    suppressed_count: int = Field(ge=0)
+    recovered_count: int = Field(ge=0)
+    missed_both_count: int = Field(ge=0)
+    originally_detected_count: int = Field(ge=0)
+    adversarially_detected_count: int = Field(ge=0)
+    preservation_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+    suppression_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+    original_detection_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+    adversarial_detection_rate: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+    )
+
+    mean_confidence_drop_preserved: float | None = Field(
+        default=None,
+        ge=-1.0,
+        le=1.0,
+    )
+    mean_iou_drop_preserved: float | None = Field(
+        default=None,
+        ge=-1.0,
+        le=1.0,
+    )
+
+    @model_validator(mode="after")
+    def validate_counts_and_rates(self):
+        if (
+            self.preserved_count
+            + self.suppressed_count
+            + self.recovered_count
+            + self.missed_both_count
+            != self.total_objects
+        ):
+            raise ValueError("object outcomes must sum to total_objects")
+        if self.originally_detected_count != (
+            self.preserved_count + self.suppressed_count
+        ):
+            raise ValueError("originally_detected_count is inconsistent")
+        if self.adversarially_detected_count != (
+            self.preserved_count + self.recovered_count
+        ):
+            raise ValueError("adversarially_detected_count is inconsistent")
+        expectations = (
+            (
+                "preservation_rate",
+                _fraction_or_none(
+                    self.preserved_count,
+                    self.originally_detected_count,
+                ),
+            ),
+            (
+                "suppression_rate",
+                _fraction_or_none(
+                    self.suppressed_count,
+                    self.originally_detected_count,
+                ),
+            ),
+            (
+                "original_detection_rate",
+                _fraction_or_none(self.originally_detected_count, self.total_objects),
+            ),
+            (
+                "adversarial_detection_rate",
+                _fraction_or_none(
+                    self.adversarially_detected_count,
+                    self.total_objects,
+                ),
+            ),
+        )
+        for field_name, expected in expectations:
+            _require_optional_metric(
+                field_name=field_name,
+                actual=getattr(self, field_name),
+                expected=expected,
+            )
+        if self.preserved_count == 0:
+            if (
+                self.mean_confidence_drop_preserved is not None
+                or self.mean_iou_drop_preserved is not None
+            ):
+                raise ValueError("preserved means require preserved objects")
+        elif (
+            self.mean_confidence_drop_preserved is None
+            or self.mean_iou_drop_preserved is None
+        ):
+            raise ValueError("preserved objects require both preserved means")
+        return self
+
+
+class DetectionObjectClassAggregate(DetectionObjectAggregate):
+    category: DetectionClassReference
+
+
+class DetectionObjectSizeAggregate(DetectionObjectAggregate):
+    size_bucket: DetectionObjectSizeBucket
+
+
+class DetectionObjectImageAggregate(DetectionObjectAggregate):
+    image_id: str
+    object_level_attack_success: bool | None
+
+    @model_validator(mode="after")
+    def validate_attack_success(self):
+        expected = None
+        if self.suppressed_count > 0:
+            expected = True
+        elif self.originally_detected_count > 0:
+            expected = False
+        if self.object_level_attack_success is not expected:
+            raise ValueError("object_level_attack_success is inconsistent")
+        if not self.image_id.strip():
+            raise ValueError("image_id must be non-empty")
+        return self
+
+
+_OBJECT_COUNT_FIELDS = (
+    "total_objects",
+    "preserved_count",
+    "suppressed_count",
+    "recovered_count",
+    "missed_both_count",
+    "originally_detected_count",
+    "adversarially_detected_count",
+)
+
+
+def _validate_object_dimension(
+    *,
+    dimension_name: str,
+    values: tuple[DetectionObjectAggregate, ...],
+    summary: DetectionObjectAggregate,
+) -> None:
+    for field_name in _OBJECT_COUNT_FIELDS:
+        if sum(getattr(value, field_name) for value in values) != getattr(
+            summary,
+            field_name,
+        ):
+            raise ValueError(f"{dimension_name} {field_name} does not sum globally")
+    preserved = sum(value.preserved_count for value in values)
+    for field_name in (
+        "mean_confidence_drop_preserved",
+        "mean_iou_drop_preserved",
+    ):
+        expected = None
+        if preserved:
+            expected = (
+                sum(
+                    getattr(value, field_name) * value.preserved_count
+                    for value in values
+                    if value.preserved_count
+                )
+                / preserved
+            )
+        _require_optional_metric(
+            field_name=f"{dimension_name}.{field_name}",
+            actual=getattr(summary, field_name),
+            expected=expected,
+        )
+
+
+def _class_reference_key(reference: DetectionClassReference) -> tuple:
+    return (
+        reference.model_class_id,
+        reference.category_internal_id,
+        reference.coco_category_id,
+        reference.category_name,
+        reference.model_class_name,
+    )
+
+
+def _validate_aggregate_against_objects(
+    *,
+    aggregate_name: str,
+    aggregate: DetectionObjectAggregate,
+    objects: tuple[DetectionObjectResult, ...],
+) -> None:
+    outcomes = {
+        outcome: sum(item.outcome is outcome for item in objects)
+        for outcome in DetectionObjectOutcome
+    }
+    expectations = {
+        "total_objects": len(objects),
+        "preserved_count": outcomes[DetectionObjectOutcome.PRESERVED],
+        "suppressed_count": outcomes[DetectionObjectOutcome.SUPPRESSED],
+        "recovered_count": outcomes[DetectionObjectOutcome.RECOVERED],
+        "missed_both_count": outcomes[DetectionObjectOutcome.MISSED_BOTH],
+    }
+    for field_name, expected in expectations.items():
+        if getattr(aggregate, field_name) != expected:
+            raise ValueError(
+                f"{aggregate_name} {field_name} disagrees with object details"
+            )
+    preserved = tuple(
+        item for item in objects if item.outcome is DetectionObjectOutcome.PRESERVED
+    )
+    for field_name, object_field_name in (
+        ("mean_confidence_drop_preserved", "confidence_drop"),
+        ("mean_iou_drop_preserved", "iou_drop"),
+    ):
+        expected = None
+        if preserved:
+            expected = sum(
+                getattr(item, object_field_name) for item in preserved
+            ) / len(preserved)
+        _require_optional_metric(
+            field_name=f"{aggregate_name}.{field_name}",
+            actual=getattr(aggregate, field_name),
+            expected=expected,
+        )
+
+
+class DetectionObjectAdversarialAnalysis(DetectionMetricModel):
+    methodology_version: Literal["coco_category_aware_gt_transitions_v1"] = (
+        "coco_category_aware_gt_transitions_v1"
+    )
+    operating_point_configuration: DetectionObjectOperatingPointConfiguration
+    details_included: bool
+    total_evaluable_objects: int = Field(ge=0)
+    summary: DetectionObjectAggregate
+    by_class: tuple[DetectionObjectClassAggregate, ...]
+    by_size: tuple[DetectionObjectSizeAggregate, ...]
+    by_image: tuple[DetectionObjectImageAggregate, ...] | None = None
+    objects: tuple[DetectionObjectResult, ...] | None = None
+
+    @model_validator(mode="after")
+    def validate_analysis(self):
+        if self.total_evaluable_objects != self.summary.total_objects:
+            raise ValueError("total_evaluable_objects must match summary")
+        if self.details_included != (
+            self.by_image is not None and self.objects is not None
+        ):
+            raise ValueError("detail collections must follow details_included")
+        class_keys = tuple(
+            _class_reference_key(item.category) for item in self.by_class
+        )
+        if len(set(class_keys)) != len(self.by_class):
+            raise ValueError("by_class categories must be unique")
+        if tuple(
+            (item.category.model_class_id, item.category.category_internal_id)
+            for item in self.by_class
+        ) != tuple(
+            sorted(
+                (
+                    item.category.model_class_id,
+                    item.category.category_internal_id,
+                )
+                for item in self.by_class
+            )
+        ):
+            raise ValueError("by_class must use canonical order")
+        if tuple(item.size_bucket for item in self.by_size) != (
+            DetectionObjectSizeBucket.SMALL,
+            DetectionObjectSizeBucket.MEDIUM,
+            DetectionObjectSizeBucket.LARGE,
+        ):
+            raise ValueError("by_size must contain small, medium and large in order")
+        _validate_object_dimension(
+            dimension_name="by_class",
+            values=self.by_class,
+            summary=self.summary,
+        )
+        _validate_object_dimension(
+            dimension_name="by_size",
+            values=self.by_size,
+            summary=self.summary,
+        )
+        if self.by_image is not None:
+            image_ids = tuple(item.image_id for item in self.by_image)
+            if image_ids != tuple(sorted(image_ids)) or len(set(image_ids)) != len(
+                image_ids
+            ):
+                raise ValueError("by_image IDs must be unique and sorted")
+            _validate_object_dimension(
+                dimension_name="by_image",
+                values=self.by_image,
+                summary=self.summary,
+            )
+        if self.objects is not None:
+            object_keys = tuple(
+                (item.image_id, item.object_id) for item in self.objects
+            )
+            if object_keys != tuple(sorted(object_keys)) or len(
+                {item.object_id for item in self.objects}
+            ) != len(self.objects):
+                raise ValueError("objects must have unique IDs and canonical order")
+            if len(self.objects) != self.total_evaluable_objects:
+                raise ValueError("objects must contain every evaluable object")
+            for item in self.objects:
+                for observation in (
+                    item.original_observation,
+                    item.adversarial_observation,
+                ):
+                    if observation is None:
+                        continue
+                    if (
+                        observation.confidence
+                        < self.operating_point_configuration.confidence_threshold
+                        - PUBLIC_DETECTION_METRIC_TOLERANCE
+                        or observation.iou_with_ground_truth
+                        < self.operating_point_configuration.iou_threshold
+                        - PUBLIC_DETECTION_METRIC_TOLERANCE
+                    ):
+                        raise ValueError(
+                            "matched object observation is below the operating point"
+                        )
+            class_references = {
+                _class_reference_key(item.category) for item in self.by_class
+            }
+            image_ids = {item.image_id for item in self.by_image}
+            objects_by_class = {key: [] for key in class_references}
+            objects_by_size = {item.size_bucket: [] for item in self.by_size}
+            objects_by_image = {image_id: [] for image_id in image_ids}
+            for item in self.objects:
+                class_key = _class_reference_key(item.category)
+                if class_key not in objects_by_class:
+                    raise ValueError(
+                        "object references a category absent from by_class"
+                    )
+                if item.image_id not in objects_by_image:
+                    raise ValueError("object references an image absent from by_image")
+                objects_by_class[class_key].append(item)
+                objects_by_size[item.size_bucket].append(item)
+                objects_by_image[item.image_id].append(item)
+            _validate_aggregate_against_objects(
+                aggregate_name="summary",
+                aggregate=self.summary,
+                objects=self.objects,
+            )
+            for value in self.by_class:
+                key = _class_reference_key(value.category)
+                _validate_aggregate_against_objects(
+                    aggregate_name=f"by_class[{key}]",
+                    aggregate=value,
+                    objects=tuple(objects_by_class[key]),
+                )
+            for value in self.by_size:
+                _validate_aggregate_against_objects(
+                    aggregate_name=f"by_size[{value.size_bucket}]",
+                    aggregate=value,
+                    objects=tuple(objects_by_size[value.size_bucket]),
+                )
+            for value in self.by_image:
+                _validate_aggregate_against_objects(
+                    aggregate_name=f"by_image[{value.image_id}]",
+                    aggregate=value,
+                    objects=tuple(objects_by_image[value.image_id]),
+                )
         return self
 
 
@@ -476,12 +924,17 @@ class DetectionSupervisedMetrics(DetectionMetricModel):
     original: DetectionCocoAnalysis | None = None
     adversarial: DetectionCocoAnalysis | None = None
     deltas: DetectionCocoDeltas | None = None
+    object_analysis: DetectionObjectAdversarialAnalysis | None = None
 
     @model_validator(mode="after")
     def validate_availability(self):
         analyses = (self.original, self.adversarial, self.deltas)
         if self.available:
-            if self.reason is not None or any(value is None for value in analyses):
+            if (
+                self.reason is not None
+                or any(value is None for value in analyses)
+                or self.object_analysis is None
+            ):
                 raise ValueError(
                     "available supervised metrics require analyses and no reason"
                 )
@@ -508,7 +961,11 @@ class DetectionSupervisedMetrics(DetectionMetricModel):
                 raise ValueError(
                     "ground-truth class support must not change between analyses"
                 )
-        elif self.reason is None or any(value is not None for value in analyses):
+        elif (
+            self.reason is None
+            or any(value is not None for value in analyses)
+            or self.object_analysis is not None
+        ):
             raise ValueError(
                 "unavailable supervised metrics require a reason and no analyses"
             )

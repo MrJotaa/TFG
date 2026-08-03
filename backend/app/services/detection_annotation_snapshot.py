@@ -392,6 +392,7 @@ def _materialize_annotation(
         bbox_y2=required_finite("bbox_y2"),
         area=required_finite("area"),
         iscrowd=iscrowd,
+        object_internal_id=str(internal_id),
     )
 
 
@@ -512,6 +513,7 @@ def _build_snapshot(
                 key=lambda annotation: (
                     annotation.image_id,
                     annotation.category_internal_id,
+                    annotation.object_internal_id,
                     annotation.external_id,
                 ),
             )

@@ -43,6 +43,7 @@ class CocoEvaluationClass:
 @dataclass(frozen=True, slots=True)
 class CocoGroundTruth:
     annotation_id: int
+    object_internal_id: str
     image_id: str
     model_class_id: int
     box: DetectionBox
@@ -137,11 +138,37 @@ class CocoPerClassMetrics:
 
 
 @dataclass(frozen=True, slots=True)
+class GroundTruthMatchObservation:
+    object_internal_id: str
+    image_id: str
+    category_reference: CocoEvaluationClass
+    matched: bool
+    matched_detection_confidence: float | None
+    matched_detection_iou: float | None
+    matched_detection_box: DetectionBox | None
+
+
+@dataclass(frozen=True, slots=True)
 class CocoDetectionAnalysis:
     aggregate: CocoAggregateMetrics
     precision_recall_curve: PrecisionRecallCurve | None
     operating_point: OperatingPointMetrics
     per_class: tuple[CocoPerClassMetrics, ...]
+    ground_truth_observations: tuple[GroundTruthMatchObservation, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _OperatingPointExtraction:
+    aggregate: OperatingPointMetrics
+    by_category_id: dict[int, OperatingPointMetrics]
+    observations: tuple[GroundTruthMatchObservation, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _OfficialIouAxes:
+    matrix: np.ndarray
+    row_by_detection_id: dict[int, int]
+    column_by_ground_truth_id: dict[int, int]
 
 
 def _mean_valid(values: np.ndarray) -> float | None:
@@ -230,6 +257,7 @@ def _validate_inputs(
         class_by_id[model_class.model_class_id] = model_class
 
     annotation_ids = set()
+    object_internal_ids = set()
     for ground_truth in ground_truths:
         if not isinstance(ground_truth, CocoGroundTruth):
             raise CocoDetectionMetricsInputError(
@@ -240,6 +268,16 @@ def _validate_inputs(
                 "ground-truth annotation IDs must be unique"
             )
         annotation_ids.add(ground_truth.annotation_id)
+        object_internal_id = ground_truth.object_internal_id
+        if not isinstance(object_internal_id, str) or not object_internal_id.strip():
+            raise CocoDetectionMetricsInputError(
+                "ground-truth object internal IDs must be non-empty strings"
+            )
+        if object_internal_id in object_internal_ids:
+            raise CocoDetectionMetricsInputError(
+                "ground-truth object internal IDs must be unique"
+            )
+        object_internal_ids.add(object_internal_id)
         image = image_by_id.get(ground_truth.image_id)
         if image is None:
             raise CocoDetectionMetricsInputError(
@@ -359,10 +397,12 @@ def _build_coco_apis(
         {
             "id": index,
             "image_id": image_id_map[ground_truth.image_id],
+            "source_image_id": ground_truth.image_id,
             "category_id": ground_truth.model_class_id,
             "bbox": _xywh(ground_truth.box),
             "area": float(ground_truth.area),
             "iscrowd": int(ground_truth.iscrowd),
+            "object_internal_id": ground_truth.object_internal_id,
         }
         for index, ground_truth in enumerate(sorted_ground_truths, start=1)
     ]
@@ -465,24 +505,98 @@ def _precision_recall_curve(
     )
 
 
-def _operating_counts(
+def _box_from_xywh(value: object) -> DetectionBox:
+    numeric = np.asarray(value, dtype=np.float64)
+    if numeric.shape != (4,) or np.any(~np.isfinite(numeric)):
+        raise CocoDetectionMetricsError("COCOeval returned an invalid detection box")
+    x, y, width, height = (float(item) for item in numeric)
+    if width <= 0 or height <= 0:
+        raise CocoDetectionMetricsError(
+            "COCOeval returned a non-positive detection box"
+        )
+    return DetectionBox(x, y, x + width, y + height)
+
+
+def _official_iou_axes(
+    *,
+    evaluator: COCOeval,
+    image_id: int,
+    category_id: int,
+) -> _OfficialIouAxes:
+    key = (image_id, category_id)
+    detections = evaluator._dts.get(key, ())
+    ground_truths = evaluator._gts.get(key, ())
+    ordered_detection_indexes = np.argsort(
+        [-float(item["score"]) for item in detections],
+        kind="mergesort",
+    )
+    ordered_detections = [
+        detections[index]
+        for index in ordered_detection_indexes[: evaluator.params.maxDets[-1]]
+    ]
+    detection_axis = [int(item["id"]) for item in ordered_detections]
+    ground_truth_axis = [int(item["id"]) for item in ground_truths]
+    matrix = np.asarray(evaluator.ious.get(key), dtype=np.float64)
+    expected_shape = (len(detection_axis), len(ground_truth_axis))
+    if matrix.shape != expected_shape:
+        raise CocoDetectionMetricsError(
+            "COCOeval IoU matrix axes do not match its detection/GT ordering"
+        )
+    if np.any(~np.isfinite(matrix)):
+        raise CocoDetectionMetricsError("COCOeval returned non-finite IoU values")
+    return _OfficialIouAxes(
+        matrix=matrix,
+        row_by_detection_id={
+            detection_id: index for index, detection_id in enumerate(detection_axis)
+        },
+        column_by_ground_truth_id={
+            ground_truth_id: index
+            for index, ground_truth_id in enumerate(ground_truth_axis)
+        },
+    )
+
+
+def _official_match_iou(
+    *,
+    axes: _OfficialIouAxes,
+    detection_id: int,
+    ground_truth_id: int,
+) -> float:
+    try:
+        row = axes.row_by_detection_id[detection_id]
+        column = axes.column_by_ground_truth_id[ground_truth_id]
+    except KeyError as error:
+        raise CocoDetectionMetricsError(
+            "COCOeval match IDs are absent from the official IoU matrix axes"
+        ) from error
+    iou = float(axes.matrix[row, column])
+    if not 0.0 <= iou <= 1.0:
+        raise CocoDetectionMetricsError("COCOeval returned an out-of-range IoU")
+    return iou
+
+
+def _extract_operating_point(
     *,
     evaluator: COCOeval,
     iou_index: int,
     confidence_threshold: float,
-    category_id: int | None,
-) -> OperatingPointMetrics:
+    classes: tuple[CocoEvaluationClass, ...],
+) -> _OperatingPointExtraction:
     all_range = evaluator.params.areaRng[_area_index(evaluator, "all")]
-    tp = 0
-    fp = 0
-    fn = 0
+    counts = {model_class.model_class_id: [0, 0, 0] for model_class in classes}
+    class_by_id = {model_class.model_class_id: model_class for model_class in classes}
+    observations: dict[str, GroundTruthMatchObservation] = {}
+    iou_axes_by_key: dict[tuple[int, int], _OfficialIouAxes] = {}
     for evaluation_image in evaluator.evalImgs:
         if evaluation_image is None:
             continue
         if evaluation_image["aRng"] != all_range:
             continue
-        if category_id is not None and evaluation_image["category_id"] != category_id:
-            continue
+        category_id = int(evaluation_image["category_id"])
+        if category_id not in counts:
+            raise CocoDetectionMetricsError(
+                "COCOeval returned an unexpected category at the operating point"
+            )
 
         scores = np.asarray(evaluation_image["dtScores"], dtype=np.float64)
         selected = scores >= confidence_threshold
@@ -493,8 +607,8 @@ def _operating_counts(
         )[iou_index]
         true_positive_mask = selected & ~ignored_detections & (matches > 0)
         false_positive_mask = selected & ~ignored_detections & (matches == 0)
-        tp += int(np.count_nonzero(true_positive_mask))
-        fp += int(np.count_nonzero(false_positive_mask))
+        counts[category_id][0] += int(np.count_nonzero(true_positive_mask))
+        counts[category_id][1] += int(np.count_nonzero(false_positive_mask))
 
         ground_truth_matches = np.asarray(evaluation_image["gtMatches"])[iou_index]
         ignored_ground_truths = np.asarray(
@@ -509,10 +623,106 @@ def _operating_counts(
             ground_truth_matches,
             selected_detection_ids,
         )
-        fn += int(
+        counts[category_id][2] += int(
             np.count_nonzero(~ignored_ground_truths & ~matched_by_selected_detection)
         )
-    return _operating_metrics(tp, fp, fn)
+
+        ground_truth_ids = np.asarray(
+            evaluation_image["gtIds"],
+            dtype=np.int64,
+        )
+        if ground_truth_ids.shape != ground_truth_matches.shape:
+            raise CocoDetectionMetricsError(
+                "COCOeval ground-truth match axes are inconsistent"
+            )
+        selected_id_set = {int(value) for value in selected_detection_ids}
+        for ground_truth_index, ground_truth_id_value in enumerate(ground_truth_ids):
+            if ignored_ground_truths[ground_truth_index]:
+                continue
+            ground_truth_id = int(ground_truth_id_value)
+            ground_truth = evaluator.cocoGt.anns.get(ground_truth_id)
+            if ground_truth is None:
+                raise CocoDetectionMetricsError(
+                    "COCOeval referenced an unknown ground-truth annotation"
+                )
+            object_internal_id = ground_truth.get("object_internal_id")
+            if not isinstance(object_internal_id, str) or not object_internal_id:
+                raise CocoDetectionMetricsError(
+                    "COCOeval ground truth lost its persisted object identity"
+                )
+            if object_internal_id in observations:
+                raise CocoDetectionMetricsError(
+                    "COCOeval produced duplicate observations for a ground truth"
+                )
+
+            matched_detection_id = int(ground_truth_matches[ground_truth_index])
+            matched = matched_detection_id in selected_id_set
+            confidence = None
+            iou = None
+            detection_box = None
+            if matched:
+                detection = evaluator.cocoDt.anns.get(matched_detection_id)
+                if detection is None:
+                    raise CocoDetectionMetricsError(
+                        "COCOeval referenced an unknown matched detection"
+                    )
+                confidence = float(detection["score"])
+                if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+                    raise CocoDetectionMetricsError(
+                        "COCOeval returned an invalid matched confidence"
+                    )
+                iou_key = (int(evaluation_image["image_id"]), category_id)
+                axes = iou_axes_by_key.get(iou_key)
+                if axes is None:
+                    axes = _official_iou_axes(
+                        evaluator=evaluator,
+                        image_id=iou_key[0],
+                        category_id=iou_key[1],
+                    )
+                    iou_axes_by_key[iou_key] = axes
+                iou = _official_match_iou(
+                    axes=axes,
+                    detection_id=matched_detection_id,
+                    ground_truth_id=ground_truth_id,
+                )
+                detection_box = _box_from_xywh(detection["bbox"])
+
+            observations[object_internal_id] = GroundTruthMatchObservation(
+                object_internal_id=object_internal_id,
+                image_id=str(ground_truth["source_image_id"]),
+                category_reference=class_by_id[category_id],
+                matched=matched,
+                matched_detection_confidence=confidence,
+                matched_detection_iou=iou,
+                matched_detection_box=detection_box,
+            )
+
+    by_category_id = {
+        category_id: _operating_metrics(*category_counts)
+        for category_id, category_counts in counts.items()
+    }
+    expected_object_ids = {
+        annotation["object_internal_id"]
+        for annotation in evaluator.cocoGt.anns.values()
+        if int(annotation.get("iscrowd", 0)) == 0
+    }
+    if set(observations) != expected_object_ids:
+        raise CocoDetectionMetricsError(
+            "COCOeval observations do not cover exactly the evaluable GT universe"
+        )
+    aggregate_counts = [
+        sum(values[index] for values in counts.values()) for index in range(3)
+    ]
+    return _OperatingPointExtraction(
+        aggregate=_operating_metrics(*aggregate_counts),
+        by_category_id=by_category_id,
+        observations=tuple(
+            sorted(
+                observations.values(),
+                key=lambda item: (item.image_id, item.object_internal_id),
+            )
+        ),
+    )
 
 
 def evaluate_coco_detections(
@@ -619,11 +829,11 @@ def evaluate_coco_detections(
         precision[:, :, :, all_area, max_100],
         evaluator.params.recThrs,
     )
-    aggregate_operating = _operating_counts(
+    operating_extraction = _extract_operating_point(
         evaluator=evaluator,
         iou_index=operating_iou,
         confidence_threshold=operating_point.confidence_threshold,
-        category_id=None,
+        classes=classes,
     )
 
     support_by_class: dict[int, int] = {}
@@ -689,18 +899,16 @@ def evaluate_coco_detections(
                     if support
                     else None
                 ),
-                operating_point=_operating_counts(
-                    evaluator=evaluator,
-                    iou_index=operating_iou,
-                    confidence_threshold=operating_point.confidence_threshold,
-                    category_id=model_class.model_class_id,
-                ),
+                operating_point=operating_extraction.by_category_id[
+                    model_class.model_class_id
+                ],
             )
         )
 
     return CocoDetectionAnalysis(
         aggregate=aggregate,
         precision_recall_curve=aggregate_curve,
-        operating_point=aggregate_operating,
+        operating_point=operating_extraction.aggregate,
         per_class=tuple(per_class),
+        ground_truth_observations=operating_extraction.observations,
     )

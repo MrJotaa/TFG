@@ -44,6 +44,9 @@ from schemas.detection_metrics import (
 from services.detection_annotation_snapshot import (
     MaterializedDetectionAnnotationSnapshot,
 )
+from services.detection_object_adversarial_analysis import (
+    build_detection_object_adversarial_analysis,
+)
 
 PUBLIC_METRIC_DECIMAL_PLACES = 6
 
@@ -54,6 +57,10 @@ class DetectionSupervisedEvaluationError(RuntimeError):
 
 class DetectionEvaluationGeometryError(DetectionSupervisedEvaluationError):
     """La geometría predicha no coincide con el snapshot autoritativo."""
+
+
+class DetectionGroundTruthIdentityError(DetectionSupervisedEvaluationError):
+    """Un objeto materializado perdió su identidad interna persistida."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +102,16 @@ def prepare_detection_supervised_evaluation(
     snapshot: MaterializedDetectionAnnotationSnapshot,
     catalog: DetectionClassCatalog | None,
 ) -> PreparedDetectionSupervisedEvaluation:
+    for annotation in snapshot.annotations:
+        if (
+            not isinstance(annotation.object_internal_id, str)
+            or not annotation.object_internal_id.strip()
+        ):
+            raise DetectionGroundTruthIdentityError(
+                "materialized annotation snapshot contains an object without "
+                "a persisted internal ID"
+            )
+
     status_counts = {
         "unreviewed": 0,
         "reviewed_empty": 0,
@@ -243,6 +260,7 @@ def prepare_detection_supervised_evaluation(
     ground_truths = tuple(
         CocoGroundTruth(
             annotation_id=index,
+            object_internal_id=annotation.object_internal_id,
             image_id=annotation.image_id,
             model_class_id=class_id_by_category[annotation.category_internal_id],
             box=DetectionBox(
@@ -474,6 +492,7 @@ def build_detection_supervised_metrics(
             original=None,
             adversarial=None,
             deltas=None,
+            object_analysis=None,
         )
 
     operating_point = CocoOperatingPointConfiguration(
@@ -500,6 +519,16 @@ def build_detection_supervised_metrics(
         ),
         operating_point=operating_point,
     )
+    object_analysis = build_detection_object_adversarial_analysis(
+        ground_truths=context.ground_truths,
+        classes=context.classes,
+        reviewed_image_ids=context.snapshot.reviewed_image_ids,
+        original_observations=original.ground_truth_observations,
+        adversarial_observations=adversarial.ground_truth_observations,
+        confidence_threshold=configuration.confidence_threshold,
+        iou_threshold=configuration.iou_threshold,
+        include_details=configuration.include_object_level_details,
+    )
 
     return DetectionSupervisedMetrics(
         available=True,
@@ -510,6 +539,7 @@ def build_detection_supervised_metrics(
         original=_analysis(original),
         adversarial=_analysis(adversarial),
         deltas=_deltas(original, adversarial),
+        object_analysis=object_analysis,
     )
 
 

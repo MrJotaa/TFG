@@ -30,6 +30,7 @@ class CanonicalObjectAnnotation:
     bbox_y2: float
     area: float
     iscrowd: int
+    object_internal_id: str | None = None
 
 
 @dataclass(frozen=True)

@@ -1,8 +1,10 @@
 import math
+from dataclasses import replace
 
 import pytest
 
 from ml.metrics.coco_detection import (
+    CocoDetectionMetricsInputError,
     CocoEvaluationClass,
     CocoEvaluationImage,
     CocoGroundTruth,
@@ -51,6 +53,7 @@ def _ground_truth(
     height = box[3] - box[1]
     return CocoGroundTruth(
         annotation_id=annotation_id,
+        object_internal_id=f"object-{annotation_id}",
         image_id=image_id,
         model_class_id=model_class_id,
         box=DetectionBox(*box),
@@ -123,6 +126,16 @@ def test_coco_metrics_perfect_detection():
     assert analysis.precision_recall_curve is not None
     assert analysis.per_class[0].precision_recall_curve is not None
     assert analysis.per_class[0].operating_point == analysis.operating_point
+
+
+def test_coco_metrics_reject_ground_truth_without_persisted_object_id():
+    ground_truth = replace(
+        _ground_truth((10, 10, 30, 30), annotation_id=77),
+        object_internal_id=None,
+    )
+
+    with pytest.raises(CocoDetectionMetricsInputError, match="internal IDs"):
+        _evaluate(ground_truths=(ground_truth,))
 
 
 def test_coco_metrics_empty_predictions_are_valid_and_do_not_print(capsys):

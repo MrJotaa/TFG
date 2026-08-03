@@ -173,6 +173,7 @@ async def test_snapshot_reader_filters_every_collection_by_dataset_and_snapshot(
     assert snapshot.dataset_revision == 1
     assert snapshot.categories[0].internal_id == "snapshot-a-category"
     assert snapshot.annotations[0].category_internal_id == "snapshot-a-category"
+    assert snapshot.annotations[0].object_internal_id == "snapshot-a-annotation"
     assert snapshot.reviewed_image_ids == {"image-empty", "image-object"}
 
 
