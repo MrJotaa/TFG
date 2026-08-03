@@ -3,6 +3,7 @@ import logging
 import os
 import pickle
 import threading
+import time
 import uuid
 
 import torch
@@ -25,7 +26,7 @@ from utils.evaluation_artifacts import (
     load_evaluation_model_inputs,
     validate_evaluation_model_inputs,
 )
-from utils.result_files import RESULTS_BASE_PATH
+from utils.result_files import RESULTS_BASE_PATH, read_result_expiration
 
 _generation_lock = threading.Lock()
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ async def generate_evaluation_image_gradcam(
             metadata=metadata,
             evaluation_id=evaluation_id,
             current_user_id=current_user_id,
+            result_path=result_path,
         )
         image_entry = _resolve_image_entry(metadata, image_id)
 
@@ -170,6 +172,7 @@ def _validate_access_and_state(
     metadata: dict,
     evaluation_id: str,
     current_user_id: str,
+    result_path: str,
 ) -> None:
     if (
         metadata.get("result_id") != evaluation_id
@@ -180,6 +183,8 @@ def _validate_access_and_state(
         raise ForbiddenError("Evaluation belongs to another user")
     if metadata.get("status") != "completed":
         raise BadRequestError("Evaluation is not complete")
+    if read_result_expiration(result_path) <= time.time():
+        raise GoneError("Evaluation has expired")
 
 
 def _resolve_image_entry(metadata: dict, image_id: str) -> dict:

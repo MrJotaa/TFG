@@ -7,11 +7,9 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import Dashboard from './pages/Dashboard'
 import DatasetManager from './pages/DatasetManager'
-import PredictionView from './pages/PredictionView'
 import ComparisonView from './pages/ComparisonView'
 import EvaluationView from './pages/EvaluationView'
 import ProfilePage from './pages/ProfilePage'
-import DetectionView from './pages/DetectionView'
 
 function App() {
   return (
@@ -27,8 +25,14 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/datasets" element={<DatasetManager />} />
-                <Route path="/prediction" element={<PredictionView />} />
-                <Route path="/detection" element={<DetectionView />} />
+                <Route
+                  path="/prediction"
+                  element={<Navigate to="/comparison" replace />}
+                />
+                <Route
+                  path="/detection"
+                  element={<Navigate to="/comparison" replace />}
+                />
                 <Route path="/comparison" element={<ComparisonView />} />
                 <Route path="/evaluation" element={<EvaluationView />} />
               </Route>

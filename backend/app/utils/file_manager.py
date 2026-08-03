@@ -1,5 +1,6 @@
 import os
 import shutil
+
 from fastapi import UploadFile
 
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}

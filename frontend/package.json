@@ -7,13 +7,17 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test:gradcam": "node --test tests/evaluationGradCam.test.js",
+    "test:gradcam": "node --test tests/evaluationGradCam.test.js tests/detectionEvaluationEigenCam.test.js",
+    "test:coco": "node --test tests/cocoAnnotations.test.js",
+    "test:detection-metrics": "node --test tests/detectionMetrics.test.js tests/detectionObjectExplorer.test.js tests/evaluationMetricGuides.test.js",
+    "test:explorer": "node --test tests/adversarialExplorer.test.js",
+    "test:history": "node --test tests/evaluationHistory.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "react-router-dom": "^7.16.0",
+    "react-router-dom": "^7.18.2",
     "recharts": "^3.8.1"
   },
   "devDependencies": {

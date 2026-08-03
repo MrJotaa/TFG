@@ -7,28 +7,28 @@ from sklearn.metrics import (
     precision_recall_fscore_support,
 )
 
+from ml.metrics.classification_curves import (
+    PerClassCurveMetricValues,
+    calculate_classification_curves,
+)
 from ml.models.classification import (
     DetailedClassificationPrediction,
 )
 from schemas.classification_metrics import (
     AdvancedClassificationMetrics,
     AggregateMetricDelta,
-    AggregateMetricSnapshot,
     AggregateMetricsComparison,
+    AggregateMetricSnapshot,
     AvailabilityStatus,
     ClassReference,
     ConfusionMatrices,
     EvaluationImageDiagnostics,
     LabelResolutionSummary,
     MetricValue,
-    PerClassMetricSnapshot,
     PerClassMetricsComparison,
+    PerClassMetricSnapshot,
     RobustnessMetrics,
     SupervisedClassificationAnalysis,
-)
-from ml.metrics.classification_curves import (
-    PerClassCurveMetricValues,
-    calculate_classification_curves,
 )
 
 

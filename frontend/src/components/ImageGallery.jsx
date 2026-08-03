@@ -5,6 +5,7 @@ import {
     updateImageLabel,
 } from '../api/datasets'
 import ImageLabelEditor from './ImageLabelEditor'
+import { getAnnotationStatusLabel } from '../utils/cocoAnnotations'
 
 function ImageGallery({
     selectedDataset,
@@ -126,7 +127,18 @@ function ImageGallery({
                             </button>
 
                             {!compact && (
-                                <p className="image-filename">{image.filename}</p>
+                                <>
+                                    <p className="image-filename">
+                                        {image.filename}
+                                    </p>
+                                    <span
+                                        className={`annotation-status ${image.annotation_review_status || 'unreviewed'}`}
+                                    >
+                                        {getAnnotationStatusLabel(
+                                            image.annotation_review_status,
+                                        )}
+                                    </span>
+                                </>
                             )}
 
                             {showLabelEditor && (

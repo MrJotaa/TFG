@@ -1,6 +1,5 @@
 import pytest
 
-
 INVALID_OBJECT_ID = "invalid-id"
 UNKNOWN_OBJECT_ID = "507f1f77bcf86cd799439011"
 
@@ -183,11 +182,13 @@ def test_missing_resources_return_standardized_404(
 )
 def test_dataset_endpoints_return_400_for_invalid_dataset_id(
     client,
+    auth_headers,
     path,
     payload,
 ):
     response = client.post(
         path,
+        headers=auth_headers,
         json=payload,
     )
 
@@ -265,11 +266,13 @@ def test_dataset_endpoints_return_400_for_invalid_dataset_id(
 )
 def test_dataset_endpoints_return_404_for_missing_dataset(
     client,
+    auth_headers,
     path,
     payload,
 ):
     response = client.post(
         path,
+        headers=auth_headers,
         json=payload,
     )
 

@@ -1,4 +1,4 @@
-import { apiRequest } from './client'
+import { apiRequest } from './client.js'
 
 export function evaluateDetectionDataset({
     datasetId,
@@ -6,6 +6,9 @@ export function evaluateDetectionDataset({
     epsilon,
     alpha,
     steps,
+    supervisedConfiguration,
+    seed = 0,
+    forceRecompute = false,
 }) {
     return apiRequest('/detect/evaluate', {
         method: 'POST',
@@ -19,7 +22,22 @@ export function evaluateDetectionDataset({
                 epsilon,
                 alpha,
                 steps,
+                seed,
             },
+            supervised_configuration: supervisedConfiguration,
+            force_recompute: forceRecompute,
         }),
     })
+}
+
+export function generateDetectionEvaluationEigenCam(evaluationId, imageId) {
+    const encodedEvaluationId = encodeURIComponent(evaluationId)
+    const encodedImageId = encodeURIComponent(imageId)
+
+    return apiRequest(
+        `/detect/evaluations/${encodedEvaluationId}/images/${encodedImageId}/eigencam`,
+        {
+            method: 'POST',
+        },
+    )
 }

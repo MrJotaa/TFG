@@ -10,7 +10,6 @@ from ml.models.classification import (
     DetailedClassificationPrediction,
 )
 
-
 CLASS_LABELS = (
     "cat",
     "dog",

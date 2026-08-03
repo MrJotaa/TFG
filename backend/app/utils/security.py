@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-
 load_dotenv()
 
 SECRET_KEY = getenv("JWT_SECRET_KEY")

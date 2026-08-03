@@ -31,6 +31,12 @@ class AttackParameters(BaseModel):
         le=100,
         description="Number of iterations for iterative attacks such as PGD",
     )
+    seed: int = Field(
+        default=0,
+        ge=0,
+        le=2_147_483_647,
+        description="Reproducible seed used by stochastic attacks",
+    )
 
 
 class AttackRequest(BaseModel):

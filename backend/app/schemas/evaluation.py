@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from schemas.attack import AttackParameters, AttackType
 from schemas.classification_metrics import (
@@ -11,6 +11,7 @@ class EvaluationRequest(BaseModel):
     dataset_id: str
     attack_type: AttackType = AttackType.FGSM
     parameters: AttackParameters = AttackParameters()
+    force_recompute: bool = Field(default=False, exclude=True)
 
 
 class EvaluationImageResult(BaseModel):
@@ -76,6 +77,7 @@ class EvaluationSummary(BaseModel):
 class EvaluationResponse(BaseModel):
     result_id: str
     dataset_id: str
+    dataset_revision: int = Field(default=0, ge=0)
 
     model_id: str
     model_name: str | None = None

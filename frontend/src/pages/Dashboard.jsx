@@ -134,9 +134,8 @@ function Dashboard() {
                     activeModel={activeModel}
                     selectedAttack={selectedAttack}
                     attackParameters={attackParameters}
-                    onGoToPrediction={() => navigate('/prediction')}
                     onGoToEvaluation={() => navigate('/evaluation')}
-                    onGoToDetection={() => navigate('/detection')}
+                    onGoToComparison={() => navigate('/comparison')}
                 />
             </section>
 

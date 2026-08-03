@@ -1,6 +1,5 @@
 from core.errors import BadRequestError
 
-
 CLASSIFICATION_TASK_TYPE = "classification"
 DETECTION_TASK_TYPE = "detection"
 

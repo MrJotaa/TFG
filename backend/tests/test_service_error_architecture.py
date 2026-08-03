@@ -1,7 +1,6 @@
 import ast
 from pathlib import Path
 
-
 SERVICES_DIRECTORY = Path("app/services")
 
 

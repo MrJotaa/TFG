@@ -1,6 +1,14 @@
 import { apiRequest } from './client.js'
 
-export function evaluateDataset({ datasetId, attackType, epsilon, alpha, steps }) {
+export function evaluateDataset({
+    datasetId,
+    attackType,
+    epsilon,
+    alpha,
+    steps,
+    seed = 0,
+    forceRecompute = false,
+}) {
     return apiRequest('/evaluate', {
         method: 'POST',
         headers: {
@@ -13,7 +21,9 @@ export function evaluateDataset({ datasetId, attackType, epsilon, alpha, steps }
                 epsilon: Number(epsilon),
                 alpha: Number(alpha),
                 steps: Number(steps),
+                seed: Number(seed),
             },
+            force_recompute: forceRecompute,
         }),
     })
 }

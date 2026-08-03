@@ -2,9 +2,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core.error_handlers import register_error_handlers
-
 import api.routes.models as models_route
+from core.error_handlers import register_error_handlers
 from core.errors import (
     ApplicationError,
     BadRequestError,

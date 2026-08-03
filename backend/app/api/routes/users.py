@@ -6,6 +6,7 @@ from schemas.users import (
     UserCreate,
     UserDeleteRequest,
     UserResponse,
+    UserRetentionUpdate,
     UserUpdate,
 )
 from services.dataset_service import get_datasets_by_user
@@ -16,10 +17,21 @@ from services.user_service import (
     get_user,
     list_users,
     update_user,
+    update_user_retention,
 )
 
-
 router = APIRouter()
+
+
+@router.patch(
+    "/users/me/retention",
+    response_model=UserResponse,
+)
+async def update_current_user_retention(
+    retention: UserRetentionUpdate,
+    current_user: UserResponse = Depends(require_current_user),
+) -> UserResponse:
+    return await update_user_retention(current_user.id, retention)
 
 
 @router.get("/users", response_model=list[UserResponse])

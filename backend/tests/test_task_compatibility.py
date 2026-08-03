@@ -1,7 +1,15 @@
-from PIL import Image
-import pytest
 from types import SimpleNamespace
 
+import pytest
+from PIL import Image
+
+import services.attack_service as attack_service
+import services.detection_attack_service as detection_attack_service
+import services.detection_evaluation_service as detection_evaluation_service
+import services.detection_service as detection_service
+import services.evaluation_service as evaluation_service
+import services.explainability_service as explainability_service
+import services.inference_service as inference_service
 from core.errors import BadRequestError
 from core.task_compatibility import (
     CLASSIFICATION_TASK_TYPE,
@@ -9,14 +17,6 @@ from core.task_compatibility import (
     require_attack_task_type,
     require_model_task_type,
 )
-
-import services.attack_service as attack_service
-import services.evaluation_service as evaluation_service
-import services.inference_service as inference_service
-import services.detection_attack_service as detection_attack_service
-import services.detection_evaluation_service as detection_evaluation_service
-import services.detection_service as detection_service
-import services.explainability_service as explainability_service
 
 
 class FakeModel:
@@ -250,6 +250,7 @@ def test_attack_rejects_detection_only_attack(
 def test_evaluate_rejects_detection_model(
     client,
     created_dataset,
+    auth_headers,
     monkeypatch,
 ):
     monkeypatch.setattr(
@@ -260,6 +261,7 @@ def test_evaluate_rejects_detection_model(
 
     response = client.post(
         "/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": created_dataset["id"],
             "attack_type": "random_noise",
@@ -275,6 +277,7 @@ def test_evaluate_rejects_detection_model(
 def test_evaluate_rejects_detection_only_attack(
     client,
     created_dataset,
+    auth_headers,
     monkeypatch,
 ):
     incompatible_attack = FakeAttack(
@@ -295,6 +298,7 @@ def test_evaluate_rejects_detection_only_attack(
 
     response = client.post(
         "/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": created_dataset["id"],
             "attack_type": "yolo_confidence",
@@ -426,6 +430,8 @@ def test_detection_attack_rejects_classification_only_attack(
 
 def test_detection_evaluate_rejects_classification_model(
     client,
+    created_dataset,
+    auth_headers,
     monkeypatch,
 ):
     async def fake_get_dataset(dataset_id: str):
@@ -444,8 +450,9 @@ def test_detection_evaluate_rejects_classification_model(
 
     response = client.post(
         "/detect/evaluate",
+        headers=auth_headers,
         json={
-            "dataset_id": "dataset-1",
+            "dataset_id": created_dataset["id"],
             "attack_type": "random_noise",
         },
     )
@@ -458,6 +465,8 @@ def test_detection_evaluate_rejects_classification_model(
 
 def test_detection_evaluate_rejects_classification_only_attack(
     client,
+    created_dataset,
+    auth_headers,
     monkeypatch,
 ):
     async def fake_get_dataset(dataset_id: str):
@@ -486,8 +495,9 @@ def test_detection_evaluate_rejects_classification_only_attack(
 
     response = client.post(
         "/detect/evaluate",
+        headers=auth_headers,
         json={
-            "dataset_id": "dataset-1",
+            "dataset_id": created_dataset["id"],
             "attack_type": "fgsm",
         },
     )

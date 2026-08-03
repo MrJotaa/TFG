@@ -1,10 +1,22 @@
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import FileResponse
 
+from api.dependencies.auth import require_current_user
 from schemas.datasets import (
+    CocoAnnotationImportResponse,
+    DatasetAnnotationCoverage,
     DatasetImage,
     DatasetImageLabelUpdate,
+    DatasetLabelResolutionResponse,
     DatasetResponse,
+)
+from schemas.users import UserResponse
+from services.classification_label_service import (
+    get_active_dataset_label_resolution,
+)
+from services.dataset_annotation_service import (
+    get_annotation_coverage,
+    import_coco_annotations,
 )
 from services.dataset_service import (
     add_images_to_dataset,
@@ -17,13 +29,6 @@ from services.dataset_service import (
     list_images_in_dataset,
     update_image_label,
 )
-from schemas.datasets import (
-    DatasetLabelResolutionResponse,
-)
-from services.classification_label_service import (
-    get_active_dataset_label_resolution,
-)
-
 
 router = APIRouter()
 
@@ -55,6 +60,29 @@ async def get_dataset_label_resolution(
     dataset_id: str,
 ) -> DatasetLabelResolutionResponse:
     return await get_active_dataset_label_resolution(dataset_id)
+
+
+@router.get(
+    "/datasets/{dataset_id}/annotations/coverage",
+    response_model=DatasetAnnotationCoverage,
+)
+async def get_dataset_annotation_coverage(
+    dataset_id: str,
+    current_user: UserResponse = Depends(require_current_user),
+) -> DatasetAnnotationCoverage:
+    return await get_annotation_coverage(dataset_id, current_user)
+
+
+@router.post(
+    "/datasets/{dataset_id}/annotations/coco",
+    response_model=CocoAnnotationImportResponse,
+)
+async def import_dataset_coco_annotations(
+    dataset_id: str,
+    file: UploadFile = File(...),
+    current_user: UserResponse = Depends(require_current_user),
+) -> CocoAnnotationImportResponse:
+    return await import_coco_annotations(dataset_id, file, current_user)
 
 
 @router.delete("/datasets/{dataset_id}")

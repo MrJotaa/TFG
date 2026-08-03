@@ -78,7 +78,7 @@ function getScopeData(analysis, scope) {
 
     if (scope === 'micro') {
         return {
-            label: 'Promedio micro',
+            label: 'Micro global',
             support: null,
             curves: analysis.micro,
         }
@@ -309,7 +309,7 @@ function EvaluationCurves({ evaluation }) {
         originalScore !== null && adversarialScore !== null
             ? originalScore - adversarialScore
             : null
-    const scopeLabel = selectedScope?.class_reference?.label ?? 'Promedio micro'
+    const scopeLabel = selectedScope?.class_reference?.label ?? 'Micro global'
 
     useEffect(() => {
         if (!isExpanded) {
@@ -355,7 +355,7 @@ function EvaluationCurves({ evaluation }) {
                     <h3>Curvas ROC y Precision-Recall</h3>
                     <p>
                         Superpone el comportamiento original y adversarial y explora el
-                        promedio micro o una clase concreta.
+                        el ámbito micro global o una clase concreta.
                     </p>
                 </div>
 
@@ -382,12 +382,12 @@ function EvaluationCurves({ evaluation }) {
                     </div>
 
                     <label>
-                        <span>Serie</span>
+                        <span>Ámbito de la curva</span>
                         <select
                             value={scope}
                             onChange={(event) => setScope(event.target.value)}
                         >
-                            <option value="micro">Promedio micro</option>
+                            <option value="micro">Micro global (todas las clases)</option>
                             {classOptions.map((option) => (
                                 <option key={option.index} value={option.index}>
                                     {option.label} · n={option.support}

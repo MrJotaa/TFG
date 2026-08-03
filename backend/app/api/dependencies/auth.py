@@ -7,7 +7,6 @@ from fastapi.security import (
 from schemas.users import UserResponse
 from services.auth_service import get_current_user
 
-
 bearer_scheme = HTTPBearer()
 
 

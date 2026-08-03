@@ -14,7 +14,6 @@ from schemas.classification_metrics import (
     LabelResolutionSummary,
 )
 
-
 CLASS_LABELS = (
     "cat",
     "dog",

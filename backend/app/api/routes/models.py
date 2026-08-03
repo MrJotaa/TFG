@@ -1,16 +1,16 @@
 from fastapi import APIRouter
 
-from schemas.models import ModelInfo
+from schemas.models import (
+    ModelClassCatalog,
+    ModelInfo,
+)
+from services.classification_label_service import (
+    get_active_model_class_catalog,
+)
 from services.model_service import (
     get_active_model,
     list_models,
     select_model,
-)
-from schemas.models import (
-    ModelClassCatalog,
-)
-from services.classification_label_service import (
-    get_active_model_class_catalog,
 )
 
 router = APIRouter()

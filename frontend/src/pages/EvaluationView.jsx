@@ -26,9 +26,13 @@ function EvaluationView() {
         activeModel,
         selectedAttack,
         attackParameters,
+        recoveredEvaluation,
+        setRecoveredEvaluation,
     } = useExperiment()
 
-    const isDetection = activeModel?.task_type === 'detection'
+    const isDetection = recoveredEvaluation
+        ? recoveredEvaluation.taskType === 'detection'
+        : activeModel?.task_type === 'detection'
     const attackName = getAttackName(selectedAttack)
     const contextPanelId = 'evaluation-context-panel'
 
@@ -94,7 +98,11 @@ function EvaluationView() {
                     />
                     <ContextItem
                         label="Modelo"
-                        value={activeModel?.name || 'Sin modelo activo'}
+                        value={
+                            recoveredEvaluation?.historyItem?.model_name ||
+                            activeModel?.name ||
+                            'Sin modelo activo'
+                        }
                     />
                     <ContextItem label="Ataque" value={attackName} />
                     <ContextItem
@@ -112,12 +120,16 @@ function EvaluationView() {
                     selectedDataset={selectedDataset}
                     selectedAttack={selectedAttack}
                     attackParameters={attackParameters}
+                    recoveredEvaluation={recoveredEvaluation}
+                    onStartNewEvaluation={() => setRecoveredEvaluation(null)}
                 />
             ) : (
                 <EvaluationPanel
                     selectedDataset={selectedDataset}
                     selectedAttack={selectedAttack}
                     attackParameters={attackParameters}
+                    recoveredEvaluation={recoveredEvaluation}
+                    onStartNewEvaluation={() => setRecoveredEvaluation(null)}
                 />
             )}
         </section>

@@ -68,3 +68,17 @@ export function deleteDatasetImage({ datasetId, imageId }) {
         method: 'DELETE',
     })
 }
+
+export function getDatasetAnnotationCoverage(datasetId) {
+    return apiRequest(`/datasets/${datasetId}/annotations/coverage`)
+}
+
+export function importDatasetCocoAnnotations({ datasetId, file }) {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    return apiRequest(`/datasets/${datasetId}/annotations/coco`, {
+        method: 'POST',
+        body: formData,
+    })
+}

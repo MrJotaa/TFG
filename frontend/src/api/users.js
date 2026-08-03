@@ -45,3 +45,15 @@ export function deleteCurrentUser(password) {
         }),
     })
 }
+
+export function updateResultRetention(resultRetentionSeconds) {
+    return apiRequest('/users/me/retention', {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            result_retention_seconds: Number(resultRetentionSeconds),
+        }),
+    })
+}

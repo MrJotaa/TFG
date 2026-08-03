@@ -3,7 +3,6 @@ from ml.models.resnet18.model import ResNet18Model
 from ml.models.yolo.model import YOLODetectionModel
 from schemas.models import ModelInfo
 
-
 resnet18 = ResNet18Model()
 yolov8n = YOLODetectionModel()
 

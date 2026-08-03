@@ -2,6 +2,7 @@ from pydantic import BaseModel
 
 from schemas.attack import AttackParameters, AttackType
 from schemas.detection import DetectionPrediction
+from schemas.detection_metrics import DetectionMetricsContract
 
 
 class DetectionAttackRequest(BaseModel):
@@ -12,6 +13,13 @@ class DetectionAttackRequest(BaseModel):
 
 
 class DetectionAttackComparison(BaseModel):
+    """
+    Comparación básica con deltas ``original - adversarial``.
+
+    ``attack_success`` conserva la definición legacy: es verdadero cuando
+    disminuye el número de detecciones o la confianza media adversaria.
+    """
+
     original_detection_count: int
     adversarial_detection_count: int
     detections_difference: int
@@ -23,7 +31,7 @@ class DetectionAttackComparison(BaseModel):
     perturbation_l2: float
 
 
-class DetectionAttackResponse(BaseModel):
+class DetectionAttackResponse(DetectionMetricsContract):
     result_id: str
     attack_type: AttackType
     parameters: AttackParameters

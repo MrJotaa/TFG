@@ -16,8 +16,15 @@ router = APIRouter()
 
 
 @router.post("/evaluate", response_model=EvaluationResponse)
-async def evaluate(request: EvaluationRequest) -> EvaluationResponse:
-    return await evaluate_dataset(request)
+async def evaluate(
+    request: EvaluationRequest,
+    current_user: UserResponse = Depends(require_current_user),
+) -> EvaluationResponse:
+    return await evaluate_dataset(
+        request,
+        owner_id=current_user.id,
+        retention_seconds=current_user.result_retention_seconds,
+    )
 
 
 @router.post(

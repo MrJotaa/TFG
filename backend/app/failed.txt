@@ -1,0 +1,2177 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.20, pytest-9.1.1, pluggy-1.6.0
+rootdir: /app
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.14.2, asyncio-1.4.0
+asyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 669 items
+
+tests/test_application_errors.py .............                           [  1%]
+tests/test_attack.py .....                                               [  2%]
+tests/test_attack_registry.py ..............                             [  4%]
+tests/test_attack_service_tensor_prediction.py .........                 [  6%]
+tests/test_attack_source_geometry_reconstruction.py ...............s.... [  9%]
+                                                                         [  9%]
+tests/test_auth.py .........                                             [ 10%]
+tests/test_classification_curve_metrics.py .......                       [ 11%]
+tests/test_classification_evaluation_metrics_integration.py FFFFFFF      [ 12%]
+tests/test_classification_label_resolution.py ..............             [ 14%]
+tests/test_classification_metrics_calculation.py ......                  [ 15%]
+tests/test_classification_metrics_schema.py ........                     [ 16%]
+tests/test_classification_model_predictions.py ..............            [ 18%]
+tests/test_coco_annotation_importer.py .....................             [ 21%]
+tests/test_coco_detection_metrics.py ................                    [ 24%]
+tests/test_dataset_coco_annotations.py ....................              [ 27%]
+tests/test_datasets.py .....................                             [ 30%]
+tests/test_detect.py ....                                                [ 31%]
+tests/test_detection_annotation_snapshot_reader.py ..................... [ 34%]
+                                                                         [ 34%]
+tests/test_detection_attack.py ......                                    [ 35%]
+tests/test_detection_category_resolution.py ......................       [ 38%]
+tests/test_detection_class_catalog.py .................                  [ 40%]
+tests/test_detection_evaluation.py ................                      [ 43%]
+tests/test_detection_evaluation_eigencam_on_demand.py ...                [ 43%]
+tests/test_detection_evaluation_persistence.py .......                   [ 44%]
+tests/test_detection_evaluation_service.py EEEEEEEEE                     [ 46%]
+tests/test_detection_metrics.py .....................                    [ 49%]
+tests/test_detection_object_adversarial_analysis.py .................... [ 52%]
+..............................                                           [ 56%]
+tests/test_detection_prediction_contract.py ........................     [ 60%]
+tests/test_detection_supervised_metrics_contract.py .................... [ 63%]
+.....................                                                    [ 66%]
+tests/test_evaluation.py .....                                           [ 67%]
+tests/test_evaluation_gradcam_on_demand.py ............................. [ 71%]
+.                                                                        [ 71%]
+tests/test_evaluation_history_routes.py ....                             [ 72%]
+tests/test_evaluation_retention_and_reproducibility.py ...........       [ 73%]
+tests/test_explainability.py .........                                   [ 75%]
+tests/test_fgsm_attack.py ......                                         [ 76%]
+tests/test_gradcam_source_geometry.py .........s.....                    [ 78%]
+tests/test_health.py .                                                   [ 78%]
+tests/test_models.py ..........                                          [ 80%]
+tests/test_pgd_attack.py .........                                       [ 81%]
+tests/test_predict.py ...                                                [ 81%]
+tests/test_random_noise_attack.py ......                                 [ 82%]
+tests/test_service_error_architecture.py .F                              [ 83%]
+tests/test_standardized_service_errors.py .........F..F....F..F....      [ 86%]
+tests/test_task_compatibility.py ........FF...FF..                       [ 89%]
+tests/test_tide_detection_metrics.py ........                            [ 90%]
+tests/test_unexpected_service_errors.py .F.F..                           [ 91%]
+tests/test_users.py ...................                                  [ 94%]
+tests/test_yolo_confidence_attack.py ...................                 [ 97%]
+tests/test_yolo_detection_adapter.py ...................                 [100%]
+
+==================================== ERRORS ====================================
+_ ERROR at setup of test_detection_evaluation_uses_canonical_deltas_and_legacy_success _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1258673a90>
+
+    @pytest.fixture(autouse=True)
+    def _stub_detection_evaluation_persistence(monkeypatch):
+        persisted = []
+        saved_adversarial_images = []
+    
+        async def fake_persist(*, response, request, owner_id):
+            assert response.result_id == TEST_DETECTION_EVALUATION_ID
+            assert request.dataset_id == response.dataset_id
+            assert owner_id == "user-1"
+            persisted.append((response, request, owner_id))
+    
+>       monkeypatch.setattr(
+            detection_evaluation_service,
+            "new_detection_evaluation_id",
+            lambda: TEST_DETECTION_EVALUATION_ID,
+        )
+E       AttributeError: <module 'services.detection_evaluation_service' from '/app/app/services/detection_evaluation_service.py'> has no attribute 'new_detection_evaluation_id'
+
+tests/test_detection_evaluation_service.py:40: AttributeError
+_ ERROR at setup of test_detection_evaluation_integrates_supervised_metrics_once _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12587e4ee0>
+
+    @pytest.fixture(autouse=True)
+    def _stub_detection_evaluation_persistence(monkeypatch):
+        persisted = []
+        saved_adversarial_images = []
+    
+        async def fake_persist(*, response, request, owner_id):
+            assert response.result_id == TEST_DETECTION_EVALUATION_ID
+            assert request.dataset_id == response.dataset_id
+            assert owner_id == "user-1"
+            persisted.append((response, request, owner_id))
+    
+>       monkeypatch.setattr(
+            detection_evaluation_service,
+            "new_detection_evaluation_id",
+            lambda: TEST_DETECTION_EVALUATION_ID,
+        )
+E       AttributeError: <module 'services.detection_evaluation_service' from '/app/app/services/detection_evaluation_service.py'> has no attribute 'new_detection_evaluation_id'
+
+tests/test_detection_evaluation_service.py:40: AttributeError
+_ ERROR at setup of test_legacy_detection_result_uses_strict_historical_threshold _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f125860fdf0>
+
+    @pytest.fixture(autouse=True)
+    def _stub_detection_evaluation_persistence(monkeypatch):
+        persisted = []
+        saved_adversarial_images = []
+    
+        async def fake_persist(*, response, request, owner_id):
+            assert response.result_id == TEST_DETECTION_EVALUATION_ID
+            assert request.dataset_id == response.dataset_id
+            assert owner_id == "user-1"
+            persisted.append((response, request, owner_id))
+    
+>       monkeypatch.setattr(
+            detection_evaluation_service,
+            "new_detection_evaluation_id",
+            lambda: TEST_DETECTION_EVALUATION_ID,
+        )
+E       AttributeError: <module 'services.detection_evaluation_service' from '/app/app/services/detection_evaluation_service.py'> has no attribute 'new_detection_evaluation_id'
+
+tests/test_detection_evaluation_service.py:40: AttributeError
+_ ERROR at setup of test_detection_evaluation_skips_catalog_and_scientific_inference_without_reviewed_images _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12586a1570>
+
+    @pytest.fixture(autouse=True)
+    def _stub_detection_evaluation_persistence(monkeypatch):
+        persisted = []
+        saved_adversarial_images = []
+    
+        async def fake_persist(*, response, request, owner_id):
+            assert response.result_id == TEST_DETECTION_EVALUATION_ID
+            assert request.dataset_id == response.dataset_id
+            assert owner_id == "user-1"
+            persisted.append((response, request, owner_id))
+    
+>       monkeypatch.setattr(
+            detection_evaluation_service,
+            "new_detection_evaluation_id",
+            lambda: TEST_DETECTION_EVALUATION_ID,
+        )
+E       AttributeError: <module 'services.detection_evaluation_service' from '/app/app/services/detection_evaluation_service.py'> has no attribute 'new_detection_evaluation_id'
+
+tests/test_detection_evaluation_service.py:40: AttributeError
+_ ERROR at setup of test_detection_evaluation_uses_legacy_after_required_resolution_is_unavailable _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f125860f250>
+
+    @pytest.fixture(autouse=True)
+    def _stub_detection_evaluation_persistence(monkeypatch):
+        persisted = []
+        saved_adversarial_images = []
+    
+        async def fake_persist(*, response, request, owner_id):
+            assert response.result_id == TEST_DETECTION_EVALUATION_ID
+            assert request.dataset_id == response.dataset_id
+            assert owner_id == "user-1"
+            persisted.append((response, request, owner_id))
+    
+>       monkeypatch.setattr(
+            detection_evaluation_service,
+            "new_detection_evaluation_id",
+            lambda: TEST_DETECTION_EVALUATION_ID,
+        )
+E       AttributeError: <module 'services.detection_evaluation_service' from '/app/app/services/detection_evaluation_service.py'> has no attribute 'new_detection_evaluation_id'
+
+tests/test_detection_evaluation_service.py:40: AttributeError
+_ ERROR at setup of test_allowed_supervised_configuration_does_not_change_legacy_contract[configuration0] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12587b4c10>
+
+    @pytest.fixture(autouse=True)
+    def _stub_detection_evaluation_persistence(monkeypatch):
+        persisted = []
+        saved_adversarial_images = []
+    
+        async def fake_persist(*, response, request, owner_id):
+            assert response.result_id == TEST_DETECTION_EVALUATION_ID
+            assert request.dataset_id == response.dataset_id
+            assert owner_id == "user-1"
+            persisted.append((response, request, owner_id))
+    
+>       monkeypatch.setattr(
+            detection_evaluation_service,
+            "new_detection_evaluation_id",
+            lambda: TEST_DETECTION_EVALUATION_ID,
+        )
+E       AttributeError: <module 'services.detection_evaluation_service' from '/app/app/services/detection_evaluation_service.py'> has no attribute 'new_detection_evaluation_id'
+
+tests/test_detection_evaluation_service.py:40: AttributeError
+_ ERROR at setup of test_allowed_supervised_configuration_does_not_change_legacy_contract[configuration1] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12583d6ec0>
+
+    @pytest.fixture(autouse=True)
+    def _stub_detection_evaluation_persistence(monkeypatch):
+        persisted = []
+        saved_adversarial_images = []
+    
+        async def fake_persist(*, response, request, owner_id):
+            assert response.result_id == TEST_DETECTION_EVALUATION_ID
+            assert request.dataset_id == response.dataset_id
+            assert owner_id == "user-1"
+            persisted.append((response, request, owner_id))
+    
+>       monkeypatch.setattr(
+            detection_evaluation_service,
+            "new_detection_evaluation_id",
+            lambda: TEST_DETECTION_EVALUATION_ID,
+        )
+E       AttributeError: <module 'services.detection_evaluation_service' from '/app/app/services/detection_evaluation_service.py'> has no attribute 'new_detection_evaluation_id'
+
+tests/test_detection_evaluation_service.py:40: AttributeError
+_ ERROR at setup of test_allowed_supervised_configuration_does_not_change_legacy_contract[configuration2] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1258592500>
+
+    @pytest.fixture(autouse=True)
+    def _stub_detection_evaluation_persistence(monkeypatch):
+        persisted = []
+        saved_adversarial_images = []
+    
+        async def fake_persist(*, response, request, owner_id):
+            assert response.result_id == TEST_DETECTION_EVALUATION_ID
+            assert request.dataset_id == response.dataset_id
+            assert owner_id == "user-1"
+            persisted.append((response, request, owner_id))
+    
+>       monkeypatch.setattr(
+            detection_evaluation_service,
+            "new_detection_evaluation_id",
+            lambda: TEST_DETECTION_EVALUATION_ID,
+        )
+E       AttributeError: <module 'services.detection_evaluation_service' from '/app/app/services/detection_evaluation_service.py'> has no attribute 'new_detection_evaluation_id'
+
+tests/test_detection_evaluation_service.py:40: AttributeError
+_ ERROR at setup of test_detection_evaluation_propagates_supervised_geometry_error _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12583d6e30>
+
+    @pytest.fixture(autouse=True)
+    def _stub_detection_evaluation_persistence(monkeypatch):
+        persisted = []
+        saved_adversarial_images = []
+    
+        async def fake_persist(*, response, request, owner_id):
+            assert response.result_id == TEST_DETECTION_EVALUATION_ID
+            assert request.dataset_id == response.dataset_id
+            assert owner_id == "user-1"
+            persisted.append((response, request, owner_id))
+    
+>       monkeypatch.setattr(
+            detection_evaluation_service,
+            "new_detection_evaluation_id",
+            lambda: TEST_DETECTION_EVALUATION_ID,
+        )
+E       AttributeError: <module 'services.detection_evaluation_service' from '/app/app/services/detection_evaluation_service.py'> has no attribute 'new_detection_evaluation_id'
+
+tests/test_detection_evaluation_service.py:40: AttributeError
+=================================== FAILURES ===================================
+___ test_evaluation_persists_each_structured_result_in_source_geometry[fgsm] ___
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1258670910>
+attack_type = <AttackType.FGSM: 'fgsm'>
+
+    @pytest.mark.parametrize("attack_type", [AttackType.FGSM, AttackType.PGD])
+    @pytest.mark.asyncio
+    async def test_evaluation_persists_each_structured_result_in_source_geometry(
+        monkeypatch,
+        attack_type,
+    ):
+        dataset = _dataset([None, None, None])
+        source_sizes = [(19, 7), (6, 21), (13, 13)]
+        prediction_pairs = [
+            (
+                _prediction((0.8, 0.1, 0.1)),
+                _prediction((0.2, 0.7, 0.1)),
+            ),
+            (
+                _prediction((0.1, 0.8, 0.1)),
+                _prediction((0.1, 0.7, 0.2)),
+            ),
+            (
+                _prediction((0.1, 0.2, 0.7)),
+                _prediction((0.1, 0.2, 0.7)),
+            ),
+        ]
+        projector_inputs: list[tuple[int, int]] = []
+        projected_delta_refs = []
+        real_reconstruct = evaluation_service.reconstruct_attack_in_source_geometry
+    
+        def tracked_reconstruct(source_image, model_space_delta):
+            projector_inputs.append((id(source_image), id(model_space_delta)))
+            reconstruction = real_reconstruct(source_image, model_space_delta)
+            projected_delta_refs.append(ref(reconstruction.source_space_delta))
+            return reconstruction
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "reconstruct_attack_in_source_geometry",
+            tracked_reconstruct,
+        )
+    
+>       response, attack, saved_metadata = await _run_evaluation(
+            monkeypatch,
+            dataset=dataset,
+            prediction_pairs=prediction_pairs,
+            perturbations=[(0.03, 1.0), (0.02, 2.0), (0.01, 3.0)],
+            source_sizes=source_sizes,
+            attack_type=attack_type,
+        )
+
+tests/test_classification_evaluation_metrics_integration.py:391: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1258670910>
+dataset = DatasetResponse(id='dataset-1', name='Classification dataset', owner_id='user-1', image_count=3, images=[DatasetImage(...age-3', filename='image-3.png', url=None, label=None, width=None, height=None, annotation_review_status='unreviewed')])
+prediction_pairs = [(DetailedClassificationPrediction(class_index=0, class_label='cat', confidence=0.8, probabilities=(0.8, 0.1, 0.1), to...bility=0.2), ClassificationClassScore(index=0, label='cat', probability=0.1)), prediction_margin=0.49999999999999994))]
+perturbations = [(0.03, 1.0), (0.02, 2.0), (0.01, 3.0)]
+source_sizes = [(19, 7), (6, 21), (13, 13)], attack_override = None
+attack_type = <AttackType.FGSM: 'fgsm'>
+
+    async def _run_evaluation(
+        monkeypatch,
+        *,
+        dataset: DatasetResponse,
+        prediction_pairs: Sequence[
+            tuple[
+                DetailedClassificationPrediction,
+                DetailedClassificationPrediction,
+            ]
+        ],
+        perturbations: Sequence[tuple[float, float]] | None = None,
+        source_sizes: Sequence[tuple[int, int]] | None = None,
+        attack_override=None,
+        attack_type: AttackType = AttackType.PGD,
+    ):
+        flattened_predictions = [
+            prediction for pair in prediction_pairs for prediction in pair
+        ]
+    
+        model = FakeClassificationModel(flattened_predictions)
+    
+        if perturbations is None:
+            perturbations = [(0.03, 1.0) for _ in dataset.images]
+    
+        attack = attack_override or FakeClassificationAttack(perturbations)
+        saved_metadata: dict = {}
+        saved_images: dict[str, Image.Image] = {}
+        saved_scientific_inputs: dict[str, dict] = {}
+    
+        if source_sizes is None:
+            source_sizes = [
+                (640 + index * 10, 480 + index * 5)
+                for index, _ in enumerate(dataset.images, start=1)
+            ]
+    
+        images_by_id = {
+            image.id: Image.new(
+                "RGB",
+                source_size,
+                color=(index, index, index),
+            )
+            for index, (image, source_size) in enumerate(
+                zip(dataset.images, source_sizes),
+                start=1,
+            )
+        }
+    
+        async def fake_get_dataset(dataset_id: str):
+            assert dataset_id == dataset.id
+            return dataset
+    
+        async def fake_get_image_from_dataset(
+            dataset_id: str,
+            image_id: str,
+        ):
+            assert dataset_id == dataset.id
+            return images_by_id[image_id]
+    
+        def fake_save_result_metadata(
+            result_path: str,
+            metadata: dict,
+        ) -> str:
+            assert result_path == "/tmp/evaluation-result"
+            saved_metadata.update(metadata)
+            return "/tmp/evaluation-result/metadata.json"
+    
+        def fake_save_result_image(image, result_id, result_path, filename):
+            saved_images[filename] = image
+            return f"/results/{result_id}/{filename}"
+    
+        def fake_save_evaluation_model_inputs(**kwargs):
+            saved_scientific_inputs[kwargs["image_id"]] = kwargs
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_dataset",
+            fake_get_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_image_from_dataset",
+            fake_get_image_from_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_active_model_instance",
+            lambda: model,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_attack",
+            lambda attack_type: attack,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "create_result_directory",
+            lambda prefix: (
+                "evaluation-result",
+                "/tmp/evaluation-result",
+            ),
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_image",
+            fake_save_result_image,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_metadata",
+            fake_save_result_metadata,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_evaluation_model_inputs",
+            fake_save_evaluation_model_inputs,
+        )
+    
+>       response = await evaluation_service.evaluate_dataset(
+            EvaluationRequest(
+                dataset_id=dataset.id,
+                attack_type=attack_type,
+            )
+        )
+E       TypeError: evaluate_dataset() missing 2 required keyword-only arguments: 'owner_id' and 'retention_seconds'
+
+tests/test_classification_evaluation_metrics_integration.py:325: TypeError
+___ test_evaluation_persists_each_structured_result_in_source_geometry[pgd] ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1258763d30>
+attack_type = <AttackType.PGD: 'pgd'>
+
+    @pytest.mark.parametrize("attack_type", [AttackType.FGSM, AttackType.PGD])
+    @pytest.mark.asyncio
+    async def test_evaluation_persists_each_structured_result_in_source_geometry(
+        monkeypatch,
+        attack_type,
+    ):
+        dataset = _dataset([None, None, None])
+        source_sizes = [(19, 7), (6, 21), (13, 13)]
+        prediction_pairs = [
+            (
+                _prediction((0.8, 0.1, 0.1)),
+                _prediction((0.2, 0.7, 0.1)),
+            ),
+            (
+                _prediction((0.1, 0.8, 0.1)),
+                _prediction((0.1, 0.7, 0.2)),
+            ),
+            (
+                _prediction((0.1, 0.2, 0.7)),
+                _prediction((0.1, 0.2, 0.7)),
+            ),
+        ]
+        projector_inputs: list[tuple[int, int]] = []
+        projected_delta_refs = []
+        real_reconstruct = evaluation_service.reconstruct_attack_in_source_geometry
+    
+        def tracked_reconstruct(source_image, model_space_delta):
+            projector_inputs.append((id(source_image), id(model_space_delta)))
+            reconstruction = real_reconstruct(source_image, model_space_delta)
+            projected_delta_refs.append(ref(reconstruction.source_space_delta))
+            return reconstruction
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "reconstruct_attack_in_source_geometry",
+            tracked_reconstruct,
+        )
+    
+>       response, attack, saved_metadata = await _run_evaluation(
+            monkeypatch,
+            dataset=dataset,
+            prediction_pairs=prediction_pairs,
+            perturbations=[(0.03, 1.0), (0.02, 2.0), (0.01, 3.0)],
+            source_sizes=source_sizes,
+            attack_type=attack_type,
+        )
+
+tests/test_classification_evaluation_metrics_integration.py:391: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1258763d30>
+dataset = DatasetResponse(id='dataset-1', name='Classification dataset', owner_id='user-1', image_count=3, images=[DatasetImage(...age-3', filename='image-3.png', url=None, label=None, width=None, height=None, annotation_review_status='unreviewed')])
+prediction_pairs = [(DetailedClassificationPrediction(class_index=0, class_label='cat', confidence=0.8, probabilities=(0.8, 0.1, 0.1), to...bility=0.2), ClassificationClassScore(index=0, label='cat', probability=0.1)), prediction_margin=0.49999999999999994))]
+perturbations = [(0.03, 1.0), (0.02, 2.0), (0.01, 3.0)]
+source_sizes = [(19, 7), (6, 21), (13, 13)], attack_override = None
+attack_type = <AttackType.PGD: 'pgd'>
+
+    async def _run_evaluation(
+        monkeypatch,
+        *,
+        dataset: DatasetResponse,
+        prediction_pairs: Sequence[
+            tuple[
+                DetailedClassificationPrediction,
+                DetailedClassificationPrediction,
+            ]
+        ],
+        perturbations: Sequence[tuple[float, float]] | None = None,
+        source_sizes: Sequence[tuple[int, int]] | None = None,
+        attack_override=None,
+        attack_type: AttackType = AttackType.PGD,
+    ):
+        flattened_predictions = [
+            prediction for pair in prediction_pairs for prediction in pair
+        ]
+    
+        model = FakeClassificationModel(flattened_predictions)
+    
+        if perturbations is None:
+            perturbations = [(0.03, 1.0) for _ in dataset.images]
+    
+        attack = attack_override or FakeClassificationAttack(perturbations)
+        saved_metadata: dict = {}
+        saved_images: dict[str, Image.Image] = {}
+        saved_scientific_inputs: dict[str, dict] = {}
+    
+        if source_sizes is None:
+            source_sizes = [
+                (640 + index * 10, 480 + index * 5)
+                for index, _ in enumerate(dataset.images, start=1)
+            ]
+    
+        images_by_id = {
+            image.id: Image.new(
+                "RGB",
+                source_size,
+                color=(index, index, index),
+            )
+            for index, (image, source_size) in enumerate(
+                zip(dataset.images, source_sizes),
+                start=1,
+            )
+        }
+    
+        async def fake_get_dataset(dataset_id: str):
+            assert dataset_id == dataset.id
+            return dataset
+    
+        async def fake_get_image_from_dataset(
+            dataset_id: str,
+            image_id: str,
+        ):
+            assert dataset_id == dataset.id
+            return images_by_id[image_id]
+    
+        def fake_save_result_metadata(
+            result_path: str,
+            metadata: dict,
+        ) -> str:
+            assert result_path == "/tmp/evaluation-result"
+            saved_metadata.update(metadata)
+            return "/tmp/evaluation-result/metadata.json"
+    
+        def fake_save_result_image(image, result_id, result_path, filename):
+            saved_images[filename] = image
+            return f"/results/{result_id}/{filename}"
+    
+        def fake_save_evaluation_model_inputs(**kwargs):
+            saved_scientific_inputs[kwargs["image_id"]] = kwargs
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_dataset",
+            fake_get_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_image_from_dataset",
+            fake_get_image_from_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_active_model_instance",
+            lambda: model,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_attack",
+            lambda attack_type: attack,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "create_result_directory",
+            lambda prefix: (
+                "evaluation-result",
+                "/tmp/evaluation-result",
+            ),
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_image",
+            fake_save_result_image,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_metadata",
+            fake_save_result_metadata,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_evaluation_model_inputs",
+            fake_save_evaluation_model_inputs,
+        )
+    
+>       response = await evaluation_service.evaluate_dataset(
+            EvaluationRequest(
+                dataset_id=dataset.id,
+                attack_type=attack_type,
+            )
+        )
+E       TypeError: evaluate_dataset() missing 2 required keyword-only arguments: 'owner_id' and 'retention_seconds'
+
+tests/test_classification_evaluation_metrics_integration.py:325: TypeError
+____________ test_random_noise_evaluation_keeps_legacy_visual_flow _____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f125860dcc0>
+
+    @pytest.mark.asyncio
+    async def test_random_noise_evaluation_keeps_legacy_visual_flow(monkeypatch):
+        dataset = _dataset([None])
+        attack = FakeLegacyClassificationAttack()
+    
+        def fail_if_reconstruction_is_used(source_image, model_space_delta):
+            raise AssertionError("Random Noise must not use source reconstruction")
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "reconstruct_attack_in_source_geometry",
+            fail_if_reconstruction_is_used,
+        )
+    
+>       response, attack, _ = await _run_evaluation(
+            monkeypatch,
+            dataset=dataset,
+            prediction_pairs=[
+                (
+                    _prediction((0.8, 0.1, 0.1)),
+                    _prediction((0.2, 0.7, 0.1)),
+                )
+            ],
+            source_sizes=[(17, 9)],
+            attack_override=attack,
+            attack_type=AttackType.RANDOM_NOISE,
+        )
+
+tests/test_classification_evaluation_metrics_integration.py:470: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f125860dcc0>
+dataset = DatasetResponse(id='dataset-1', name='Classification dataset', owner_id='user-1', image_count=1, images=[DatasetImage(...age-1', filename='image-1.png', url=None, label=None, width=None, height=None, annotation_review_status='unreviewed')])
+prediction_pairs = [(DetailedClassificationPrediction(class_index=0, class_label='cat', confidence=0.8, probabilities=(0.8, 0.1, 0.1), to...bility=0.2), ClassificationClassScore(index=2, label='car', probability=0.1)), prediction_margin=0.49999999999999994))]
+perturbations = [(0.03, 1.0)], source_sizes = [(17, 9)]
+attack_override = <test_classification_evaluation_metrics_integration.FakeLegacyClassificationAttack object at 0x7f125860eb90>
+attack_type = <AttackType.RANDOM_NOISE: 'random_noise'>
+
+    async def _run_evaluation(
+        monkeypatch,
+        *,
+        dataset: DatasetResponse,
+        prediction_pairs: Sequence[
+            tuple[
+                DetailedClassificationPrediction,
+                DetailedClassificationPrediction,
+            ]
+        ],
+        perturbations: Sequence[tuple[float, float]] | None = None,
+        source_sizes: Sequence[tuple[int, int]] | None = None,
+        attack_override=None,
+        attack_type: AttackType = AttackType.PGD,
+    ):
+        flattened_predictions = [
+            prediction for pair in prediction_pairs for prediction in pair
+        ]
+    
+        model = FakeClassificationModel(flattened_predictions)
+    
+        if perturbations is None:
+            perturbations = [(0.03, 1.0) for _ in dataset.images]
+    
+        attack = attack_override or FakeClassificationAttack(perturbations)
+        saved_metadata: dict = {}
+        saved_images: dict[str, Image.Image] = {}
+        saved_scientific_inputs: dict[str, dict] = {}
+    
+        if source_sizes is None:
+            source_sizes = [
+                (640 + index * 10, 480 + index * 5)
+                for index, _ in enumerate(dataset.images, start=1)
+            ]
+    
+        images_by_id = {
+            image.id: Image.new(
+                "RGB",
+                source_size,
+                color=(index, index, index),
+            )
+            for index, (image, source_size) in enumerate(
+                zip(dataset.images, source_sizes),
+                start=1,
+            )
+        }
+    
+        async def fake_get_dataset(dataset_id: str):
+            assert dataset_id == dataset.id
+            return dataset
+    
+        async def fake_get_image_from_dataset(
+            dataset_id: str,
+            image_id: str,
+        ):
+            assert dataset_id == dataset.id
+            return images_by_id[image_id]
+    
+        def fake_save_result_metadata(
+            result_path: str,
+            metadata: dict,
+        ) -> str:
+            assert result_path == "/tmp/evaluation-result"
+            saved_metadata.update(metadata)
+            return "/tmp/evaluation-result/metadata.json"
+    
+        def fake_save_result_image(image, result_id, result_path, filename):
+            saved_images[filename] = image
+            return f"/results/{result_id}/{filename}"
+    
+        def fake_save_evaluation_model_inputs(**kwargs):
+            saved_scientific_inputs[kwargs["image_id"]] = kwargs
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_dataset",
+            fake_get_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_image_from_dataset",
+            fake_get_image_from_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_active_model_instance",
+            lambda: model,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_attack",
+            lambda attack_type: attack,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "create_result_directory",
+            lambda prefix: (
+                "evaluation-result",
+                "/tmp/evaluation-result",
+            ),
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_image",
+            fake_save_result_image,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_metadata",
+            fake_save_result_metadata,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_evaluation_model_inputs",
+            fake_save_evaluation_model_inputs,
+        )
+    
+>       response = await evaluation_service.evaluate_dataset(
+            EvaluationRequest(
+                dataset_id=dataset.id,
+                attack_type=attack_type,
+            )
+        )
+E       TypeError: evaluate_dataset() missing 2 required keyword-only arguments: 'owner_id' and 'retention_seconds'
+
+tests/test_classification_evaluation_metrics_integration.py:325: TypeError
+______________ test_evaluation_exposes_complete_advanced_metrics _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12587e5480>
+
+    @pytest.mark.asyncio
+    async def test_evaluation_exposes_complete_advanced_metrics(
+        monkeypatch,
+    ):
+        dataset = _dataset(["cat", "dog", "car", "cat"])
+    
+        prediction_pairs = [
+            (
+                _prediction((0.8, 0.1, 0.1)),
+                _prediction((0.2, 0.7, 0.1)),
+            ),
+            (
+                _prediction((0.1, 0.8, 0.1)),
+                _prediction((0.1, 0.7, 0.2)),
+            ),
+            (
+                _prediction((0.1, 0.8, 0.1)),
+                _prediction((0.1, 0.2, 0.7)),
+            ),
+            (
+                _prediction((0.1, 0.2, 0.7)),
+                _prediction((0.1, 0.3, 0.6)),
+            ),
+        ]
+    
+>       response, attack, saved_metadata = await _run_evaluation(
+            monkeypatch,
+            dataset=dataset,
+            prediction_pairs=prediction_pairs,
+            perturbations=[
+                (0.03, 1.0),
+                (0.02, 2.0),
+                (0.01, 3.0),
+                (0.02, 4.0),
+            ],
+        )
+
+tests/test_classification_evaluation_metrics_integration.py:524: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12587e5480>
+dataset = DatasetResponse(id='dataset-1', name='Classification dataset', owner_id='user-1', image_count=4, images=[DatasetImage(...ge-4', filename='image-4.png', url=None, label='cat', width=None, height=None, annotation_review_status='unreviewed')])
+prediction_pairs = [(DetailedClassificationPrediction(class_index=0, class_label='cat', confidence=0.8, probabilities=(0.8, 0.1, 0.1), to...bel='dog', probability=0.3), ClassificationClassScore(index=0, label='cat', probability=0.1)), prediction_margin=0.3))]
+perturbations = [(0.03, 1.0), (0.02, 2.0), (0.01, 3.0), (0.02, 4.0)]
+source_sizes = [(650, 485), (660, 490), (670, 495), (680, 500)]
+attack_override = None, attack_type = <AttackType.PGD: 'pgd'>
+
+    async def _run_evaluation(
+        monkeypatch,
+        *,
+        dataset: DatasetResponse,
+        prediction_pairs: Sequence[
+            tuple[
+                DetailedClassificationPrediction,
+                DetailedClassificationPrediction,
+            ]
+        ],
+        perturbations: Sequence[tuple[float, float]] | None = None,
+        source_sizes: Sequence[tuple[int, int]] | None = None,
+        attack_override=None,
+        attack_type: AttackType = AttackType.PGD,
+    ):
+        flattened_predictions = [
+            prediction for pair in prediction_pairs for prediction in pair
+        ]
+    
+        model = FakeClassificationModel(flattened_predictions)
+    
+        if perturbations is None:
+            perturbations = [(0.03, 1.0) for _ in dataset.images]
+    
+        attack = attack_override or FakeClassificationAttack(perturbations)
+        saved_metadata: dict = {}
+        saved_images: dict[str, Image.Image] = {}
+        saved_scientific_inputs: dict[str, dict] = {}
+    
+        if source_sizes is None:
+            source_sizes = [
+                (640 + index * 10, 480 + index * 5)
+                for index, _ in enumerate(dataset.images, start=1)
+            ]
+    
+        images_by_id = {
+            image.id: Image.new(
+                "RGB",
+                source_size,
+                color=(index, index, index),
+            )
+            for index, (image, source_size) in enumerate(
+                zip(dataset.images, source_sizes),
+                start=1,
+            )
+        }
+    
+        async def fake_get_dataset(dataset_id: str):
+            assert dataset_id == dataset.id
+            return dataset
+    
+        async def fake_get_image_from_dataset(
+            dataset_id: str,
+            image_id: str,
+        ):
+            assert dataset_id == dataset.id
+            return images_by_id[image_id]
+    
+        def fake_save_result_metadata(
+            result_path: str,
+            metadata: dict,
+        ) -> str:
+            assert result_path == "/tmp/evaluation-result"
+            saved_metadata.update(metadata)
+            return "/tmp/evaluation-result/metadata.json"
+    
+        def fake_save_result_image(image, result_id, result_path, filename):
+            saved_images[filename] = image
+            return f"/results/{result_id}/{filename}"
+    
+        def fake_save_evaluation_model_inputs(**kwargs):
+            saved_scientific_inputs[kwargs["image_id"]] = kwargs
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_dataset",
+            fake_get_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_image_from_dataset",
+            fake_get_image_from_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_active_model_instance",
+            lambda: model,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_attack",
+            lambda attack_type: attack,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "create_result_directory",
+            lambda prefix: (
+                "evaluation-result",
+                "/tmp/evaluation-result",
+            ),
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_image",
+            fake_save_result_image,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_metadata",
+            fake_save_result_metadata,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_evaluation_model_inputs",
+            fake_save_evaluation_model_inputs,
+        )
+    
+>       response = await evaluation_service.evaluate_dataset(
+            EvaluationRequest(
+                dataset_id=dataset.id,
+                attack_type=attack_type,
+            )
+        )
+E       TypeError: evaluate_dataset() missing 2 required keyword-only arguments: 'owner_id' and 'retention_seconds'
+
+tests/test_classification_evaluation_metrics_integration.py:325: TypeError
+___ test_evaluation_excludes_only_unresolved_labels_from_supervised_metrics ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1260128f40>
+
+    @pytest.mark.asyncio
+    async def test_evaluation_excludes_only_unresolved_labels_from_supervised_metrics(
+        monkeypatch,
+    ):
+        dataset = _dataset(["cat", "unknown", None])
+    
+>       response, _, _ = await _run_evaluation(
+            monkeypatch,
+            dataset=dataset,
+            prediction_pairs=[
+                (
+                    _prediction((0.8, 0.1, 0.1)),
+                    _prediction((0.2, 0.7, 0.1)),
+                ),
+                (
+                    _prediction((0.1, 0.8, 0.1)),
+                    _prediction((0.1, 0.2, 0.7)),
+                ),
+                (
+                    _prediction((0.1, 0.2, 0.7)),
+                    _prediction((0.1, 0.2, 0.7)),
+                ),
+            ],
+        )
+
+tests/test_classification_evaluation_metrics_integration.py:648: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1260128f40>
+dataset = DatasetResponse(id='dataset-1', name='Classification dataset', owner_id='user-1', image_count=3, images=[DatasetImage(...age-3', filename='image-3.png', url=None, label=None, width=None, height=None, annotation_review_status='unreviewed')])
+prediction_pairs = [(DetailedClassificationPrediction(class_index=0, class_label='cat', confidence=0.8, probabilities=(0.8, 0.1, 0.1), to...bility=0.2), ClassificationClassScore(index=0, label='cat', probability=0.1)), prediction_margin=0.49999999999999994))]
+perturbations = [(0.03, 1.0), (0.03, 1.0), (0.03, 1.0)]
+source_sizes = [(650, 485), (660, 490), (670, 495)], attack_override = None
+attack_type = <AttackType.PGD: 'pgd'>
+
+    async def _run_evaluation(
+        monkeypatch,
+        *,
+        dataset: DatasetResponse,
+        prediction_pairs: Sequence[
+            tuple[
+                DetailedClassificationPrediction,
+                DetailedClassificationPrediction,
+            ]
+        ],
+        perturbations: Sequence[tuple[float, float]] | None = None,
+        source_sizes: Sequence[tuple[int, int]] | None = None,
+        attack_override=None,
+        attack_type: AttackType = AttackType.PGD,
+    ):
+        flattened_predictions = [
+            prediction for pair in prediction_pairs for prediction in pair
+        ]
+    
+        model = FakeClassificationModel(flattened_predictions)
+    
+        if perturbations is None:
+            perturbations = [(0.03, 1.0) for _ in dataset.images]
+    
+        attack = attack_override or FakeClassificationAttack(perturbations)
+        saved_metadata: dict = {}
+        saved_images: dict[str, Image.Image] = {}
+        saved_scientific_inputs: dict[str, dict] = {}
+    
+        if source_sizes is None:
+            source_sizes = [
+                (640 + index * 10, 480 + index * 5)
+                for index, _ in enumerate(dataset.images, start=1)
+            ]
+    
+        images_by_id = {
+            image.id: Image.new(
+                "RGB",
+                source_size,
+                color=(index, index, index),
+            )
+            for index, (image, source_size) in enumerate(
+                zip(dataset.images, source_sizes),
+                start=1,
+            )
+        }
+    
+        async def fake_get_dataset(dataset_id: str):
+            assert dataset_id == dataset.id
+            return dataset
+    
+        async def fake_get_image_from_dataset(
+            dataset_id: str,
+            image_id: str,
+        ):
+            assert dataset_id == dataset.id
+            return images_by_id[image_id]
+    
+        def fake_save_result_metadata(
+            result_path: str,
+            metadata: dict,
+        ) -> str:
+            assert result_path == "/tmp/evaluation-result"
+            saved_metadata.update(metadata)
+            return "/tmp/evaluation-result/metadata.json"
+    
+        def fake_save_result_image(image, result_id, result_path, filename):
+            saved_images[filename] = image
+            return f"/results/{result_id}/{filename}"
+    
+        def fake_save_evaluation_model_inputs(**kwargs):
+            saved_scientific_inputs[kwargs["image_id"]] = kwargs
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_dataset",
+            fake_get_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_image_from_dataset",
+            fake_get_image_from_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_active_model_instance",
+            lambda: model,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_attack",
+            lambda attack_type: attack,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "create_result_directory",
+            lambda prefix: (
+                "evaluation-result",
+                "/tmp/evaluation-result",
+            ),
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_image",
+            fake_save_result_image,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_metadata",
+            fake_save_result_metadata,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_evaluation_model_inputs",
+            fake_save_evaluation_model_inputs,
+        )
+    
+>       response = await evaluation_service.evaluate_dataset(
+            EvaluationRequest(
+                dataset_id=dataset.id,
+                attack_type=attack_type,
+            )
+        )
+E       TypeError: evaluate_dataset() missing 2 required keyword-only arguments: 'owner_id' and 'retention_seconds'
+
+tests/test_classification_evaluation_metrics_integration.py:325: TypeError
+_________ test_evaluation_without_labels_keeps_unsupervised_robustness _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f125859b130>
+
+    @pytest.mark.asyncio
+    async def test_evaluation_without_labels_keeps_unsupervised_robustness(
+        monkeypatch,
+    ):
+        dataset = _dataset([None, None])
+    
+>       response, _, _ = await _run_evaluation(
+            monkeypatch,
+            dataset=dataset,
+            prediction_pairs=[
+                (
+                    _prediction((0.8, 0.1, 0.1)),
+                    _prediction((0.2, 0.7, 0.1)),
+                ),
+                (
+                    _prediction((0.1, 0.8, 0.1)),
+                    _prediction((0.1, 0.8, 0.1)),
+                ),
+            ],
+        )
+
+tests/test_classification_evaluation_metrics_integration.py:725: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f125859b130>
+dataset = DatasetResponse(id='dataset-1', name='Classification dataset', owner_id='user-1', image_count=2, images=[DatasetImage(...age-2', filename='image-2.png', url=None, label=None, width=None, height=None, annotation_review_status='unreviewed')])
+prediction_pairs = [(DetailedClassificationPrediction(class_index=0, class_label='cat', confidence=0.8, probabilities=(0.8, 0.1, 0.1), to...ability=0.1), ClassificationClassScore(index=2, label='car', probability=0.1)), prediction_margin=0.7000000000000001))]
+perturbations = [(0.03, 1.0), (0.03, 1.0)]
+source_sizes = [(650, 485), (660, 490)], attack_override = None
+attack_type = <AttackType.PGD: 'pgd'>
+
+    async def _run_evaluation(
+        monkeypatch,
+        *,
+        dataset: DatasetResponse,
+        prediction_pairs: Sequence[
+            tuple[
+                DetailedClassificationPrediction,
+                DetailedClassificationPrediction,
+            ]
+        ],
+        perturbations: Sequence[tuple[float, float]] | None = None,
+        source_sizes: Sequence[tuple[int, int]] | None = None,
+        attack_override=None,
+        attack_type: AttackType = AttackType.PGD,
+    ):
+        flattened_predictions = [
+            prediction for pair in prediction_pairs for prediction in pair
+        ]
+    
+        model = FakeClassificationModel(flattened_predictions)
+    
+        if perturbations is None:
+            perturbations = [(0.03, 1.0) for _ in dataset.images]
+    
+        attack = attack_override or FakeClassificationAttack(perturbations)
+        saved_metadata: dict = {}
+        saved_images: dict[str, Image.Image] = {}
+        saved_scientific_inputs: dict[str, dict] = {}
+    
+        if source_sizes is None:
+            source_sizes = [
+                (640 + index * 10, 480 + index * 5)
+                for index, _ in enumerate(dataset.images, start=1)
+            ]
+    
+        images_by_id = {
+            image.id: Image.new(
+                "RGB",
+                source_size,
+                color=(index, index, index),
+            )
+            for index, (image, source_size) in enumerate(
+                zip(dataset.images, source_sizes),
+                start=1,
+            )
+        }
+    
+        async def fake_get_dataset(dataset_id: str):
+            assert dataset_id == dataset.id
+            return dataset
+    
+        async def fake_get_image_from_dataset(
+            dataset_id: str,
+            image_id: str,
+        ):
+            assert dataset_id == dataset.id
+            return images_by_id[image_id]
+    
+        def fake_save_result_metadata(
+            result_path: str,
+            metadata: dict,
+        ) -> str:
+            assert result_path == "/tmp/evaluation-result"
+            saved_metadata.update(metadata)
+            return "/tmp/evaluation-result/metadata.json"
+    
+        def fake_save_result_image(image, result_id, result_path, filename):
+            saved_images[filename] = image
+            return f"/results/{result_id}/{filename}"
+    
+        def fake_save_evaluation_model_inputs(**kwargs):
+            saved_scientific_inputs[kwargs["image_id"]] = kwargs
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_dataset",
+            fake_get_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_image_from_dataset",
+            fake_get_image_from_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_active_model_instance",
+            lambda: model,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_attack",
+            lambda attack_type: attack,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "create_result_directory",
+            lambda prefix: (
+                "evaluation-result",
+                "/tmp/evaluation-result",
+            ),
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_image",
+            fake_save_result_image,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_metadata",
+            fake_save_result_metadata,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_evaluation_model_inputs",
+            fake_save_evaluation_model_inputs,
+        )
+    
+>       response = await evaluation_service.evaluate_dataset(
+            EvaluationRequest(
+                dataset_id=dataset.id,
+                attack_type=attack_type,
+            )
+        )
+E       TypeError: evaluate_dataset() missing 2 required keyword-only arguments: 'owner_id' and 'retention_seconds'
+
+tests/test_classification_evaluation_metrics_integration.py:325: TypeError
+___ test_evaluation_with_only_unresolved_labels_disables_supervised_metrics ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12586b8f10>
+
+    @pytest.mark.asyncio
+    async def test_evaluation_with_only_unresolved_labels_disables_supervised_metrics(
+        monkeypatch,
+    ):
+        dataset = _dataset(["unknown"])
+    
+>       response, _, _ = await _run_evaluation(
+            monkeypatch,
+            dataset=dataset,
+            prediction_pairs=[
+                (
+                    _prediction((0.8, 0.1, 0.1)),
+                    _prediction((0.2, 0.7, 0.1)),
+                ),
+            ],
+        )
+
+tests/test_classification_evaluation_metrics_integration.py:775: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12586b8f10>
+dataset = DatasetResponse(id='dataset-1', name='Classification dataset', owner_id='user-1', image_count=1, images=[DatasetImage(...', filename='image-1.png', url=None, label='unknown', width=None, height=None, annotation_review_status='unreviewed')])
+prediction_pairs = [(DetailedClassificationPrediction(class_index=0, class_label='cat', confidence=0.8, probabilities=(0.8, 0.1, 0.1), to...bility=0.2), ClassificationClassScore(index=2, label='car', probability=0.1)), prediction_margin=0.49999999999999994))]
+perturbations = [(0.03, 1.0)], source_sizes = [(650, 485)]
+attack_override = None, attack_type = <AttackType.PGD: 'pgd'>
+
+    async def _run_evaluation(
+        monkeypatch,
+        *,
+        dataset: DatasetResponse,
+        prediction_pairs: Sequence[
+            tuple[
+                DetailedClassificationPrediction,
+                DetailedClassificationPrediction,
+            ]
+        ],
+        perturbations: Sequence[tuple[float, float]] | None = None,
+        source_sizes: Sequence[tuple[int, int]] | None = None,
+        attack_override=None,
+        attack_type: AttackType = AttackType.PGD,
+    ):
+        flattened_predictions = [
+            prediction for pair in prediction_pairs for prediction in pair
+        ]
+    
+        model = FakeClassificationModel(flattened_predictions)
+    
+        if perturbations is None:
+            perturbations = [(0.03, 1.0) for _ in dataset.images]
+    
+        attack = attack_override or FakeClassificationAttack(perturbations)
+        saved_metadata: dict = {}
+        saved_images: dict[str, Image.Image] = {}
+        saved_scientific_inputs: dict[str, dict] = {}
+    
+        if source_sizes is None:
+            source_sizes = [
+                (640 + index * 10, 480 + index * 5)
+                for index, _ in enumerate(dataset.images, start=1)
+            ]
+    
+        images_by_id = {
+            image.id: Image.new(
+                "RGB",
+                source_size,
+                color=(index, index, index),
+            )
+            for index, (image, source_size) in enumerate(
+                zip(dataset.images, source_sizes),
+                start=1,
+            )
+        }
+    
+        async def fake_get_dataset(dataset_id: str):
+            assert dataset_id == dataset.id
+            return dataset
+    
+        async def fake_get_image_from_dataset(
+            dataset_id: str,
+            image_id: str,
+        ):
+            assert dataset_id == dataset.id
+            return images_by_id[image_id]
+    
+        def fake_save_result_metadata(
+            result_path: str,
+            metadata: dict,
+        ) -> str:
+            assert result_path == "/tmp/evaluation-result"
+            saved_metadata.update(metadata)
+            return "/tmp/evaluation-result/metadata.json"
+    
+        def fake_save_result_image(image, result_id, result_path, filename):
+            saved_images[filename] = image
+            return f"/results/{result_id}/{filename}"
+    
+        def fake_save_evaluation_model_inputs(**kwargs):
+            saved_scientific_inputs[kwargs["image_id"]] = kwargs
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_dataset",
+            fake_get_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_image_from_dataset",
+            fake_get_image_from_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_active_model_instance",
+            lambda: model,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_attack",
+            lambda attack_type: attack,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "create_result_directory",
+            lambda prefix: (
+                "evaluation-result",
+                "/tmp/evaluation-result",
+            ),
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_image",
+            fake_save_result_image,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_result_metadata",
+            fake_save_result_metadata,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "save_evaluation_model_inputs",
+            fake_save_evaluation_model_inputs,
+        )
+    
+>       response = await evaluation_service.evaluate_dataset(
+            EvaluationRequest(
+                dataset_id=dataset.id,
+                attack_type=attack_type,
+            )
+        )
+E       TypeError: evaluate_dataset() missing 2 required keyword-only arguments: 'owner_id' and 'retention_seconds'
+
+tests/test_classification_evaluation_metrics_integration.py:325: TypeError
+_________________ test_services_do_not_catch_broad_exceptions __________________
+
+    def test_services_do_not_catch_broad_exceptions():
+        violations = []
+    
+        for service_file in _get_service_files():
+            syntax_tree = _parse_python_file(service_file)
+    
+            for node in ast.walk(syntax_tree):
+                if not isinstance(node, ast.ExceptHandler):
+                    continue
+    
+                if node.type is None:
+                    violations.append(
+                        f"{service_file}:{node.lineno} contains a bare except"
+                    )
+                    continue
+    
+                if isinstance(node.type, ast.Name) and node.type.id in {
+                    "Exception",
+                    "BaseException",
+                }:
+                    violations.append(
+                        f"{service_file}:{node.lineno} catches {node.type.id}"
+                    )
+    
+>       assert violations == [], (
+            "Services must not hide unexpected errors with broad "
+            f"exception handlers: {violations}"
+        )
+E       AssertionError: Services must not hide unexpected errors with broad exception handlers: ['app/services/detection_evaluation_service.py:59 catches Exception', 'app/services/evaluation_service.py:119 catches Exception', 'app/services/result_cleanup_service.py:33 catches Exception']
+E       assert ['app/service...es Exception'] == []
+E         
+E         Left contains 3 more items, first extra item: 'app/services/detection_evaluation_service.py:59 catches Exception'
+E         Use -v to get more diff
+
+tests/test_service_error_architecture.py:72: AssertionError
+_ test_dataset_endpoints_return_400_for_invalid_dataset_id[/evaluate-payload2] _
+
+client = <starlette.testclient.TestClient object at 0x7f12615bec80>
+path = '/evaluate'
+payload = {'dataset_id': 'invalid-id', 'attack_type': 'random_noise'}
+
+    @pytest.mark.parametrize(
+        (
+            "path",
+            "payload",
+        ),
+        [
+            (
+                "/predict",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/attack",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/evaluate",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/detect",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/detect/attack",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/detect/evaluate",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/explain/gradcam",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/explain/detection",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+        ],
+    )
+    def test_dataset_endpoints_return_400_for_invalid_dataset_id(
+        client,
+        path,
+        payload,
+    ):
+        response = client.post(
+            path,
+            json=payload,
+        )
+    
+>       assert response.status_code == 400
+E       assert 401 == 400
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+tests/test_standardized_service_errors.py:193: AssertionError
+_ test_dataset_endpoints_return_400_for_invalid_dataset_id[/detect/evaluate-payload5] _
+
+client = <starlette.testclient.TestClient object at 0x7f12615bec80>
+path = '/detect/evaluate'
+payload = {'dataset_id': 'invalid-id', 'attack_type': 'random_noise'}
+
+    @pytest.mark.parametrize(
+        (
+            "path",
+            "payload",
+        ),
+        [
+            (
+                "/predict",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/attack",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/evaluate",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/detect",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/detect/attack",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/detect/evaluate",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/explain/gradcam",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/explain/detection",
+                {
+                    "dataset_id": INVALID_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+        ],
+    )
+    def test_dataset_endpoints_return_400_for_invalid_dataset_id(
+        client,
+        path,
+        payload,
+    ):
+        response = client.post(
+            path,
+            json=payload,
+        )
+    
+>       assert response.status_code == 400
+E       assert 401 == 400
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+tests/test_standardized_service_errors.py:193: AssertionError
+__ test_dataset_endpoints_return_404_for_missing_dataset[/evaluate-payload2] ___
+
+client = <starlette.testclient.TestClient object at 0x7f12615bec80>
+path = '/evaluate'
+payload = {'dataset_id': '507f1f77bcf86cd799439011', 'attack_type': 'random_noise'}
+
+    @pytest.mark.parametrize(
+        (
+            "path",
+            "payload",
+        ),
+        [
+            (
+                "/predict",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/attack",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/evaluate",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/detect",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/detect/attack",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/detect/evaluate",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/explain/gradcam",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/explain/detection",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+        ],
+    )
+    def test_dataset_endpoints_return_404_for_missing_dataset(
+        client,
+        path,
+        payload,
+    ):
+        response = client.post(
+            path,
+            json=payload,
+        )
+    
+>       assert response.status_code == 404
+E       assert 401 == 404
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+tests/test_standardized_service_errors.py:275: AssertionError
+_ test_dataset_endpoints_return_404_for_missing_dataset[/detect/evaluate-payload5] _
+
+client = <starlette.testclient.TestClient object at 0x7f12615bec80>
+path = '/detect/evaluate'
+payload = {'dataset_id': '507f1f77bcf86cd799439011', 'attack_type': 'random_noise'}
+
+    @pytest.mark.parametrize(
+        (
+            "path",
+            "payload",
+        ),
+        [
+            (
+                "/predict",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/attack",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/evaluate",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/detect",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/detect/attack",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/detect/evaluate",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "attack_type": "random_noise",
+                },
+            ),
+            (
+                "/explain/gradcam",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+            (
+                "/explain/detection",
+                {
+                    "dataset_id": UNKNOWN_OBJECT_ID,
+                    "image_id": "image-1",
+                },
+            ),
+        ],
+    )
+    def test_dataset_endpoints_return_404_for_missing_dataset(
+        client,
+        path,
+        payload,
+    ):
+        response = client.post(
+            path,
+            json=payload,
+        )
+    
+>       assert response.status_code == 404
+E       assert 401 == 404
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+tests/test_standardized_service_errors.py:275: AssertionError
+____________________ test_evaluate_rejects_detection_model _____________________
+
+client = <starlette.testclient.TestClient object at 0x7f12615bec80>
+created_dataset = {'id': '6a70fc1c7befe59631348d54', 'name': 'Test Dataset', 'owner_id': '6a70fc1c7befe59631348d53', 'image_count': 1, ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1258673be0>
+
+    def test_evaluate_rejects_detection_model(
+        client,
+        created_dataset,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_active_model_instance",
+            lambda: FakeModel(DETECTION_TASK_TYPE),
+        )
+    
+        response = client.post(
+            "/evaluate",
+            json={
+                "dataset_id": created_dataset["id"],
+                "attack_type": "random_noise",
+            },
+        )
+    
+>       assert response.status_code == 400
+E       assert 401 == 400
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+tests/test_task_compatibility.py:269: AssertionError
+_________________ test_evaluate_rejects_detection_only_attack __________________
+
+client = <starlette.testclient.TestClient object at 0x7f12615bec80>
+created_dataset = {'id': '6a70fc1c7befe59631348d57', 'name': 'Test Dataset', 'owner_id': '6a70fc1c7befe59631348d56', 'image_count': 1, ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1258672530>
+
+    def test_evaluate_rejects_detection_only_attack(
+        client,
+        created_dataset,
+        monkeypatch,
+    ):
+        incompatible_attack = FakeAttack(
+            attack_id="yolo_confidence",
+            supported_task_types=[DETECTION_TASK_TYPE],
+        )
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_active_model_instance",
+            lambda: FakeModel(CLASSIFICATION_TASK_TYPE),
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_attack",
+            lambda attack_type: incompatible_attack,
+        )
+    
+        response = client.post(
+            "/evaluate",
+            json={
+                "dataset_id": created_dataset["id"],
+                "attack_type": "yolo_confidence",
+            },
+        )
+    
+>       assert response.status_code == 400
+E       assert 401 == 400
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+tests/test_task_compatibility.py:304: AssertionError
+_____________ test_detection_evaluate_rejects_classification_model _____________
+
+client = <starlette.testclient.TestClient object at 0x7f12615bec80>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12586b95d0>
+
+    def test_detection_evaluate_rejects_classification_model(
+        client,
+        monkeypatch,
+    ):
+        async def fake_get_dataset(dataset_id: str):
+            return SimpleNamespace(images=[])
+    
+        monkeypatch.setattr(
+            detection_evaluation_service,
+            "get_dataset",
+            fake_get_dataset,
+        )
+        monkeypatch.setattr(
+            detection_evaluation_service,
+            "get_active_model_instance",
+            lambda: FakeModel(CLASSIFICATION_TASK_TYPE),
+        )
+    
+        response = client.post(
+            "/detect/evaluate",
+            json={
+                "dataset_id": "dataset-1",
+                "attack_type": "random_noise",
+            },
+        )
+    
+>       assert response.status_code == 400
+E       assert 401 == 400
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+tests/test_task_compatibility.py:453: AssertionError
+__________ test_detection_evaluate_rejects_classification_only_attack __________
+
+client = <starlette.testclient.TestClient object at 0x7f12615bec80>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1258670730>
+
+    def test_detection_evaluate_rejects_classification_only_attack(
+        client,
+        monkeypatch,
+    ):
+        async def fake_get_dataset(dataset_id: str):
+            return SimpleNamespace(images=[])
+    
+        incompatible_attack = FakeAttack(
+            attack_id="fgsm",
+            supported_task_types=[CLASSIFICATION_TASK_TYPE],
+        )
+    
+        monkeypatch.setattr(
+            detection_evaluation_service,
+            "get_dataset",
+            fake_get_dataset,
+        )
+        monkeypatch.setattr(
+            detection_evaluation_service,
+            "get_active_model_instance",
+            lambda: FakeModel(DETECTION_TASK_TYPE),
+        )
+        monkeypatch.setattr(
+            detection_evaluation_service,
+            "get_attack",
+            lambda attack_type: incompatible_attack,
+        )
+    
+        response = client.post(
+            "/detect/evaluate",
+            json={
+                "dataset_id": "dataset-1",
+                "attack_type": "fgsm",
+            },
+        )
+    
+>       assert response.status_code == 400
+E       assert 401 == 400
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+tests/test_task_compatibility.py:495: AssertionError
+__________ test_classification_evaluation_preserves_unexpected_error ___________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1258254d00>
+
+    @pytest.mark.asyncio
+    async def test_classification_evaluation_preserves_unexpected_error(
+        monkeypatch,
+    ):
+        failing_attack = FailingAttack()
+    
+        async def fake_get_dataset(dataset_id: str):
+            return SimpleNamespace(
+                id=dataset_id,
+                name="Test Dataset",
+                owner_id="user-1",
+                image_count=1,
+                images=[
+                    SimpleNamespace(
+                        id="image-1",
+                        filename="image.png",
+                        label=None,
+                    )
+                ],
+            )
+    
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_dataset",
+            fake_get_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_image_from_dataset",
+            _fake_get_image_from_dataset,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_active_model_instance",
+            lambda: FakeClassificationModel(),
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "get_attack",
+            lambda attack_type: failing_attack,
+        )
+        monkeypatch.setattr(
+            evaluation_service,
+            "create_result_directory",
+            lambda prefix: ("result-id", "/tmp"),
+        )
+    
+        request = EvaluationRequest(
+            dataset_id=VALID_DATASET_ID,
+            attack_type=AttackType.RANDOM_NOISE,
+        )
+    
+        with pytest.raises(
+            ValueError,
+            match=INTERNAL_ERROR,
+        ):
+>           await evaluation_service.evaluate_dataset(request)
+E           TypeError: evaluate_dataset() missing 2 required keyword-only arguments: 'owner_id' and 'retention_seconds'
+
+tests/test_unexpected_service_errors.py:245: TypeError
+_____________ test_detection_evaluation_preserves_unexpected_error _____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12586a1690>
+
+    @pytest.mark.asyncio
+    async def test_detection_evaluation_preserves_unexpected_error(
+        monkeypatch,
+    ):
+        dataset = SimpleNamespace(
+            images=[
+                SimpleNamespace(
+                    id="image-1",
+                    filename="image.png",
+                )
+            ]
+        )
+    
+        async def fake_get_dataset(dataset_id: str):
+            return dataset
+    
+        async def fake_read_snapshot(dataset_id: str):
+            return MaterializedDetectionAnnotationSnapshot(
+                dataset_id=dataset_id,
+                dataset_revision=0,
+                snapshot_id=None,
+                images=(),
+                categories=(),
+                annotations=(),
+            )
+    
+        monkeypatch.setattr(
+            detection_evaluation_service,
+            "get_dataset",
+            fake_get_dataset,
+        )
+        monkeypatch.setattr(
+            detection_evaluation_service,
+            "get_image_from_dataset",
+            _fake_get_image_from_dataset,
+        )
+        monkeypatch.setattr(
+            detection_evaluation_service,
+            "read_detection_annotation_snapshot",
+            fake_read_snapshot,
+        )
+        monkeypatch.setattr(
+            detection_evaluation_service,
+            "get_active_model_instance",
+            lambda: FakeDetectionModel(),
+        )
+        monkeypatch.setattr(
+            detection_evaluation_service,
+            "get_attack",
+            lambda attack_type: FailingAttack(),
+        )
+    
+        request = DetectionEvaluationRequest(
+            dataset_id="dataset-1",
+            attack_type=AttackType.RANDOM_NOISE,
+        )
+    
+        with pytest.raises(
+            ValueError,
+            match=INTERNAL_ERROR,
+        ):
+>           await detection_evaluation_service.evaluate_detection_dataset(request)
+E           TypeError: evaluate_detection_dataset() missing 2 required keyword-only arguments: 'owner_id' and 'retention_seconds'
+
+tests/test_unexpected_service_errors.py:344: TypeError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_attack_source_geometry_reconstruction.py:148: CUDA is not available
+SKIPPED [1] tests/test_gradcam_source_geometry.py:240: CUDA is not available
+ERROR tests/test_detection_evaluation_service.py::test_detection_evaluation_uses_canonical_deltas_and_legacy_success
+ERROR tests/test_detection_evaluation_service.py::test_detection_evaluation_integrates_supervised_metrics_once
+ERROR tests/test_detection_evaluation_service.py::test_legacy_detection_result_uses_strict_historical_threshold
+ERROR tests/test_detection_evaluation_service.py::test_detection_evaluation_skips_catalog_and_scientific_inference_without_reviewed_images
+ERROR tests/test_detection_evaluation_service.py::test_detection_evaluation_uses_legacy_after_required_resolution_is_unavailable
+ERROR tests/test_detection_evaluation_service.py::test_allowed_supervised_configuration_does_not_change_legacy_contract[configuration0]
+ERROR tests/test_detection_evaluation_service.py::test_allowed_supervised_configuration_does_not_change_legacy_contract[configuration1]
+ERROR tests/test_detection_evaluation_service.py::test_allowed_supervised_configuration_does_not_change_legacy_contract[configuration2]
+ERROR tests/test_detection_evaluation_service.py::test_detection_evaluation_propagates_supervised_geometry_error
+FAILED tests/test_classification_evaluation_metrics_integration.py::test_evaluation_persists_each_structured_result_in_source_geometry[fgsm]
+FAILED tests/test_classification_evaluation_metrics_integration.py::test_evaluation_persists_each_structured_result_in_source_geometry[pgd]
+FAILED tests/test_classification_evaluation_metrics_integration.py::test_random_noise_evaluation_keeps_legacy_visual_flow
+FAILED tests/test_classification_evaluation_metrics_integration.py::test_evaluation_exposes_complete_advanced_metrics
+FAILED tests/test_classification_evaluation_metrics_integration.py::test_evaluation_excludes_only_unresolved_labels_from_supervised_metrics
+FAILED tests/test_classification_evaluation_metrics_integration.py::test_evaluation_without_labels_keeps_unsupervised_robustness
+FAILED tests/test_classification_evaluation_metrics_integration.py::test_evaluation_with_only_unresolved_labels_disables_supervised_metrics
+FAILED tests/test_service_error_architecture.py::test_services_do_not_catch_broad_exceptions
+FAILED tests/test_standardized_service_errors.py::test_dataset_endpoints_return_400_for_invalid_dataset_id[/evaluate-payload2]
+FAILED tests/test_standardized_service_errors.py::test_dataset_endpoints_return_400_for_invalid_dataset_id[/detect/evaluate-payload5]
+FAILED tests/test_standardized_service_errors.py::test_dataset_endpoints_return_404_for_missing_dataset[/evaluate-payload2]
+FAILED tests/test_standardized_service_errors.py::test_dataset_endpoints_return_404_for_missing_dataset[/detect/evaluate-payload5]
+FAILED tests/test_task_compatibility.py::test_evaluate_rejects_detection_model
+FAILED tests/test_task_compatibility.py::test_evaluate_rejects_detection_only_attack
+FAILED tests/test_task_compatibility.py::test_detection_evaluate_rejects_classification_model
+FAILED tests/test_task_compatibility.py::test_detection_evaluate_rejects_classification_only_attack
+FAILED tests/test_unexpected_service_errors.py::test_classification_evaluation_preserves_unexpected_error
+FAILED tests/test_unexpected_service_errors.py::test_detection_evaluation_preserves_unexpected_error
+============= 18 failed, 640 passed, 2 skipped, 9 errors in 26.24s =============

@@ -621,6 +621,7 @@ async def test_evaluation_exposes_complete_advanced_metrics(
             "epsilon": 0.03,
             "alpha": 0.01,
             "steps": 10,
+            "seed": 0,
         },
         "total_images": 4,
         "resolved_labels": 4,

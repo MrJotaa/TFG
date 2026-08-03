@@ -10,7 +10,6 @@ from schemas.auth import (
 from schemas.users import UserResponse
 from services.auth_service import login, signup
 
-
 router = APIRouter()
 
 

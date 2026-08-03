@@ -9,6 +9,7 @@ import services.detection_attack_service as detection_attack_service
 import services.detection_evaluation_service as detection_evaluation_service
 import services.evaluation_service as evaluation_service
 import services.explainability_service as explainability_service
+from ml.models.detection import Detection, DetectionBox, DetectionResult
 from schemas.attack import AttackRequest, AttackType
 from schemas.detection_attack import DetectionAttackRequest
 from schemas.detection_evaluation import (
@@ -16,6 +17,9 @@ from schemas.detection_evaluation import (
 )
 from schemas.evaluation import EvaluationRequest
 from schemas.explainability import DetectionExplainRequest
+from services.detection_annotation_snapshot import (
+    MaterializedDetectionAnnotationSnapshot,
+)
 
 INTERNAL_ERROR = "Sensitive internal model failure"
 VALID_DATASET_ID = "507f1f77bcf86cd799439011"
@@ -101,13 +105,22 @@ class FakeDetectionModel:
     task_type = "detection"
 
     def detect(self, image: Image.Image):
-        return SimpleNamespace(
-            detections=[
-                SimpleNamespace(
-                    label="object",
+        return DetectionResult(
+            source_width=image.width,
+            source_height=image.height,
+            detections=(
+                Detection(
+                    class_id=0,
+                    class_name="object",
                     confidence=0.9,
-                )
-            ]
+                    box=DetectionBox(
+                        x_min=0,
+                        y_min=0,
+                        x_max=image.width,
+                        y_max=image.height,
+                    ),
+                ),
+            ),
         )
 
     def detect_with_visualization(
@@ -283,6 +296,16 @@ async def test_detection_evaluation_preserves_unexpected_error(
     async def fake_get_dataset(dataset_id: str):
         return dataset
 
+    async def fake_read_snapshot(dataset_id: str):
+        return MaterializedDetectionAnnotationSnapshot(
+            dataset_id=dataset_id,
+            dataset_revision=0,
+            snapshot_id=None,
+            images=(),
+            categories=(),
+            annotations=(),
+        )
+
     monkeypatch.setattr(
         detection_evaluation_service,
         "get_dataset",
@@ -292,6 +315,11 @@ async def test_detection_evaluation_preserves_unexpected_error(
         detection_evaluation_service,
         "get_image_from_dataset",
         _fake_get_image_from_dataset,
+    )
+    monkeypatch.setattr(
+        detection_evaluation_service,
+        "read_detection_annotation_snapshot",
+        fake_read_snapshot,
     )
     monkeypatch.setattr(
         detection_evaluation_service,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DatasetUploader from '../components/DatasetUploader'
 import DatasetImageUploader from '../components/DatasetImageUploader'
+import CocoAnnotationPanel from '../components/CocoAnnotationPanel'
 import ImageGallery from '../components/ImageGallery'
 import { deleteDataset, getDatasetsByUser } from '../api/datasets'
 import { useExperiment } from '../context/ExperimentContext'
@@ -198,6 +199,15 @@ function DatasetManager() {
                                     Imágenes Totales:{' '}
                                     <strong>{selectedDataset.image_count}</strong>
                                 </p>
+
+                                <CocoAnnotationPanel
+                                    selectedDataset={selectedDataset}
+                                    onAnnotationsImported={() => {
+                                        setImagesRefreshKey(
+                                            (current) => current + 1,
+                                        )
+                                    }}
+                                />
 
                                 <DatasetImageUploader
                                     selectedDataset={selectedDataset}

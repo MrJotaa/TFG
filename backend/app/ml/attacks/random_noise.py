@@ -31,9 +31,13 @@ class RandomNoiseAttack(BaseAdversarialAttack):
 
         original_tensor = self.to_tensor(image).unsqueeze(0)
 
+        generator = torch.Generator(device=original_tensor.device)
+        generator.manual_seed(getattr(parameters, "seed", 0))
+
         noise = torch.empty_like(original_tensor).uniform_(
             -epsilon,
             epsilon,
+            generator=generator,
         )
 
         adversarial_tensor = original_tensor + noise

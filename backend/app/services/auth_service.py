@@ -13,7 +13,6 @@ from utils.security import (
     verify_password,
 )
 
-
 INVALID_CREDENTIALS_MESSAGE = "Invalid email or password"
 INVALID_TOKEN_MESSAGE = "Invalid or expired token"
 
