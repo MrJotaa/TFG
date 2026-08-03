@@ -17,13 +17,18 @@ def ensure_results_directory() -> (
     os.makedirs(RESULTS_BASE_PATH, exist_ok=True)
 
 
-def cleanup_old_results(ttl_seconds: int = RESULTS_TTL_SECONDS) -> None:
+def cleanup_old_results(
+    ttl_seconds: int = RESULTS_TTL_SECONDS,
+    *,
+    protected_result_ids: set[str] | None = None,
+) -> None:
     """
     Elimina directorios de resultados temporales antiguos.
     """
     ensure_results_directory()
 
     now = time.time()
+    protected_result_ids = protected_result_ids or set()
 
     for entry in os.listdir(RESULTS_BASE_PATH):
         entry_path = os.path.join(RESULTS_BASE_PATH, entry)
@@ -31,13 +36,50 @@ def cleanup_old_results(ttl_seconds: int = RESULTS_TTL_SECONDS) -> None:
         if not os.path.isdir(entry_path):
             continue
 
-        age_seconds = now - os.path.getmtime(entry_path)
+        if entry in protected_result_ids:
+            continue
 
-        if age_seconds > ttl_seconds:
+        expires_at = read_result_expiration(entry_path, ttl_seconds=ttl_seconds)
+        if expires_at <= now:
             shutil.rmtree(entry_path, ignore_errors=True)
 
 
-def create_result_directory(prefix: str = "result") -> tuple[str, str]:
+def read_result_expiration(
+    result_path: str,
+    *,
+    ttl_seconds: int = RESULTS_TTL_SECONDS,
+) -> float:
+    metadata_path = os.path.join(result_path, "metadata.json")
+    try:
+        with open(metadata_path, encoding="utf-8") as metadata_file:
+            metadata = json.load(metadata_file)
+        explicit_expiration = metadata.get("expires_at")
+        if isinstance(explicit_expiration, str):
+            normalized = explicit_expiration.replace("Z", "+00:00")
+            expires_at = datetime.fromisoformat(normalized)
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            return expires_at.timestamp()
+        created_at_value = metadata.get("created_at")
+        if isinstance(created_at_value, str):
+            normalized = created_at_value.replace("Z", "+00:00")
+            created_at = datetime.fromisoformat(normalized)
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            return created_at.timestamp() + ttl_seconds
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        pass
+    try:
+        return os.path.getmtime(result_path) + ttl_seconds
+    except OSError:
+        return 0.0
+
+
+def create_result_directory(
+    prefix: str = "result",
+    *,
+    result_id: str | None = None,
+) -> tuple[str, str]:
     """
     Crea un directorio único para almacenar resultados visuales generados.
 
@@ -45,7 +87,9 @@ def create_result_directory(prefix: str = "result") -> tuple[str, str]:
         result_id: identificador único del resultado
         result_path: ruta física del directorio
     """
-    result_id = f"{prefix}_{uuid.uuid4()}"
+    result_id = result_id or f"{prefix}_{uuid.uuid4()}"
+    if os.path.basename(result_id) != result_id:
+        raise ValueError("Result identity is invalid")
     result_path = os.path.join(RESULTS_BASE_PATH, result_id)
 
     os.makedirs(result_path, exist_ok=True)

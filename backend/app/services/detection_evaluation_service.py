@@ -31,6 +31,12 @@ from services.detection_supervised_evaluation import (
     prepare_detection_supervised_evaluation,
     requires_detection_supervised_catalog,
 )
+from services.evaluation_history_service import (
+    EvaluationExecution,
+    abort_evaluation_execution,
+    begin_evaluation_execution,
+    complete_evaluation_execution,
+)
 from services.model_service import get_active_model_instance
 from utils.detection_evaluation_artifacts import (
     remove_detection_evaluation_visual_artifacts,
@@ -40,31 +46,59 @@ from utils.detection_metrics import (
     average,
     calculate_detection_comparison,
 )
+from utils.reproducibility import attack_parameters_for_image
+from utils.result_files import RESULTS_TTL_SECONDS
 
 logger = logging.getLogger(__name__)
 
 
 async def evaluate_detection_dataset(
     request: DetectionEvaluationRequest,
+    *,
+    owner_id: str | None = None,
+    retention_seconds: int = RESULTS_TTL_SECONDS,
 ) -> DetectionEvaluationResponse:
-    result_id = new_detection_evaluation_id()
+    execution = None
+    if owner_id is not None:
+        execution = await begin_evaluation_execution(
+            request=request,
+            owner_id=owner_id,
+            task_type="detection",
+            retention_seconds=retention_seconds,
+        )
+    result_id = (
+        execution.result_id
+        if execution is not None
+        else new_detection_evaluation_id()
+    )
+    completed = False
     try:
-        return await _evaluate_detection_dataset(request, result_id=result_id)
-    except Exception:
-        try:
-            remove_detection_evaluation_visual_artifacts(result_id)
-        except OSError:
-            logger.exception(
-                "detection_evaluation_visual_cleanup_failed result_id=%s",
-                result_id,
-            )
-        raise
+        response = await _evaluate_detection_dataset(
+            request,
+            result_id=result_id,
+            execution=execution,
+        )
+        completed = True
+        return response
+    finally:
+        if not completed:
+            if execution is not None:
+                await abort_evaluation_execution(execution)
+            else:
+                try:
+                    remove_detection_evaluation_visual_artifacts(result_id)
+                except OSError:
+                    logger.exception(
+                        "detection_evaluation_visual_cleanup_failed result_id=%s",
+                        result_id,
+                    )
 
 
 async def _evaluate_detection_dataset(
     request: DetectionEvaluationRequest,
     *,
     result_id: str,
+    execution: EvaluationExecution | None,
 ) -> DetectionEvaluationResponse:
     dataset = await get_dataset(request.dataset_id)
 
@@ -129,7 +163,11 @@ async def _evaluate_detection_dataset(
         attack_result = attack.apply(
             model_wrapper=model,
             image=image,
-            parameters=request.parameters,
+            parameters=attack_parameters_for_image(
+                attack_type=request.attack_type,
+                parameters=request.parameters,
+                image_id=image_metadata.id,
+            ),
         )
 
         adversarial_image = attack_result["adversarial_image"]
@@ -272,9 +310,15 @@ async def _evaluate_detection_dataset(
         results=image_results,
         supervised=supervised,
     )
-    await persist_detection_evaluation(
-        response=response,
-        request=request,
-        owner_id=dataset.owner_id,
-    )
+    if execution is None:
+        await persist_detection_evaluation(
+            response=response,
+            request=request,
+            owner_id=dataset.owner_id,
+        )
+    else:
+        await complete_evaluation_execution(
+            execution=execution,
+            response=response,
+        )
     return response

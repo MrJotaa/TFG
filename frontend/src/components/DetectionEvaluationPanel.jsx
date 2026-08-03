@@ -3,6 +3,10 @@ import {
     evaluateDetectionDataset,
     generateDetectionEvaluationEigenCam,
 } from '../api/detectionEvaluation'
+import {
+    findCompatibleEvaluation,
+    getStoredEvaluation,
+} from '../api/evaluationHistory'
 import DetectionClassMetrics from './detectionEvaluation/DetectionClassMetrics'
 import DetectionCocoMetrics from './detectionEvaluation/DetectionCocoMetrics'
 import DetectionImageResults from './detectionEvaluation/DetectionImageResults'
@@ -12,6 +16,7 @@ import DetectionPrecisionRecall from './detectionEvaluation/DetectionPrecisionRe
 import DetectionTideAnalysis from './detectionEvaluation/DetectionTideAnalysis'
 import EvaluationMetricGuide from './evaluation/EvaluationMetricGuide'
 import EvaluationTabs from './evaluation/EvaluationTabs'
+import CompatibleEvaluationNotice from './evaluation/CompatibleEvaluationNotice'
 import {
     canRequestDetectionEigenCam,
     detectionEigenCamReducer,
@@ -34,22 +39,28 @@ function DetectionEvaluationPanel({
     selectedDataset,
     selectedAttack,
     attackParameters,
+    recoveredEvaluation = null,
+    onStartNewEvaluation = () => {},
 }) {
     const [evaluationState, setEvaluationState] = useState(null)
     const [activeTab, setActiveTab] = useState('overview')
     const [loading, setLoading] = useState(false)
     const [errorState, setErrorState] = useState(null)
-    const [configuration, setConfiguration] = useState({
-        confidence_threshold: 0.25,
-        iou_threshold: 0.5,
-        include_object_level_details: false,
-    })
+    const [reuseCandidate, setReuseCandidate] = useState(null)
+    const [configuration, setConfiguration] = useState(
+        recoveredEvaluation?.historyItem?.supervised_configuration ?? {
+            confidence_threshold: 0.25,
+            iou_threshold: 0.5,
+            include_object_level_details: false,
+        },
+    )
     const [eigenCamStates, dispatchEigenCam] = useReducer(
         detectionEigenCamReducer,
         {},
     )
     const eigenCamRequests = useRef(new Set())
     const eigenCamRun = useRef(0)
+    const seed = attackParameters.seed ?? 0
 
     const isSupportedAttack = SUPPORTED_DETECTION_ATTACKS.includes(selectedAttack)
     const isConfigurationValid =
@@ -63,13 +74,15 @@ function DetectionEvaluationPanel({
         attackParameters.epsilon,
         attackParameters.alpha,
         attackParameters.steps,
+        seed,
         configuration.confidence_threshold,
         configuration.iou_threshold,
         configuration.include_object_level_details,
     ].join(':')
 
-    const evaluation =
+    const evaluation = recoveredEvaluation?.data ?? (
         evaluationState?.contextKey === contextKey ? evaluationState.data : null
+    )
     const error = errorState?.contextKey === contextKey ? errorState.message : ''
 
     const tabs = useMemo(() => {
@@ -89,6 +102,26 @@ function DetectionEvaluationPanel({
         ]
     }, [evaluation])
 
+    async function runEvaluation(forceRecompute) {
+        setReuseCandidate(null)
+        eigenCamRun.current += 1
+        eigenCamRequests.current.clear()
+        dispatchEigenCam({ type: 'reset' })
+        const result = await evaluateDetectionDataset({
+            datasetId: selectedDataset.id,
+            attackType: selectedAttack,
+            epsilon: attackParameters.epsilon,
+            alpha: attackParameters.alpha,
+            steps: attackParameters.steps,
+            seed,
+            supervisedConfiguration: configuration,
+            forceRecompute,
+        })
+        onStartNewEvaluation()
+        setEvaluationState({ contextKey, data: result })
+        setActiveTab('overview')
+    }
+
     async function handleEvaluate() {
         if (!selectedDataset) {
             setErrorState({ contextKey, message: 'Debes seleccionar un dataset.' })
@@ -106,21 +139,54 @@ function DetectionEvaluationPanel({
         try {
             setLoading(true)
             setErrorState(null)
-            eigenCamRun.current += 1
-            eigenCamRequests.current.clear()
-            dispatchEigenCam({ type: 'reset' })
-            const result = await evaluateDetectionDataset({
+            const compatibility = await findCompatibleEvaluation({
+                taskType: 'detection',
                 datasetId: selectedDataset.id,
                 attackType: selectedAttack,
                 epsilon: attackParameters.epsilon,
                 alpha: attackParameters.alpha,
                 steps: attackParameters.steps,
+                seed,
                 supervisedConfiguration: configuration,
             })
-            setEvaluationState({ contextKey, data: result })
-            setActiveTab('overview')
+            if (compatibility.match) {
+                setReuseCandidate(compatibility.match)
+                return
+            }
+            await runEvaluation(false)
         } catch (error) {
             setErrorState({ contextKey, message: error.message })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    async function handleReuseCandidate() {
+        try {
+            setLoading(true)
+            setErrorState(null)
+            const stored = await getStoredEvaluation(reuseCandidate.result_id)
+            if (stored.task_type !== 'detection') {
+                throw new Error('El resultado compatible no es de detección.')
+            }
+            onStartNewEvaluation()
+            setEvaluationState({ contextKey, data: stored.evaluation })
+            setReuseCandidate(null)
+            setActiveTab('overview')
+        } catch (requestError) {
+            setErrorState({ contextKey, message: requestError.message })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    async function handleRunAgain() {
+        try {
+            setLoading(true)
+            setErrorState(null)
+            await runEvaluation(true)
+        } catch (requestError) {
+            setErrorState({ contextKey, message: requestError.message })
         } finally {
             setLoading(false)
         }
@@ -271,6 +337,16 @@ function DetectionEvaluationPanel({
                     <strong>No se pudo completar la evaluación.</strong>
                     <span>{error}</span>
                 </div>
+            )}
+
+            {reuseCandidate && !loading && (
+                <CompatibleEvaluationNotice
+                    item={reuseCandidate}
+                    onReuse={handleReuseCandidate}
+                    onRunAgain={handleRunAgain}
+                    onRefresh={handleEvaluate}
+                    onDismiss={() => setReuseCandidate(null)}
+                />
             )}
 
             {loading && (

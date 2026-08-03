@@ -6,7 +6,13 @@ from bson import ObjectId
 from core.errors import BadRequestError, NotFoundError
 from db.collections import users_collection
 from schemas.auth import SignupRequest
-from schemas.users import UserCreate, UserResponse, UserUpdate
+from schemas.users import (
+    DEFAULT_RESULT_RETENTION_SECONDS,
+    UserCreate,
+    UserResponse,
+    UserRetentionUpdate,
+    UserUpdate,
+)
 from services.dataset_service import (
     UPLOADS_DATASETS_PATH,
     delete_dataset,
@@ -23,6 +29,10 @@ def user_to_response(user: dict) -> UserResponse:
         id=str(user["_id"]),
         name=user["name"],
         email=user["email"],
+        result_retention_seconds=user.get(
+            "result_retention_seconds",
+            DEFAULT_RESULT_RETENTION_SECONDS,
+        ),
     )
 
 
@@ -53,6 +63,7 @@ async def create_user(user_data: UserCreate) -> UserResponse:
         "email": user_data.email,
         "password": hash_password(user_data.password),
         "datasets": [],
+        "result_retention_seconds": DEFAULT_RESULT_RETENTION_SECONDS,
     }
 
     result = await users_collection.insert_one(user_doc)
@@ -109,6 +120,25 @@ async def update_user(
     return user_to_response(updated_user)
 
 
+async def update_user_retention(
+    user_id: str,
+    retention: UserRetentionUpdate,
+) -> UserResponse:
+    object_id = _validate_user_id(user_id)
+    result = await users_collection.update_one(
+        {"_id": object_id},
+        {
+            "$set": {
+                "result_retention_seconds": retention.result_retention_seconds,
+            }
+        },
+    )
+    if result.matched_count == 0:
+        raise NotFoundError(USER_NOT_FOUND_MESSAGE)
+    updated_user = await users_collection.find_one({"_id": object_id})
+    return user_to_response(updated_user)
+
+
 async def delete_user(user_id: str) -> None:
     object_id = _validate_user_id(user_id)
 
@@ -132,6 +162,10 @@ async def delete_user(user_id: str) -> None:
             user_datasets_path,
             ignore_errors=True,
         )
+
+    from services.evaluation_history_service import delete_evaluations_for_owner
+
+    await delete_evaluations_for_owner(user_id)
 
     result = await users_collection.delete_one({"_id": object_id})
 

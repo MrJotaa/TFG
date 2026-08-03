@@ -250,6 +250,7 @@ def test_attack_rejects_detection_only_attack(
 def test_evaluate_rejects_detection_model(
     client,
     created_dataset,
+    auth_headers,
     monkeypatch,
 ):
     monkeypatch.setattr(
@@ -260,6 +261,7 @@ def test_evaluate_rejects_detection_model(
 
     response = client.post(
         "/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": created_dataset["id"],
             "attack_type": "random_noise",
@@ -275,6 +277,7 @@ def test_evaluate_rejects_detection_model(
 def test_evaluate_rejects_detection_only_attack(
     client,
     created_dataset,
+    auth_headers,
     monkeypatch,
 ):
     incompatible_attack = FakeAttack(
@@ -295,6 +298,7 @@ def test_evaluate_rejects_detection_only_attack(
 
     response = client.post(
         "/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": created_dataset["id"],
             "attack_type": "yolo_confidence",
@@ -426,6 +430,8 @@ def test_detection_attack_rejects_classification_only_attack(
 
 def test_detection_evaluate_rejects_classification_model(
     client,
+    created_dataset,
+    auth_headers,
     monkeypatch,
 ):
     async def fake_get_dataset(dataset_id: str):
@@ -444,8 +450,9 @@ def test_detection_evaluate_rejects_classification_model(
 
     response = client.post(
         "/detect/evaluate",
+        headers=auth_headers,
         json={
-            "dataset_id": "dataset-1",
+            "dataset_id": created_dataset["id"],
             "attack_type": "random_noise",
         },
     )
@@ -458,6 +465,8 @@ def test_detection_evaluate_rejects_classification_model(
 
 def test_detection_evaluate_rejects_classification_only_attack(
     client,
+    created_dataset,
+    auth_headers,
     monkeypatch,
 ):
     async def fake_get_dataset(dataset_id: str):
@@ -486,8 +495,9 @@ def test_detection_evaluate_rejects_classification_only_attack(
 
     response = client.post(
         "/detect/evaluate",
+        headers=auth_headers,
         json={
-            "dataset_id": "dataset-1",
+            "dataset_id": created_dataset["id"],
             "attack_type": "fgsm",
         },
     )

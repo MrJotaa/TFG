@@ -13,6 +13,38 @@ export function ExperimentProvider({ children }) {
         alpha: 0.01,
         steps: 10,
     })
+    const [recoveredEvaluation, setRecoveredEvaluation] = useState(null)
+
+    function selectDataset(dataset) {
+        setRecoveredEvaluation(null)
+        setSelectedDataset(dataset)
+    }
+
+    function selectModel(model) {
+        setRecoveredEvaluation(null)
+        setActiveModel(model)
+    }
+
+    function selectAttack(attack) {
+        setRecoveredEvaluation(null)
+        setSelectedAttack(attack)
+    }
+
+    function updateAttackParameters(parameters) {
+        setRecoveredEvaluation(null)
+        setAttackParameters(parameters)
+    }
+
+    function openRecoveredEvaluation({ historyItem, stored, dataset }) {
+        setSelectedDataset(dataset)
+        setSelectedAttack(historyItem.attack_type)
+        setAttackParameters(historyItem.parameters)
+        setRecoveredEvaluation({
+            historyItem,
+            taskType: stored.task_type,
+            data: stored.evaluation,
+        })
+    }
 
     function resetExperiment() {
         setDatasets([])
@@ -25,21 +57,25 @@ export function ExperimentProvider({ children }) {
             alpha: 0.01,
             steps: 10,
         })
+        setRecoveredEvaluation(null)
     }
 
     const value = {
         datasets,
         setDatasets,
         selectedDataset,
-        setSelectedDataset,
+        setSelectedDataset: selectDataset,
         selectedImage,
         setSelectedImage,
         activeModel,
-        setActiveModel,
+        setActiveModel: selectModel,
         selectedAttack,
-        setSelectedAttack,
+        setSelectedAttack: selectAttack,
         attackParameters,
-        setAttackParameters,
+        setAttackParameters: updateAttackParameters,
+        recoveredEvaluation,
+        setRecoveredEvaluation,
+        openRecoveredEvaluation,
         resetExperiment,
     }
 
@@ -50,6 +86,8 @@ export function ExperimentProvider({ children }) {
     )
 }
 
+// Context hooks intentionally live beside their provider.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useExperiment() {
     const context = useContext(ExperimentContext)
 

@@ -1,4 +1,5 @@
 from pymongo import ASCENDING, DESCENDING, IndexModel
+from pymongo.errors import OperationFailure
 
 from db.collections import (
     annotation_categories_collection,
@@ -177,13 +178,36 @@ async def downgrade_coco_annotations_schema(database=None) -> None:
 
 
 async def upgrade_detection_evaluations_schema(database=None) -> None:
-    """Create the indexes used by temporary detection evaluation history."""
+    """Create the indexes used by unified temporary evaluation history."""
 
     evaluations = (
         detection_evaluations_collection
         if database is None
         else database["detection_evaluations"]
     )
+    # The previous TTL index could delete the Mongo document before the
+    # application removed its filesystem artifacts. Expiry is now enforced by
+    # reads and a periodic cascade cleanup, so this becomes a normal index.
+    try:
+        index_information = await evaluations.index_information()
+        expiration_index = index_information.get(
+            "detection_evaluations_expiration"
+        )
+        if expiration_index and "expireAfterSeconds" in expiration_index:
+            await evaluations.drop_index("detection_evaluations_expiration")
+    except (AttributeError, OperationFailure):
+        # Lightweight test doubles and a first startup may not expose the index.
+        pass
+
+    if hasattr(evaluations, "update_many"):
+        await evaluations.update_many(
+            {
+                "result_type": "detection_evaluation",
+                "task_type": {"$exists": False},
+            },
+            {"$set": {"task_type": "detection"}},
+        )
+
     await evaluations.create_indexes(
         [
             IndexModel(
@@ -196,7 +220,26 @@ async def upgrade_detection_evaluations_schema(database=None) -> None:
             IndexModel(
                 [("expires_at", ASCENDING)],
                 name="detection_evaluations_expiration",
-                expireAfterSeconds=0,
+                sparse=True,
+            ),
+            IndexModel(
+                [
+                    ("owner_id", ASCENDING),
+                    ("signature", ASCENDING),
+                    ("status", ASCENDING),
+                    ("completed_at", DESCENDING),
+                ],
+                name="evaluations_compatibility_lookup",
+                sparse=True,
+            ),
+            IndexModel(
+                [("owner_id", ASCENDING), ("signature", ASCENDING)],
+                name="one_running_evaluation_per_signature",
+                unique=True,
+                partialFilterExpression={
+                    "status": "running",
+                    "signature": {"$type": "string"},
+                },
             ),
         ]
     )

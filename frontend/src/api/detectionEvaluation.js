@@ -7,6 +7,8 @@ export function evaluateDetectionDataset({
     alpha,
     steps,
     supervisedConfiguration,
+    seed = 0,
+    forceRecompute = false,
 }) {
     return apiRequest('/detect/evaluate', {
         method: 'POST',
@@ -20,8 +22,10 @@ export function evaluateDetectionDataset({
                 epsilon,
                 alpha,
                 steps,
+                seed,
             },
             supervised_configuration: supervisedConfiguration,
+            force_recompute: forceRecompute,
         }),
     })
 }

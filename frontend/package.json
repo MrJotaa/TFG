@@ -11,6 +11,7 @@
     "test:coco": "node --test tests/cocoAnnotations.test.js",
     "test:detection-metrics": "node --test tests/detectionMetrics.test.js tests/detectionObjectExplorer.test.js tests/evaluationMetricGuides.test.js",
     "test:explorer": "node --test tests/adversarialExplorer.test.js",
+    "test:history": "node --test tests/evaluationHistory.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -23,8 +23,13 @@ router = APIRouter()
 @router.post("/detect/evaluate", response_model=DetectionEvaluationResponse)
 async def evaluate_detection(
     request: DetectionEvaluationRequest,
+    current_user: UserResponse = Depends(require_current_user),
 ) -> DetectionEvaluationResponse:
-    return await evaluate_detection_dataset(request)
+    return await evaluate_detection_dataset(
+        request,
+        owner_id=current_user.id,
+        retention_seconds=current_user.result_retention_seconds,
+    )
 
 
 @router.get(

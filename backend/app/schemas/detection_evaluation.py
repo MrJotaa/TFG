@@ -19,6 +19,7 @@ class DetectionEvaluationRequest(BaseModel):
     supervised_configuration: DetectionSupervisedConfiguration = Field(
         default_factory=DetectionSupervisedConfiguration
     )
+    force_recompute: bool = Field(default=False, exclude=True)
 
 
 class DetectionEvaluationImageResult(BaseModel):

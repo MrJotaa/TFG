@@ -1,5 +1,6 @@
 import logging
 import sys
+from datetime import datetime, timedelta, timezone
 from time import perf_counter
 
 import torch
@@ -31,12 +32,20 @@ from services.dataset_service import (
     get_dataset,
     get_image_from_dataset,
 )
+from services.evaluation_history_service import (
+    EvaluationExecution,
+    abort_evaluation_execution,
+    begin_evaluation_execution,
+    complete_evaluation_execution,
+)
 from services.model_service import get_active_model_instance
 from utils.evaluation_artifacts import (
     evaluation_image_artifact_filenames,
     save_evaluation_model_inputs,
 )
+from utils.reproducibility import attack_parameters_for_image
 from utils.result_files import (
+    RESULTS_TTL_SECONDS,
     create_result_directory,
     save_result_image,
     save_result_metadata,
@@ -96,6 +105,33 @@ def _finish_stage(
 
 async def evaluate_dataset(
     request: EvaluationRequest,
+    *,
+    owner_id: str | None = None,
+    retention_seconds: int = RESULTS_TTL_SECONDS,
+) -> EvaluationResponse:
+    execution = None
+    if owner_id is not None:
+        execution = await begin_evaluation_execution(
+            request=request,
+            owner_id=owner_id,
+            task_type="classification",
+            retention_seconds=retention_seconds,
+        )
+
+    completed = False
+    try:
+        response = await _evaluate_dataset(request, execution=execution)
+        completed = True
+        return response
+    finally:
+        if execution is not None and not completed:
+            await abort_evaluation_execution(execution)
+
+
+async def _evaluate_dataset(
+    request: EvaluationRequest,
+    *,
+    execution: EvaluationExecution | None,
 ) -> EvaluationResponse:
     logger.debug(
         ("classification_evaluation_started dataset_id=%s attack=%s steps=%s"),
@@ -146,7 +182,23 @@ async def evaluate_dataset(
         for unresolved in label_resolution.summary.unresolved
     }
 
-    result_id, result_path = create_result_directory(prefix="evaluation")
+    if execution is None:
+        result_id, result_path = create_result_directory(prefix="evaluation")
+    else:
+        result_id, result_path = create_result_directory(
+            prefix="evaluation",
+            result_id=execution.result_id,
+        )
+    result_retention_seconds = (
+        execution.retention_seconds
+        if execution is not None
+        else RESULTS_TTL_SECONDS
+    )
+    dataset_revision = (
+        execution.dataset_revision
+        if execution is not None
+        else int(getattr(dataset, "dataset_revision", 0))
+    )
     evaluation_images_manifest: dict[str, dict] = {}
 
     save_result_metadata(
@@ -161,7 +213,8 @@ async def evaluate_dataset(
             "attack_type": request.attack_type,
             "parameters": request.parameters.model_dump(),
             "images": evaluation_images_manifest,
-            "expires_in_hours": 24,
+            "retention_seconds": result_retention_seconds,
+            "expires_in_hours": result_retention_seconds // 3600,
         },
     )
 
@@ -212,7 +265,11 @@ async def evaluate_dataset(
         attack_result = attack.apply(
             model_wrapper=model,
             image=image,
-            parameters=request.parameters,
+            parameters=attack_parameters_for_image(
+                attack_type=request.attack_type,
+                parameters=request.parameters,
+                image_id=image_id,
+            ),
             original_class_index=(original_prediction.class_index),
         )
         attack_seconds = _finish_stage(
@@ -511,7 +568,23 @@ async def evaluate_dataset(
         ),
     )
 
+    response = EvaluationResponse(
+        result_id=result_id,
+        dataset_id=request.dataset_id,
+        dataset_revision=dataset_revision,
+        model_id=model.id,
+        model_name=model.name,
+        attack_type=request.attack_type,
+        parameters=request.parameters,
+        summary=summary,
+        advanced_metrics=advanced_metrics,
+        results=results,
+    )
+
     metadata_started = perf_counter()
+    provisional_expires_at = datetime.now(timezone.utc) + timedelta(
+        seconds=result_retention_seconds
+    )
     save_result_metadata(
         result_path=result_path,
         metadata={
@@ -520,6 +593,7 @@ async def evaluate_dataset(
             "status": "completed",
             "owner_id": str(dataset.owner_id),
             "dataset_id": request.dataset_id,
+            "dataset_revision": dataset_revision,
             "model_id": model.id,
             "attack_type": request.attack_type,
             "parameters": request.parameters.model_dump(),
@@ -528,7 +602,41 @@ async def evaluate_dataset(
             "unresolved_labels": (label_resolution.summary.unresolved_labels),
             "metrics_schema_version": (advanced_metrics.metrics_schema_version),
             "images": evaluation_images_manifest,
-            "expires_in_hours": 24,
+            "retention_seconds": result_retention_seconds,
+            "expires_in_hours": result_retention_seconds // 3600,
+            "expires_at": provisional_expires_at.isoformat(),
+        },
+    )
+    expires_at = provisional_expires_at
+    if execution is not None:
+        expires_at = await complete_evaluation_execution(
+            execution=execution,
+            response=response,
+        )
+    save_result_metadata(
+        result_path=result_path,
+        metadata={
+            "result_id": result_id,
+            "result_type": "evaluation",
+            "status": "completed",
+            "owner_id": (
+                execution.owner_id
+                if execution is not None
+                else str(dataset.owner_id)
+            ),
+            "dataset_id": request.dataset_id,
+            "dataset_revision": dataset_revision,
+            "model_id": model.id,
+            "attack_type": request.attack_type,
+            "parameters": request.parameters.model_dump(mode="json"),
+            "total_images": total_images,
+            "resolved_labels": label_resolution.summary.resolved_labels,
+            "unresolved_labels": label_resolution.summary.unresolved_labels,
+            "metrics_schema_version": advanced_metrics.metrics_schema_version,
+            "images": evaluation_images_manifest,
+            "retention_seconds": result_retention_seconds,
+            "expires_in_hours": result_retention_seconds // 3600,
+            "expires_at": expires_at.isoformat(),
         },
     )
     metadata_seconds = perf_counter() - metadata_started
@@ -570,14 +678,4 @@ async def evaluate_dataset(
         total_seconds,
     )
 
-    return EvaluationResponse(
-        result_id=result_id,
-        dataset_id=request.dataset_id,
-        model_id=model.id,
-        model_name=model.name,
-        attack_type=request.attack_type,
-        parameters=request.parameters,
-        summary=summary,
-        advanced_metrics=advanced_metrics,
-        results=results,
-    )
+    return response

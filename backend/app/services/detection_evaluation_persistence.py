@@ -25,6 +25,7 @@ DETECTION_EVALUATION_RESULT_PREFIX = "detection_evaluation_"
 DETECTION_EVALUATION_ARTIFACT_FILENAME = "evaluation.json"
 DETECTION_EVALUATION_NOT_FOUND = "Detection evaluation not found"
 DETECTION_EVALUATION_STORAGE_SCHEMA_VERSION = 1
+SUPPORTED_DETECTION_EVALUATION_STORAGE_SCHEMA_VERSIONS = {1, 2}
 DETECTION_EVALUATIONS_BASE_PATH = os.getenv(
     "DETECTION_EVALUATIONS_BASE_PATH",
     "uploads/evaluations",
@@ -135,8 +136,8 @@ async def get_detection_evaluation(
         raise ForbiddenError("Detection evaluation belongs to another user")
     if document.get("status") != "completed":
         raise BadRequestError("Detection evaluation is not complete")
-    if document.get("storage_schema_version") != (
-        DETECTION_EVALUATION_STORAGE_SCHEMA_VERSION
+    if document.get("storage_schema_version") not in (
+        SUPPORTED_DETECTION_EVALUATION_STORAGE_SCHEMA_VERSIONS
     ):
         raise BadRequestError("Detection evaluation storage version is unsupported")
 
@@ -164,8 +165,8 @@ async def get_detection_evaluation(
 
 def _history_item(document: dict) -> DetectionEvaluationHistoryItem:
     try:
-        if document.get("storage_schema_version") != (
-            DETECTION_EVALUATION_STORAGE_SCHEMA_VERSION
+        if document.get("storage_schema_version") not in (
+            SUPPORTED_DETECTION_EVALUATION_STORAGE_SCHEMA_VERSIONS
         ):
             raise ValueError("unsupported storage schema version")
         return DetectionEvaluationHistoryItem(

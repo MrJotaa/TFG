@@ -54,8 +54,10 @@ def _empty_evaluation_response(result_id: str):
     }
 
 
-def test_detect_evaluate_returns_detection_evaluation_response(client, monkeypatch):
-    async def fake_evaluate_detection_dataset(request):
+def test_detect_evaluate_returns_detection_evaluation_response(
+    client, monkeypatch, auth_headers
+):
+    async def fake_evaluate_detection_dataset(request, **kwargs):
         assert request.dataset_id == "dataset-1"
         assert request.attack_type.value == "yolo_confidence"
         assert request.parameters.epsilon == 0.05
@@ -145,6 +147,7 @@ def test_detect_evaluate_returns_detection_evaluation_response(client, monkeypat
 
     response = client.post(
         "/detect/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": "dataset-1",
             "attack_type": "yolo_confidence",
@@ -184,8 +187,8 @@ def test_detect_evaluate_returns_detection_evaluation_response(client, monkeypat
     assert data["results"][1]["adversarial_detections"] == []
 
 
-def test_detect_evaluate_uses_default_parameters(client, monkeypatch):
-    async def fake_evaluate_detection_dataset(request):
+def test_detect_evaluate_uses_default_parameters(client, monkeypatch, auth_headers):
+    async def fake_evaluate_detection_dataset(request, **kwargs):
         assert request.attack_type.value == "random_noise"
         assert request.parameters.epsilon == 0.03
         assert request.parameters.alpha == 0.01
@@ -253,6 +256,7 @@ def test_detect_evaluate_uses_default_parameters(client, monkeypatch):
 
     response = client.post(
         "/detect/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": "dataset-1",
             "attack_type": "random_noise",
@@ -274,9 +278,10 @@ def test_detect_evaluate_uses_default_parameters(client, monkeypatch):
     assert data["parameters"]["steps"] == 10
 
 
-def test_detect_evaluate_with_missing_dataset_id_returns_422(client):
+def test_detect_evaluate_with_missing_dataset_id_returns_422(client, auth_headers):
     response = client.post(
         "/detect/evaluate",
+        headers=auth_headers,
         json={
             "attack_type": "random_noise",
         },
@@ -285,9 +290,10 @@ def test_detect_evaluate_with_missing_dataset_id_returns_422(client):
     assert response.status_code == 422
 
 
-def test_detect_evaluate_with_invalid_attack_type_returns_422(client):
+def test_detect_evaluate_with_invalid_attack_type_returns_422(client, auth_headers):
     response = client.post(
         "/detect/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": "dataset-1",
             "attack_type": "invalid_attack",
@@ -322,9 +328,11 @@ def test_detect_evaluate_with_invalid_attack_type_returns_422(client):
 def test_detect_evaluate_rejects_invalid_supervised_thresholds(
     client,
     supervised_configuration,
+    auth_headers,
 ):
     response = client.post(
         "/detect/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": "dataset-1",
             "attack_type": "random_noise",
@@ -338,8 +346,9 @@ def test_detect_evaluate_rejects_invalid_supervised_thresholds(
 def test_detect_evaluate_propagates_incompatible_model_error(
     client,
     monkeypatch,
+    auth_headers,
 ):
-    async def fake_evaluate_detection_dataset(request):
+    async def fake_evaluate_detection_dataset(request, **kwargs):
         raise HTTPException(
             status_code=400,
             detail=("Endpoint '/detect/evaluate' requires a detection model"),
@@ -353,6 +362,7 @@ def test_detect_evaluate_propagates_incompatible_model_error(
 
     response = client.post(
         "/detect/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": "dataset-1",
             "attack_type": "random_noise",
@@ -365,8 +375,10 @@ def test_detect_evaluate_propagates_incompatible_model_error(
     )
 
 
-def test_detect_evaluate_propagates_dataset_error(client, monkeypatch):
-    async def fake_evaluate_detection_dataset(request):
+def test_detect_evaluate_propagates_dataset_error(
+    client, monkeypatch, auth_headers
+):
+    async def fake_evaluate_detection_dataset(request, **kwargs):
         raise HTTPException(status_code=404, detail="Dataset not found")
 
     monkeypatch.setattr(
@@ -377,6 +389,7 @@ def test_detect_evaluate_propagates_dataset_error(client, monkeypatch):
 
     response = client.post(
         "/detect/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": "missing-dataset",
             "attack_type": "random_noise",

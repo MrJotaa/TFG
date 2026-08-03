@@ -279,7 +279,7 @@ async def test_detection_evaluation_cleans_artifact_when_index_insert_fails(
 
 
 @pytest.mark.asyncio
-async def test_detection_evaluation_indexes_include_owner_sort_and_ttl():
+async def test_evaluation_indexes_include_history_expiry_and_concurrency():
     collection = _FakeIndexCollection()
 
     await upgrade_detection_evaluations_schema({"detection_evaluations": collection})
@@ -291,8 +291,15 @@ async def test_detection_evaluation_indexes_include_owner_sort_and_ttl():
     }
     assert index_documents[1] == {
         "name": "detection_evaluations_expiration",
-        "expireAfterSeconds": 0,
+        "sparse": True,
         "key": {"expires_at": 1},
+    }
+    assert index_documents[2]["name"] == "evaluations_compatibility_lookup"
+    assert index_documents[3]["name"] == "one_running_evaluation_per_signature"
+    assert index_documents[3]["unique"] is True
+    assert index_documents[3]["partialFilterExpression"] == {
+        "status": "running",
+        "signature": {"$type": "string"},
     }
 
 

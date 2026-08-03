@@ -335,6 +335,10 @@ async def delete_dataset(dataset_id: str) -> None:
     if os.path.exists(dataset_path):
         shutil.rmtree(dataset_path)
 
+    from services.evaluation_history_service import delete_evaluations_for_dataset
+
+    await delete_evaluations_for_dataset(dataset_id)
+
     await datasets_collection.delete_one({"_id": object_id})
     await annotation_categories_collection.delete_many({"dataset_id": object_id})
     await object_annotations_collection.delete_many({"dataset_id": object_id})

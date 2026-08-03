@@ -3,6 +3,10 @@ import {
     evaluateDataset,
     generateEvaluationGradCam,
 } from '../api/evaluation'
+import {
+    findCompatibleEvaluation,
+    getStoredEvaluation,
+} from '../api/evaluationHistory'
 import EvaluationClassMetrics from './evaluation/EvaluationClassMetrics'
 import EvaluationConfusionMatrices from './evaluation/EvaluationConfusionMatrices'
 import EvaluationCurves from './evaluation/EvaluationCurves'
@@ -10,6 +14,7 @@ import EvaluationImages from './evaluation/EvaluationImages'
 import EvaluationMetricGuide from './evaluation/EvaluationMetricGuide'
 import EvaluationOverview from './evaluation/EvaluationOverview'
 import EvaluationTabs from './evaluation/EvaluationTabs'
+import CompatibleEvaluationNotice from './evaluation/CompatibleEvaluationNotice'
 import {
     canRequestEvaluationGradCam,
     evaluationGradCamReducer,
@@ -36,11 +41,14 @@ function EvaluationPanel({
     selectedDataset,
     selectedAttack = 'fgsm',
     attackParameters = DEFAULT_ATTACK_PARAMETERS,
+    recoveredEvaluation = null,
+    onStartNewEvaluation = () => {},
 }) {
     const [evaluationState, setEvaluationState] = useState(null)
     const [activeTab, setActiveTab] = useState('overview')
     const [loading, setLoading] = useState(false)
     const [errorState, setErrorState] = useState(null)
+    const [reuseCandidate, setReuseCandidate] = useState(null)
     const [gradCamStates, dispatchGradCam] = useReducer(
         evaluationGradCamReducer,
         {},
@@ -51,6 +59,7 @@ function EvaluationPanel({
     const epsilon = attackParameters.epsilon
     const alpha = attackParameters.alpha
     const steps = attackParameters.steps
+    const seed = attackParameters.seed ?? 0
 
     const contextKey = [
         selectedDataset?.id || '',
@@ -58,10 +67,12 @@ function EvaluationPanel({
         epsilon,
         alpha,
         steps,
+        seed,
     ].join(':')
 
-    const evaluation =
+    const evaluation = recoveredEvaluation?.data ?? (
         evaluationState?.contextKey === contextKey ? evaluationState.data : null
+    )
     const error = errorState?.contextKey === contextKey ? errorState.message : ''
 
     const tabs = useMemo(() => {
@@ -77,6 +88,25 @@ function EvaluationPanel({
         ]
     }, [evaluation])
 
+    async function runEvaluation(forceRecompute) {
+        setReuseCandidate(null)
+        gradCamRun.current += 1
+        gradCamRequests.current.clear()
+        dispatchGradCam({ type: 'reset' })
+        const result = await evaluateDataset({
+            datasetId: selectedDataset.id,
+            attackType: selectedAttack,
+            epsilon,
+            alpha,
+            steps,
+            seed,
+            forceRecompute,
+        })
+        onStartNewEvaluation()
+        setEvaluationState({ contextKey, data: result })
+        setActiveTab('overview')
+    }
+
     async function handleEvaluate() {
         if (!selectedDataset) {
             setErrorState({
@@ -89,20 +119,51 @@ function EvaluationPanel({
         try {
             setLoading(true)
             setErrorState(null)
-            gradCamRun.current += 1
-            gradCamRequests.current.clear()
-            dispatchGradCam({ type: 'reset' })
-
-            const result = await evaluateDataset({
+            const compatibility = await findCompatibleEvaluation({
+                taskType: 'classification',
                 datasetId: selectedDataset.id,
                 attackType: selectedAttack,
                 epsilon,
                 alpha,
                 steps,
+                seed,
             })
+            if (compatibility.match) {
+                setReuseCandidate(compatibility.match)
+                return
+            }
+            await runEvaluation(false)
+        } catch (err) {
+            setErrorState({ contextKey, message: err.message })
+        } finally {
+            setLoading(false)
+        }
+    }
 
-            setEvaluationState({ contextKey, data: result })
+    async function handleReuseCandidate() {
+        try {
+            setLoading(true)
+            setErrorState(null)
+            const stored = await getStoredEvaluation(reuseCandidate.result_id)
+            if (stored.task_type !== 'classification') {
+                throw new Error('El resultado compatible no es de clasificación.')
+            }
+            onStartNewEvaluation()
+            setEvaluationState({ contextKey, data: stored.evaluation })
+            setReuseCandidate(null)
             setActiveTab('overview')
+        } catch (err) {
+            setErrorState({ contextKey, message: err.message })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    async function handleRunAgain() {
+        try {
+            setLoading(true)
+            setErrorState(null)
+            await runEvaluation(true)
         } catch (err) {
             setErrorState({ contextKey, message: err.message })
         } finally {
@@ -212,6 +273,16 @@ function EvaluationPanel({
                     <strong>No se pudo completar la evaluación.</strong>
                     <span>{error}</span>
                 </div>
+            )}
+
+            {reuseCandidate && !loading && (
+                <CompatibleEvaluationNotice
+                    item={reuseCandidate}
+                    onReuse={handleReuseCandidate}
+                    onRunAgain={handleRunAgain}
+                    onRefresh={handleEvaluate}
+                    onDismiss={() => setReuseCandidate(null)}
+                />
             )}
 
             {loading && (

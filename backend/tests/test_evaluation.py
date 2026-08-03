@@ -3,8 +3,8 @@ from fastapi import HTTPException
 import api.routes.evaluate as evaluate_route
 
 
-def test_evaluate_returns_evaluation_response(client, monkeypatch):
-    async def fake_evaluate_dataset(request):
+def test_evaluate_returns_evaluation_response(client, monkeypatch, auth_headers):
+    async def fake_evaluate_dataset(request, **kwargs):
         assert request.dataset_id == "dataset-1"
         assert request.attack_type.value == "pgd"
         assert request.parameters.epsilon == 0.05
@@ -85,6 +85,7 @@ def test_evaluate_returns_evaluation_response(client, monkeypatch):
 
     response = client.post(
         "/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": "dataset-1",
             "attack_type": "pgd",
@@ -120,8 +121,8 @@ def test_evaluate_returns_evaluation_response(client, monkeypatch):
     assert data["results"][1]["attack_success"] is False
 
 
-def test_evaluate_uses_default_attack_parameters(client, monkeypatch):
-    async def fake_evaluate_dataset(request):
+def test_evaluate_uses_default_attack_parameters(client, monkeypatch, auth_headers):
+    async def fake_evaluate_dataset(request, **kwargs):
         assert request.attack_type.value == "fgsm"
         assert request.parameters.epsilon == 0.03
         assert request.parameters.alpha == 0.01
@@ -182,6 +183,7 @@ def test_evaluate_uses_default_attack_parameters(client, monkeypatch):
 
     response = client.post(
         "/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": "dataset-1",
         },
@@ -197,9 +199,10 @@ def test_evaluate_uses_default_attack_parameters(client, monkeypatch):
     assert data["parameters"]["steps"] == 10
 
 
-def test_evaluate_with_missing_dataset_id_returns_422(client):
+def test_evaluate_with_missing_dataset_id_returns_422(client, auth_headers):
     response = client.post(
         "/evaluate",
+        headers=auth_headers,
         json={
             "attack_type": "fgsm",
         },
@@ -208,9 +211,10 @@ def test_evaluate_with_missing_dataset_id_returns_422(client):
     assert response.status_code == 422
 
 
-def test_evaluate_with_invalid_attack_type_returns_422(client):
+def test_evaluate_with_invalid_attack_type_returns_422(client, auth_headers):
     response = client.post(
         "/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": "dataset-1",
             "attack_type": "invalid_attack",
@@ -220,8 +224,8 @@ def test_evaluate_with_invalid_attack_type_returns_422(client):
     assert response.status_code == 422
 
 
-def test_evaluate_propagates_service_error(client, monkeypatch):
-    async def fake_evaluate_dataset(request):
+def test_evaluate_propagates_service_error(client, monkeypatch, auth_headers):
+    async def fake_evaluate_dataset(request, **kwargs):
         raise HTTPException(
             status_code=400,
             detail="Endpoint /evaluate currently supports classification models only.",
@@ -231,6 +235,7 @@ def test_evaluate_propagates_service_error(client, monkeypatch):
 
     response = client.post(
         "/evaluate",
+        headers=auth_headers,
         json={
             "dataset_id": "dataset-1",
             "attack_type": "fgsm",
