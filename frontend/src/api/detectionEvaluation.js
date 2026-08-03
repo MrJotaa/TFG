@@ -1,4 +1,4 @@
-import { apiRequest } from './client'
+import { apiRequest } from './client.js'
 
 export function evaluateDetectionDataset({
     datasetId,
@@ -24,4 +24,16 @@ export function evaluateDetectionDataset({
             supervised_configuration: supervisedConfiguration,
         }),
     })
+}
+
+export function generateDetectionEvaluationEigenCam(evaluationId, imageId) {
+    const encodedEvaluationId = encodeURIComponent(evaluationId)
+    const encodedImageId = encodeURIComponent(imageId)
+
+    return apiRequest(
+        `/detect/evaluations/${encodedEvaluationId}/images/${encodedImageId}/eigencam`,
+        {
+            method: 'POST',
+        },
+    )
 }

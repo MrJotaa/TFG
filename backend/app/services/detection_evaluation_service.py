@@ -1,3 +1,5 @@
+import logging
+
 from core.errors import BadRequestError
 from core.task_compatibility import (
     DETECTION_TASK_TYPE,
@@ -30,14 +32,39 @@ from services.detection_supervised_evaluation import (
     requires_detection_supervised_catalog,
 )
 from services.model_service import get_active_model_instance
+from utils.detection_evaluation_artifacts import (
+    remove_detection_evaluation_visual_artifacts,
+    save_detection_evaluation_adversarial_image,
+)
 from utils.detection_metrics import (
     average,
     calculate_detection_comparison,
 )
 
+logger = logging.getLogger(__name__)
+
 
 async def evaluate_detection_dataset(
     request: DetectionEvaluationRequest,
+) -> DetectionEvaluationResponse:
+    result_id = new_detection_evaluation_id()
+    try:
+        return await _evaluate_detection_dataset(request, result_id=result_id)
+    except Exception:
+        try:
+            remove_detection_evaluation_visual_artifacts(result_id)
+        except OSError:
+            logger.exception(
+                "detection_evaluation_visual_cleanup_failed result_id=%s",
+                result_id,
+            )
+        raise
+
+
+async def _evaluate_detection_dataset(
+    request: DetectionEvaluationRequest,
+    *,
+    result_id: str,
 ) -> DetectionEvaluationResponse:
     dataset = await get_dataset(request.dataset_id)
 
@@ -106,6 +133,11 @@ async def evaluate_detection_dataset(
         )
 
         adversarial_image = attack_result["adversarial_image"]
+        adversarial_image_url = save_detection_evaluation_adversarial_image(
+            evaluation_id=result_id,
+            image_id=image_metadata.id,
+            image=adversarial_image,
+        )
 
         if supervised_context.available:
             original_scientific_result = model.detect_for_evaluation(
@@ -182,6 +214,7 @@ async def evaluate_detection_dataset(
                 attack_success=metrics.attack_success,
                 perturbation_linf=attack_result["perturbation_linf"],
                 perturbation_l2=attack_result["perturbation_l2"],
+                adversarial_image_url=adversarial_image_url,
                 original_detections=to_detection_predictions(original_detections),
                 adversarial_detections=to_detection_predictions(adversarial_detections),
             )
@@ -227,7 +260,7 @@ async def evaluate_detection_dataset(
     )
 
     response = DetectionEvaluationResponse(
-        result_id=new_detection_evaluation_id(),
+        result_id=result_id,
         model_id=model.id,
         model_name=model.name,
         dataset_id=request.dataset_id,

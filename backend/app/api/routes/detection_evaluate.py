@@ -2,11 +2,15 @@ from fastapi import APIRouter, Depends, Query
 
 from api.dependencies.auth import require_current_user
 from schemas.detection_evaluation import (
+    DetectionEvaluationEigenCamResponse,
     DetectionEvaluationHistoryItem,
     DetectionEvaluationRequest,
     DetectionEvaluationResponse,
 )
 from schemas.users import UserResponse
+from services.detection_evaluation_explainability_service import (
+    generate_detection_evaluation_image_eigencam,
+)
 from services.detection_evaluation_persistence import (
     get_detection_evaluation,
     list_detection_evaluations,
@@ -50,4 +54,20 @@ async def get_current_user_detection_evaluation(
     return await get_detection_evaluation(
         evaluation_id=evaluation_id,
         owner_id=current_user.id,
+    )
+
+
+@router.post(
+    "/detect/evaluations/{evaluation_id}/images/{image_id}/eigencam",
+    response_model=DetectionEvaluationEigenCamResponse,
+)
+async def detection_evaluation_image_eigencam(
+    evaluation_id: str,
+    image_id: str,
+    current_user: UserResponse = Depends(require_current_user),
+) -> DetectionEvaluationEigenCamResponse:
+    return await generate_detection_evaluation_image_eigencam(
+        evaluation_id=evaluation_id,
+        image_id=image_id,
+        current_user_id=current_user.id,
     )

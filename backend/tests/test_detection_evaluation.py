@@ -467,3 +467,46 @@ def test_detection_evaluation_detail_uses_authenticated_owner(
         "evaluation_id": result_id,
         "owner_id": registered_user["user"]["id"],
     }
+
+
+def test_detection_evaluation_eigencam_uses_authenticated_owner(
+    client,
+    auth_headers,
+    registered_user,
+    monkeypatch,
+):
+    result_id = "detection_evaluation_00000000-0000-4000-8000-000000000011"
+    captured = {}
+
+    async def fake_generate(*, evaluation_id, image_id, current_user_id):
+        captured.update(
+            evaluation_id=evaluation_id,
+            image_id=image_id,
+            current_user_id=current_user_id,
+        )
+        return {
+            "evaluation_id": evaluation_id,
+            "image_id": image_id,
+            "explanation_type": "eigencam",
+            "original_eigencam_image_url": "/results/original.png",
+            "adversarial_eigencam_image_url": "/results/adversarial.png",
+        }
+
+    monkeypatch.setattr(
+        detection_evaluate_route,
+        "generate_detection_evaluation_image_eigencam",
+        fake_generate,
+    )
+
+    response = client.post(
+        f"/detect/evaluations/{result_id}/images/image-1/eigencam",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["explanation_type"] == "eigencam"
+    assert captured == {
+        "evaluation_id": result_id,
+        "image_id": "image-1",
+        "current_user_id": registered_user["user"]["id"],
+    }

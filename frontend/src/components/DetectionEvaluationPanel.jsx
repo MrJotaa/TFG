@@ -1,5 +1,8 @@
-import { useMemo, useState } from 'react'
-import { evaluateDetectionDataset } from '../api/detectionEvaluation'
+import { useMemo, useReducer, useRef, useState } from 'react'
+import {
+    evaluateDetectionDataset,
+    generateDetectionEvaluationEigenCam,
+} from '../api/detectionEvaluation'
 import DetectionClassMetrics from './detectionEvaluation/DetectionClassMetrics'
 import DetectionCocoMetrics from './detectionEvaluation/DetectionCocoMetrics'
 import DetectionImageResults from './detectionEvaluation/DetectionImageResults'
@@ -7,6 +10,14 @@ import DetectionObjectAnalysis from './detectionEvaluation/DetectionObjectAnalys
 import DetectionOverview from './detectionEvaluation/DetectionOverview'
 import DetectionPrecisionRecall from './detectionEvaluation/DetectionPrecisionRecall'
 import EvaluationTabs from './evaluation/EvaluationTabs'
+import {
+    canRequestDetectionEigenCam,
+    detectionEigenCamReducer,
+    getDetectionEigenCamEntry,
+    getDetectionEigenCamErrorMessage,
+    getDetectionEigenCamKey,
+    isDetectionEigenCamResponse,
+} from '../utils/detectionEvaluationEigenCamState'
 
 const ATTACK_NAMES = {
     random_noise: 'Random Noise',
@@ -30,6 +41,12 @@ function DetectionEvaluationPanel({
         iou_threshold: 0.5,
         include_object_level_details: false,
     })
+    const [eigenCamStates, dispatchEigenCam] = useReducer(
+        detectionEigenCamReducer,
+        {},
+    )
+    const eigenCamRequests = useRef(new Set())
+    const eigenCamRun = useRef(0)
 
     const isSupportedAttack = SUPPORTED_DETECTION_ATTACKS.includes(selectedAttack)
     const isConfigurationValid =
@@ -83,6 +100,9 @@ function DetectionEvaluationPanel({
         try {
             setLoading(true)
             setErrorState(null)
+            eigenCamRun.current += 1
+            eigenCamRequests.current.clear()
+            dispatchEigenCam({ type: 'reset' })
             const result = await evaluateDetectionDataset({
                 datasetId: selectedDataset.id,
                 attackType: selectedAttack,
@@ -97,6 +117,51 @@ function DetectionEvaluationPanel({
             setErrorState({ contextKey, message: error.message })
         } finally {
             setLoading(false)
+        }
+    }
+
+    async function handleGenerateEigenCam(evaluationId, imageId) {
+        const key = getDetectionEigenCamKey(evaluationId, imageId)
+        const requestRun = eigenCamRun.current
+        const currentEntry = getDetectionEigenCamEntry(eigenCamStates, key)
+
+        if (
+            !canRequestDetectionEigenCam(
+                currentEntry,
+                eigenCamRequests.current.has(key),
+            )
+        ) {
+            return
+        }
+
+        eigenCamRequests.current.add(key)
+        dispatchEigenCam({ type: 'loading', key })
+
+        try {
+            const response = await generateDetectionEvaluationEigenCam(
+                evaluationId,
+                imageId,
+            )
+            if (!isDetectionEigenCamResponse(response, evaluationId, imageId)) {
+                throw new Error('Invalid EigenCAM response')
+            }
+            if (requestRun !== eigenCamRun.current) {
+                return
+            }
+            dispatchEigenCam({ type: 'success', key, data: response })
+        } catch (requestError) {
+            if (requestRun !== eigenCamRun.current) {
+                return
+            }
+            dispatchEigenCam({
+                type: 'error',
+                key,
+                error: getDetectionEigenCamErrorMessage(requestError),
+            })
+        } finally {
+            if (requestRun === eigenCamRun.current) {
+                eigenCamRequests.current.delete(key)
+            }
         }
     }
 
@@ -223,7 +288,12 @@ function DetectionEvaluationPanel({
                         <button
                             type="button"
                             className="secondary-action"
-                            onClick={() => setEvaluationState(null)}
+                            onClick={() => {
+                                eigenCamRun.current += 1
+                                eigenCamRequests.current.clear()
+                                dispatchEigenCam({ type: 'reset' })
+                                setEvaluationState(null)
+                            }}
                         >
                             Nueva evaluación
                         </button>
@@ -242,7 +312,13 @@ function DetectionEvaluationPanel({
                         {activeTab === 'classes' && <DetectionClassMetrics evaluation={evaluation} />}
                         {activeTab === 'curves' && <DetectionPrecisionRecall evaluation={evaluation} />}
                         {activeTab === 'objects' && <DetectionObjectAnalysis evaluation={evaluation} />}
-                        {activeTab === 'images' && <DetectionImageResults evaluation={evaluation} />}
+                        {activeTab === 'images' && (
+                            <DetectionImageResults
+                                evaluation={evaluation}
+                                eigenCamStates={eigenCamStates}
+                                onGenerateEigenCam={handleGenerateEigenCam}
+                            />
+                        )}
                     </div>
                 </section>
             )}

@@ -29,6 +29,7 @@ TEST_DETECTION_EVALUATION_ID = (
 @pytest.fixture(autouse=True)
 def _stub_detection_evaluation_persistence(monkeypatch):
     persisted = []
+    saved_adversarial_images = []
 
     async def fake_persist(*, response, request, owner_id):
         assert response.result_id == TEST_DETECTION_EVALUATION_ID
@@ -45,6 +46,20 @@ def _stub_detection_evaluation_persistence(monkeypatch):
         detection_evaluation_service,
         "persist_detection_evaluation",
         fake_persist,
+    )
+    monkeypatch.setattr(
+        detection_evaluation_service,
+        "save_detection_evaluation_adversarial_image",
+        lambda **kwargs: saved_adversarial_images.append(kwargs)
+        or (
+            f"/results/{kwargs['evaluation_id']}/"
+            f"{kwargs['image_id']}_adversarial.png"
+        ),
+    )
+    monkeypatch.setattr(
+        detection_evaluation_service,
+        "remove_detection_evaluation_visual_artifacts",
+        lambda result_id: None,
     )
     return persisted
 
@@ -675,6 +690,10 @@ async def test_allowed_supervised_configuration_does_not_change_legacy_contract(
         "attack_success": True,
         "perturbation_linf": 0.03,
         "perturbation_l2": 0.5,
+        "adversarial_image_url": (
+            f"/results/{TEST_DETECTION_EVALUATION_ID}/"
+            "reviewed_adversarial.png"
+        ),
         "original_detections": [
             {
                 "label": "object",

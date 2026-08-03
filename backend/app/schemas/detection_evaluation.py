@@ -44,6 +44,8 @@ class DetectionEvaluationImageResult(BaseModel):
     perturbation_linf: float
     perturbation_l2: float
 
+    adversarial_image_url: str | None = None
+
     original_detections: list[DetectionPrediction]
     adversarial_detections: list[DetectionPrediction]
 
@@ -107,3 +109,11 @@ class DetectionEvaluationHistoryItem(DetectionMetricsContract):
     supervised_reason: DetectionSupervisedUnavailableReason | None = None
     created_at: datetime
     expires_at: datetime
+
+
+class DetectionEvaluationEigenCamResponse(BaseModel):
+    evaluation_id: str
+    image_id: str
+    explanation_type: str = "eigencam"
+    original_eigencam_image_url: str
+    adversarial_eigencam_image_url: str

@@ -16,6 +16,9 @@ from schemas.detection_evaluation import (
     DetectionEvaluationRequest,
     DetectionEvaluationResponse,
 )
+from utils.detection_evaluation_artifacts import (
+    remove_detection_evaluation_visual_artifacts,
+)
 from utils.result_files import RESULTS_TTL_SECONDS
 
 DETECTION_EVALUATION_RESULT_PREFIX = "detection_evaluation_"
@@ -221,6 +224,7 @@ def cleanup_expired_detection_evaluation_artifacts() -> None:
         try:
             if entry.stat().st_mtime <= expiration_timestamp:
                 _remove_result_directory(entry)
+                remove_detection_evaluation_visual_artifacts(entry.name)
         except OSError:
             logger.exception(
                 "expired_detection_evaluation_artifact_cleanup_failed result_id=%s",
