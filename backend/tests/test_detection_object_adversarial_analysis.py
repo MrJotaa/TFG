@@ -230,6 +230,50 @@ def test_preserved_object_exposes_full_precision_drops_rounded_publicly():
     assert analysis.summary.mean_iou_drop_preserved == 0.2
 
 
+def test_preserved_drops_are_consistent_with_public_precision_observations():
+    category = _class()
+    analysis = build_detection_object_adversarial_analysis(
+        ground_truths=(_ground_truth("object"),),
+        classes=(category,),
+        reviewed_image_ids=frozenset({"image-1"}),
+        original_observations=(
+            _observation(
+                "object",
+                matched=True,
+                category=category,
+                confidence=0.2577291507357619,
+                iou=0.5288604654318989,
+            ),
+        ),
+        adversarial_observations=(
+            _observation(
+                "object",
+                matched=True,
+                category=category,
+                confidence=0.25064859980091997,
+                iou=0.5258257547804502,
+            ),
+        ),
+        confidence_threshold=0.25,
+        iou_threshold=0.5,
+        include_details=True,
+    )
+
+    result = analysis.objects[0]
+    assert result.confidence_drop == round(
+        result.original_observation.confidence
+        - result.adversarial_observation.confidence,
+        6,
+    )
+    assert result.iou_drop == round(
+        result.original_observation.iou_with_ground_truth
+        - result.adversarial_observation.iou_with_ground_truth,
+        6,
+    )
+    assert analysis.summary.mean_confidence_drop_preserved == result.confidence_drop
+    assert analysis.summary.mean_iou_drop_preserved == result.iou_drop
+
+
 def test_negative_preserved_drops_are_not_clamped():
     category = _class()
     analysis = build_detection_object_adversarial_analysis(

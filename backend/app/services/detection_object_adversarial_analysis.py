@@ -58,6 +58,16 @@ def _round_metric(value: float | None) -> float | None:
     )
 
 
+def _public_metric_difference(original: float, adversarial: float) -> float:
+    """Derive a public delta from the public-precision operands."""
+    public_original = round(original, PUBLIC_OBJECT_METRIC_DECIMAL_PLACES)
+    public_adversarial = round(adversarial, PUBLIC_OBJECT_METRIC_DECIMAL_PLACES)
+    return round(
+        public_original - public_adversarial,
+        PUBLIC_OBJECT_METRIC_DECIMAL_PLACES,
+    )
+
+
 def _require_non_empty_string(value: object, *, field_name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise DetectionObjectAdversarialAnalysisInputError(
@@ -499,12 +509,13 @@ def build_detection_object_adversarial_analysis(
         confidence_drop = None
         iou_drop = None
         if outcome is DetectionObjectOutcome.PRESERVED:
-            confidence_drop = (
-                original.matched_detection_confidence
-                - adversarial.matched_detection_confidence
+            confidence_drop = _public_metric_difference(
+                original.matched_detection_confidence,
+                adversarial.matched_detection_confidence,
             )
-            iou_drop = (
-                original.matched_detection_iou - adversarial.matched_detection_iou
+            iou_drop = _public_metric_difference(
+                original.matched_detection_iou,
+                adversarial.matched_detection_iou,
             )
         transitions.append(
             _ObjectTransition(
