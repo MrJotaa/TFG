@@ -138,7 +138,7 @@ function DetectionOverview({ evaluation }) {
                     tone="adversarial"
                 />
                 <MetricCard
-                    label="Éxito legacy"
+                    label="Éxito heurístico (legacy)"
                     value={formatRatio(summary.attack_success_rate)}
                     helper="Reducción de conteo o confianza media"
                     tone="neutral"

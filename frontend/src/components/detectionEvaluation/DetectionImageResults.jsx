@@ -172,8 +172,8 @@ function DetectionImageCard({
             </p>
 
             <dl className="detection-image-result-metrics">
-                <div><dt>Det. original</dt><dd>{formatInteger(result.original_detection_count)}</dd></div>
-                <div><dt>Det. adversaria</dt><dd>{formatInteger(result.adversarial_detection_count)}</dd></div>
+                <div><dt>Detecciones originales</dt><dd>{formatInteger(result.original_detection_count)}</dd></div>
+                <div><dt>Detecciones adversarias</dt><dd>{formatInteger(result.adversarial_detection_count)}</dd></div>
                 <div><dt>Δ detecciones</dt><dd>{formatInteger(result.detections_difference)}</dd></div>
                 <div><dt>Conf. original</dt><dd>{formatDecimal(result.average_original_confidence)}</dd></div>
                 <div><dt>Conf. adversaria</dt><dd>{formatDecimal(result.average_adversarial_confidence)}</dd></div>

@@ -43,7 +43,7 @@ function DetectionPrecisionRecall({ evaluation }) {
     const selected = useMemo(() => {
         if (!supervised?.available || scope === 'global') {
             return {
-                label: 'Promedio global',
+                label: 'Promedio COCO global',
                 original: supervised?.original?.precision_recall_curve,
                 adversarial: supervised?.adversarial?.precision_recall_curve,
                 originalScore: supervised?.original?.aggregate.map_50_95,
@@ -80,12 +80,12 @@ function DetectionPrecisionRecall({ evaluation }) {
                 <div>
                     <span className="evaluation-eyebrow">101 puntos de recall COCO</span>
                     <h3>Curvas Precision-Recall</h3>
-                    <p>Compara la envolvente interpolada original y adversarial para el promedio global o una clase.</p>
+                    <p>Compara la envolvente interpolada original y adversarial para el promedio COCO global o una clase concreta.</p>
                 </div>
                 <label>
-                    <span>Serie</span>
+                    <span>Ámbito de la curva</span>
                     <select value={scope} onChange={(event) => setScope(event.target.value)}>
-                        <option value="global">Promedio global</option>
+                        <option value="global">Promedio COCO global (clases e IoU)</option>
                         {supervised.original.per_class.map((entry) => (
                             <option key={entry.reference.category_internal_id} value={entry.reference.model_class_id}>
                                 {entry.reference.category_name} · n={entry.support}

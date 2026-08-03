@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "test:gradcam": "node --test tests/evaluationGradCam.test.js tests/detectionEvaluationEigenCam.test.js",
     "test:coco": "node --test tests/cocoAnnotations.test.js",
-    "test:detection-metrics": "node --test tests/detectionMetrics.test.js",
+    "test:detection-metrics": "node --test tests/detectionMetrics.test.js tests/detectionObjectExplorer.test.js tests/evaluationMetricGuides.test.js",
     "test:explorer": "node --test tests/adversarialExplorer.test.js",
     "preview": "vite preview"
   },

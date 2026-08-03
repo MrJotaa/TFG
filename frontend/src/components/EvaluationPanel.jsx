@@ -7,6 +7,7 @@ import EvaluationClassMetrics from './evaluation/EvaluationClassMetrics'
 import EvaluationConfusionMatrices from './evaluation/EvaluationConfusionMatrices'
 import EvaluationCurves from './evaluation/EvaluationCurves'
 import EvaluationImages from './evaluation/EvaluationImages'
+import EvaluationMetricGuide from './evaluation/EvaluationMetricGuide'
 import EvaluationOverview from './evaluation/EvaluationOverview'
 import EvaluationTabs from './evaluation/EvaluationTabs'
 import {
@@ -17,6 +18,7 @@ import {
     getEvaluationGradCamKey,
     isEvaluationGradCamResponse,
 } from '../utils/evaluationGradCamState'
+import { CLASSIFICATION_METRIC_GUIDES } from '../utils/evaluationMetricGuides'
 
 const ATTACK_NAMES = {
     fgsm: 'FGSM',
@@ -234,6 +236,10 @@ function EvaluationPanel({
                         tabs={tabs}
                         activeTab={activeTab}
                         onChange={setActiveTab}
+                    />
+                    <EvaluationMetricGuide
+                        key={activeTab}
+                        guide={CLASSIFICATION_METRIC_GUIDES[activeTab]}
                     />
 
                     <div

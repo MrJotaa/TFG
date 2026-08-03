@@ -6,11 +6,11 @@ import {
 import DetectionClassMetrics from './detectionEvaluation/DetectionClassMetrics'
 import DetectionCocoMetrics from './detectionEvaluation/DetectionCocoMetrics'
 import DetectionImageResults from './detectionEvaluation/DetectionImageResults'
-import DetectionMetricGuide from './detectionEvaluation/DetectionMetricGuide'
 import DetectionObjectAnalysis from './detectionEvaluation/DetectionObjectAnalysis'
 import DetectionOverview from './detectionEvaluation/DetectionOverview'
 import DetectionPrecisionRecall from './detectionEvaluation/DetectionPrecisionRecall'
 import DetectionTideAnalysis from './detectionEvaluation/DetectionTideAnalysis'
+import EvaluationMetricGuide from './evaluation/EvaluationMetricGuide'
 import EvaluationTabs from './evaluation/EvaluationTabs'
 import {
     canRequestDetectionEigenCam,
@@ -20,6 +20,7 @@ import {
     getDetectionEigenCamKey,
     isDetectionEigenCamResponse,
 } from '../utils/detectionEvaluationEigenCamState'
+import { DETECTION_METRIC_GUIDES } from '../utils/evaluationMetricGuides'
 
 const ATTACK_NAMES = {
     random_noise: 'Random Noise',
@@ -305,7 +306,10 @@ function DetectionEvaluationPanel({
                     </header>
 
                     <EvaluationTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-                    <DetectionMetricGuide />
+                    <EvaluationMetricGuide
+                        key={activeTab}
+                        guide={DETECTION_METRIC_GUIDES[activeTab]}
+                    />
 
                     <div
                         id={`evaluation-panel-${activeTab}`}

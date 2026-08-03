@@ -17,15 +17,15 @@
     background: var(--bg);
 }
 
-/* Detection metric guidance and TIDE diagnostics */
-.detection-metric-guide {
+/* Contextual metric guidance and TIDE diagnostics */
+.evaluation-metric-guide {
     margin: 0.8rem 1.25rem 0;
     border: 1px solid #bfdbfe;
     border-radius: 14px;
     background: #f8fbff;
 }
 
-.detection-metric-guide summary {
+.evaluation-metric-guide summary {
     display: flex;
     align-items: center;
     gap: 0.7rem;
@@ -35,23 +35,23 @@
     list-style: none;
 }
 
-.detection-metric-guide summary::-webkit-details-marker {
+.evaluation-metric-guide summary::-webkit-details-marker {
     display: none;
 }
 
-.detection-metric-guide summary > span:last-child,
-.detection-metric-guide summary strong,
-.detection-metric-guide summary small {
+.evaluation-metric-guide summary > span:nth-child(2),
+.evaluation-metric-guide summary strong,
+.evaluation-metric-guide summary small {
     display: block;
 }
 
-.detection-metric-guide summary small {
+.evaluation-metric-guide summary small {
     margin-top: 0.12rem;
     color: #64748b;
     font-size: 0.72rem;
 }
 
-.detection-info-icon {
+.evaluation-info-icon {
     display: grid;
     width: 1.7rem;
     height: 1.7rem;
@@ -64,35 +64,71 @@
     font-weight: 800;
 }
 
-.detection-metric-guide-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0;
+.evaluation-guide-chevron {
+    margin-left: auto;
+    color: #2563eb;
+    font-size: 1.2rem;
+    transition: transform 0.18s ease;
+}
+
+.evaluation-metric-guide[open] .evaluation-guide-chevron {
+    transform: rotate(180deg);
+}
+
+.evaluation-metric-guide-body {
     padding: 0 0.9rem 0.9rem;
 }
 
-.detection-metric-guide-grid section {
+.evaluation-metric-guide-intro {
+    margin: 0;
+    padding: 0.75rem 0.8rem;
+    border-top: 1px solid #dbeafe;
+    color: #334155;
+    font-size: 0.8rem;
+    line-height: 1.55;
+}
+
+.evaluation-metric-guide-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+}
+
+.evaluation-metric-guide-grid > div {
     padding: 0.8rem;
     border-top: 1px solid #dbeafe;
 }
 
-.detection-metric-guide-grid section:nth-child(odd) {
+.evaluation-metric-guide-grid > div:nth-child(odd) {
     border-right: 1px solid #dbeafe;
 }
 
-.detection-metric-guide-grid h4,
-.detection-metric-guide-grid p {
+.evaluation-metric-guide-grid dt,
+.evaluation-metric-guide-grid dd {
     margin: 0;
 }
 
-.detection-metric-guide-grid h4 {
+.evaluation-metric-guide-grid dt {
     color: #1e3a8a;
     font-size: 0.84rem;
+    font-weight: 800;
 }
 
-.detection-metric-guide-grid p {
+.evaluation-metric-guide-grid dd {
     margin-top: 0.35rem;
     color: #475569;
+    font-size: 0.78rem;
+    line-height: 1.55;
+}
+
+.evaluation-metric-guide-note {
+    margin: 0;
+    padding: 0.75rem 0.8rem;
+    border-top: 1px solid #bfdbfe;
+    border-radius: 0 0 10px 10px;
+    background: #eff6ff;
+    color: #334155;
     font-size: 0.78rem;
     line-height: 1.55;
 }
@@ -186,16 +222,16 @@
 }
 
 @media (max-width: 760px) {
-    .detection-metric-guide {
+    .evaluation-metric-guide {
         margin-inline: 0.8rem;
     }
 
-    .detection-metric-guide-grid,
+    .evaluation-metric-guide-grid,
     .tide-special-grid {
         grid-template-columns: 1fr;
     }
 
-    .detection-metric-guide-grid section:nth-child(odd) {
+    .evaluation-metric-guide-grid > div:nth-child(odd) {
         border-right: 0;
     }
 
@@ -2153,7 +2189,7 @@ button {
 }
 
 .detection-run-controls label,
-.detection-object-toolbar label,
+.detection-object-explorer-toolbar label,
 .detection-curve-header label {
     display: grid;
     gap: 0.35rem;
@@ -2161,7 +2197,7 @@ button {
 }
 
 .detection-run-controls label > span,
-.detection-object-toolbar label > span,
+.detection-object-explorer-toolbar label > span,
 .detection-curve-header label > span {
     color: #475569;
     font-size: 0.7rem;
@@ -2172,8 +2208,8 @@ button {
 
 .detection-run-controls input[type='number'],
 .detection-run-controls select,
-.detection-object-toolbar input,
-.detection-object-toolbar select,
+.detection-object-explorer-toolbar input,
+.detection-object-explorer-toolbar select,
 .detection-curve-header select {
     width: 100%;
     min-width: 0;
@@ -2608,9 +2644,9 @@ button {
     overflow-wrap: anywhere;
 }
 
-.detection-object-toolbar {
+.detection-object-explorer-toolbar {
     display: grid;
-    grid-template-columns: minmax(240px, 1fr) minmax(190px, 0.35fr);
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
     gap: 0.8rem;
     margin-bottom: 0.9rem;
     padding: 0.8rem;
@@ -2619,8 +2655,12 @@ button {
     background: var(--evaluation-soft);
 }
 
+.detection-object-explorer-toolbar .detection-object-search {
+    grid-column: span 2;
+}
+
 .detection-objects-table {
-    min-width: 1550px;
+    min-width: 1040px;
 }
 
 .detection-objects-table td:first-child,
@@ -2631,6 +2671,85 @@ button {
     font-size: 0.72rem;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.detection-object-range {
+    margin: 0 0 0.7rem;
+    color: var(--evaluation-muted);
+    font-size: 0.76rem;
+}
+
+.detection-object-range strong {
+    color: var(--evaluation-ink);
+}
+
+.detection-table-surface .evaluation-pagination {
+    flex-wrap: wrap;
+}
+
+.detection-object-observation strong,
+.detection-object-observation small {
+    display: block;
+}
+
+.detection-object-observation strong {
+    color: var(--evaluation-ink);
+}
+
+.detection-object-observation small,
+.detection-object-not-detected {
+    margin-top: 0.12rem;
+    color: var(--evaluation-muted);
+    font-size: 0.7rem;
+}
+
+.detection-object-detail-button {
+    margin: 0;
+    padding: 0.42rem 0.62rem;
+    border: 1px solid #bfdbfe;
+    border-radius: 9px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.72rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.detection-object-detail-row td {
+    padding: 0;
+    background: #f8fbff;
+}
+
+.detection-object-detail-row dl {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+}
+
+.detection-object-detail-row dl > div {
+    min-width: 0;
+    padding: 0.75rem;
+    border-right: 1px solid #dbeafe;
+    border-bottom: 1px solid #dbeafe;
+}
+
+.detection-object-detail-row dl > div:nth-child(4n) {
+    border-right: 0;
+}
+
+.detection-object-detail-row dt {
+    color: var(--evaluation-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+}
+
+.detection-object-detail-row dd {
+    margin: 0.28rem 0 0;
+    color: var(--evaluation-ink);
+    font-family: monospace;
+    font-size: 0.74rem;
+    overflow-wrap: anywhere;
 }
 
 .detection-outcome-badge,
@@ -2704,9 +2823,22 @@ button {
     .detection-run-controls,
     .detection-outcome-list,
     .detection-curve-score-grid,
-    .detection-object-toolbar,
+    .detection-object-explorer-toolbar,
     .detection-class-toolbar {
         grid-template-columns: 1fr;
+    }
+
+    .detection-object-explorer-toolbar .detection-object-search {
+        grid-column: auto;
+    }
+
+    .detection-object-detail-row dl {
+        grid-template-columns: 1fr;
+    }
+
+    .detection-object-detail-row dl > div,
+    .detection-object-detail-row dl > div:nth-child(4n) {
+        border-right: 0;
     }
 
     .class-metrics-toolbar.detection-class-toolbar {

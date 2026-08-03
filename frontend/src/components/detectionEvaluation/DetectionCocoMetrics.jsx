@@ -103,7 +103,7 @@ function DetectionCocoMetrics({ evaluation }) {
                 <span className="evaluation-eyebrow">Configuración efectiva</span>
                 <h3>Cómo se han calculado estas métricas</h3>
                 <dl>
-                    <div><dt>Score floor</dt><dd>{supervised.configuration.score_floor}</dd></div>
+                    <div><dt>Confianza mínima evaluada</dt><dd>{supervised.configuration.score_floor}</dd></div>
                     <div><dt>Confianza</dt><dd>≥ {supervised.configuration.confidence_threshold}</dd></div>
                     <div><dt>IoU</dt><dd>≥ {supervised.configuration.iou_threshold}</dd></div>
                     <div><dt>NMS IoU</dt><dd>{supervised.configuration.nms_iou_threshold}</dd></div>
