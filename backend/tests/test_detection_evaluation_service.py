@@ -21,6 +21,33 @@ from services.detection_supervised_evaluation import (
     build_legacy_detection_result,
 )
 
+TEST_DETECTION_EVALUATION_ID = (
+    "detection_evaluation_00000000-0000-4000-8000-000000000001"
+)
+
+
+@pytest.fixture(autouse=True)
+def _stub_detection_evaluation_persistence(monkeypatch):
+    persisted = []
+
+    async def fake_persist(*, response, request, owner_id):
+        assert response.result_id == TEST_DETECTION_EVALUATION_ID
+        assert request.dataset_id == response.dataset_id
+        assert owner_id == "user-1"
+        persisted.append((response, request, owner_id))
+
+    monkeypatch.setattr(
+        detection_evaluation_service,
+        "new_detection_evaluation_id",
+        lambda: TEST_DETECTION_EVALUATION_ID,
+    )
+    monkeypatch.setattr(
+        detection_evaluation_service,
+        "persist_detection_evaluation",
+        fake_persist,
+    )
+    return persisted
+
 
 def _detection(confidence: float) -> Detection:
     return Detection(
@@ -73,13 +100,15 @@ class _FakeDetectionModel:
 @pytest.mark.asyncio
 async def test_detection_evaluation_uses_canonical_deltas_and_legacy_success(
     monkeypatch,
+    _stub_detection_evaluation_persistence,
 ):
     _FakeDetectionModel.legacy_calls.clear()
     dataset = SimpleNamespace(
+        owner_id="user-1",
         images=[
             SimpleNamespace(id="image-1", filename="image-1.png"),
             SimpleNamespace(id="image-2", filename="image-2.png"),
-        ]
+        ],
     )
 
     async def fake_get_dataset(dataset_id: str):
@@ -149,6 +178,7 @@ async def test_detection_evaluation_uses_canonical_deltas_and_legacy_success(
         )
     )
 
+    assert response.result_id == TEST_DETECTION_EVALUATION_ID
     assert response.metrics_schema_version == "1.0"
     assert response.delta_convention == "original_minus_adversarial"
 
@@ -173,6 +203,7 @@ async def test_detection_evaluation_uses_canonical_deltas_and_legacy_success(
         "image-2",
         "adversarial-image-2",
     ]
+    assert len(_stub_detection_evaluation_persistence) == 1
 
 
 class _SupervisedFakeModel:
@@ -275,10 +306,11 @@ async def test_detection_evaluation_integrates_supervised_metrics_once(
     monkeypatch,
 ):
     dataset = SimpleNamespace(
+        owner_id="user-1",
         images=[
             SimpleNamespace(id="reviewed", filename="reviewed.png"),
             SimpleNamespace(id="unreviewed", filename="unreviewed.png"),
-        ]
+        ],
     )
     model = _SupervisedFakeModel()
     resolution_calls = 0
@@ -380,7 +412,8 @@ async def test_detection_evaluation_skips_catalog_and_scientific_inference_witho
     monkeypatch,
 ):
     dataset = SimpleNamespace(
-        images=[SimpleNamespace(id="image-1", filename="image-1.png")]
+        owner_id="user-1",
+        images=[SimpleNamespace(id="image-1", filename="image-1.png")],
     )
     model = _FakeDetectionModel()
     model.legacy_calls = []
@@ -457,7 +490,8 @@ async def test_detection_evaluation_uses_legacy_after_required_resolution_is_una
     monkeypatch,
 ):
     dataset = SimpleNamespace(
-        images=[SimpleNamespace(id="image-1", filename="image-1.png")]
+        owner_id="user-1",
+        images=[SimpleNamespace(id="image-1", filename="image-1.png")],
     )
 
     class _UnavailableAfterCatalogModel(_FakeDetectionModel):
@@ -577,7 +611,8 @@ async def test_allowed_supervised_configuration_does_not_change_legacy_contract(
     configuration,
 ):
     dataset = SimpleNamespace(
-        images=[SimpleNamespace(id="reviewed", filename="reviewed.png")]
+        owner_id="user-1",
+        images=[SimpleNamespace(id="reviewed", filename="reviewed.png")],
     )
     model = _SupervisedFakeModel()
 
@@ -667,7 +702,8 @@ async def test_detection_evaluation_propagates_supervised_geometry_error(
     monkeypatch,
 ):
     dataset = SimpleNamespace(
-        images=[SimpleNamespace(id="reviewed", filename="reviewed.png")]
+        owner_id="user-1",
+        images=[SimpleNamespace(id="reviewed", filename="reviewed.png")],
     )
     model = _SupervisedFakeModel()
 

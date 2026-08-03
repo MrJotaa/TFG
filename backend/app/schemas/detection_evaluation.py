@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from schemas.attack import AttackParameters, AttackType
@@ -6,6 +8,7 @@ from schemas.detection_metrics import (
     DetectionMetricsContract,
     DetectionSupervisedConfiguration,
     DetectionSupervisedMetrics,
+    DetectionSupervisedUnavailableReason,
 )
 
 
@@ -75,12 +78,32 @@ class DetectionEvaluationSummary(BaseModel):
 
 
 class DetectionEvaluationResponse(DetectionMetricsContract):
+    result_id: str
     model_id: str
     model_name: str
     dataset_id: str
+    dataset_revision: int = Field(ge=0)
+    annotation_snapshot_id: str | None = None
     attack_type: AttackType
     parameters: AttackParameters
 
     summary: DetectionEvaluationSummary
     results: list[DetectionEvaluationImageResult]
     supervised: DetectionSupervisedMetrics | None = None
+
+
+class DetectionEvaluationHistoryItem(DetectionMetricsContract):
+    result_id: str
+    dataset_id: str
+    dataset_revision: int = Field(ge=0)
+    annotation_snapshot_id: str | None = None
+    model_id: str
+    model_name: str
+    attack_type: AttackType
+    parameters: AttackParameters
+    supervised_configuration: DetectionSupervisedConfiguration
+    summary: DetectionEvaluationSummary
+    supervised_available: bool
+    supervised_reason: DetectionSupervisedUnavailableReason | None = None
+    created_at: datetime
+    expires_at: datetime

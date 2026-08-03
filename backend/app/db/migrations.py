@@ -1,8 +1,9 @@
-from pymongo import ASCENDING, IndexModel
+from pymongo import ASCENDING, DESCENDING, IndexModel
 
 from db.collections import (
     annotation_categories_collection,
     datasets_collection,
+    detection_evaluations_collection,
     object_annotations_collection,
 )
 
@@ -172,4 +173,30 @@ async def downgrade_coco_annotations_schema(database=None) -> None:
                 ]
             },
         ],
+    )
+
+
+async def upgrade_detection_evaluations_schema(database=None) -> None:
+    """Create the indexes used by temporary detection evaluation history."""
+
+    evaluations = (
+        detection_evaluations_collection
+        if database is None
+        else database["detection_evaluations"]
+    )
+    await evaluations.create_indexes(
+        [
+            IndexModel(
+                [
+                    ("owner_id", ASCENDING),
+                    ("created_at", DESCENDING),
+                ],
+                name="detection_evaluations_by_owner",
+            ),
+            IndexModel(
+                [("expires_at", ASCENDING)],
+                name="detection_evaluations_expiration",
+                expireAfterSeconds=0,
+            ),
+        ]
     )

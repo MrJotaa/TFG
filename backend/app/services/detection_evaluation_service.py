@@ -19,6 +19,10 @@ from services.dataset_service import get_dataset, get_image_from_dataset
 from services.detection_annotation_snapshot import (
     read_detection_annotation_snapshot,
 )
+from services.detection_evaluation_persistence import (
+    new_detection_evaluation_id,
+    persist_detection_evaluation,
+)
 from services.detection_supervised_evaluation import (
     build_detection_supervised_metrics,
     build_legacy_detection_result,
@@ -222,13 +226,22 @@ async def evaluate_detection_dataset(
         configuration=request.supervised_configuration,
     )
 
-    return DetectionEvaluationResponse(
+    response = DetectionEvaluationResponse(
+        result_id=new_detection_evaluation_id(),
         model_id=model.id,
         model_name=model.name,
         dataset_id=request.dataset_id,
+        dataset_revision=annotation_snapshot.dataset_revision,
+        annotation_snapshot_id=annotation_snapshot.snapshot_id,
         attack_type=request.attack_type,
         parameters=request.parameters,
         summary=summary,
         results=image_results,
         supervised=supervised,
     )
+    await persist_detection_evaluation(
+        response=response,
+        request=request,
+        owner_id=dataset.owner_id,
+    )
+    return response

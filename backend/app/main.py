@@ -17,12 +17,16 @@ from api.routes.predict import router as predict_router
 from api.routes.users import router as users_router
 from core.error_handlers import register_error_handlers
 from db.database import get_database
-from db.migrations import upgrade_coco_annotations_schema
+from db.migrations import (
+    upgrade_coco_annotations_schema,
+    upgrade_detection_evaluations_schema,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await upgrade_coco_annotations_schema()
+    await upgrade_detection_evaluations_schema()
     yield
 
 

@@ -17,6 +17,43 @@ def _mock_detection(label: str = "car", confidence: float = 0.91):
     }
 
 
+def _empty_evaluation_response(result_id: str):
+    return {
+        "result_id": result_id,
+        "metrics_schema_version": "1.0",
+        "delta_convention": "original_minus_adversarial",
+        "dataset_id": "dataset-1",
+        "dataset_revision": 0,
+        "annotation_snapshot_id": None,
+        "model_id": "yolov8n",
+        "model_name": "YOLOv8n pretrained",
+        "attack_type": "random_noise",
+        "parameters": {
+            "epsilon": 0.03,
+            "alpha": 0.01,
+            "steps": 10,
+        },
+        "summary": {
+            "total_images": 0,
+            "total_original_detections": 0,
+            "total_adversarial_detections": 0,
+            "detections_difference": 0,
+            "average_original_detections_per_image": 0.0,
+            "average_adversarial_detections_per_image": 0.0,
+            "average_original_confidence": 0.0,
+            "average_adversarial_confidence": 0.0,
+            "average_confidence_difference": 0.0,
+            "images_with_reduced_detections": 0,
+            "images_with_no_adversarial_detections": 0,
+            "attack_success_rate": 0.0,
+            "average_perturbation_linf": 0.0,
+            "average_perturbation_l2": 0.0,
+        },
+        "results": [],
+        "supervised": None,
+    }
+
+
 def test_detect_evaluate_returns_detection_evaluation_response(client, monkeypatch):
     async def fake_evaluate_detection_dataset(request):
         assert request.dataset_id == "dataset-1"
@@ -29,9 +66,12 @@ def test_detect_evaluate_returns_detection_evaluation_response(client, monkeypat
         assert request.supervised_configuration.iou_threshold == 0.5
 
         return {
+            "result_id": ("detection_evaluation_00000000-0000-4000-8000-000000000001"),
             "metrics_schema_version": "1.0",
             "delta_convention": "original_minus_adversarial",
             "dataset_id": "dataset-1",
+            "dataset_revision": 0,
+            "annotation_snapshot_id": None,
             "model_id": "yolov8n",
             "model_name": "YOLOv8n pretrained",
             "attack_type": "yolo_confidence",
@@ -121,6 +161,7 @@ def test_detect_evaluate_returns_detection_evaluation_response(client, monkeypat
     data = response.json()
 
     assert data["dataset_id"] == "dataset-1"
+    assert data["result_id"].startswith("detection_evaluation_")
     assert data["model_id"] == "yolov8n"
     assert data["model_name"] == "YOLOv8n pretrained"
     assert data["attack_type"] == "yolo_confidence"
@@ -151,9 +192,12 @@ def test_detect_evaluate_uses_default_parameters(client, monkeypatch):
         assert request.parameters.steps == 10
 
         return {
+            "result_id": ("detection_evaluation_00000000-0000-4000-8000-000000000002"),
             "metrics_schema_version": "1.0",
             "delta_convention": "original_minus_adversarial",
             "dataset_id": request.dataset_id,
+            "dataset_revision": 0,
+            "annotation_snapshot_id": None,
             "model_id": "yolov8n",
             "model_name": "YOLOv8n pretrained",
             "attack_type": "random_noise",
@@ -341,3 +385,85 @@ def test_detect_evaluate_propagates_dataset_error(client, monkeypatch):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Dataset not found"
+
+
+def test_detection_evaluation_history_requires_authentication(client):
+    response = client.get("/detect/evaluations")
+
+    assert response.status_code == 401
+
+
+def test_detection_evaluation_history_rejects_invalid_pagination(
+    client,
+    auth_headers,
+):
+    response = client.get(
+        "/detect/evaluations?limit=101&offset=-1",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+
+
+def test_detection_evaluation_history_uses_authenticated_owner(
+    client,
+    auth_headers,
+    registered_user,
+    monkeypatch,
+):
+    captured = {}
+
+    async def fake_list_detection_evaluations(*, owner_id, limit, offset):
+        captured.update(owner_id=owner_id, limit=limit, offset=offset)
+        return []
+
+    monkeypatch.setattr(
+        detection_evaluate_route,
+        "list_detection_evaluations",
+        fake_list_detection_evaluations,
+    )
+
+    response = client.get(
+        "/detect/evaluations?limit=17&offset=3",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+    assert captured == {
+        "owner_id": registered_user["user"]["id"],
+        "limit": 17,
+        "offset": 3,
+    }
+
+
+def test_detection_evaluation_detail_uses_authenticated_owner(
+    client,
+    auth_headers,
+    registered_user,
+    monkeypatch,
+):
+    result_id = "detection_evaluation_00000000-0000-4000-8000-000000000010"
+    captured = {}
+
+    async def fake_get_detection_evaluation(*, evaluation_id, owner_id):
+        captured.update(evaluation_id=evaluation_id, owner_id=owner_id)
+        return _empty_evaluation_response(evaluation_id)
+
+    monkeypatch.setattr(
+        detection_evaluate_route,
+        "get_detection_evaluation",
+        fake_get_detection_evaluation,
+    )
+
+    response = client.get(
+        f"/detect/evaluations/{result_id}",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["result_id"] == result_id
+    assert captured == {
+        "evaluation_id": result_id,
+        "owner_id": registered_user["user"]["id"],
+    }
