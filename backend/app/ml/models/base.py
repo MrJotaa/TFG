@@ -201,6 +201,35 @@ class BaseObjectDetectionModel(BaseModel):
 
         return detection_result, annotated_image
 
+    def prepare_detection_attack_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        """
+        Prepara una imagen en geometría fuente para ataques diferenciables.
+
+        El tensor debe tener forma [1, C, H, W], valores en [0, 1] y residir
+        en el mismo dispositivo que el modelo. El preprocesado geométrico
+        específico del detector se aplica dentro del objetivo diferenciable.
+        """
+        raise NotImplementedError(
+            f"Model '{self.id}' does not support differentiable detection attacks"
+        )
+
+    def detection_confidence_objective(
+        self,
+        prepared_input: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Devuelve un objetivo escalar diferenciable de confianza de detección.
+
+        La implementación concreta decide cómo preprocesar el tensor y qué
+        salida interna del detector representa correctamente su confianza.
+        """
+        raise NotImplementedError(
+            f"Model '{self.id}' does not expose a detection confidence objective"
+        )
+
     def get_torch_model(self):
         """
         Devuelve el modelo PyTorch interno si el detector lo expone.

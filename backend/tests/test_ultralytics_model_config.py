@@ -75,6 +75,30 @@ def test_ultralytics_model_config_requires_boolean_end_to_end_mode():
         )
 
 
+@pytest.mark.parametrize("image_size", [0, -1])
+def test_ultralytics_model_config_requires_positive_image_size(image_size):
+    with pytest.raises(ValueError, match="image_size must be greater than zero"):
+        UltralyticsDetectionModelConfig(
+            id="detector-a",
+            name="Detector A",
+            revision="detector-a-revision",
+            weights="detector-a.pt",
+            image_size=image_size,
+        )
+
+
+@pytest.mark.parametrize("image_size", [640.0, True])
+def test_ultralytics_model_config_requires_integer_image_size(image_size):
+    with pytest.raises(TypeError, match="image_size must be an integer"):
+        UltralyticsDetectionModelConfig(
+            id="detector-a",
+            name="Detector A",
+            revision="detector-a-revision",
+            weights="detector-a.pt",
+            image_size=image_size,
+        )
+
+
 def test_ultralytics_model_requires_configured_explainability_layer():
     config = UltralyticsDetectionModelConfig(
         id="detector-a",

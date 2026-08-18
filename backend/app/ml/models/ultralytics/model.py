@@ -1,5 +1,7 @@
 import torch
+import torch.nn.functional as F
 from PIL import Image
+from torchvision.transforms.functional import to_tensor
 
 from ml.detection_categories import DetectionClassCatalog
 from ml.models.base import BaseObjectDetectionModel
@@ -99,11 +101,15 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
             if configuration is None:
                 results = self.model(
                     image,
+                    imgsz=self.config.image_size,
+                    rect=True,
                     end2end=self.config.end_to_end,
                 )
             else:
                 results = self.model(
                     image,
+                    imgsz=self.config.image_size,
+                    rect=True,
                     conf=configuration.score_floor,
                     max_det=configuration.max_detections_per_image,
                     end2end=self.config.end_to_end,
@@ -111,6 +117,163 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
                 )
 
         return results[0]
+
+    def _torch_model_device_and_dtype(self) -> tuple[torch.device, torch.dtype]:
+        torch_model = self.get_torch_model()
+
+        try:
+            parameter = next(torch_model.parameters())
+        except StopIteration:
+            return torch.device("cpu"), torch.float32
+
+        return parameter.device, parameter.dtype
+
+    def prepare_detection_attack_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        if not isinstance(image, Image.Image):
+            raise TypeError("image must be a PIL Image")
+
+        device, dtype = self._torch_model_device_and_dtype()
+        return (
+            to_tensor(image.convert("RGB")).unsqueeze(0).to(device=device, dtype=dtype)
+        )
+
+    def _model_stride(self) -> int:
+        torch_model = self.get_torch_model()
+        stride = getattr(torch_model, "stride", None)
+        if stride is None:
+            raise RuntimeError(
+                f"Ultralytics model '{self.id}' does not expose its detection stride"
+            )
+
+        stride_value = int(torch.as_tensor(stride).max().item())
+        if stride_value <= 0:
+            raise RuntimeError(
+                f"Ultralytics model '{self.id}' exposes an invalid detection stride"
+            )
+
+        return stride_value
+
+    def _differentiable_letterbox(
+        self,
+        tensor: torch.Tensor,
+    ) -> torch.Tensor:
+        if tensor.ndim != 4 or tensor.shape[1] != 3:
+            raise ValueError(
+                "prepared detection attack input must have shape [B, 3, H, W]"
+            )
+
+        source_height, source_width = tensor.shape[-2:]
+        if source_height <= 0 or source_width <= 0:
+            raise ValueError("prepared detection attack input has invalid geometry")
+
+        target_size = self.config.image_size
+        scale = min(
+            target_size / source_height,
+            target_size / source_width,
+        )
+        resized_height = max(1, round(source_height * scale))
+        resized_width = max(1, round(source_width * scale))
+
+        if (resized_height, resized_width) == (source_height, source_width):
+            resized = tensor
+        else:
+            resized = F.interpolate(
+                tensor,
+                size=(resized_height, resized_width),
+                mode="bilinear",
+                align_corners=False,
+            )
+
+        stride = self._model_stride()
+        padding_height = (target_size - resized_height) % stride
+        padding_width = (target_size - resized_width) % stride
+
+        half_height = padding_height / 2
+        half_width = padding_width / 2
+
+        top = round(half_height - 0.1)
+        bottom = round(half_height + 0.1)
+        left = round(half_width - 0.1)
+        right = round(half_width + 0.1)
+
+        if top == bottom == left == right == 0:
+            return resized
+
+        return F.pad(
+            resized,
+            (left, right, top, bottom),
+            value=114 / 255,
+        )
+
+    @staticmethod
+    def _end_to_end_confidence_objective(output) -> torch.Tensor:
+        if (
+            not isinstance(output, (list, tuple))
+            or len(output) < 2
+            or not isinstance(output[1], dict)
+            or not isinstance(output[1].get("one2one"), dict)
+        ):
+            raise ValueError(
+                "Unexpected Ultralytics end-to-end detection output structure"
+            )
+
+        scores = output[1]["one2one"].get("scores")
+        if not isinstance(scores, torch.Tensor) or scores.ndim != 3:
+            raise ValueError("Unexpected Ultralytics one-to-one score tensor structure")
+        if scores.shape[1] <= 0 or scores.shape[2] <= 0:
+            raise ValueError(
+                "Ultralytics one-to-one scores do not contain detection candidates"
+            )
+
+        class_probabilities = scores.sigmoid()
+        candidate_confidences = class_probabilities.amax(dim=1)
+        return candidate_confidences.mean()
+
+    @staticmethod
+    def _normalize_detection_geometry_cache_for_autograd(
+        torch_model: torch.nn.Module,
+    ) -> None:
+        """
+        Convierte a tensores normales los caches geométricos creados en inference mode.
+
+        Ultralytics cachea ``anchors`` y ``strides`` en el head de detección. Si
+        una inferencia pública los creó dentro de ``torch.inference_mode()``, no
+        pueden reutilizarse después en un forward seguido por autograd.
+        """
+        for module in torch_model.modules():
+            anchors = getattr(module, "anchors", None)
+            strides = getattr(module, "strides", None)
+
+            if not isinstance(anchors, torch.Tensor) or not isinstance(
+                strides, torch.Tensor
+            ):
+                continue
+
+            if torch.is_inference(anchors):
+                module.anchors = anchors.clone()
+            if torch.is_inference(strides):
+                module.strides = strides.clone()
+
+    def detection_confidence_objective(
+        self,
+        prepared_input: torch.Tensor,
+    ) -> torch.Tensor:
+        if not self.config.end_to_end:
+            raise NotImplementedError(
+                f"Model '{self.id}' does not use an end-to-end detection head"
+            )
+
+        torch_model = self.get_torch_model()
+        torch_model.eval()
+        self._normalize_detection_geometry_cache_for_autograd(torch_model)
+
+        model_input = self._differentiable_letterbox(prepared_input)
+        output = torch_model.forward(model_input)
+
+        return self._end_to_end_confidence_objective(output)
 
     def _result_to_prediction(
         self,

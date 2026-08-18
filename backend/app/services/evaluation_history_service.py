@@ -21,6 +21,7 @@ from core.errors import (
     NotFoundError,
 )
 from db.collections import datasets_collection, evaluations_collection
+from ml.attacks.registry import get_attack
 from schemas.detection_evaluation import (
     DetectionEvaluationRequest,
     DetectionEvaluationResponse,
@@ -166,6 +167,7 @@ async def begin_evaluation_execution(
                 "model_name": identity["model_name"],
                 "model_revision": identity["model_revision"],
                 "attack_type": identity["attack_type"],
+                "attack_revision": identity.get("attack_revision"),
                 "parameters": identity["parameters"],
                 "supervised_configuration": identity["supervised_configuration"],
                 "retention_seconds": retention_seconds,
@@ -392,6 +394,7 @@ async def _build_identity(
     dataset_revision = int(dataset.get("dataset_revision", 0))
     dataset_fingerprint = _dataset_fingerprint(dataset)
     parameters = request.parameters.model_dump(mode="json")
+    attack_revision = get_attack(request.attack_type).revision
     supervised_configuration = None
     if task_type == "detection":
         configuration = getattr(request, "supervised_configuration", None)
@@ -419,6 +422,9 @@ async def _build_identity(
         "supervised_configuration": supervised_configuration,
         "pipeline_version": pipeline_version,
     }
+    if attack_revision is not None:
+        signature_payload["attack_revision"] = attack_revision
+
     signature = hashlib.sha256(
         json.dumps(
             signature_payload,

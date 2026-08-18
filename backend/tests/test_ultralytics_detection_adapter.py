@@ -306,6 +306,8 @@ def test_ultralytics_evaluation_inference_uses_explicit_scientific_configuration
         (
             source_image,
             {
+                "imgsz": 640,
+                "rect": True,
                 "conf": 0.005,
                 "max_det": 300,
                 "end2end": True,
@@ -315,7 +317,7 @@ def test_ultralytics_evaluation_inference_uses_explicit_scientific_configuration
     ]
 
 
-def test_ultralytics_normal_detection_keeps_provider_defaults():
+def test_ultralytics_normal_detection_uses_configured_provider_geometry():
     source_image = Image.new("RGB", (640, 320))
     native = _native_result([])
     calls = []
@@ -330,7 +332,16 @@ def test_ultralytics_normal_detection_keeps_provider_defaults():
 
     model.detect(source_image)
 
-    assert calls == [(source_image, {"end2end": True})]
+    assert calls == [
+        (
+            source_image,
+            {
+                "imgsz": 640,
+                "rect": True,
+                "end2end": True,
+            },
+        )
+    ]
 
 
 @pytest.mark.asyncio

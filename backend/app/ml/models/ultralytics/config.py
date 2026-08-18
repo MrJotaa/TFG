@@ -20,6 +20,7 @@ class UltralyticsDetectionModelConfig:
     name: str
     revision: str
     weights: str
+    image_size: int = 640
     end_to_end: bool = False
     explainability_target_layer_index: int | None = None
 
@@ -44,6 +45,11 @@ class UltralyticsDetectionModelConfig:
             "weights",
             _normalized_required_text(self.weights, field_name="weights"),
         )
+
+        if isinstance(self.image_size, bool) or not isinstance(self.image_size, int):
+            raise TypeError("image_size must be an integer")
+        if self.image_size <= 0:
+            raise ValueError("image_size must be greater than zero")
 
         if not isinstance(self.end_to_end, bool):
             raise TypeError("end_to_end must be a boolean")
