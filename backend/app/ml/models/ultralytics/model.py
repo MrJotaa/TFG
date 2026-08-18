@@ -29,6 +29,7 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
         self.config = config
         self.id = config.id
         self.name = config.name
+        self.revision = config.revision
         self.model = None
         self._prediction_adapter = UltralyticsDetectionAdapter()
 
@@ -103,6 +104,7 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
                     conf=configuration.score_floor,
                     iou=configuration.nms_iou_threshold,
                     max_det=configuration.max_detections_per_image,
+                    end2end=False,
                     verbose=False,
                 )
 

@@ -25,6 +25,10 @@ def get_active_model() -> ModelInfo:
     return _to_model_info(_model_registry.get_active_model())
 
 
+def get_active_model_revision() -> str:
+    return _model_registry.get_active_model().revision
+
+
 def get_active_model_instance() -> BaseModel:
     instance = _model_registry.get_active_model()
 

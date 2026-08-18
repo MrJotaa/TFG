@@ -111,6 +111,16 @@ class YOLOConfidenceAttack(BaseAdversarialAttack):
         Ultralytics puede devolver tensores, listas o tuplas dependiendo del modo.
         Buscamos el tensor principal de predicción.
         """
+        if (
+            isinstance(output, (list, tuple))
+            and len(output) >= 2
+            and isinstance(output[1], dict)
+            and {"one2many", "one2one"}.issubset(output[1])
+        ):
+            raise NotImplementedError(
+                "YOLO26 end-to-end output is not supported by yolo_confidence yet"
+            )
+
         if isinstance(output, torch.Tensor):
             return output
 
@@ -128,19 +138,18 @@ class YOLOConfidenceAttack(BaseAdversarialAttack):
 
     def _confidence_objective(self, prediction_tensor: torch.Tensor) -> torch.Tensor:
         """
-        YOLOv8 suele devolver predicciones con forma [B, C, N],
-        donde las primeras posiciones corresponden a cajas y el resto a scores
-        de clase.
+        Calcula el objetivo sobre la salida tradicional one-to-many de YOLO.
 
-        Tomamos las puntuaciones de clase y reducimos la media de la máxima
-        puntuación por candidato.
+        Este ataque todavía no interpreta la salida end-to-end de YOLO26. Se
+        rechaza explícitamente para evitar optimizar accidentalmente IDs de clase
+        como si fueran puntuaciones de confianza.
         """
         if prediction_tensor.ndim != 3:
             raise ValueError(
                 f"Unexpected YOLO prediction tensor shape: {prediction_tensor.shape}"
             )
 
-        # Caso habitual YOLOv8: [B, 84, 8400]
+        # Salida tradicional one-to-many: [B, C, N].
         if prediction_tensor.shape[1] > prediction_tensor.shape[2]:
             # Formato alternativo [B, N, C].
             class_scores = prediction_tensor[:, :, 4:]

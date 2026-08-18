@@ -39,7 +39,7 @@ def test_get_models_returns_registered_models(client):
     models = response.json()
     model_ids = {model["id"] for model in models}
 
-    assert model_ids == {"resnet18", "yolov8n"}
+    assert model_ids == {"resnet18", "yolo26n"}
 
     for model in models:
         assert "id" in model
@@ -49,7 +49,7 @@ def test_get_models_returns_registered_models(client):
         assert "task_type" in model
 
     resnet = next(model for model in models if model["id"] == "resnet18")
-    yolo = next(model for model in models if model["id"] == "yolov8n")
+    yolo = next(model for model in models if model["id"] == "yolo26n")
 
     assert resnet["task_type"] == "classification"
     assert yolo["task_type"] == "detection"
@@ -80,14 +80,30 @@ def test_get_active_model_returns_default_active_model(client):
     assert active_model["task_type"] == "classification"
 
 
+def test_model_revisions_are_internal_and_follow_active_model(client):
+    response = client.get("/models/active")
+
+    assert response.status_code == 200
+    assert "revision" not in response.json()
+    assert model_service.get_active_model_revision() == "torchvision-default-v1"
+
+    select_response = client.post("/models/yolo26n/select")
+
+    assert select_response.status_code == 200
+    assert "revision" not in select_response.json()
+    assert (
+        model_service.get_active_model_revision() == "ultralytics-yolo26n-coco-8.4.121"
+    )
+
+
 def test_select_yolo_model_sets_yolo_as_active(client):
-    response = client.post("/models/yolov8n/select")
+    response = client.post("/models/yolo26n/select")
 
     assert response.status_code == 200
 
     selected_model = response.json()
 
-    assert selected_model["id"] == "yolov8n"
+    assert selected_model["id"] == "yolo26n"
     assert selected_model["active"] is True
     assert selected_model["task_type"] == "detection"
 
@@ -97,14 +113,14 @@ def test_select_yolo_model_sets_yolo_as_active(client):
     models = models_response.json()
 
     resnet = next(model for model in models if model["id"] == "resnet18")
-    yolo = next(model for model in models if model["id"] == "yolov8n")
+    yolo = next(model for model in models if model["id"] == "yolo26n")
 
     assert resnet["active"] is False
     assert yolo["active"] is True
 
 
 def test_select_resnet18_model_sets_resnet_as_active(client):
-    yolo_response = client.post("/models/yolov8n/select")
+    yolo_response = client.post("/models/yolo26n/select")
     assert yolo_response.status_code == 200
 
     response = client.post("/models/resnet18/select")
@@ -123,18 +139,18 @@ def test_select_resnet18_model_sets_resnet_as_active(client):
     models = models_response.json()
 
     resnet = next(model for model in models if model["id"] == "resnet18")
-    yolo = next(model for model in models if model["id"] == "yolov8n")
+    yolo = next(model for model in models if model["id"] == "yolo26n")
 
     assert resnet["active"] is True
     assert yolo["active"] is False
 
 
 def test_select_model_loads_selected_model(client):
-    response = client.post("/models/yolov8n/select")
+    response = client.post("/models/yolo26n/select")
 
     assert response.status_code == 200
 
-    yolo_instance = model_service._model_registry.get_model("yolov8n")
+    yolo_instance = model_service._model_registry.get_model("yolo26n")
 
     assert yolo_instance.is_loaded() is True
 
@@ -143,7 +159,7 @@ def test_select_model_unloads_previous_model(client):
     resnet_instance = model_service._model_registry.get_model("resnet18")
     resnet_instance.load()
 
-    response = client.post("/models/yolov8n/select")
+    response = client.post("/models/yolo26n/select")
 
     assert response.status_code == 200
 
@@ -151,7 +167,7 @@ def test_select_model_unloads_previous_model(client):
 
 
 def test_get_active_model_after_selecting_yolo_returns_yolo(client):
-    select_response = client.post("/models/yolov8n/select")
+    select_response = client.post("/models/yolo26n/select")
     assert select_response.status_code == 200
 
     response = client.get("/models/active")
@@ -160,7 +176,7 @@ def test_get_active_model_after_selecting_yolo_returns_yolo(client):
 
     active_model = response.json()
 
-    assert active_model["id"] == "yolov8n"
+    assert active_model["id"] == "yolo26n"
     assert active_model["active"] is True
     assert active_model["task_type"] == "detection"
 

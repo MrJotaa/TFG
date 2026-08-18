@@ -29,9 +29,10 @@ from schemas.explainability import DetectionExplainRequest
 def _build_ultralytics_model() -> UltralyticsDetectionModel:
     return UltralyticsDetectionModel(
         UltralyticsDetectionModelConfig(
-            id="yolov8n",
-            name="YOLOv8n pretrained",
-            weights="yolov8n.pt",
+            id="yolo26n",
+            name="YOLO26n pretrained",
+            revision="ultralytics-yolo26n-coco-8.4.121",
+            weights="yolo26n.pt",
             explainability_target_layer_index=-2,
         )
     )
@@ -307,6 +308,7 @@ def test_ultralytics_evaluation_inference_uses_explicit_scientific_configuration
                 "conf": 0.005,
                 "iou": 0.7,
                 "max_det": 300,
+                "end2end": False,
                 "verbose": False,
             },
         )
@@ -384,8 +386,8 @@ async def test_detection_service_uses_ultralytics_adapter_and_preserves_http_con
 
     assert inference_calls == 1
     assert response.model_dump() == {
-        "model_id": "yolov8n",
-        "model_name": "YOLOv8n pretrained",
+        "model_id": "yolo26n",
+        "model_name": "YOLO26n pretrained",
         "detections": [
             {
                 "label": "car",

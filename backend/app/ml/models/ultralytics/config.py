@@ -18,6 +18,7 @@ class UltralyticsDetectionModelConfig:
 
     id: str
     name: str
+    revision: str
     weights: str
     explainability_target_layer_index: int | None = None
 
@@ -31,6 +32,11 @@ class UltralyticsDetectionModelConfig:
             self,
             "name",
             _normalized_required_text(self.name, field_name="name"),
+        )
+        object.__setattr__(
+            self,
+            "revision",
+            _normalized_required_text(self.revision, field_name="revision"),
         )
         object.__setattr__(
             self,

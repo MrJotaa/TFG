@@ -18,12 +18,14 @@ def test_ultralytics_model_uses_declarative_identity_and_weights(monkeypatch):
     config = UltralyticsDetectionModelConfig(
         id="detector-a",
         name="Detector A",
+        revision="detector-a-revision",
         weights="detector-a.pt",
     )
     model = UltralyticsDetectionModel(config)
 
     assert model.id == "detector-a"
     assert model.name == "Detector A"
+    assert model.revision == "detector-a-revision"
     assert model.task_type == "detection"
     assert model.is_loaded() is False
 
@@ -38,19 +40,22 @@ def test_ultralytics_model_config_normalizes_required_text():
     config = UltralyticsDetectionModelConfig(
         id="  detector-a  ",
         name="  Detector A  ",
+        revision="  detector-a-revision  ",
         weights="  detector-a.pt  ",
     )
 
     assert config.id == "detector-a"
     assert config.name == "Detector A"
+    assert config.revision == "detector-a-revision"
     assert config.weights == "detector-a.pt"
 
 
-@pytest.mark.parametrize("field_name", ["id", "name", "weights"])
+@pytest.mark.parametrize("field_name", ["id", "name", "revision", "weights"])
 def test_ultralytics_model_config_rejects_empty_required_text(field_name):
     values = {
         "id": "detector-a",
         "name": "Detector A",
+        "revision": "detector-a-revision",
         "weights": "detector-a.pt",
     }
     values[field_name] = "   "
@@ -63,6 +68,7 @@ def test_ultralytics_model_requires_configured_explainability_layer():
     config = UltralyticsDetectionModelConfig(
         id="detector-a",
         name="Detector A",
+        revision="detector-a-revision",
         weights="detector-a.pt",
     )
     model = UltralyticsDetectionModel(config)
@@ -82,6 +88,7 @@ def test_ultralytics_model_resolves_configured_explainability_layer():
     config = UltralyticsDetectionModelConfig(
         id="detector-a",
         name="Detector A",
+        revision="detector-a-revision",
         weights="detector-a.pt",
         explainability_target_layer_index=-2,
     )

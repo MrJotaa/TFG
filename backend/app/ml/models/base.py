@@ -21,6 +21,7 @@ class BaseModel(ABC):
 
     id: str
     name: str
+    revision: str
     task_type: str
 
     @abstractmethod

@@ -458,6 +458,21 @@ def test_extract_prediction_tensor_rejects_output_without_tensor():
         )
 
 
+def test_extract_prediction_tensor_rejects_yolo26_end_to_end_output():
+    attack = _create_attack()
+    postprocessed_predictions = torch.zeros(1, 300, 6)
+    raw_predictions = {
+        "one2many": {"scores": torch.zeros(1, 80, 8400)},
+        "one2one": {"scores": torch.zeros(1, 80, 8400)},
+    }
+
+    with pytest.raises(
+        NotImplementedError,
+        match="YOLO26 end-to-end output is not supported",
+    ):
+        attack._extract_prediction_tensor((postprocessed_predictions, raw_predictions))
+
+
 def test_confidence_objective_for_standard_yolo_layout():
     attack = _create_attack()
 

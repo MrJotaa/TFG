@@ -21,9 +21,10 @@ from ml.models.ultralytics.model import UltralyticsDetectionModel
 def _build_ultralytics_model() -> UltralyticsDetectionModel:
     return UltralyticsDetectionModel(
         UltralyticsDetectionModelConfig(
-            id="yolov8n",
-            name="YOLOv8n pretrained",
-            weights="yolov8n.pt",
+            id="yolo26n",
+            name="YOLO26n pretrained",
+            revision="ultralytics-yolo26n-coco-8.4.121",
+            weights="yolo26n.pt",
             explainability_target_layer_index=-2,
         )
     )
@@ -132,7 +133,7 @@ def test_ultralytics_model_gets_catalog_without_running_forward():
     catalog = model.get_detection_class_catalog()
 
     assert forward_calls == 0
-    assert catalog.model_id == "yolov8n"
+    assert catalog.model_id == "yolo26n"
     assert catalog.classes == (
         DetectionClass(class_id=0, name="person"),
         DetectionClass(class_id=2, name="car"),
@@ -161,7 +162,7 @@ def test_ultralytics_model_wraps_missing_names_as_typed_catalog_error():
 
     with pytest.raises(
         UltralyticsClassCatalogError,
-        match=r"could not read.*yolov8n.*YOLOv8n",
+        match=r"could not read.*yolo26n.*YOLO26n",
     ) as captured:
         model.get_detection_class_catalog()
 
@@ -177,7 +178,7 @@ def test_ultralytics_model_wraps_provider_names_error_and_preserves_cause():
 
     with pytest.raises(
         UltralyticsClassCatalogError,
-        match=r"could not read.*yolov8n.*YOLOv8n",
+        match=r"could not read.*yolo26n.*YOLO26n",
     ) as captured:
         model.get_detection_class_catalog()
 

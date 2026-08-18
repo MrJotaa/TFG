@@ -152,8 +152,8 @@ def test_detection_explainability_returns_response(
 
         return {
             "result_id": "detection-explain-result-1",
-            "model_id": "yolov8n",
-            "model_name": "YOLOv8n pretrained",
+            "model_id": "yolo26n",
+            "model_name": "YOLO26n pretrained",
             "explanation_type": "eigencam",
             "explanation_image_url": (
                 "/results/detection-explain-result-1/detection_explanation.png"
@@ -183,8 +183,8 @@ def test_detection_explainability_returns_response(
     data = response.json()
 
     assert data["result_id"] == "detection-explain-result-1"
-    assert data["model_id"] == "yolov8n"
-    assert data["model_name"] == "YOLOv8n pretrained"
+    assert data["model_id"] == "yolo26n"
+    assert data["model_name"] == "YOLO26n pretrained"
     assert data["explanation_type"] == "eigencam"
     assert data["explanation_image_url"] == (
         "/results/detection-explain-result-1/detection_explanation.png"

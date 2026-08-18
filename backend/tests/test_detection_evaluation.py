@@ -25,8 +25,8 @@ def _empty_evaluation_response(result_id: str):
         "dataset_id": "dataset-1",
         "dataset_revision": 0,
         "annotation_snapshot_id": None,
-        "model_id": "yolov8n",
-        "model_name": "YOLOv8n pretrained",
+        "model_id": "yolo26n",
+        "model_name": "YOLO26n pretrained",
         "attack_type": "random_noise",
         "parameters": {
             "epsilon": 0.03,
@@ -74,8 +74,8 @@ def test_detect_evaluate_returns_detection_evaluation_response(
             "dataset_id": "dataset-1",
             "dataset_revision": 0,
             "annotation_snapshot_id": None,
-            "model_id": "yolov8n",
-            "model_name": "YOLOv8n pretrained",
+            "model_id": "yolo26n",
+            "model_name": "YOLO26n pretrained",
             "attack_type": "yolo_confidence",
             "parameters": {
                 "epsilon": 0.05,
@@ -165,8 +165,8 @@ def test_detect_evaluate_returns_detection_evaluation_response(
 
     assert data["dataset_id"] == "dataset-1"
     assert data["result_id"].startswith("detection_evaluation_")
-    assert data["model_id"] == "yolov8n"
-    assert data["model_name"] == "YOLOv8n pretrained"
+    assert data["model_id"] == "yolo26n"
+    assert data["model_name"] == "YOLO26n pretrained"
     assert data["attack_type"] == "yolo_confidence"
     assert data["metrics_schema_version"] == "1.0"
     assert data["delta_convention"] == "original_minus_adversarial"
@@ -201,8 +201,8 @@ def test_detect_evaluate_uses_default_parameters(client, monkeypatch, auth_heade
             "dataset_id": request.dataset_id,
             "dataset_revision": 0,
             "annotation_snapshot_id": None,
-            "model_id": "yolov8n",
-            "model_name": "YOLOv8n pretrained",
+            "model_id": "yolo26n",
+            "model_name": "YOLO26n pretrained",
             "attack_type": "random_noise",
             "parameters": {
                 "epsilon": request.parameters.epsilon,
@@ -268,8 +268,8 @@ def test_detect_evaluate_uses_default_parameters(client, monkeypatch, auth_heade
     data = response.json()
 
     assert data["dataset_id"] == "dataset-1"
-    assert data["model_id"] == "yolov8n"
-    assert data["model_name"] == "YOLOv8n pretrained"
+    assert data["model_id"] == "yolo26n"
+    assert data["model_name"] == "YOLO26n pretrained"
     assert data["attack_type"] == "random_noise"
     assert data["metrics_schema_version"] == "1.0"
     assert data["delta_convention"] == "original_minus_adversarial"
