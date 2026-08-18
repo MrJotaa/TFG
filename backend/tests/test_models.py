@@ -1,5 +1,6 @@
 import pytest
 
+from ml.models.definitions import build_model_registry
 from services import model_service
 
 
@@ -9,9 +10,9 @@ def reset_model_registry(monkeypatch):
     Evita cargar pesos reales durante los tests y deja el registro de modelos
     en un estado conocido antes de cada test.
     """
-    for model_data in model_service._models.values():
-        instance = model_data["instance"]
+    registry = build_model_registry()
 
+    for instance in registry.list_models():
         instance._test_loaded = False
 
         def fake_load(instance=instance):
@@ -27,17 +28,7 @@ def reset_model_registry(monkeypatch):
         monkeypatch.setattr(instance, "unload", fake_unload)
         monkeypatch.setattr(instance, "is_loaded", fake_is_loaded)
 
-        model_data["active"] = False
-
-    model_service._models["resnet18"]["active"] = True
-
-    yield
-
-    for model_data in model_service._models.values():
-        model_data["active"] = False
-        model_data["instance"]._test_loaded = False
-
-    model_service._models["resnet18"]["active"] = True
+    monkeypatch.setattr(model_service, "_model_registry", registry)
 
 
 def test_get_models_returns_registered_models(client):
@@ -143,13 +134,13 @@ def test_select_model_loads_selected_model(client):
 
     assert response.status_code == 200
 
-    yolo_instance = model_service._models["yolov8n"]["instance"]
+    yolo_instance = model_service._model_registry.get_model("yolov8n")
 
     assert yolo_instance.is_loaded() is True
 
 
 def test_select_model_unloads_previous_model(client):
-    resnet_instance = model_service._models["resnet18"]["instance"]
+    resnet_instance = model_service._model_registry.get_model("resnet18")
     resnet_instance.load()
 
     response = client.post("/models/yolov8n/select")
@@ -182,7 +173,7 @@ def test_select_unknown_model_returns_404(client):
 
 
 def test_select_already_active_model_loads_it(client):
-    resnet_instance = model_service._models["resnet18"]["instance"]
+    resnet_instance = model_service._model_registry.get_model("resnet18")
 
     assert resnet_instance.is_loaded() is False
 

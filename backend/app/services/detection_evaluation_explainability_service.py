@@ -74,9 +74,7 @@ async def generate_detection_evaluation_image_eigencam(
             image_id=image_id,
         )
         if original_image.size != adversarial_image.size:
-            raise BadRequestError(
-                "Detection evaluation image geometries do not match"
-            )
+            raise BadRequestError("Detection evaluation image geometries do not match")
 
         original_eigencam = _draw_stored_predictions(
             generate_detection_eigencam(model, original_image),

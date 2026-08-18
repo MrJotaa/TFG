@@ -247,9 +247,7 @@ def evaluate_tide_detections(
             error_type.short_name: int(count)
             for error_type, count in run.count_errors().items()
         }
-        false_negative_count = sum(
-            len(items) for items in run.false_negatives.values()
-        )
+        false_negative_count = sum(len(items) for items in run.false_negatives.values())
     except TideDetectionMetricsError:
         raise
     except Exception as error:

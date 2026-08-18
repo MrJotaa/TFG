@@ -26,9 +26,7 @@ class UserResponse(BaseModel):
     id: str
     name: str
     email: EmailStr
-    result_retention_seconds: ResultRetentionSeconds = (
-        DEFAULT_RESULT_RETENTION_SECONDS
-    )
+    result_retention_seconds: ResultRetentionSeconds = DEFAULT_RESULT_RETENTION_SECONDS
 
 
 class UserDeleteRequest(BaseModel):

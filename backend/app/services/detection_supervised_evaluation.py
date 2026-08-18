@@ -537,9 +537,7 @@ def _tide_analysis(
         adversarial_run.main_errors,
         key=lambda item: item.delta_ap,
     )
-    dominant = (
-        dominant_metric.error_type if dominant_metric.delta_ap > 0.0 else None
-    )
+    dominant = dominant_metric.error_type if dominant_metric.delta_ap > 0.0 else None
     return DetectionTideAnalysis(
         configuration=DetectionTideConfiguration(),
         original=original_run,

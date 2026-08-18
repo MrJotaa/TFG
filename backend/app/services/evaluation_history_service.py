@@ -171,9 +171,7 @@ async def begin_evaluation_execution(
                 "model_revision": identity["model_revision"],
                 "attack_type": identity["attack_type"],
                 "parameters": identity["parameters"],
-                "supervised_configuration": identity[
-                    "supervised_configuration"
-                ],
+                "supervised_configuration": identity["supervised_configuration"],
                 "retention_seconds": retention_seconds,
                 "created_at": created_at,
             }
@@ -462,9 +460,7 @@ def _dataset_fingerprint(dataset: dict) -> str:
                 "width": image.get("width"),
                 "height": image.get("height"),
                 "label": image.get("label"),
-                "annotation_review_status": image.get(
-                    "annotation_review_status"
-                ),
+                "annotation_review_status": image.get("annotation_review_status"),
             }
             for image in dataset.get("images", [])
         ],
@@ -495,9 +491,7 @@ async def _find_compatible_document(*, owner_id: str, signature: str) -> dict | 
         }
     ).sort([("completed_at", -1), ("_id", -1)])
     async for document in cursor:
-        if _artifact_path(
-            document["_id"], _document_task_type(document)
-        ).is_file():
+        if _artifact_path(document["_id"], _document_task_type(document)).is_file():
             return document
     return None
 
@@ -528,9 +522,7 @@ def _history_item(document: dict) -> EvaluationHistoryItem:
         )
         retention_seconds = document.get("retention_seconds")
         if retention_seconds is None and expires_at is not None:
-            retention_seconds = max(
-                0, int((expires_at - created_at).total_seconds())
-            )
+            retention_seconds = max(0, int((expires_at - created_at).total_seconds()))
         task_type = _document_task_type(document)
         exact_reuse_available = bool(
             document.get("status") == "completed"

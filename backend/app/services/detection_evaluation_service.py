@@ -67,9 +67,7 @@ async def evaluate_detection_dataset(
             retention_seconds=retention_seconds,
         )
     result_id = (
-        execution.result_id
-        if execution is not None
-        else new_detection_evaluation_id()
+        execution.result_id if execution is not None else new_detection_evaluation_id()
     )
     completed = False
     try:

@@ -70,9 +70,7 @@ def _evaluate(*, predictions, images=None, ground_truths=None, name="run"):
         images=tuple(images or (_image(),)),
         classes=(_class(0, "person"), _class(1, "car")),
         ground_truths=tuple(
-            ground_truths
-            if ground_truths is not None
-            else (_ground_truth(),)
+            ground_truths if ground_truths is not None else (_ground_truth(),)
         ),
         predictions=tuple(predictions),
         name=name,
@@ -87,9 +85,7 @@ def test_tide_perfect_detection_has_full_ap_and_no_errors():
     analysis = _evaluate(predictions=(_prediction(),))
 
     assert analysis.ap_50 == pytest.approx(100.0)
-    assert tuple(item.code for item in analysis.main_errors) == (
-        TIDE_MAIN_ERROR_ORDER
-    )
+    assert tuple(item.code for item in analysis.main_errors) == (TIDE_MAIN_ERROR_ORDER)
     assert tuple(item.code for item in analysis.special_errors) == (
         TIDE_SPECIAL_ERROR_ORDER
     )

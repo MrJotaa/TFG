@@ -190,9 +190,7 @@ async def _evaluate_dataset(
             result_id=execution.result_id,
         )
     result_retention_seconds = (
-        execution.retention_seconds
-        if execution is not None
-        else RESULTS_TTL_SECONDS
+        execution.retention_seconds if execution is not None else RESULTS_TTL_SECONDS
     )
     dataset_revision = (
         execution.dataset_revision
@@ -620,9 +618,7 @@ async def _evaluate_dataset(
             "result_type": "evaluation",
             "status": "completed",
             "owner_id": (
-                execution.owner_id
-                if execution is not None
-                else str(dataset.owner_id)
+                execution.owner_id if execution is not None else str(dataset.owner_id)
             ),
             "dataset_id": request.dataset_id,
             "dataset_revision": dataset_revision,

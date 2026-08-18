@@ -375,9 +375,7 @@ def test_detect_evaluate_propagates_incompatible_model_error(
     )
 
 
-def test_detect_evaluate_propagates_dataset_error(
-    client, monkeypatch, auth_headers
-):
+def test_detect_evaluate_propagates_dataset_error(client, monkeypatch, auth_headers):
     async def fake_evaluate_detection_dataset(request, **kwargs):
         raise HTTPException(status_code=404, detail="Dataset not found")
 

@@ -1005,11 +1005,7 @@ class DetectionTideAnalysis(DetectionMetricModel):
             self.changes,
             strict=True,
         ):
-            if not (
-                original.error_type
-                == adversarial.error_type
-                == change.error_type
-            ):
+            if not (original.error_type == adversarial.error_type == change.error_type):
                 raise ValueError("TIDE comparison error types must match")
             _require_metric_close(
                 field_name=f"tide.{change.error_type}.impact_change",

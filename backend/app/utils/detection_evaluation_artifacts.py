@@ -112,9 +112,7 @@ def remove_detection_evaluation_visual_artifacts(evaluation_id: str) -> None:
 
 def _load_rgb_image(path: Path) -> Image.Image:
     if not path.is_file():
-        raise GoneError(
-            "Detection evaluation adversarial image is no longer available"
-        )
+        raise GoneError("Detection evaluation adversarial image is no longer available")
     try:
         with Image.open(path) as image:
             return image.copy().convert("RGB")

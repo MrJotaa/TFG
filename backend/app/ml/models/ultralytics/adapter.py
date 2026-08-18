@@ -2,7 +2,6 @@ import math
 from collections.abc import Mapping, Sequence
 
 import torch
-from ultralytics.engine.results import Results
 
 from ml.models.detection import (
     Detection,
@@ -10,6 +9,7 @@ from ml.models.detection import (
     DetectionContractError,
     DetectionResult,
 )
+from ultralytics.engine.results import Results
 
 
 class DetectionAdapterError(DetectionContractError):

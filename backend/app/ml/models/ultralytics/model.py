@@ -1,7 +1,5 @@
 import torch
 from PIL import Image
-from ultralytics import YOLO
-from ultralytics.engine.results import Results
 
 from ml.detection_categories import DetectionClassCatalog
 from ml.models.base import BaseObjectDetectionModel
@@ -9,28 +7,36 @@ from ml.models.detection import DetectionResult
 from ml.models.detection_inference import (
     DetectionEvaluationInferenceConfiguration,
 )
-from ml.models.yolo.adapter import UltralyticsDetectionAdapter
-from ml.models.yolo.catalog import (
+from ml.models.ultralytics.adapter import UltralyticsDetectionAdapter
+from ml.models.ultralytics.catalog import (
     UltralyticsClassCatalogError,
     build_ultralytics_class_catalog,
 )
+from ml.models.ultralytics.config import UltralyticsDetectionModelConfig
+from ultralytics import YOLO
+from ultralytics.engine.results import Results
 
 
-class YOLODetectionModel(BaseObjectDetectionModel):
-    id = "yolov8n"
-    name = "YOLOv8n pretrained"
+class UltralyticsDetectionModel(BaseObjectDetectionModel):
+    """Object detector backed by an Ultralytics model checkpoint."""
+
     task_type = "detection"
 
-    def __init__(self):
+    def __init__(self, config: UltralyticsDetectionModelConfig):
+        if not isinstance(config, UltralyticsDetectionModelConfig):
+            raise TypeError("config must be an UltralyticsDetectionModelConfig")
+
+        self.config = config
+        self.id = config.id
+        self.name = config.name
         self.model = None
-        self.model_path = "yolov8n.pt"
         self._prediction_adapter = UltralyticsDetectionAdapter()
 
     def load(self) -> None:
         if self.model is not None:
             return
 
-        self.model = YOLO(self.model_path)
+        self.model = YOLO(self.config.weights)
 
     def unload(self) -> None:
         self.model = None
@@ -48,9 +54,13 @@ class YOLODetectionModel(BaseObjectDetectionModel):
         if self.model is None:
             self.load()
 
-        # Capa profunda antes del head de detección.
-        # Para YOLOv8n suele ser una buena primera opción para EigenCAM.
-        return self.model.model.model[-2]
+        layer_index = self.config.explainability_target_layer_index
+        if layer_index is None:
+            raise NotImplementedError(
+                f"Model '{self.id}' does not define an explainability target layer"
+            )
+
+        return self.model.model.model[layer_index]
 
     def get_detection_class_catalog(self) -> DetectionClassCatalog:
         if self.model is None:

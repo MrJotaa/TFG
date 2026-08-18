@@ -9,12 +9,24 @@ from ml.detection_categories import (
     DetectionClassCatalog,
     DetectionClassCatalogError,
 )
-from ml.models.yolo.adapter import UltralyticsDetectionAdapter
-from ml.models.yolo.catalog import (
+from ml.models.ultralytics.adapter import UltralyticsDetectionAdapter
+from ml.models.ultralytics.catalog import (
     UltralyticsClassCatalogError,
     build_ultralytics_class_catalog,
 )
-from ml.models.yolo.model import YOLODetectionModel
+from ml.models.ultralytics.config import UltralyticsDetectionModelConfig
+from ml.models.ultralytics.model import UltralyticsDetectionModel
+
+
+def _build_ultralytics_model() -> UltralyticsDetectionModel:
+    return UltralyticsDetectionModel(
+        UltralyticsDetectionModelConfig(
+            id="yolov8n",
+            name="YOLOv8n pretrained",
+            weights="yolov8n.pt",
+            explainability_target_layer_index=-2,
+        )
+    )
 
 
 def _build_catalog(names):
@@ -103,7 +115,7 @@ def test_detection_class_catalog_rejects_empty_catalog():
         _build_catalog({})
 
 
-def test_yolo_model_gets_catalog_without_running_forward():
+def test_ultralytics_model_gets_catalog_without_running_forward():
     forward_calls = 0
 
     class _LoadedYOLO:
@@ -114,7 +126,7 @@ def test_yolo_model_gets_catalog_without_running_forward():
             forward_calls += 1
             raise AssertionError("forward must not run")
 
-    model = YOLODetectionModel()
+    model = _build_ultralytics_model()
     model.model = _LoadedYOLO()
 
     catalog = model.get_detection_class_catalog()
@@ -141,10 +153,10 @@ class _FailingNamesYOLO:
         raise AssertionError("forward must not run")
 
 
-def test_yolo_model_wraps_missing_names_as_typed_catalog_error():
+def test_ultralytics_model_wraps_missing_names_as_typed_catalog_error():
     provider_error = AttributeError("names is unavailable")
     loaded_model = _FailingNamesYOLO(provider_error)
-    model = YOLODetectionModel()
+    model = _build_ultralytics_model()
     model.model = loaded_model
 
     with pytest.raises(
@@ -157,10 +169,10 @@ def test_yolo_model_wraps_missing_names_as_typed_catalog_error():
     assert loaded_model.forward_calls == 0
 
 
-def test_yolo_model_wraps_provider_names_error_and_preserves_cause():
+def test_ultralytics_model_wraps_provider_names_error_and_preserves_cause():
     provider_error = RuntimeError("provider catalog failure")
     loaded_model = _FailingNamesYOLO(provider_error)
-    model = YOLODetectionModel()
+    model = _build_ultralytics_model()
     model.model = loaded_model
 
     with pytest.raises(

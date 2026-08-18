@@ -8,7 +8,7 @@ from ml.detection_categories import (
 
 
 class UltralyticsClassCatalogError(DetectionClassCatalogError):
-    """Indica que ``names`` no representa un catálogo YOLO válido."""
+    """Indica que ``names`` no representa un catálogo Ultralytics válido."""
 
 
 def build_ultralytics_class_catalog(

@@ -50,10 +50,12 @@ def _stub_detection_evaluation_persistence(monkeypatch):
     monkeypatch.setattr(
         detection_evaluation_service,
         "save_detection_evaluation_adversarial_image",
-        lambda **kwargs: saved_adversarial_images.append(kwargs)
-        or (
-            f"/results/{kwargs['evaluation_id']}/"
-            f"{kwargs['image_id']}_adversarial.png"
+        lambda **kwargs: (
+            saved_adversarial_images.append(kwargs)
+            or (
+                f"/results/{kwargs['evaluation_id']}/"
+                f"{kwargs['image_id']}_adversarial.png"
+            )
         ),
     )
     monkeypatch.setattr(
@@ -691,8 +693,7 @@ async def test_allowed_supervised_configuration_does_not_change_legacy_contract(
         "perturbation_linf": 0.03,
         "perturbation_l2": 0.5,
         "adversarial_image_url": (
-            f"/results/{TEST_DETECTION_EVALUATION_ID}/"
-            "reviewed_adversarial.png"
+            f"/results/{TEST_DETECTION_EVALUATION_ID}/reviewed_adversarial.png"
         ),
         "original_detections": [
             {
