@@ -1,29 +1,7 @@
-const ATTACKS = [
-    {
-        id: 'fgsm',
-        name: 'FGSM',
-        description: 'Ataque rápido basado en gradiente',
-        supportedTaskTypes: ['classification'],
-    },
-    {
-        id: 'random_noise',
-        name: 'Random Noise',
-        description: 'Baseline con ruido aleatorio',
-        supportedTaskTypes: ['classification', 'detection'],
-    },
-    {
-        id: 'pgd',
-        name: 'PGD',
-        description: 'Ataque iterativo basado en gradiente',
-        supportedTaskTypes: ['classification'],
-    },
-    {
-        id: 'yolo_confidence',
-        name: 'YOLO Confidence',
-        description: 'Ataque de supresión de confianza para detección',
-        supportedTaskTypes: ['detection'],
-    },
-]
+import {
+    ATTACK_CATALOG,
+    isAttackSupportedForTask,
+} from '../utils/attackCatalog'
 
 function AttackSelector({
     selectedAttack,
@@ -45,8 +23,8 @@ function AttackSelector({
             <div className="sidebar-block-title">Ataques</div>
 
             <div className="sidebar-list">
-                {ATTACKS.map((attack) => {
-                    const isSupported = attack.supportedTaskTypes.includes(activeTaskType)
+                {ATTACK_CATALOG.map((attack) => {
+                    const isSupported = isAttackSupportedForTask(attack.id, activeTaskType)
 
                     return (
                         <button
