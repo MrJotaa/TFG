@@ -27,13 +27,13 @@ import {
     isDetectionEigenCamResponse,
 } from '../utils/detectionEvaluationEigenCamState'
 import { DETECTION_METRIC_GUIDES } from '../utils/evaluationMetricGuides'
+import { isAttackSupportedForTask } from '../utils/attackCatalog'
 
 const ATTACK_NAMES = {
     random_noise: 'Random Noise',
     yolo_confidence: 'YOLO Confidence',
 }
 
-const SUPPORTED_DETECTION_ATTACKS = ['random_noise', 'yolo_confidence']
 const IOU_THRESHOLDS = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
 
 function DetectionEvaluationPanel({
@@ -64,7 +64,10 @@ function DetectionEvaluationPanel({
     const eigenCamRun = useRef(0)
     const seed = attackParameters.seed ?? 0
 
-    const isSupportedAttack = SUPPORTED_DETECTION_ATTACKS.includes(selectedAttack)
+    const isSupportedAttack = isAttackSupportedForTask(
+        selectedAttack,
+        'detection',
+    )
     const isConfigurationValid =
         Number.isFinite(configuration.confidence_threshold) &&
         configuration.confidence_threshold >= 0.001 &&

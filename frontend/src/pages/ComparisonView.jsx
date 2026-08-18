@@ -8,6 +8,7 @@ import { predictImage } from '../api/predict'
 import AdversarialImageExplorer from '../components/visualExplorer/AdversarialImageExplorer'
 import { useExperiment } from '../context/ExperimentContext'
 import { resolveCleanDetectionResult } from '../utils/adversarialExplorer'
+import { isAttackSupportedForTask } from '../utils/attackCatalog'
 import {
     formatAttackParameters,
     getAttackName,
@@ -305,9 +306,7 @@ function ComparisonView() {
 
     const taskType = activeModel?.task_type ?? 'classification'
     const isDetection = taskType === 'detection'
-    const isAttackSupported = isDetection
-        ? ['random_noise', 'yolo_confidence'].includes(selectedAttack)
-        : ['fgsm', 'random_noise', 'pgd'].includes(selectedAttack)
+    const isAttackSupported = isAttackSupportedForTask(selectedAttack, taskType)
     const datasetImages = useMemo(
         () => selectedDataset?.images ?? [],
         [selectedDataset],

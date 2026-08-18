@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getModels, selectModel } from '../api/models'
+import { activateModelInList } from '../utils/modelSelection'
 
 function ModelSelector({ onActiveModelChange }) {
     const [models, setModels] = useState([])
@@ -37,11 +38,7 @@ function ModelSelector({ onActiveModelChange }) {
             const selectedModel = await selectModel(selectedModelId)
 
             setModels((currentModels) =>
-                currentModels.map((model) => ({
-                    ...model,
-                    active: model.id === selectedModel.id,
-                    loaded: model.id === selectedModel.id,
-                })),
+                activateModelInList(currentModels, selectedModel.id),
             )
 
             onActiveModelChange?.({

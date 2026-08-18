@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import DetectionEvaluationPanel from '../components/DetectionEvaluationPanel'
 import EvaluationPanel from '../components/EvaluationPanel'
 import { useExperiment } from '../context/ExperimentContext'
+import { resolveExperimentTaskType } from '../utils/experimentTask'
 import {
     formatAttackParameters,
     getAttackName,
@@ -30,9 +31,11 @@ function EvaluationView() {
         setRecoveredEvaluation,
     } = useExperiment()
 
-    const isDetection = recoveredEvaluation
-        ? recoveredEvaluation.taskType === 'detection'
-        : activeModel?.task_type === 'detection'
+    const taskType = resolveExperimentTaskType({
+        activeModel,
+        recoveredEvaluation,
+    })
+    const isDetection = taskType === 'detection'
     const attackName = getAttackName(selectedAttack)
     const contextPanelId = 'evaluation-context-panel'
 
