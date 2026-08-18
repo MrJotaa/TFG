@@ -16,6 +16,7 @@ from schemas.predict import PredictResponse, TopKPrediction
 class ResNet18Model(BaseImageClassificationModel):
     id = "resnet18"
     name = "ResNet18 pretrained"
+    revision = "torchvision-default-v1"
     task_type = "classification"
 
     input_size = (224, 224)

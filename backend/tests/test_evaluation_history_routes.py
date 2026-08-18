@@ -34,7 +34,9 @@ def test_history_requires_authentication(client):
     assert client.get("/evaluations").status_code == 401
 
 
-def test_history_uses_authenticated_owner(client, auth_headers, registered_user, monkeypatch):
+def test_history_uses_authenticated_owner(
+    client, auth_headers, registered_user, monkeypatch
+):
     captured = {}
 
     async def fake_list(**kwargs):
@@ -75,9 +77,7 @@ def test_compatibility_uses_authenticated_owner(
     assert captured["request"].parameters.seed == 0
 
 
-def test_retention_preference_is_validated_and_returned(
-    client, auth_headers
-):
+def test_retention_preference_is_validated_and_returned(client, auth_headers):
     response = client.patch(
         "/users/me/retention",
         headers=auth_headers,

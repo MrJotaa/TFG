@@ -190,9 +190,7 @@ async def upgrade_detection_evaluations_schema(database=None) -> None:
     # reads and a periodic cascade cleanup, so this becomes a normal index.
     try:
         index_information = await evaluations.index_information()
-        expiration_index = index_information.get(
-            "detection_evaluations_expiration"
-        )
+        expiration_index = index_information.get("detection_evaluations_expiration")
         if expiration_index and "expireAfterSeconds" in expiration_index:
             await evaluations.drop_index("detection_evaluations_expiration")
     except (AttributeError, OperationFailure):

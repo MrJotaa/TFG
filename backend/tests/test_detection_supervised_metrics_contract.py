@@ -17,6 +17,7 @@ from schemas.detection_metrics import (
     DetectionPrecisionRecallCurve,
     DetectionPrecisionRecallPoint,
     DetectionSupervisedConfiguration,
+    DetectionSupervisedEffectiveConfiguration,
     DetectionSupervisedUnavailableReason,
 )
 from services.annotation_importers.base import (
@@ -190,6 +191,26 @@ def test_old_detection_evaluation_request_gets_reproducible_defaults():
 def test_supervised_configuration_rejects_invalid_thresholds(configuration):
     with pytest.raises(ValidationError):
         DetectionSupervisedConfiguration(**configuration)
+
+
+def test_effective_configuration_preserves_legacy_nms_metadata():
+    configuration = DetectionSupervisedEffectiveConfiguration(
+        score_floor=0.001,
+        confidence_threshold=0.25,
+        iou_threshold=0.5,
+        nms_iou_threshold=0.7,
+    )
+
+    assert configuration.inference_mode == "nms"
+    assert configuration.nms_iou_threshold == 0.7
+
+
+def test_effective_configuration_rejects_nms_for_end_to_end_mode():
+    with pytest.raises(ValidationError):
+        DetectionSupervisedEffectiveConfiguration(
+            inference_mode="end_to_end_nms_free",
+            nms_iou_threshold=0.7,
+        )
 
 
 def test_operating_point_contract_accepts_rounded_consistent_metrics():
@@ -569,7 +590,8 @@ def test_available_supervised_metrics_include_partial_coverage_and_deltas():
 
     assert metrics.available is True
     assert metrics.reason is None
-    assert metrics.configuration.nms_iou_threshold == 0.7
+    assert metrics.configuration.inference_mode == "end_to_end_nms_free"
+    assert metrics.configuration.nms_iou_threshold is None
     assert metrics.configuration.max_detections_per_image == 300
     assert (
         metrics.configuration.interactive_output_confidence_comparison

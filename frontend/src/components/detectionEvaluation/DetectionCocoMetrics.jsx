@@ -28,6 +28,8 @@ function OperatingPoint({ title, metrics, tone }) {
 
 function DetectionCocoMetrics({ evaluation }) {
     const supervised = evaluation.supervised
+    const inferenceMode = supervised?.configuration?.inference_mode
+    const usesEndToEndInference = inferenceMode === 'end_to_end_nms_free'
 
     if (!supervised?.available) {
         return (
@@ -105,8 +107,9 @@ function DetectionCocoMetrics({ evaluation }) {
                 <dl>
                     <div><dt>Confianza mínima evaluada</dt><dd>{supervised.configuration.score_floor}</dd></div>
                     <div><dt>Confianza</dt><dd>≥ {supervised.configuration.confidence_threshold}</dd></div>
-                    <div><dt>IoU</dt><dd>≥ {supervised.configuration.iou_threshold}</dd></div>
-                    <div><dt>NMS IoU</dt><dd>{supervised.configuration.nms_iou_threshold}</dd></div>
+                    <div><dt>IoU de matching</dt><dd>≥ {supervised.configuration.iou_threshold}</dd></div>
+                    <div><dt>Inferencia</dt><dd>{usesEndToEndInference ? 'End-to-end (sin NMS)' : 'NMS tradicional'}</dd></div>
+                    <div><dt>NMS</dt><dd>{usesEndToEndInference ? 'No se aplica' : `IoU ${supervised.configuration.nms_iou_threshold}`}</dd></div>
                     <div><dt>Máx. detecciones</dt><dd>{supervised.configuration.max_detections_per_image}</dd></div>
                     <div><dt>Recall COCO</dt><dd>{supervised.configuration.coco_recall_threshold_count} puntos</dd></div>
                 </dl>

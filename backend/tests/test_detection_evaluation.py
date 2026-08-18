@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from fastapi import HTTPException
 
@@ -25,8 +27,8 @@ def _empty_evaluation_response(result_id: str):
         "dataset_id": "dataset-1",
         "dataset_revision": 0,
         "annotation_snapshot_id": None,
-        "model_id": "yolov8n",
-        "model_name": "YOLOv8n pretrained",
+        "model_id": "yolo26n",
+        "model_name": "YOLO26n pretrained",
         "attack_type": "random_noise",
         "parameters": {
             "epsilon": 0.03,
@@ -74,8 +76,8 @@ def test_detect_evaluate_returns_detection_evaluation_response(
             "dataset_id": "dataset-1",
             "dataset_revision": 0,
             "annotation_snapshot_id": None,
-            "model_id": "yolov8n",
-            "model_name": "YOLOv8n pretrained",
+            "model_id": "yolo26n",
+            "model_name": "YOLO26n pretrained",
             "attack_type": "yolo_confidence",
             "parameters": {
                 "epsilon": 0.05,
@@ -165,8 +167,8 @@ def test_detect_evaluate_returns_detection_evaluation_response(
 
     assert data["dataset_id"] == "dataset-1"
     assert data["result_id"].startswith("detection_evaluation_")
-    assert data["model_id"] == "yolov8n"
-    assert data["model_name"] == "YOLOv8n pretrained"
+    assert data["model_id"] == "yolo26n"
+    assert data["model_name"] == "YOLO26n pretrained"
     assert data["attack_type"] == "yolo_confidence"
     assert data["metrics_schema_version"] == "1.0"
     assert data["delta_convention"] == "original_minus_adversarial"
@@ -201,8 +203,8 @@ def test_detect_evaluate_uses_default_parameters(client, monkeypatch, auth_heade
             "dataset_id": request.dataset_id,
             "dataset_revision": 0,
             "annotation_snapshot_id": None,
-            "model_id": "yolov8n",
-            "model_name": "YOLOv8n pretrained",
+            "model_id": "yolo26n",
+            "model_name": "YOLO26n pretrained",
             "attack_type": "random_noise",
             "parameters": {
                 "epsilon": request.parameters.epsilon,
@@ -268,8 +270,8 @@ def test_detect_evaluate_uses_default_parameters(client, monkeypatch, auth_heade
     data = response.json()
 
     assert data["dataset_id"] == "dataset-1"
-    assert data["model_id"] == "yolov8n"
-    assert data["model_name"] == "YOLOv8n pretrained"
+    assert data["model_id"] == "yolo26n"
+    assert data["model_name"] == "YOLO26n pretrained"
     assert data["attack_type"] == "random_noise"
     assert data["metrics_schema_version"] == "1.0"
     assert data["delta_convention"] == "original_minus_adversarial"
@@ -375,9 +377,7 @@ def test_detect_evaluate_propagates_incompatible_model_error(
     )
 
 
-def test_detect_evaluate_propagates_dataset_error(
-    client, monkeypatch, auth_headers
-):
+def test_detect_evaluate_propagates_dataset_error(client, monkeypatch, auth_headers):
     async def fake_evaluate_detection_dataset(request, **kwargs):
         raise HTTPException(status_code=404, detail="Dataset not found")
 
@@ -523,3 +523,66 @@ def test_detection_evaluation_eigencam_uses_authenticated_owner(
         "image_id": "image-1",
         "current_user_id": registered_user["user"]["id"],
     }
+
+
+def test_detect_evaluate_stream_emits_progress_and_final_result(
+    client,
+    monkeypatch,
+    auth_headers,
+):
+    from schemas.detection_evaluation import (
+        DetectionEvaluationResponse,
+        DetectionEvaluationSummary,
+    )
+    from services.evaluation_progress import EvaluationProgress
+
+    async def fake_evaluate_detection_dataset(request, **kwargs):
+        report = kwargs["progress_callback"]
+        report(EvaluationProgress(processed=0, total=1))
+        report(EvaluationProgress(processed=1, total=1, phase="metrics"))
+        return DetectionEvaluationResponse(
+            result_id=("detection_evaluation_00000000-0000-4000-8000-000000000099"),
+            model_id="yolo26n",
+            model_name="YOLO26n pretrained",
+            dataset_id=request.dataset_id,
+            dataset_revision=0,
+            attack_type=request.attack_type,
+            parameters=request.parameters,
+            summary=DetectionEvaluationSummary(
+                total_images=0,
+                total_original_detections=0,
+                total_adversarial_detections=0,
+                detections_difference=0,
+                average_original_detections_per_image=0.0,
+                average_adversarial_detections_per_image=0.0,
+                average_original_confidence=0.0,
+                average_adversarial_confidence=0.0,
+                average_confidence_difference=0.0,
+                images_with_reduced_detections=0,
+                images_with_no_adversarial_detections=0,
+                attack_success_rate=0.0,
+                average_perturbation_linf=0.0,
+                average_perturbation_l2=0.0,
+            ),
+            results=[],
+        )
+
+    monkeypatch.setattr(
+        detection_evaluate_route,
+        "evaluate_detection_dataset",
+        fake_evaluate_detection_dataset,
+    )
+
+    response = client.post(
+        "/detect/evaluate/stream",
+        headers=auth_headers,
+        json={"dataset_id": "dataset-1", "attack_type": "random_noise"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+    events = [json.loads(line) for line in response.text.splitlines()]
+    assert [event["type"] for event in events] == ["progress", "progress", "result"]
+    assert events[0]["processed"] == 0
+    assert events[1]["phase"] == "metrics"
+    assert events[2]["data"]["model_id"] == "yolo26n"

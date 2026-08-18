@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from ultralytics.engine.results import Results
 
-import ml.models.yolo.adapter as yolo_adapter
+import ml.models.ultralytics.adapter as ultralytics_adapter
 import services.detection_attack_service as detection_attack_service
 import services.detection_service as detection_service
 import services.explainability_service as explainability_service
@@ -14,15 +14,29 @@ from ml.models.detection import Detection, DetectionBox, DetectionResult
 from ml.models.detection_inference import (
     DetectionEvaluationInferenceConfiguration,
 )
-from ml.models.yolo.adapter import (
+from ml.models.ultralytics.adapter import (
     DetectionAdapterError,
     UltralyticsDetectionAdapter,
 )
-from ml.models.yolo.model import YOLODetectionModel
+from ml.models.ultralytics.config import UltralyticsDetectionModelConfig
+from ml.models.ultralytics.model import UltralyticsDetectionModel
 from schemas.attack import AttackType
 from schemas.detection import DetectionRequest
 from schemas.detection_attack import DetectionAttackRequest
 from schemas.explainability import DetectionExplainRequest
+
+
+def _build_ultralytics_model() -> UltralyticsDetectionModel:
+    return UltralyticsDetectionModel(
+        UltralyticsDetectionModelConfig(
+            id="yolo26n",
+            name="YOLO26n pretrained",
+            revision="ultralytics-yolo26n-coco-8.4.121",
+            weights="yolo26n.pt",
+            end_to_end=True,
+            explainability_target_layer_indices=(-2,),
+        )
+    )
 
 
 def _native_result(
@@ -252,7 +266,7 @@ def test_ultralytics_adapter_converts_native_rows_once_per_result(monkeypatch):
     def tracked_cat(tensors, *, dim):
         return _TensorConversionSpy(original_cat(tensors, dim=dim))
 
-    monkeypatch.setattr(yolo_adapter.torch, "cat", tracked_cat)
+    monkeypatch.setattr(ultralytics_adapter.torch, "cat", tracked_cat)
 
     result = UltralyticsDetectionAdapter().adapt(
         _native_result(
@@ -269,7 +283,7 @@ def test_ultralytics_adapter_converts_native_rows_once_per_result(monkeypatch):
     assert conversions == {"to_cpu": 1, "to_list": 1}
 
 
-def test_yolo_evaluation_inference_uses_explicit_scientific_configuration():
+def test_ultralytics_evaluation_inference_uses_explicit_scientific_configuration():
     source_image = Image.new("RGB", (640, 320))
     native = _native_result([])
     calls = []
@@ -279,7 +293,7 @@ def test_yolo_evaluation_inference_uses_explicit_scientific_configuration():
             calls.append((image, kwargs))
             return [native]
 
-    model = YOLODetectionModel()
+    model = _build_ultralytics_model()
     model.model = _LoadedModel()
     configuration = DetectionEvaluationInferenceConfiguration(
         score_floor=0.005,
@@ -292,16 +306,18 @@ def test_yolo_evaluation_inference_uses_explicit_scientific_configuration():
         (
             source_image,
             {
+                "imgsz": 640,
+                "rect": True,
                 "conf": 0.005,
-                "iou": 0.7,
                 "max_det": 300,
+                "end2end": True,
                 "verbose": False,
             },
         )
     ]
 
 
-def test_yolo_normal_detection_keeps_provider_defaults():
+def test_ultralytics_normal_detection_uses_configured_provider_geometry():
     source_image = Image.new("RGB", (640, 320))
     native = _native_result([])
     calls = []
@@ -311,22 +327,31 @@ def test_yolo_normal_detection_keeps_provider_defaults():
             calls.append((image, kwargs))
             return [native]
 
-    model = YOLODetectionModel()
+    model = _build_ultralytics_model()
     model.model = _LoadedModel()
 
     model.detect(source_image)
 
-    assert calls == [(source_image, {})]
+    assert calls == [
+        (
+            source_image,
+            {
+                "imgsz": 640,
+                "rect": True,
+                "end2end": True,
+            },
+        )
+    ]
 
 
 @pytest.mark.asyncio
-async def test_detection_service_uses_yolo_adapter_and_preserves_http_contract(
+async def test_detection_service_uses_ultralytics_adapter_and_preserves_http_contract(
     monkeypatch,
 ):
     source_image = Image.new("RGB", (640, 320))
     native = _native_result([[10.126, 20.234, 100.875, 200.556, 0.91234567, 2.0]])
     native.plot = lambda: np.zeros((320, 640, 3), dtype=np.uint8)
-    model = YOLODetectionModel()
+    model = _build_ultralytics_model()
     inference_calls = 0
 
     def fake_run_inference(image):
@@ -372,8 +397,8 @@ async def test_detection_service_uses_yolo_adapter_and_preserves_http_contract(
 
     assert inference_calls == 1
     assert response.model_dump() == {
-        "model_id": "yolov8n",
-        "model_name": "YOLOv8n pretrained",
+        "model_id": "yolo26n",
+        "model_name": "YOLO26n pretrained",
         "detections": [
             {
                 "label": "car",

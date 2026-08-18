@@ -21,6 +21,7 @@ class BaseModel(ABC):
 
     id: str
     name: str
+    revision: str
     task_type: str
 
     @abstractmethod
@@ -200,16 +201,62 @@ class BaseObjectDetectionModel(BaseModel):
 
         return detection_result, annotated_image
 
+    def prepare_detection_attack_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        """
+        Prepara una imagen en geometría fuente para ataques diferenciables.
+
+        El tensor debe tener forma [1, C, H, W], valores en [0, 1] y residir
+        en el mismo dispositivo que el modelo. El preprocesado geométrico
+        específico del detector se aplica dentro del objetivo diferenciable.
+        """
+        raise NotImplementedError(
+            f"Model '{self.id}' does not support differentiable detection attacks"
+        )
+
+    def detection_confidence_objective(
+        self,
+        prepared_input: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Devuelve un objetivo escalar diferenciable de confianza de detección.
+
+        La implementación concreta decide cómo preprocesar el tensor y qué
+        salida interna del detector representa correctamente su confianza.
+        """
+        raise NotImplementedError(
+            f"Model '{self.id}' does not expose a detection confidence objective"
+        )
+
     def get_torch_model(self):
         """
         Devuelve el modelo PyTorch interno si el detector lo expone.
         """
         raise NotImplementedError(f"Model '{self.id}' does not expose a torch model")
 
-    def get_explainability_target_layer(self):
-        """
-        Devuelve la capa objetivo para técnicas CAM.
-        """
+    def prepare_detection_explainability_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        """Prepara la entrada científica utilizada por explainability de detección."""
         raise NotImplementedError(
-            f"Model '{self.id}' does not define an explainability target layer"
+            f"Model '{self.id}' does not support detection explainability input"
+        )
+
+    def project_detection_explainability_map(
+        self,
+        normalized_cam,
+        source_image: Image.Image,
+    ):
+        """Proyecta un CAM desde geometría de modelo a geometría fuente."""
+        raise NotImplementedError(
+            f"Model '{self.id}' does not support detection CAM projection"
+        )
+
+    def get_explainability_target_layers(self):
+        """Devuelve las capas objetivo para técnicas CAM de detección."""
+        raise NotImplementedError(
+            f"Model '{self.id}' does not define explainability target layers"
         )

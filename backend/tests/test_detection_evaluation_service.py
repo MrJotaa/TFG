@@ -50,10 +50,12 @@ def _stub_detection_evaluation_persistence(monkeypatch):
     monkeypatch.setattr(
         detection_evaluation_service,
         "save_detection_evaluation_adversarial_image",
-        lambda **kwargs: saved_adversarial_images.append(kwargs)
-        or (
-            f"/results/{kwargs['evaluation_id']}/"
-            f"{kwargs['image_id']}_adversarial.png"
+        lambda **kwargs: (
+            saved_adversarial_images.append(kwargs)
+            or (
+                f"/results/{kwargs['evaluation_id']}/"
+                f"{kwargs['image_id']}_adversarial.png"
+            )
         ),
     )
     monkeypatch.setattr(
@@ -186,11 +188,13 @@ async def test_detection_evaluation_uses_canonical_deltas_and_legacy_success(
         lambda attack_type: _FakeAttack(),
     )
 
+    progress_events = []
     response = await detection_evaluation_service.evaluate_detection_dataset(
         DetectionEvaluationRequest(
             dataset_id="dataset-1",
             attack_type=AttackType.RANDOM_NOISE,
-        )
+        ),
+        progress_callback=progress_events.append,
     )
 
     assert response.result_id == TEST_DETECTION_EVALUATION_ID
@@ -219,6 +223,14 @@ async def test_detection_evaluation_uses_canonical_deltas_and_legacy_success(
         "adversarial-image-2",
     ]
     assert len(_stub_detection_evaluation_persistence) == 1
+    assert [
+        (event.processed, event.total, event.phase) for event in progress_events
+    ] == [
+        (0, 2, "images"),
+        (1, 2, "images"),
+        (2, 2, "images"),
+        (2, 2, "metrics"),
+    ]
 
 
 class _SupervisedFakeModel:
@@ -402,7 +414,6 @@ async def test_detection_evaluation_integrates_supervised_metrics_once(
         for _image, configuration in model.detection_calls
     )
     configuration = model.detection_calls[0][1]
-    assert configuration.nms_iou_threshold == 0.7
     assert configuration.max_detections_per_image == 300
 
 
@@ -691,8 +702,7 @@ async def test_allowed_supervised_configuration_does_not_change_legacy_contract(
         "perturbation_linf": 0.03,
         "perturbation_l2": 0.5,
         "adversarial_image_url": (
-            f"/results/{TEST_DETECTION_EVALUATION_ID}/"
-            "reviewed_adversarial.png"
+            f"/results/{TEST_DETECTION_EVALUATION_ID}/reviewed_adversarial.png"
         ),
         "original_detections": [
             {

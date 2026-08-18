@@ -21,6 +21,7 @@ from core.errors import (
     NotFoundError,
 )
 from db.collections import datasets_collection, evaluations_collection
+from ml.attacks.registry import get_attack
 from schemas.detection_evaluation import (
     DetectionEvaluationRequest,
     DetectionEvaluationResponse,
@@ -34,7 +35,7 @@ from schemas.evaluation_history import (
     EvaluationTaskType,
     StoredEvaluationResponse,
 )
-from services.model_service import get_active_model
+from services.model_service import get_active_model, get_active_model_revision
 from utils.detection_evaluation_artifacts import (
     remove_detection_evaluation_visual_artifacts,
 )
@@ -44,11 +45,7 @@ logger = logging.getLogger(__name__)
 
 EVALUATION_STORAGE_SCHEMA_VERSION = 2
 CLASSIFICATION_PIPELINE_VERSION = "classification-evaluation-v2"
-DETECTION_PIPELINE_VERSION = "detection-evaluation-v2-tide1"
-MODEL_REVISIONS = {
-    "resnet18": "torchvision-default-v1",
-    "yolov8n": "ultralytics-pretrained-v1",
-}
+DETECTION_PIPELINE_VERSION = "detection-evaluation-v3-yolo26-end2end-tide1"
 CLASSIFICATION_ARTIFACT_FILENAME = "evaluation.json"
 DETECTION_ARTIFACT_FILENAME = "evaluation.json"
 DETECTION_EVALUATIONS_BASE_PATH = Path(
@@ -170,10 +167,9 @@ async def begin_evaluation_execution(
                 "model_name": identity["model_name"],
                 "model_revision": identity["model_revision"],
                 "attack_type": identity["attack_type"],
+                "attack_revision": identity.get("attack_revision"),
                 "parameters": identity["parameters"],
-                "supervised_configuration": identity[
-                    "supervised_configuration"
-                ],
+                "supervised_configuration": identity["supervised_configuration"],
                 "retention_seconds": retention_seconds,
                 "created_at": created_at,
             }
@@ -398,6 +394,7 @@ async def _build_identity(
     dataset_revision = int(dataset.get("dataset_revision", 0))
     dataset_fingerprint = _dataset_fingerprint(dataset)
     parameters = request.parameters.model_dump(mode="json")
+    attack_revision = get_attack(request.attack_type).revision
     supervised_configuration = None
     if task_type == "detection":
         configuration = getattr(request, "supervised_configuration", None)
@@ -406,7 +403,7 @@ async def _build_identity(
 
             configuration = DetectionSupervisedConfiguration()
         supervised_configuration = configuration.model_dump(mode="json")
-    model_revision = MODEL_REVISIONS.get(model.id, "unversioned-v1")
+    model_revision = get_active_model_revision()
     pipeline_version = (
         CLASSIFICATION_PIPELINE_VERSION
         if task_type == "classification"
@@ -425,6 +422,9 @@ async def _build_identity(
         "supervised_configuration": supervised_configuration,
         "pipeline_version": pipeline_version,
     }
+    if attack_revision is not None:
+        signature_payload["attack_revision"] = attack_revision
+
     signature = hashlib.sha256(
         json.dumps(
             signature_payload,
@@ -462,9 +462,7 @@ def _dataset_fingerprint(dataset: dict) -> str:
                 "width": image.get("width"),
                 "height": image.get("height"),
                 "label": image.get("label"),
-                "annotation_review_status": image.get(
-                    "annotation_review_status"
-                ),
+                "annotation_review_status": image.get("annotation_review_status"),
             }
             for image in dataset.get("images", [])
         ],
@@ -495,9 +493,7 @@ async def _find_compatible_document(*, owner_id: str, signature: str) -> dict | 
         }
     ).sort([("completed_at", -1), ("_id", -1)])
     async for document in cursor:
-        if _artifact_path(
-            document["_id"], _document_task_type(document)
-        ).is_file():
+        if _artifact_path(document["_id"], _document_task_type(document)).is_file():
             return document
     return None
 
@@ -528,9 +524,7 @@ def _history_item(document: dict) -> EvaluationHistoryItem:
         )
         retention_seconds = document.get("retention_seconds")
         if retention_seconds is None and expires_at is not None:
-            retention_seconds = max(
-                0, int((expires_at - created_at).total_seconds())
-            )
+            retention_seconds = max(0, int((expires_at - created_at).total_seconds()))
         task_type = _document_task_type(document)
         exact_reuse_available = bool(
             document.get("status") == "completed"

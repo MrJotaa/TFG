@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 from numbers import Real
 
 LEGACY_DETECTION_CONFIDENCE_THRESHOLD = 0.25
-DETECTION_EVALUATION_NMS_IOU_THRESHOLD = 0.7
 DETECTION_EVALUATION_MAX_DETECTIONS_PER_IMAGE = 300
 
 
@@ -29,10 +28,6 @@ class DetectionEvaluationInferenceConfiguration:
     """Configuración explícita usada para obtener el ranking de detecciones."""
 
     score_floor: float = 0.001
-    nms_iou_threshold: float = field(
-        default=DETECTION_EVALUATION_NMS_IOU_THRESHOLD,
-        init=False,
-    )
     max_detections_per_image: int = field(
         default=DETECTION_EVALUATION_MAX_DETECTIONS_PER_IMAGE,
         init=False,

@@ -1,3 +1,5 @@
+import json
+
 from fastapi import HTTPException
 
 import api.routes.evaluate as evaluate_route
@@ -244,3 +246,53 @@ def test_evaluate_propagates_service_error(client, monkeypatch, auth_headers):
 
     assert response.status_code == 400
     assert "classification models only" in response.json()["detail"]
+
+
+def test_evaluate_stream_emits_progress_and_final_result(
+    client,
+    monkeypatch,
+    auth_headers,
+):
+    from schemas.evaluation import EvaluationResponse, EvaluationSummary
+    from services.evaluation_progress import EvaluationProgress
+
+    async def fake_evaluate_dataset(request, **kwargs):
+        report = kwargs["progress_callback"]
+        report(EvaluationProgress(processed=0, total=1))
+        report(EvaluationProgress(processed=1, total=1, phase="metrics"))
+        return EvaluationResponse(
+            result_id="evaluation-stream-1",
+            dataset_id=request.dataset_id,
+            model_id="resnet18",
+            model_name="ResNet18 pretrained",
+            attack_type=request.attack_type,
+            parameters=request.parameters,
+            summary=EvaluationSummary(
+                total_images=0,
+                changed_predictions=0,
+                unchanged_predictions=0,
+                attack_success_rate=0.0,
+                average_original_confidence=0.0,
+                average_adversarial_confidence=0.0,
+                average_confidence_difference=0.0,
+                average_perturbation_linf=0.0,
+                average_perturbation_l2=0.0,
+            ),
+            results=[],
+        )
+
+    monkeypatch.setattr(evaluate_route, "evaluate_dataset", fake_evaluate_dataset)
+
+    response = client.post(
+        "/evaluate/stream",
+        headers=auth_headers,
+        json={"dataset_id": "dataset-1", "attack_type": "fgsm"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+    events = [json.loads(line) for line in response.text.splitlines()]
+    assert [event["type"] for event in events] == ["progress", "progress", "result"]
+    assert events[0]["processed"] == 0
+    assert events[1]["phase"] == "metrics"
+    assert events[2]["data"]["result_id"] == "evaluation-stream-1"

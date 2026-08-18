@@ -9,6 +9,8 @@ from PIL import Image
 from core.errors import BadRequestError, GoneError
 from utils.result_files import RESULTS_BASE_PATH
 
+DETECTION_EIGENCAM_PIPELINE_VERSION = "detection-eigencam-v2-yolo26-p3-p5-rect"
+
 
 def detection_evaluation_image_artifact_filenames(
     evaluation_id: str,
@@ -16,10 +18,17 @@ def detection_evaluation_image_artifact_filenames(
 ) -> dict[str, str]:
     identity = f"{evaluation_id}\0{image_id}".encode("utf-8")
     artifact_key = hashlib.sha256(identity).hexdigest()
+    eigencam_revision = hashlib.sha256(
+        DETECTION_EIGENCAM_PIPELINE_VERSION.encode("utf-8")
+    ).hexdigest()[:12]
     return {
         "adversarial_source": f"{artifact_key}_adversarial.png",
-        "original_eigencam": f"{artifact_key}_original_eigencam.png",
-        "adversarial_eigencam": f"{artifact_key}_adversarial_eigencam.png",
+        "original_eigencam": (
+            f"{artifact_key}_{eigencam_revision}_original_eigencam.png"
+        ),
+        "adversarial_eigencam": (
+            f"{artifact_key}_{eigencam_revision}_adversarial_eigencam.png"
+        ),
     }
 
 
@@ -112,9 +121,7 @@ def remove_detection_evaluation_visual_artifacts(evaluation_id: str) -> None:
 
 def _load_rgb_image(path: Path) -> Image.Image:
     if not path.is_file():
-        raise GoneError(
-            "Detection evaluation adversarial image is no longer available"
-        )
+        raise GoneError("Detection evaluation adversarial image is no longer available")
     try:
         with Image.open(path) as image:
             return image.copy().convert("RGB")

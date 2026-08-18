@@ -13,6 +13,7 @@ import EvaluationCurves from './evaluation/EvaluationCurves'
 import EvaluationImages from './evaluation/EvaluationImages'
 import EvaluationMetricGuide from './evaluation/EvaluationMetricGuide'
 import EvaluationOverview from './evaluation/EvaluationOverview'
+import EvaluationProgress from './evaluation/EvaluationProgress'
 import EvaluationTabs from './evaluation/EvaluationTabs'
 import CompatibleEvaluationNotice from './evaluation/CompatibleEvaluationNotice'
 import {
@@ -47,6 +48,7 @@ function EvaluationPanel({
     const [evaluationState, setEvaluationState] = useState(null)
     const [activeTab, setActiveTab] = useState('overview')
     const [loading, setLoading] = useState(false)
+    const [progress, setProgress] = useState(null)
     const [errorState, setErrorState] = useState(null)
     const [reuseCandidate, setReuseCandidate] = useState(null)
     const [gradCamStates, dispatchGradCam] = useReducer(
@@ -90,6 +92,7 @@ function EvaluationPanel({
 
     async function runEvaluation(forceRecompute) {
         setReuseCandidate(null)
+        setProgress(null)
         gradCamRun.current += 1
         gradCamRequests.current.clear()
         dispatchGradCam({ type: 'reset' })
@@ -101,6 +104,7 @@ function EvaluationPanel({
             steps,
             seed,
             forceRecompute,
+            onProgress: setProgress,
         })
         onStartNewEvaluation()
         setEvaluationState({ contextKey, data: result })
@@ -137,6 +141,7 @@ function EvaluationPanel({
             setErrorState({ contextKey, message: err.message })
         } finally {
             setLoading(false)
+            setProgress(null)
         }
     }
 
@@ -156,6 +161,7 @@ function EvaluationPanel({
             setErrorState({ contextKey, message: err.message })
         } finally {
             setLoading(false)
+            setProgress(null)
         }
     }
 
@@ -168,6 +174,7 @@ function EvaluationPanel({
             setErrorState({ contextKey, message: err.message })
         } finally {
             setLoading(false)
+            setProgress(null)
         }
     }
 
@@ -286,16 +293,11 @@ function EvaluationPanel({
             )}
 
             {loading && (
-                <section className="evaluation-loading-card" role="status" aria-live="polite">
-                    <div className="evaluation-loader" aria-hidden="true" />
-                    <div>
-                        <strong>Evaluando imágenes y calculando métricas</strong>
-                        <p>
-                            El tiempo depende del número de imágenes, el ataque y el modelo
-                            activo.
-                        </p>
-                    </div>
-                </section>
+                <EvaluationProgress
+                    progress={progress}
+                    title="Evaluando imágenes y calculando métricas"
+                    pendingMessage="Preparando la evaluación del dataset..."
+                />
             )}
 
             {evaluation && !loading && (

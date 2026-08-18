@@ -9,12 +9,25 @@ from ml.detection_categories import (
     DetectionClassCatalog,
     DetectionClassCatalogError,
 )
-from ml.models.yolo.adapter import UltralyticsDetectionAdapter
-from ml.models.yolo.catalog import (
+from ml.models.ultralytics.adapter import UltralyticsDetectionAdapter
+from ml.models.ultralytics.catalog import (
     UltralyticsClassCatalogError,
     build_ultralytics_class_catalog,
 )
-from ml.models.yolo.model import YOLODetectionModel
+from ml.models.ultralytics.config import UltralyticsDetectionModelConfig
+from ml.models.ultralytics.model import UltralyticsDetectionModel
+
+
+def _build_ultralytics_model() -> UltralyticsDetectionModel:
+    return UltralyticsDetectionModel(
+        UltralyticsDetectionModelConfig(
+            id="yolo26n",
+            name="YOLO26n pretrained",
+            revision="ultralytics-yolo26n-coco-8.4.121",
+            weights="yolo26n.pt",
+            explainability_target_layer_indices=(-2,),
+        )
+    )
 
 
 def _build_catalog(names):
@@ -103,7 +116,7 @@ def test_detection_class_catalog_rejects_empty_catalog():
         _build_catalog({})
 
 
-def test_yolo_model_gets_catalog_without_running_forward():
+def test_ultralytics_model_gets_catalog_without_running_forward():
     forward_calls = 0
 
     class _LoadedYOLO:
@@ -114,13 +127,13 @@ def test_yolo_model_gets_catalog_without_running_forward():
             forward_calls += 1
             raise AssertionError("forward must not run")
 
-    model = YOLODetectionModel()
+    model = _build_ultralytics_model()
     model.model = _LoadedYOLO()
 
     catalog = model.get_detection_class_catalog()
 
     assert forward_calls == 0
-    assert catalog.model_id == "yolov8n"
+    assert catalog.model_id == "yolo26n"
     assert catalog.classes == (
         DetectionClass(class_id=0, name="person"),
         DetectionClass(class_id=2, name="car"),
@@ -141,15 +154,15 @@ class _FailingNamesYOLO:
         raise AssertionError("forward must not run")
 
 
-def test_yolo_model_wraps_missing_names_as_typed_catalog_error():
+def test_ultralytics_model_wraps_missing_names_as_typed_catalog_error():
     provider_error = AttributeError("names is unavailable")
     loaded_model = _FailingNamesYOLO(provider_error)
-    model = YOLODetectionModel()
+    model = _build_ultralytics_model()
     model.model = loaded_model
 
     with pytest.raises(
         UltralyticsClassCatalogError,
-        match=r"could not read.*yolov8n.*YOLOv8n",
+        match=r"could not read.*yolo26n.*YOLO26n",
     ) as captured:
         model.get_detection_class_catalog()
 
@@ -157,15 +170,15 @@ def test_yolo_model_wraps_missing_names_as_typed_catalog_error():
     assert loaded_model.forward_calls == 0
 
 
-def test_yolo_model_wraps_provider_names_error_and_preserves_cause():
+def test_ultralytics_model_wraps_provider_names_error_and_preserves_cause():
     provider_error = RuntimeError("provider catalog failure")
     loaded_model = _FailingNamesYOLO(provider_error)
-    model = YOLODetectionModel()
+    model = _build_ultralytics_model()
     model.model = loaded_model
 
     with pytest.raises(
         UltralyticsClassCatalogError,
-        match=r"could not read.*yolov8n.*YOLOv8n",
+        match=r"could not read.*yolo26n.*YOLO26n",
     ) as captured:
         model.get_detection_class_catalog()
 

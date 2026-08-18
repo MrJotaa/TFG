@@ -11,9 +11,10 @@ from utils.result_files import cleanup_old_results, read_result_expiration
 
 @pytest.mark.parametrize("seconds", [3600, 7200, 86400, 172800, 604800])
 def test_supported_result_retention_values(seconds):
-    assert UserRetentionUpdate(
-        result_retention_seconds=seconds
-    ).result_retention_seconds == seconds
+    assert (
+        UserRetentionUpdate(result_retention_seconds=seconds).result_retention_seconds
+        == seconds
+    )
 
 
 @pytest.mark.parametrize("seconds", [0, 60, 90000, 604801])
@@ -44,9 +45,7 @@ def test_random_noise_seed_is_stable_per_image_and_changes_between_images():
     assert parameters.seed == 1234
 
 
-def test_cleanup_respects_explicit_expiration_and_protected_ids(
-    tmp_path, monkeypatch
-):
+def test_cleanup_respects_explicit_expiration_and_protected_ids(tmp_path, monkeypatch):
     from utils import result_files
 
     monkeypatch.setattr(result_files, "RESULTS_BASE_PATH", str(tmp_path))
@@ -58,18 +57,15 @@ def test_cleanup_respects_explicit_expiration_and_protected_ids(
 
     now = datetime.now(timezone.utc)
     (expired / "metadata.json").write_text(
-        '{"expires_at":"%s"}'
-        % (now - timedelta(seconds=1)).isoformat(),
+        '{"expires_at":"%s"}' % (now - timedelta(seconds=1)).isoformat(),
         encoding="utf-8",
     )
     (protected / "metadata.json").write_text(
-        '{"expires_at":"%s"}'
-        % (now - timedelta(seconds=1)).isoformat(),
+        '{"expires_at":"%s"}' % (now - timedelta(seconds=1)).isoformat(),
         encoding="utf-8",
     )
     (active / "metadata.json").write_text(
-        '{"expires_at":"%s"}'
-        % (now + timedelta(days=7)).isoformat(),
+        '{"expires_at":"%s"}' % (now + timedelta(days=7)).isoformat(),
         encoding="utf-8",
     )
 

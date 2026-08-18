@@ -134,78 +134,60 @@ def generate_gradcam(model_wrapper, image: Image.Image):
 
 
 class _YOLOOutputWrapper(torch.nn.Module):
-    """
-    Wrapper pequeño para que pytorch-grad-cam trabaje con la salida principal
-    del modelo interno de YOLO.
-    """
+    """Adapta la salida end-to-end de YOLO26 al contrato mínimo de EigenCAM."""
 
     def __init__(self, model):
         super().__init__()
         self.model = model
 
     def forward(self, input_tensor):
-        output = self.model(input_tensor)
+        # EigenCAM solo necesita activaciones, no gradientes. ``no_grad`` evita
+        # construir un grafo grande sin crear inference tensors que puedan
+        # contaminar los caches geométricos usados después por ataques.
+        with torch.no_grad():
+            output = self.model(input_tensor)
 
-        if isinstance(output, torch.Tensor):
-            return output
+        if isinstance(output, (list, tuple)) and output:
+            output = output[0]
 
-        if isinstance(output, (list, tuple)):
-            for item in output:
-                if isinstance(item, torch.Tensor):
-                    return item
+        if not isinstance(output, torch.Tensor):
+            raise ValueError("Could not extract tensor output from YOLO model")
 
-                if isinstance(item, (list, tuple)):
-                    for nested_item in item:
-                        if isinstance(nested_item, torch.Tensor):
-                            return nested_item
-
-        raise ValueError("Could not extract tensor output from YOLO model")
+        if output.ndim == 3 and output.shape[-1] >= 5:
+            return output[..., 4]
+        return output
 
 
 def generate_detection_eigencam(model_wrapper, image: Image.Image) -> Image.Image:
-    """
-    Genera un EigenCAM global para un modelo de detección YOLO.
-
-    Devuelve una imagen PIL con el heatmap superpuesto sobre la imagen original.
-    """
+    """Genera un EigenCAM multiescala y lo proyecta a geometría fuente."""
     torch_model = model_wrapper.get_torch_model()
-    target_layer = model_wrapper.get_explainability_target_layer()
+    target_layers = model_wrapper.get_explainability_target_layers()
+    input_tensor = model_wrapper.prepare_detection_explainability_input(image)
 
     torch_model.eval()
-
-    input_size = 640
-
-    resized_image = image.convert("RGB").resize((input_size, input_size))
-
-    rgb_np = np.array(resized_image).astype(np.float32) / 255.0
-
-    input_tensor = torch.from_numpy(rgb_np).permute(2, 0, 1).unsqueeze(0)
-
-    try:
-        device = next(torch_model.parameters()).device
-        input_tensor = input_tensor.to(device)
-    except StopIteration:
-        pass
-
     wrapped_model = _YOLOOutputWrapper(torch_model)
 
-    cam = EigenCAM(
+    with EigenCAM(
         model=wrapped_model,
-        target_layers=[target_layer],
-    )
+        target_layers=target_layers,
+    ) as cam:
+        grayscale_cam = cam(
+            input_tensor=input_tensor,
+            targets=None,
+        )[0]
 
-    grayscale_cam = cam(
-        input_tensor=input_tensor,
-        targets=None,
-    )[0]
-
-    cam_image = show_cam_on_image(
-        rgb_np,
+    projected_cam = model_wrapper.project_detection_explainability_map(
         grayscale_cam,
+        image,
+    )
+    source_rgb = np.asarray(image.convert("RGB"), dtype=np.float32) / 255.0
+    cam_image = show_cam_on_image(
+        source_rgb,
+        projected_cam,
         use_rgb=True,
     )
 
-    return Image.fromarray(cam_image).resize(image.size)
+    return Image.fromarray(cam_image, mode="RGB")
 
 
 def draw_detections_on_image(

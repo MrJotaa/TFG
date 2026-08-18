@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 from PIL import Image
+from torchvision.transforms.functional import to_tensor
 
 from ml.attacks.yolo_confidence import YOLOConfidenceAttack
 
@@ -21,6 +22,7 @@ class TinyYOLOModel(torch.nn.Module):
 
     def __init__(self):
         super().__init__()
+        self.scale = torch.nn.Parameter(torch.tensor(1.0))
         self.forward_calls = 0
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
@@ -29,7 +31,7 @@ class TinyYOLOModel(torch.nn.Module):
         batch_size = inputs.shape[0]
         candidate_count = 10
 
-        score = inputs.mean(dim=(1, 2, 3))
+        score = inputs.mean(dim=(1, 2, 3)) * self.scale
 
         boxes = torch.zeros(
             batch_size,
@@ -81,12 +83,27 @@ class FakeDetectionModelWrapper:
     ):
         self.model = model
         self.loaded = loaded
+        self.prepare_calls = 0
+        self.objective_calls = 0
 
     def is_loaded(self) -> bool:
         return self.loaded
 
-    def get_torch_model(self) -> torch.nn.Module:
-        return self.model
+    def prepare_detection_attack_input(self, image: Image.Image) -> torch.Tensor:
+        self.prepare_calls += 1
+        return to_tensor(image.convert("RGB")).unsqueeze(0)
+
+    def detection_confidence_objective(
+        self,
+        prepared_input: torch.Tensor,
+    ) -> torch.Tensor:
+        self.objective_calls += 1
+        prediction_tensor = self.model(prepared_input)
+
+        class_scores = prediction_tensor[:, 4:, :]
+        max_class_scores = class_scores.max(dim=1).values
+
+        return max_class_scores.mean()
 
 
 def _create_test_image(
@@ -113,13 +130,11 @@ def _create_parameters(
 
 
 def _create_attack() -> YOLOConfidenceAttack:
-    attack = YOLOConfidenceAttack()
+    return YOLOConfidenceAttack()
 
-    # Reduce el tamaño utilizado durante los tests para que sean rápidos.
-    # El comportamiento matemático que queremos validar no cambia.
-    attack.attack_size = 16
 
-    return attack
+def test_yolo_confidence_declares_algorithm_revision():
+    assert YOLOConfidenceAttack.revision == "yolo26-end2end-confidence-v1"
 
 
 def _capture_adversarial_tensor(
@@ -149,14 +164,11 @@ def _capture_adversarial_tensor(
 
 
 def _calculate_confidence(
-    attack: YOLOConfidenceAttack,
-    model: torch.nn.Module,
+    wrapper: FakeDetectionModelWrapper,
     tensor: torch.Tensor,
 ) -> float:
     with torch.no_grad():
-        model_input = attack._resize_for_yolo(tensor)
-        prediction = model(model_input)
-        objective = attack._confidence_objective(prediction)
+        objective = wrapper.detection_confidence_objective(tensor)
 
     return objective.item()
 
@@ -231,7 +243,9 @@ def test_yolo_confidence_runs_configured_number_of_steps():
         ),
     )
 
-    # El ataque ejecuta una inferencia por cada paso.
+    # El ataque prepara la imagen una sola vez y delega un objetivo por paso.
+    assert wrapper.prepare_calls == 1
+    assert wrapper.objective_calls == steps
     assert model.forward_calls == steps
 
 
@@ -262,7 +276,7 @@ def test_yolo_confidence_uses_alpha_and_reduces_confidence(
         ),
     )
 
-    original_tensor = attack.to_tensor(original_image).unsqueeze(0)
+    original_tensor = to_tensor(original_image).unsqueeze(0)
     adversarial_tensor = captured["tensor"]
 
     expected_perturbation = alpha * steps
@@ -275,14 +289,12 @@ def test_yolo_confidence_uses_alpha_and_reduces_confidence(
     )
 
     original_confidence = _calculate_confidence(
-        attack,
-        model,
+        wrapper,
         original_tensor,
     )
 
     adversarial_confidence = _calculate_confidence(
-        attack,
-        model,
+        wrapper,
         adversarial_tensor,
     )
 
@@ -321,7 +333,7 @@ def test_yolo_confidence_projects_perturbation_to_epsilon(
         ),
     )
 
-    original_tensor = attack.to_tensor(original_image).unsqueeze(0)
+    original_tensor = to_tensor(original_image).unsqueeze(0)
     adversarial_tensor = captured["tensor"]
 
     perturbation = adversarial_tensor - original_tensor
@@ -370,7 +382,7 @@ def test_yolo_confidence_output_remains_in_valid_pixel_range(
         ),
     )
 
-    original_tensor = attack.to_tensor(original_image).unsqueeze(0)
+    original_tensor = to_tensor(original_image).unsqueeze(0)
     adversarial_tensor = captured["tensor"]
 
     perturbation = adversarial_tensor - original_tensor
@@ -408,7 +420,7 @@ def test_yolo_confidence_with_zero_epsilon_does_not_modify_image(
         ),
     )
 
-    original_tensor = attack.to_tensor(original_image).unsqueeze(0)
+    original_tensor = to_tensor(original_image).unsqueeze(0)
     adversarial_tensor = captured["tensor"]
 
     assert torch.equal(
@@ -422,132 +434,71 @@ def test_yolo_confidence_with_zero_epsilon_does_not_modify_image(
     assert result["perturbation_l2"] == 0.0
 
 
-@pytest.mark.parametrize(
-    "output_factory",
-    [
-        lambda tensor: tensor,
-        lambda tensor: [tensor],
-        lambda tensor: (tensor,),
-        lambda tensor: [None, tensor],
-        lambda tensor: [[None, tensor]],
-        lambda tensor: ([None, tensor],),
-    ],
-)
-def test_extract_prediction_tensor_accepts_supported_structures(
-    output_factory,
-):
+def test_yolo_confidence_does_not_accumulate_model_parameter_gradients():
     attack = _create_attack()
-    prediction_tensor = torch.ones(1, 6, 10)
+    model = TinyYOLOModel()
+    wrapper = FakeDetectionModelWrapper(model)
 
-    output = output_factory(prediction_tensor)
+    attack.apply(
+        model_wrapper=wrapper,
+        image=_create_test_image(),
+        parameters=_create_parameters(
+            epsilon=0.1,
+            alpha=0.02,
+            steps=2,
+        ),
+    )
 
-    extracted = attack._extract_prediction_tensor(output)
-
-    assert extracted is prediction_tensor
+    assert model.scale.grad is None
 
 
-def test_extract_prediction_tensor_rejects_output_without_tensor():
+def test_yolo_confidence_rejects_non_scalar_model_objective():
     attack = _create_attack()
+    wrapper = FakeDetectionModelWrapper(TinyYOLOModel())
+
+    def vector_objective(prepared_input):
+        return prepared_input.mean(dim=(1, 2, 3))
+
+    wrapper.detection_confidence_objective = vector_objective
 
     with pytest.raises(
         ValueError,
-        match="Could not extract YOLO prediction tensor",
+        match="Detection confidence objective must be a scalar",
     ):
-        attack._extract_prediction_tensor(
-            [None, "invalid-output"],
+        attack.apply(
+            model_wrapper=wrapper,
+            image=_create_test_image(),
+            parameters=_create_parameters(
+                epsilon=0.1,
+                alpha=0.02,
+                steps=1,
+            ),
         )
 
 
-def test_confidence_objective_for_standard_yolo_layout():
+def test_yolo_confidence_rejects_objective_without_input_gradient():
     attack = _create_attack()
+    wrapper = FakeDetectionModelWrapper(TinyYOLOModel())
 
-    class_scores = torch.tensor(
-        [
-            [
-                [0.1, 0.8, 0.2, 0.4, 0.7, 0.3, 0.5, 0.2],
-                [0.3, 0.2, 0.6, 0.1, 0.4, 0.9, 0.2, 0.8],
-            ]
-        ],
-        dtype=torch.float32,
-    )
+    def detached_objective(prepared_input):
+        return torch.tensor(
+            1.0,
+            device=prepared_input.device,
+            requires_grad=True,
+        )
 
-    boxes = torch.zeros(1, 4, 8)
-
-    prediction_tensor = torch.cat(
-        (boxes, class_scores),
-        dim=1,
-    )
-
-    expected = class_scores.max(dim=1).values.mean()
-
-    result = attack._confidence_objective(prediction_tensor)
-
-    assert result.item() == pytest.approx(
-        expected.item(),
-        abs=1e-7,
-    )
-
-
-def test_confidence_objective_for_alternative_yolo_layout():
-    attack = _create_attack()
-
-    class_scores = torch.tensor(
-        [
-            [
-                [0.1, 0.8, 0.2, 0.4, 0.7, 0.3, 0.5, 0.2],
-                [0.3, 0.2, 0.6, 0.1, 0.4, 0.9, 0.2, 0.8],
-            ]
-        ],
-        dtype=torch.float32,
-    )
-
-    boxes = torch.zeros(1, 4, 8)
-
-    standard_prediction = torch.cat(
-        (boxes, class_scores),
-        dim=1,
-    )
-
-    alternative_prediction = standard_prediction.transpose(1, 2)
-
-    expected = class_scores.max(dim=1).values.mean()
-
-    result = attack._confidence_objective(
-        alternative_prediction,
-    )
-
-    assert result.item() == pytest.approx(
-        expected.item(),
-        abs=1e-7,
-    )
-
-
-def test_confidence_objective_rejects_invalid_dimensions():
-    attack = _create_attack()
-
-    invalid_prediction = torch.zeros(1, 10)
+    wrapper.detection_confidence_objective = detached_objective
 
     with pytest.raises(
-        ValueError,
-        match="Unexpected YOLO prediction tensor shape",
+        RuntimeError,
+        match="did not produce an input gradient",
     ):
-        attack._confidence_objective(invalid_prediction)
-
-
-@pytest.mark.parametrize(
-    "prediction_tensor",
-    [
-        torch.zeros(1, 4, 10),
-        torch.zeros(1, 10, 4),
-    ],
-)
-def test_confidence_objective_rejects_missing_class_scores(
-    prediction_tensor,
-):
-    attack = _create_attack()
-
-    with pytest.raises(
-        ValueError,
-        match="does not contain class scores",
-    ):
-        attack._confidence_objective(prediction_tensor)
+        attack.apply(
+            model_wrapper=wrapper,
+            image=_create_test_image(),
+            parameters=_create_parameters(
+                epsilon=0.1,
+                alpha=0.02,
+                steps=1,
+            ),
+        )

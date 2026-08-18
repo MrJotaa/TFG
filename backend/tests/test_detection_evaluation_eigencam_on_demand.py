@@ -37,6 +37,29 @@ def _image_result(*, adversarial_image_url: str | None = "/results/adversarial.p
     )
 
 
+def test_detection_eigencam_artifact_identity_includes_pipeline_revision(
+    monkeypatch,
+):
+    current = artifacts.detection_evaluation_image_artifact_filenames(
+        EVALUATION_ID,
+        IMAGE_ID,
+    )
+
+    monkeypatch.setattr(
+        artifacts,
+        "DETECTION_EIGENCAM_PIPELINE_VERSION",
+        "detection-eigencam-next",
+    )
+    updated = artifacts.detection_evaluation_image_artifact_filenames(
+        EVALUATION_ID,
+        IMAGE_ID,
+    )
+
+    assert current["adversarial_source"] == updated["adversarial_source"]
+    assert current["original_eigencam"] != updated["original_eigencam"]
+    assert current["adversarial_eigencam"] != updated["adversarial_eigencam"]
+
+
 @pytest.mark.asyncio
 async def test_detection_eigencam_reuses_evaluation_inputs_and_caches(
     monkeypatch,

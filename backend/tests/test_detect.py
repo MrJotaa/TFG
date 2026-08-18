@@ -22,8 +22,8 @@ def test_detect_returns_detection_response(client, monkeypatch):
         assert request.image_id == "image-1"
 
         return {
-            "model_id": "yolov8n",
-            "model_name": "YOLOv8n pretrained",
+            "model_id": "yolo26n",
+            "model_name": "YOLO26n pretrained",
             "detections": [
                 _mock_detection("car", 0.91),
                 _mock_detection("person", 0.84),
@@ -45,8 +45,8 @@ def test_detect_returns_detection_response(client, monkeypatch):
 
     data = response.json()
 
-    assert data["model_id"] == "yolov8n"
-    assert data["model_name"] == "YOLOv8n pretrained"
+    assert data["model_id"] == "yolo26n"
+    assert data["model_name"] == "YOLO26n pretrained"
     assert data["annotated_image_url"] == "/results/detection-result-1/annotated.png"
     assert len(data["detections"]) == 2
 

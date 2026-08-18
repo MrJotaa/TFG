@@ -1,4 +1,5 @@
 import { apiRequest } from './client.js'
+import { streamEvaluationRequest } from './evaluationStream.js'
 
 export function evaluateDetectionDataset({
     datasetId,
@@ -9,13 +10,11 @@ export function evaluateDetectionDataset({
     supervisedConfiguration,
     seed = 0,
     forceRecompute = false,
+    onProgress,
 }) {
-    return apiRequest('/detect/evaluate', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+    return streamEvaluationRequest(
+        '/detect/evaluate/stream',
+        {
             dataset_id: datasetId,
             attack_type: attackType,
             parameters: {
@@ -26,8 +25,9 @@ export function evaluateDetectionDataset({
             },
             supervised_configuration: supervisedConfiguration,
             force_recompute: forceRecompute,
-        }),
-    })
+        },
+        { onProgress },
+    )
 }
 
 export function generateDetectionEvaluationEigenCam(evaluationId, imageId) {
