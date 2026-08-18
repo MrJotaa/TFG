@@ -219,6 +219,7 @@ async def _run_evaluation(
     source_sizes: Sequence[tuple[int, int]] | None = None,
     attack_override=None,
     attack_type: AttackType = AttackType.PGD,
+    progress_callback=None,
 ):
     flattened_predictions = [
         prediction for pair in prediction_pairs for prediction in pair
@@ -326,7 +327,8 @@ async def _run_evaluation(
         EvaluationRequest(
             dataset_id=dataset.id,
             attack_type=attack_type,
-        )
+        ),
+        progress_callback=progress_callback,
     )
 
     if hasattr(attack, "adversarial_model_inputs"):
@@ -810,3 +812,28 @@ async def test_evaluation_with_only_unresolved_labels_disables_supervised_metric
 
     assert response.summary.labeled_images == 0
     assert response.summary.original_accuracy is None
+
+
+@pytest.mark.asyncio
+async def test_classification_evaluation_reports_real_image_progress(monkeypatch):
+    dataset = _dataset([None, None])
+    progress_events = []
+
+    await _run_evaluation(
+        monkeypatch,
+        dataset=dataset,
+        prediction_pairs=[
+            (_prediction((0.8, 0.1, 0.1)), _prediction((0.7, 0.2, 0.1))),
+            (_prediction((0.1, 0.8, 0.1)), _prediction((0.2, 0.7, 0.1))),
+        ],
+        progress_callback=progress_events.append,
+    )
+
+    assert [
+        (event.processed, event.total, event.phase) for event in progress_events
+    ] == [
+        (0, 2, "images"),
+        (1, 2, "images"),
+        (2, 2, "images"),
+        (2, 2, "metrics"),
+    ]

@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
@@ -53,17 +54,23 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
 
         return self.model.model
 
-    def get_explainability_target_layer(self):
+    def get_explainability_target_layers(self):
         if self.model is None:
             self.load()
 
-        layer_index = self.config.explainability_target_layer_index
-        if layer_index is None:
+        layer_indices = self.config.explainability_target_layer_indices
+        if not layer_indices:
             raise NotImplementedError(
-                f"Model '{self.id}' does not define an explainability target layer"
+                f"Model '{self.id}' does not define explainability target layers"
             )
 
-        return self.model.model.model[layer_index]
+        layers = self.model.model.model
+        try:
+            return [layers[layer_index] for layer_index in layer_indices]
+        except IndexError as error:
+            raise RuntimeError(
+                f"Model '{self.id}' explainability layer configuration is invalid"
+            ) from error
 
     def get_detection_class_catalog(self) -> DetectionClassCatalog:
         if self.model is None:
@@ -156,6 +163,35 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
 
         return stride_value
 
+    def _letterbox_geometry(
+        self,
+        *,
+        source_height: int,
+        source_width: int,
+    ) -> tuple[int, int, int, int, int, int]:
+        if source_height <= 0 or source_width <= 0:
+            raise ValueError("source geometry must be positive")
+
+        target_size = self.config.image_size
+        scale = min(
+            target_size / source_height,
+            target_size / source_width,
+        )
+        resized_height = max(1, round(source_height * scale))
+        resized_width = max(1, round(source_width * scale))
+
+        stride = self._model_stride()
+        padding_height = (target_size - resized_height) % stride
+        padding_width = (target_size - resized_width) % stride
+        half_height = padding_height / 2
+        half_width = padding_width / 2
+
+        top = round(half_height - 0.1)
+        bottom = round(half_height + 0.1)
+        left = round(half_width - 0.1)
+        right = round(half_width + 0.1)
+        return resized_height, resized_width, top, bottom, left, right
+
     def _differentiable_letterbox(
         self,
         tensor: torch.Tensor,
@@ -166,16 +202,17 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
             )
 
         source_height, source_width = tensor.shape[-2:]
-        if source_height <= 0 or source_width <= 0:
-            raise ValueError("prepared detection attack input has invalid geometry")
-
-        target_size = self.config.image_size
-        scale = min(
-            target_size / source_height,
-            target_size / source_width,
+        (
+            resized_height,
+            resized_width,
+            top,
+            bottom,
+            left,
+            right,
+        ) = self._letterbox_geometry(
+            source_height=source_height,
+            source_width=source_width,
         )
-        resized_height = max(1, round(source_height * scale))
-        resized_width = max(1, round(source_width * scale))
 
         if (resized_height, resized_width) == (source_height, source_width):
             resized = tensor
@@ -187,18 +224,6 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
                 align_corners=False,
             )
 
-        stride = self._model_stride()
-        padding_height = (target_size - resized_height) % stride
-        padding_width = (target_size - resized_width) % stride
-
-        half_height = padding_height / 2
-        half_width = padding_width / 2
-
-        top = round(half_height - 0.1)
-        bottom = round(half_height + 0.1)
-        left = round(half_width - 0.1)
-        right = round(half_width + 0.1)
-
         if top == bottom == left == right == 0:
             return resized
 
@@ -207,6 +232,52 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
             (left, right, top, bottom),
             value=114 / 255,
         )
+
+    def prepare_detection_explainability_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        source_tensor = self.prepare_detection_attack_input(image)
+        return self._differentiable_letterbox(source_tensor)
+
+    def project_detection_explainability_map(
+        self,
+        normalized_cam: np.ndarray,
+        source_image: Image.Image,
+    ) -> np.ndarray:
+        if not isinstance(normalized_cam, np.ndarray) or normalized_cam.ndim != 2:
+            raise TypeError("normalized_cam must be a two-dimensional numpy array")
+
+        (
+            resized_height,
+            resized_width,
+            top,
+            _bottom,
+            left,
+            _right,
+        ) = self._letterbox_geometry(
+            source_height=source_image.height,
+            source_width=source_image.width,
+        )
+
+        cam_height, cam_width = normalized_cam.shape
+        expected_height = top + resized_height
+        expected_width = left + resized_width
+        if expected_height > cam_height or expected_width > cam_width:
+            raise ValueError(
+                "CAM geometry is smaller than the Ultralytics image region"
+            )
+
+        cropped = normalized_cam[
+            top : top + resized_height,
+            left : left + resized_width,
+        ]
+        cam_image = Image.fromarray(
+            np.uint8(np.clip(cropped, 0.0, 1.0) * 255),
+            mode="L",
+        )
+        projected = cam_image.resize(source_image.size, Image.Resampling.BILINEAR)
+        return np.asarray(projected, dtype=np.float32) / 255.0
 
     @staticmethod
     def _end_to_end_confidence_objective(output) -> torch.Tensor:

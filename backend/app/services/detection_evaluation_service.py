@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from core.errors import BadRequestError
@@ -37,6 +38,10 @@ from services.evaluation_history_service import (
     begin_evaluation_execution,
     complete_evaluation_execution,
 )
+from services.evaluation_progress import (
+    EvaluationProgressCallback,
+    report_evaluation_progress,
+)
 from services.model_service import get_active_model_instance
 from utils.detection_evaluation_artifacts import (
     remove_detection_evaluation_visual_artifacts,
@@ -57,6 +62,7 @@ async def evaluate_detection_dataset(
     *,
     owner_id: str | None = None,
     retention_seconds: int = RESULTS_TTL_SECONDS,
+    progress_callback: EvaluationProgressCallback | None = None,
 ) -> DetectionEvaluationResponse:
     execution = None
     if owner_id is not None:
@@ -75,6 +81,7 @@ async def evaluate_detection_dataset(
             request,
             result_id=result_id,
             execution=execution,
+            progress_callback=progress_callback,
         )
         completed = True
         return response
@@ -97,6 +104,7 @@ async def _evaluate_detection_dataset(
     *,
     result_id: str,
     execution: EvaluationExecution | None,
+    progress_callback: EvaluationProgressCallback | None,
 ) -> DetectionEvaluationResponse:
     dataset = await get_dataset(request.dataset_id)
 
@@ -151,8 +159,14 @@ async def _evaluate_detection_dataset(
     confidence_differences = []
     perturbation_linf_values = []
     perturbation_l2_values = []
+    progress_total = len(dataset.images)
+    report_evaluation_progress(
+        progress_callback,
+        processed=0,
+        total=progress_total,
+    )
 
-    for image_metadata in dataset.images:
+    for image_index, image_metadata in enumerate(dataset.images, start=1):
         image = await get_image_from_dataset(
             dataset_id=request.dataset_id,
             image_id=image_metadata.id,
@@ -255,6 +269,23 @@ async def _evaluate_detection_dataset(
                 adversarial_detections=to_detection_predictions(adversarial_detections),
             )
         )
+
+        report_evaluation_progress(
+            progress_callback,
+            processed=image_index,
+            total=progress_total,
+        )
+        if progress_callback is not None:
+            await asyncio.sleep(0)
+
+    report_evaluation_progress(
+        progress_callback,
+        processed=progress_total,
+        total=progress_total,
+        phase="metrics",
+    )
+    if progress_callback is not None:
+        await asyncio.sleep(0)
 
     total_images = len(image_results)
 

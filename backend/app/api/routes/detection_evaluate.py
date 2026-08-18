@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 
 from api.dependencies.auth import require_current_user
 from schemas.detection_evaluation import (
@@ -16,6 +17,7 @@ from services.detection_evaluation_persistence import (
     list_detection_evaluations,
 )
 from services.detection_evaluation_service import evaluate_detection_dataset
+from services.evaluation_progress import stream_evaluation
 
 router = APIRouter()
 
@@ -29,6 +31,29 @@ async def evaluate_detection(
         request,
         owner_id=current_user.id,
         retention_seconds=current_user.result_retention_seconds,
+    )
+
+
+@router.post("/detect/evaluate/stream")
+async def evaluate_detection_stream(
+    request: DetectionEvaluationRequest,
+    current_user: UserResponse = Depends(require_current_user),
+) -> StreamingResponse:
+    async def runner(progress_callback):
+        return await evaluate_detection_dataset(
+            request,
+            owner_id=current_user.id,
+            retention_seconds=current_user.result_retention_seconds,
+            progress_callback=progress_callback,
+        )
+
+    return StreamingResponse(
+        stream_evaluation(runner),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

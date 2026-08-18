@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 from datetime import datetime, timedelta, timezone
@@ -37,6 +38,10 @@ from services.evaluation_history_service import (
     abort_evaluation_execution,
     begin_evaluation_execution,
     complete_evaluation_execution,
+)
+from services.evaluation_progress import (
+    EvaluationProgressCallback,
+    report_evaluation_progress,
 )
 from services.model_service import get_active_model_instance
 from utils.evaluation_artifacts import (
@@ -108,6 +113,7 @@ async def evaluate_dataset(
     *,
     owner_id: str | None = None,
     retention_seconds: int = RESULTS_TTL_SECONDS,
+    progress_callback: EvaluationProgressCallback | None = None,
 ) -> EvaluationResponse:
     execution = None
     if owner_id is not None:
@@ -120,7 +126,11 @@ async def evaluate_dataset(
 
     completed = False
     try:
-        response = await _evaluate_dataset(request, execution=execution)
+        response = await _evaluate_dataset(
+            request,
+            execution=execution,
+            progress_callback=progress_callback,
+        )
         completed = True
         return response
     finally:
@@ -132,6 +142,7 @@ async def _evaluate_dataset(
     request: EvaluationRequest,
     *,
     execution: EvaluationExecution | None,
+    progress_callback: EvaluationProgressCallback | None,
 ) -> EvaluationResponse:
     logger.debug(
         ("classification_evaluation_started dataset_id=%s attack=%s steps=%s"),
@@ -230,8 +241,14 @@ async def _evaluate_dataset(
 
     results: list[EvaluationImageResult] = []
     metric_samples: list[ClassificationEvaluationSample] = []
+    progress_total = len(dataset.images)
+    report_evaluation_progress(
+        progress_callback,
+        processed=0,
+        total=progress_total,
+    )
 
-    for image_metadata in dataset.images:
+    for image_index, image_metadata in enumerate(dataset.images, start=1):
         image_started = perf_counter()
 
         image_id = image_metadata.id
@@ -491,6 +508,23 @@ async def _evaluate_dataset(
         del clean_model_input
         del adversarial_model_input
         del image
+
+        report_evaluation_progress(
+            progress_callback,
+            processed=image_index,
+            total=progress_total,
+        )
+        if progress_callback is not None:
+            await asyncio.sleep(0)
+
+    report_evaluation_progress(
+        progress_callback,
+        processed=progress_total,
+        total=progress_total,
+        phase="metrics",
+    )
+    if progress_callback is not None:
+        await asyncio.sleep(0)
 
     metrics_started = perf_counter()
     advanced_metrics = calculate_advanced_classification_metrics(

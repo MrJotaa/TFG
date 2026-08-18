@@ -236,10 +236,27 @@ class BaseObjectDetectionModel(BaseModel):
         """
         raise NotImplementedError(f"Model '{self.id}' does not expose a torch model")
 
-    def get_explainability_target_layer(self):
-        """
-        Devuelve la capa objetivo para técnicas CAM.
-        """
+    def prepare_detection_explainability_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        """Prepara la entrada científica utilizada por explainability de detección."""
         raise NotImplementedError(
-            f"Model '{self.id}' does not define an explainability target layer"
+            f"Model '{self.id}' does not support detection explainability input"
+        )
+
+    def project_detection_explainability_map(
+        self,
+        normalized_cam,
+        source_image: Image.Image,
+    ):
+        """Proyecta un CAM desde geometría de modelo a geometría fuente."""
+        raise NotImplementedError(
+            f"Model '{self.id}' does not support detection CAM projection"
+        )
+
+    def get_explainability_target_layers(self):
+        """Devuelve las capas objetivo para técnicas CAM de detección."""
+        raise NotImplementedError(
+            f"Model '{self.id}' does not define explainability target layers"
         )

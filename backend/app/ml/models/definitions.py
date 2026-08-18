@@ -10,9 +10,9 @@ _YOLO26N_CONFIG = UltralyticsDetectionModelConfig(
     weights="yolo26n.pt",
     image_size=640,
     end_to_end=True,
-    # Kept temporarily until the dedicated YOLO26 explainability sub-issue
-    # validates the most appropriate feature layer scientifically.
-    explainability_target_layer_index=-2,
+    # YOLO26 Detect consumes the P3/8, P4/16 and P5/32 feature maps from
+    # layers 16, 19 and 22 respectively. EigenCAM aggregates all three scales.
+    explainability_target_layer_indices=(16, 19, 22),
 )
 
 

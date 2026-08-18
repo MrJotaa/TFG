@@ -27,6 +27,23 @@ export function resolveApiUrl(path) {
     return `${API_BASE_URL}${path}`
 }
 
+export async function apiErrorFromResponse(response) {
+    const error = await response.json().catch(() => ({
+        detail: 'Unexpected API error',
+    }))
+
+    const detail = error.detail
+    const message =
+        typeof detail === 'string'
+            ? detail
+            : detail?.message || 'Unexpected API error'
+    const requestError = new Error(message)
+    requestError.status = response.status
+    requestError.details =
+        detail && typeof detail === 'object' ? detail : null
+    return requestError
+}
+
 export async function apiRequest(path, options = {}) {
     const token = getStoredToken()
 
@@ -50,20 +67,7 @@ export async function apiRequest(path, options = {}) {
     })
 
     if (!response.ok) {
-        const error = await response.json().catch(() => ({
-            detail: 'Unexpected API error',
-        }))
-
-        const detail = error.detail
-        const message =
-            typeof detail === 'string'
-                ? detail
-                : detail?.message || 'Unexpected API error'
-        const requestError = new Error(message)
-        requestError.status = response.status
-        requestError.details =
-            detail && typeof detail === 'object' ? detail : null
-        throw requestError
+        throw await apiErrorFromResponse(response)
     }
 
     if (response.status === 204) {

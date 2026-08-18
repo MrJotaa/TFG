@@ -15,6 +15,7 @@ import DetectionOverview from './detectionEvaluation/DetectionOverview'
 import DetectionPrecisionRecall from './detectionEvaluation/DetectionPrecisionRecall'
 import DetectionTideAnalysis from './detectionEvaluation/DetectionTideAnalysis'
 import EvaluationMetricGuide from './evaluation/EvaluationMetricGuide'
+import EvaluationProgress from './evaluation/EvaluationProgress'
 import EvaluationTabs from './evaluation/EvaluationTabs'
 import CompatibleEvaluationNotice from './evaluation/CompatibleEvaluationNotice'
 import {
@@ -45,6 +46,7 @@ function DetectionEvaluationPanel({
     const [evaluationState, setEvaluationState] = useState(null)
     const [activeTab, setActiveTab] = useState('overview')
     const [loading, setLoading] = useState(false)
+    const [progress, setProgress] = useState(null)
     const [errorState, setErrorState] = useState(null)
     const [reuseCandidate, setReuseCandidate] = useState(null)
     const [configuration, setConfiguration] = useState(
@@ -104,6 +106,7 @@ function DetectionEvaluationPanel({
 
     async function runEvaluation(forceRecompute) {
         setReuseCandidate(null)
+        setProgress(null)
         eigenCamRun.current += 1
         eigenCamRequests.current.clear()
         dispatchEigenCam({ type: 'reset' })
@@ -116,6 +119,7 @@ function DetectionEvaluationPanel({
             seed,
             supervisedConfiguration: configuration,
             forceRecompute,
+            onProgress: setProgress,
         })
         onStartNewEvaluation()
         setEvaluationState({ contextKey, data: result })
@@ -158,6 +162,7 @@ function DetectionEvaluationPanel({
             setErrorState({ contextKey, message: error.message })
         } finally {
             setLoading(false)
+            setProgress(null)
         }
     }
 
@@ -177,6 +182,7 @@ function DetectionEvaluationPanel({
             setErrorState({ contextKey, message: requestError.message })
         } finally {
             setLoading(false)
+            setProgress(null)
         }
     }
 
@@ -189,6 +195,7 @@ function DetectionEvaluationPanel({
             setErrorState({ contextKey, message: requestError.message })
         } finally {
             setLoading(false)
+            setProgress(null)
         }
     }
 
@@ -350,13 +357,11 @@ function DetectionEvaluationPanel({
             )}
 
             {loading && (
-                <section className="evaluation-loading-card" role="status" aria-live="polite">
-                    <div className="evaluation-loader" aria-hidden="true" />
-                    <div>
-                        <strong>Evaluando detecciones y calculando COCO y TIDE</strong>
-                        <p>El ataque y las inferencias se ejecutan una sola vez por imagen.</p>
-                    </div>
-                </section>
+                <EvaluationProgress
+                    progress={progress}
+                    title="Evaluando detecciones y calculando COCO y TIDE"
+                    pendingMessage="Preparando la evaluación del dataset..."
+                />
             )}
 
             {evaluation && (

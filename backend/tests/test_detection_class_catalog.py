@@ -25,7 +25,7 @@ def _build_ultralytics_model() -> UltralyticsDetectionModel:
             name="YOLO26n pretrained",
             revision="ultralytics-yolo26n-coco-8.4.121",
             weights="yolo26n.pt",
-            explainability_target_layer_index=-2,
+            explainability_target_layer_indices=(-2,),
         )
     )
 

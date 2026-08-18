@@ -1,4 +1,5 @@
 import { apiRequest } from './client.js'
+import { streamEvaluationRequest } from './evaluationStream.js'
 
 export function evaluateDataset({
     datasetId,
@@ -8,13 +9,11 @@ export function evaluateDataset({
     steps,
     seed = 0,
     forceRecompute = false,
+    onProgress,
 }) {
-    return apiRequest('/evaluate', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+    return streamEvaluationRequest(
+        '/evaluate/stream',
+        {
             dataset_id: datasetId,
             attack_type: attackType,
             parameters: {
@@ -24,8 +23,9 @@ export function evaluateDataset({
                 seed: Number(seed),
             },
             force_recompute: forceRecompute,
-        }),
-    })
+        },
+        { onProgress },
+    )
 }
 
 export function generateEvaluationGradCam(evaluationId, imageId) {

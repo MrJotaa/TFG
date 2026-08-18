@@ -34,7 +34,7 @@ def _build_ultralytics_model() -> UltralyticsDetectionModel:
             revision="ultralytics-yolo26n-coco-8.4.121",
             weights="yolo26n.pt",
             end_to_end=True,
-            explainability_target_layer_index=-2,
+            explainability_target_layer_indices=(-2,),
         )
     )
 

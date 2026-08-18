@@ -22,7 +22,7 @@ class UltralyticsDetectionModelConfig:
     weights: str
     image_size: int = 640
     end_to_end: bool = False
-    explainability_target_layer_index: int | None = None
+    explainability_target_layer_indices: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -54,8 +54,17 @@ class UltralyticsDetectionModelConfig:
         if not isinstance(self.end_to_end, bool):
             raise TypeError("end_to_end must be a boolean")
 
-        layer_index = self.explainability_target_layer_index
-        if layer_index is not None and (
+        layer_indices = self.explainability_target_layer_indices
+        if not isinstance(layer_indices, tuple):
+            raise TypeError("explainability_target_layer_indices must be a tuple")
+        if any(
             isinstance(layer_index, bool) or not isinstance(layer_index, int)
+            for layer_index in layer_indices
         ):
-            raise TypeError("explainability_target_layer_index must be an integer")
+            raise TypeError(
+                "explainability_target_layer_indices must contain only integers"
+            )
+        if len(set(layer_indices)) != len(layer_indices):
+            raise ValueError(
+                "explainability_target_layer_indices must not contain duplicates"
+            )

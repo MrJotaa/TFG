@@ -188,11 +188,13 @@ async def test_detection_evaluation_uses_canonical_deltas_and_legacy_success(
         lambda attack_type: _FakeAttack(),
     )
 
+    progress_events = []
     response = await detection_evaluation_service.evaluate_detection_dataset(
         DetectionEvaluationRequest(
             dataset_id="dataset-1",
             attack_type=AttackType.RANDOM_NOISE,
-        )
+        ),
+        progress_callback=progress_events.append,
     )
 
     assert response.result_id == TEST_DETECTION_EVALUATION_ID
@@ -221,6 +223,14 @@ async def test_detection_evaluation_uses_canonical_deltas_and_legacy_success(
         "adversarial-image-2",
     ]
     assert len(_stub_detection_evaluation_persistence) == 1
+    assert [
+        (event.processed, event.total, event.phase) for event in progress_events
+    ] == [
+        (0, 2, "images"),
+        (1, 2, "images"),
+        (2, 2, "images"),
+        (2, 2, "metrics"),
+    ]
 
 
 class _SupervisedFakeModel:
