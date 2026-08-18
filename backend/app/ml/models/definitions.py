@@ -8,6 +8,7 @@ _YOLO26N_CONFIG = UltralyticsDetectionModelConfig(
     name="YOLO26n pretrained",
     revision="ultralytics-yolo26n-coco-8.4.121",
     weights="yolo26n.pt",
+    end_to_end=True,
     # Kept temporarily until the dedicated YOLO26 explainability sub-issue
     # validates the most appropriate feature layer scientifically.
     explainability_target_layer_index=-2,

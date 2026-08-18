@@ -64,6 +64,17 @@ def test_ultralytics_model_config_rejects_empty_required_text(field_name):
         UltralyticsDetectionModelConfig(**values)
 
 
+def test_ultralytics_model_config_requires_boolean_end_to_end_mode():
+    with pytest.raises(TypeError, match="end_to_end must be a boolean"):
+        UltralyticsDetectionModelConfig(
+            id="detector-a",
+            name="Detector A",
+            revision="detector-a-revision",
+            weights="detector-a.pt",
+            end_to_end=1,
+        )
+
+
 def test_ultralytics_model_requires_configured_explainability_layer():
     config = UltralyticsDetectionModelConfig(
         id="detector-a",

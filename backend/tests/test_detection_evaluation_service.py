@@ -404,7 +404,6 @@ async def test_detection_evaluation_integrates_supervised_metrics_once(
         for _image, configuration in model.detection_calls
     )
     configuration = model.detection_calls[0][1]
-    assert configuration.nms_iou_threshold == 0.7
     assert configuration.max_detections_per_image == 300
 
 

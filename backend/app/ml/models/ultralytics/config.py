@@ -20,6 +20,7 @@ class UltralyticsDetectionModelConfig:
     name: str
     revision: str
     weights: str
+    end_to_end: bool = False
     explainability_target_layer_index: int | None = None
 
     def __post_init__(self) -> None:
@@ -43,6 +44,9 @@ class UltralyticsDetectionModelConfig:
             "weights",
             _normalized_required_text(self.weights, field_name="weights"),
         )
+
+        if not isinstance(self.end_to_end, bool):
+            raise TypeError("end_to_end must be a boolean")
 
         layer_index = self.explainability_target_layer_index
         if layer_index is not None and (

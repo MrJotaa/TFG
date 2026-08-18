@@ -97,14 +97,16 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
 
         with torch.no_grad():
             if configuration is None:
-                results = self.model(image)
+                results = self.model(
+                    image,
+                    end2end=self.config.end_to_end,
+                )
             else:
                 results = self.model(
                     image,
                     conf=configuration.score_floor,
-                    iou=configuration.nms_iou_threshold,
                     max_det=configuration.max_detections_per_image,
-                    end2end=False,
+                    end2end=self.config.end_to_end,
                     verbose=False,
                 )
 

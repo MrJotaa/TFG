@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 EVALUATION_STORAGE_SCHEMA_VERSION = 2
 CLASSIFICATION_PIPELINE_VERSION = "classification-evaluation-v2"
-DETECTION_PIPELINE_VERSION = "detection-evaluation-v2-tide1"
+DETECTION_PIPELINE_VERSION = "detection-evaluation-v3-yolo26-end2end-tide1"
 CLASSIFICATION_ARTIFACT_FILENAME = "evaluation.json"
 DETECTION_ARTIFACT_FILENAME = "evaluation.json"
 DETECTION_EVALUATIONS_BASE_PATH = Path(

@@ -111,7 +111,7 @@ function DetectionOverview({ evaluation }) {
                             </div>
 
                             <p>
-                                Confianza ≥ {formatDecimal(supervised.configuration.confidence_threshold, 2)} · IoU ≥{' '}
+                                Confianza ≥ {formatDecimal(supervised.configuration.confidence_threshold, 2)} · IoU de matching ≥{' '}
                                 {formatDecimal(supervised.configuration.iou_threshold, 2)}
                             </p>
                         </article>

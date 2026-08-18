@@ -33,6 +33,7 @@ def _build_ultralytics_model() -> UltralyticsDetectionModel:
             name="YOLO26n pretrained",
             revision="ultralytics-yolo26n-coco-8.4.121",
             weights="yolo26n.pt",
+            end_to_end=True,
             explainability_target_layer_index=-2,
         )
     )
@@ -306,9 +307,8 @@ def test_ultralytics_evaluation_inference_uses_explicit_scientific_configuration
             source_image,
             {
                 "conf": 0.005,
-                "iou": 0.7,
                 "max_det": 300,
-                "end2end": False,
+                "end2end": True,
                 "verbose": False,
             },
         )
@@ -330,7 +330,7 @@ def test_ultralytics_normal_detection_keeps_provider_defaults():
 
     model.detect(source_image)
 
-    assert calls == [(source_image, {})]
+    assert calls == [(source_image, {"end2end": True})]
 
 
 @pytest.mark.asyncio

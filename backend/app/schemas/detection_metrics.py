@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ml.models.detection_inference import (
     DETECTION_EVALUATION_MAX_DETECTIONS_PER_IMAGE,
-    DETECTION_EVALUATION_NMS_IOU_THRESHOLD,
     LEGACY_DETECTION_CONFIDENCE_THRESHOLD,
 )
 
@@ -132,7 +131,8 @@ class DetectionSupervisedConfiguration(DetectionMetricModel):
 
 
 class DetectionSupervisedEffectiveConfiguration(DetectionSupervisedConfiguration):
-    nms_iou_threshold: Literal[0.7] = DETECTION_EVALUATION_NMS_IOU_THRESHOLD
+    inference_mode: Literal["end_to_end_nms_free", "nms"] = "end_to_end_nms_free"
+    nms_iou_threshold: Literal[0.7] | None = None
     max_detections_per_image: Literal[300] = (
         DETECTION_EVALUATION_MAX_DETECTIONS_PER_IMAGE
     )
@@ -162,6 +162,29 @@ class DetectionSupervisedEffectiveConfiguration(DetectionSupervisedConfiguration
         "medium",
         "large",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def infer_legacy_inference_mode(cls, data):
+        if isinstance(data, dict) and "inference_mode" not in data:
+            data = dict(data)
+            data["inference_mode"] = (
+                "nms"
+                if data.get("nms_iou_threshold") is not None
+                else "end_to_end_nms_free"
+            )
+        return data
+
+    @model_validator(mode="after")
+    def validate_inference_mode(self):
+        if self.inference_mode == "end_to_end_nms_free":
+            if self.nms_iou_threshold is not None:
+                raise ValueError(
+                    "nms_iou_threshold must be null for end-to-end inference"
+                )
+        elif self.nms_iou_threshold is None:
+            raise ValueError("nms inference requires nms_iou_threshold")
+        return self
 
 
 class DetectionAnnotationCoverage(DetectionMetricModel):
