@@ -227,9 +227,11 @@ def test_attack_catalog_exposes_capabilities_and_parameter_contracts():
 
     assert catalog["deepfool"]["knowledge_type"] == "white_box"
     assert catalog["deepfool"]["supported_task_types"] == ["classification"]
-    assert [
-        parameter["key"] for parameter in catalog["deepfool"]["parameters"]
-    ] == ["max_iter", "overshoot", "nb_grads"]
+    assert [parameter["key"] for parameter in catalog["deepfool"]["parameters"]] == [
+        "max_iter",
+        "overshoot",
+        "nb_grads",
+    ]
 
     assert catalog["hop_skip_jump"]["knowledge_type"] == "black_box"
     assert catalog["hop_skip_jump"]["supported_task_types"] == ["classification"]

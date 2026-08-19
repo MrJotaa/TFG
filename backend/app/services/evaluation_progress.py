@@ -67,7 +67,9 @@ def _stream_error_payload(
 
 
 async def stream_evaluation(
-    runner: Callable[[EvaluationProgressCallback, CancellationToken], Awaitable[TResponse]],
+    runner: Callable[
+        [EvaluationProgressCallback, CancellationToken], Awaitable[TResponse]
+    ],
 ) -> AsyncIterator[bytes]:
     """Stream progress events and the final Pydantic evaluation response as NDJSON."""
     queue: asyncio.Queue[dict | BaseException] = asyncio.Queue()

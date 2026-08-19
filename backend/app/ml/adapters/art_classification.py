@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from core.cancellation import CancellationToken
-
 import numpy as np
 import torch
 from art.estimators.classification import PyTorchClassifier
+
+from core.cancellation import CancellationToken
 
 if TYPE_CHECKING:
     from ml.models.base import BaseImageClassificationModel
@@ -48,7 +48,9 @@ class _ARTClassificationLogitsModule(torch.nn.Module):
 
 
 class _CancellablePyTorchClassifier(PyTorchClassifier):
-    def __init__(self, *args, cancellation_token: CancellationToken | None = None, **kwargs):
+    def __init__(
+        self, *args, cancellation_token: CancellationToken | None = None, **kwargs
+    ):
         self._cancellation_token = cancellation_token
         super().__init__(*args, **kwargs)
 

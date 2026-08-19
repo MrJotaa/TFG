@@ -1,4 +1,5 @@
 import asyncio
+
 from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
@@ -99,7 +100,9 @@ async def apply_detection_attack(
     original_detections = original_detection_result.detections
     adversarial_detections = adversarial_detection_result.detections
 
-    original_heatmap = await asyncio.to_thread(generate_detection_eigencam, model, image)
+    original_heatmap = await asyncio.to_thread(
+        generate_detection_eigencam, model, image
+    )
     if cancellation_token is not None:
         cancellation_token.raise_if_cancelled()
     original_explanation_image = draw_detections_on_image(

@@ -103,3 +103,72 @@ test('select parameters use catalog choice labels in summaries', () => {
         'norm=L∞',
     )
 })
+
+test('dynamic parameter builder supports ART numeric select and boolean controls', () => {
+    const artCatalog = [
+        {
+            id: 'zoo',
+            name: 'Zeroth-Order Optimization (ZOO)',
+            supported_task_types: ['classification'],
+            parameters: [
+                {
+                    key: 'confidence',
+                    value_type: 'float',
+                    control: 'number',
+                    summary_label: 'κ',
+                    default: 0,
+                },
+                {
+                    key: 'max_iter',
+                    value_type: 'integer',
+                    control: 'number',
+                    summary_label: 'iter',
+                    default: 10,
+                },
+                {
+                    key: 'use_resize',
+                    value_type: 'boolean',
+                    control: 'checkbox',
+                    summary_label: 'resize',
+                    default: true,
+                },
+            ],
+        },
+        {
+            id: 'hop_skip_jump',
+            name: 'HopSkipJump',
+            supported_task_types: ['classification'],
+            parameters: [
+                {
+                    key: 'norm',
+                    value_type: 'string',
+                    control: 'select',
+                    summary_label: 'norm',
+                    default: 'l2',
+                    choices: [
+                        { value: 'l2', label: 'L2' },
+                        { value: 'linf', label: 'L∞' },
+                    ],
+                },
+            ],
+        },
+    ]
+
+    assert.deepEqual(buildAttackParameters(artCatalog, 'zoo'), {
+        confidence: 0,
+        max_iter: 10,
+        use_resize: true,
+    })
+    assert.deepEqual(
+        buildAttackParameters(artCatalog, 'hop_skip_jump', {
+            norm: 'linf',
+            max_iter: 999,
+            use_resize: false,
+        }),
+        { norm: 'linf' },
+    )
+    assert.equal(
+        formatAttackParameters('hop_skip_jump', { norm: 'linf' }, artCatalog),
+        'norm=L∞',
+    )
+})

@@ -1,9 +1,8 @@
 import numpy as np
 import pytest
-
-from core.cancellation import CancellationToken, OperationCancelled
 import torch
 
+from core.cancellation import CancellationToken, OperationCancelled
 from ml.adapters.art_classification import ARTClassificationAdapter
 
 
@@ -165,6 +164,7 @@ def test_art_estimator_honours_cooperative_cancellation():
 
     with pytest.raises(OperationCancelled, match="Operation cancelled"):
         adapter.estimator.predict(art_input)
+
 
 def test_art_estimator_normalizes_float64_inputs_to_model_dtype():
     model = FakeClassificationModel()

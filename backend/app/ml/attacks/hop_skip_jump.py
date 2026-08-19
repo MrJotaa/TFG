@@ -94,7 +94,9 @@ class HopSkipJumpAttack(BaseARTClassificationAttack):
     def resolve_parameters(self, parameters: AttackParameters) -> AttackParameters:
         resolved = super().resolve_parameters(parameters)
         if resolved.init_eval > resolved.max_eval:
-            raise ValueError("Parameter 'init_eval' must be less than or equal to 'max_eval'")
+            raise ValueError(
+                "Parameter 'init_eval' must be less than or equal to 'max_eval'"
+            )
         return resolved
 
     def build_art_attack(self, estimator, parameters):

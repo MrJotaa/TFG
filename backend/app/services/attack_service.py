@@ -1,4 +1,5 @@
 import asyncio
+
 from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
@@ -125,11 +126,15 @@ async def apply_adversarial_attack(
         perturbation_image_to_persist = attack_result["perturbation_image"]
         perturbation_linf = attack_result["perturbation_linf"]
         perturbation_l2 = attack_result["perturbation_l2"]
-        adversarial_prediction = await asyncio.to_thread(model.predict, adversarial_image)
+        adversarial_prediction = await asyncio.to_thread(
+            model.predict, adversarial_image
+        )
         if cancellation_token is not None:
             cancellation_token.raise_if_cancelled()
 
-        original_gradcam_result = await asyncio.to_thread(generate_gradcam, model, image)
+        original_gradcam_result = await asyncio.to_thread(
+            generate_gradcam, model, image
+        )
         if cancellation_token is not None:
             cancellation_token.raise_if_cancelled()
         adversarial_gradcam_result = await asyncio.to_thread(

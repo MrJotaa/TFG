@@ -3,13 +3,12 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Any
 
-from core.cancellation import CancellationToken
-
 import numpy as np
 import torch
 from PIL import Image
 from torchvision.transforms.functional import to_pil_image
 
+from core.cancellation import CancellationToken
 from ml.adapters.art_classification import ARTClassificationAdapter
 from ml.attacks.base import AdversarialAttackResult, BaseAdversarialAttack
 from ml.attacks.presentation import perturbation_to_visualization
