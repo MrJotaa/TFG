@@ -292,6 +292,9 @@ class ResNet18Model(BaseImageClassificationModel):
 
         return self.model
 
+    def get_attack_input_shape(self) -> tuple[int, ...]:
+        return (3, *self.input_size)
+
     def get_gradcam_target_layer(self):
         if not self.is_loaded():
             raise ValueError("Model is not loaded")

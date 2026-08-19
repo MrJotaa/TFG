@@ -137,6 +137,32 @@ class BaseImageClassificationModel(BaseModel):
         """
         pass
 
+    def get_torch_model(self) -> torch.nn.Module:
+        """Devuelve el módulo PyTorch diferenciable usado por el clasificador."""
+        raise NotImplementedError(f"Model '{self.id}' does not expose a torch model")
+
+    def get_attack_input_shape(self) -> tuple[int, ...]:
+        """Devuelve la forma CxHxW de una muestra en el dominio de ataque."""
+        raise NotImplementedError(
+            f"Model '{self.id}' does not expose its classification attack input shape"
+        )
+
+    def forward_attack_logits(
+        self,
+        prepared_input: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Ejecuta un forward diferenciable desde el dominio de ataque [0, 1].
+
+        Los clasificadores cuyo forward nativo no devuelva directamente logits
+        pueden sobrescribir este método sin modificar los ataques ni adaptadores.
+        """
+        if not self.is_loaded():
+            raise ValueError("Model is not loaded")
+
+        normalized_input = self.normalize_attack_input(prepared_input)
+        return self.get_torch_model()(normalized_input)
+
 
 class BaseObjectDetectionModel(BaseModel):
     """
