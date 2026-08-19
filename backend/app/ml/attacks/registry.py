@@ -7,6 +7,7 @@ from ml.attacks.hop_skip_jump import HopSkipJumpAttack
 from ml.attacks.pgd import PGDAttack
 from ml.attacks.random_noise import RandomNoiseAttack
 from ml.attacks.yolo_confidence import YOLOConfidenceAttack
+from ml.attacks.zoo import ZerothOrderOptimizationAttack
 from schemas.attack import AttackParameters, AttackType
 
 _AVAILABLE_ATTACKS = {
@@ -16,6 +17,7 @@ _AVAILABLE_ATTACKS = {
     AttackType.CARLINI_WAGNER: CarliniWagnerAttack(),
     AttackType.DEEPFOOL: DeepFoolAttack(),
     AttackType.HOP_SKIP_JUMP: HopSkipJumpAttack(),
+    AttackType.ZOO: ZerothOrderOptimizationAttack(),
     AttackType.YOLO_CONFIDENCE: YOLOConfidenceAttack(),
 }
 

@@ -12,6 +12,7 @@ from ml.attacks.registry import (
     list_available_attacks,
 )
 from ml.attacks.yolo_confidence import YOLOConfidenceAttack
+from ml.attacks.zoo import ZerothOrderOptimizationAttack
 from schemas.attack import AttackType
 
 
@@ -23,6 +24,7 @@ from schemas.attack import AttackType
         (AttackType.CARLINI_WAGNER, CarliniWagnerAttack),
         (AttackType.DEEPFOOL, DeepFoolAttack),
         (AttackType.HOP_SKIP_JUMP, HopSkipJumpAttack),
+        (AttackType.ZOO, ZerothOrderOptimizationAttack),
         (AttackType.RANDOM_NOISE, RandomNoiseAttack),
         (AttackType.YOLO_CONFIDENCE, YOLOConfidenceAttack),
     ],
@@ -46,6 +48,7 @@ def test_list_available_attacks_returns_all_registered_attacks():
         AttackType.CARLINI_WAGNER,
         AttackType.DEEPFOOL,
         AttackType.HOP_SKIP_JUMP,
+        AttackType.ZOO,
         AttackType.RANDOM_NOISE,
         AttackType.YOLO_CONFIDENCE,
     }
@@ -81,6 +84,7 @@ def test_get_unknown_attack_raises_value_error():
         (CarliniWagnerAttack(), True, False),
         (DeepFoolAttack(), True, False),
         (HopSkipJumpAttack(), True, False),
+        (ZerothOrderOptimizationAttack(), True, False),
         (RandomNoiseAttack(), True, True),
         (YOLOConfidenceAttack(), False, True),
     ],
@@ -102,6 +106,7 @@ def test_attack_task_type_compatibility(
         CarliniWagnerAttack(),
         DeepFoolAttack(),
         HopSkipJumpAttack(),
+        ZerothOrderOptimizationAttack(),
         RandomNoiseAttack(),
         YOLOConfidenceAttack(),
     ],
@@ -118,6 +123,7 @@ def test_registered_attacks_resolve_only_their_own_parameters():
     carlini_wagner = get_attack(AttackType.CARLINI_WAGNER)
     deepfool = get_attack(AttackType.DEEPFOOL)
     hop_skip_jump = get_attack(AttackType.HOP_SKIP_JUMP)
+    zoo = get_attack(AttackType.ZOO)
     random_noise = get_attack(AttackType.RANDOM_NOISE)
 
     assert fgsm.resolve_parameters(AttackParameters()).model_dump() == {
@@ -146,6 +152,16 @@ def test_registered_attacks_resolve_only_their_own_parameters():
         "max_eval": 10000,
         "init_eval": 100,
         "init_size": 100,
+    }
+    assert zoo.resolve_parameters(AttackParameters()).model_dump() == {
+        "confidence": 0.0,
+        "learning_rate": 0.01,
+        "max_iter": 10,
+        "binary_search_steps": 1,
+        "initial_const": 0.001,
+        "nb_parallel": 128,
+        "use_resize": True,
+        "variable_h": 0.0001,
     }
     assert random_noise.resolve_parameters(AttackParameters()).model_dump() == {
         "epsilon": 0.03,
@@ -220,3 +236,23 @@ def test_attack_catalog_exposes_capabilities_and_parameter_contracts():
     assert [
         parameter["key"] for parameter in catalog["hop_skip_jump"]["parameters"]
     ] == ["norm", "max_iter", "max_eval", "init_eval", "init_size"]
+
+
+def test_zoo_catalog_exposes_black_box_parameter_contract():
+    from ml.attacks.registry import list_attack_catalog
+
+    catalog = {item["id"]: item for item in list_attack_catalog()}
+    zoo = catalog["zoo"]
+
+    assert zoo["knowledge_type"] == "black_box"
+    assert zoo["supported_task_types"] == ["classification"]
+    assert [parameter["key"] for parameter in zoo["parameters"]] == [
+        "confidence",
+        "learning_rate",
+        "max_iter",
+        "binary_search_steps",
+        "initial_const",
+        "nb_parallel",
+        "use_resize",
+        "variable_h",
+    ]

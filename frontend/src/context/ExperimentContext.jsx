@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useState,
+} from 'react'
 import { getAttacks } from '../api/attacks'
 import { buildAttackParameters } from '../utils/attackCatalog'
 
@@ -54,28 +60,28 @@ export function ExperimentProvider({ children }) {
         })
     }, [attackCatalog, selectedAttack])
 
-    function selectDataset(dataset) {
+    const selectDataset = useCallback((dataset) => {
         setRecoveredEvaluation(null)
         setSelectedDataset(dataset)
-    }
+    }, [])
 
-    function selectModel(model) {
+    const selectModel = useCallback((model) => {
         setRecoveredEvaluation(null)
         setActiveModel(model)
-    }
+    }, [])
 
-    function selectAttack(attackId) {
+    const selectAttack = useCallback((attackId) => {
         setRecoveredEvaluation(null)
         setSelectedAttackState(attackId)
         setAttackParametersState((current) =>
             buildAttackParameters(attackCatalog, attackId, current),
         )
-    }
+    }, [attackCatalog])
 
-    function updateAttackParameters(parameters) {
+    const updateAttackParameters = useCallback((parameters) => {
         setRecoveredEvaluation(null)
         setAttackParametersState(parameters)
-    }
+    }, [])
 
     function openRecoveredEvaluation({ historyItem, stored, dataset }) {
         setSelectedDataset(dataset)
