@@ -218,6 +218,7 @@ def test_attack_catalog_endpoint_exposes_registered_metadata(client):
         "random_noise",
         "pgd",
         "carlini_wagner",
+        "deepfool",
         "yolo_confidence",
     }
     assert catalog["fgsm"]["supported_task_types"] == ["classification"]

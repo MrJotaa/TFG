@@ -11,6 +11,7 @@ class AttackType(str, Enum):
     RANDOM_NOISE = "random_noise"
     PGD = "pgd"
     CARLINI_WAGNER = "carlini_wagner"
+    DEEPFOOL = "deepfool"
     YOLO_CONFIDENCE = "yolo_confidence"
 
 

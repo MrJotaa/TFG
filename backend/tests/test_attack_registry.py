@@ -1,6 +1,7 @@
 import pytest
 
 from ml.attacks.carlini_wagner import CarliniWagnerAttack
+from ml.attacks.deepfool import DeepFoolAttack
 from ml.attacks.fgsm import FGSMAttack
 from ml.attacks.pgd import PGDAttack
 from ml.attacks.random_noise import RandomNoiseAttack
@@ -19,6 +20,7 @@ from schemas.attack import AttackType
         (AttackType.FGSM, FGSMAttack),
         (AttackType.PGD, PGDAttack),
         (AttackType.CARLINI_WAGNER, CarliniWagnerAttack),
+        (AttackType.DEEPFOOL, DeepFoolAttack),
         (AttackType.RANDOM_NOISE, RandomNoiseAttack),
         (AttackType.YOLO_CONFIDENCE, YOLOConfidenceAttack),
     ],
@@ -40,6 +42,7 @@ def test_list_available_attacks_returns_all_registered_attacks():
         AttackType.FGSM,
         AttackType.PGD,
         AttackType.CARLINI_WAGNER,
+        AttackType.DEEPFOOL,
         AttackType.RANDOM_NOISE,
         AttackType.YOLO_CONFIDENCE,
     }
@@ -73,6 +76,7 @@ def test_get_unknown_attack_raises_value_error():
         (FGSMAttack(), True, False),
         (PGDAttack(), True, False),
         (CarliniWagnerAttack(), True, False),
+        (DeepFoolAttack(), True, False),
         (RandomNoiseAttack(), True, True),
         (YOLOConfidenceAttack(), False, True),
     ],
@@ -92,6 +96,7 @@ def test_attack_task_type_compatibility(
         FGSMAttack(),
         PGDAttack(),
         CarliniWagnerAttack(),
+        DeepFoolAttack(),
         RandomNoiseAttack(),
         YOLOConfidenceAttack(),
     ],
@@ -106,6 +111,7 @@ def test_registered_attacks_resolve_only_their_own_parameters():
     fgsm = get_attack(AttackType.FGSM)
     pgd = get_attack(AttackType.PGD)
     carlini_wagner = get_attack(AttackType.CARLINI_WAGNER)
+    deepfool = get_attack(AttackType.DEEPFOOL)
     random_noise = get_attack(AttackType.RANDOM_NOISE)
 
     assert fgsm.resolve_parameters(AttackParameters()).model_dump() == {
@@ -122,6 +128,11 @@ def test_registered_attacks_resolve_only_their_own_parameters():
         "learning_rate": 0.01,
         "binary_search_steps": 3,
         "max_iter": 10,
+    }
+    assert deepfool.resolve_parameters(AttackParameters()).model_dump() == {
+        "max_iter": 100,
+        "overshoot": 1e-6,
+        "nb_grads": 10,
     }
     assert random_noise.resolve_parameters(AttackParameters()).model_dump() == {
         "epsilon": 0.03,
@@ -184,3 +195,9 @@ def test_attack_catalog_exposes_capabilities_and_parameter_contracts():
         {"value": "l2", "label": "L2"},
         {"value": "linf", "label": "L∞"},
     ]
+
+    assert catalog["deepfool"]["knowledge_type"] == "white_box"
+    assert catalog["deepfool"]["supported_task_types"] == ["classification"]
+    assert [
+        parameter["key"] for parameter in catalog["deepfool"]["parameters"]
+    ] == ["max_iter", "overshoot", "nb_grads"]
