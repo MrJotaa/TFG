@@ -1,3 +1,6 @@
+import asyncio
+
+from core.cancellation import CancellationToken
 from core.task_compatibility import (
     CLASSIFICATION_TASK_TYPE,
     require_model_task_type,
@@ -10,6 +13,8 @@ from services.model_service import get_active_model_instance
 async def predict_image(
     dataset_id: str,
     image_id: str,
+    *,
+    cancellation_token: CancellationToken | None = None,
 ) -> PredictResponse:
     """
     Realiza una predicción sobre una imagen persistida en un dataset
@@ -28,4 +33,9 @@ async def predict_image(
         endpoint="/predict",
     )
 
-    return model.predict(image)
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+    result = await asyncio.to_thread(model.predict, image)
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+    return result

@@ -27,6 +27,7 @@ import {
 import { CLASSIFICATION_METRIC_GUIDES } from '../utils/evaluationMetricGuides'
 import { attackParametersKey } from '../utils/attackCatalog'
 import { getAttackName } from '../utils/attackFormatting'
+import { isRequestCancelled } from '../api/client'
 
 function EvaluationPanel({
     selectedDataset,
@@ -48,6 +49,7 @@ function EvaluationPanel({
     )
     const gradCamRequests = useRef(new Set())
     const gradCamRun = useRef(0)
+    const evaluationAbortController = useRef(null)
 
     const contextKey = [
         selectedDataset?.id || '',
@@ -79,16 +81,26 @@ function EvaluationPanel({
         gradCamRun.current += 1
         gradCamRequests.current.clear()
         dispatchGradCam({ type: 'reset' })
-        const result = await evaluateDataset({
-            datasetId: selectedDataset.id,
-            attackType: selectedAttack,
-            parameters: attackParameters,
-            forceRecompute,
-            onProgress: setProgress,
-        })
-        onStartNewEvaluation()
-        setEvaluationState({ contextKey, data: result })
-        setActiveTab('overview')
+        const controller = new AbortController()
+        evaluationAbortController.current = controller
+
+        try {
+            const result = await evaluateDataset({
+                datasetId: selectedDataset.id,
+                attackType: selectedAttack,
+                parameters: attackParameters,
+                forceRecompute,
+                onProgress: setProgress,
+                signal: controller.signal,
+            })
+            onStartNewEvaluation()
+            setEvaluationState({ contextKey, data: result })
+            setActiveTab('overview')
+        } finally {
+            if (evaluationAbortController.current === controller) {
+                evaluationAbortController.current = null
+            }
+        }
     }
 
     async function handleEvaluate() {
@@ -115,7 +127,9 @@ function EvaluationPanel({
             }
             await runEvaluation(false)
         } catch (err) {
-            setErrorState({ contextKey, message: err.message })
+            if (!isRequestCancelled(err)) {
+                setErrorState({ contextKey, message: err.message })
+            }
         } finally {
             setLoading(false)
             setProgress(null)
@@ -135,7 +149,9 @@ function EvaluationPanel({
             setReuseCandidate(null)
             setActiveTab('overview')
         } catch (err) {
-            setErrorState({ contextKey, message: err.message })
+            if (!isRequestCancelled(err)) {
+                setErrorState({ contextKey, message: err.message })
+            }
         } finally {
             setLoading(false)
             setProgress(null)
@@ -148,11 +164,17 @@ function EvaluationPanel({
             setErrorState(null)
             await runEvaluation(true)
         } catch (err) {
-            setErrorState({ contextKey, message: err.message })
+            if (!isRequestCancelled(err)) {
+                setErrorState({ contextKey, message: err.message })
+            }
         } finally {
             setLoading(false)
             setProgress(null)
         }
+    }
+
+    function handleCancelEvaluation() {
+        evaluationAbortController.current?.abort()
     }
 
     async function handleGenerateGradCam(evaluationId, imageId) {
@@ -274,6 +296,7 @@ function EvaluationPanel({
                     progress={progress}
                     title="Evaluando imágenes y calculando métricas"
                     pendingMessage="Preparando la evaluación del dataset..."
+                    onCancel={handleCancelEvaluation}
                 />
             )}
 

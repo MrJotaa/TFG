@@ -1,8 +1,10 @@
+import asyncio
 import json
 
 import pytest
 from pydantic import BaseModel
 
+from core.cancellation import OperationCancelled
 from core.errors import BadRequestError
 from services.evaluation_progress import EvaluationProgress, stream_evaluation
 
@@ -22,7 +24,7 @@ def test_evaluation_progress_validates_bounds():
 
 @pytest.mark.asyncio
 async def test_stream_evaluation_emits_progress_then_result():
-    async def runner(report):
+    async def runner(report, cancellation_token):
         report(EvaluationProgress(processed=0, total=2))
         report(EvaluationProgress(processed=1, total=2))
         report(EvaluationProgress(processed=2, total=2, phase="metrics"))
@@ -55,7 +57,7 @@ async def test_stream_evaluation_emits_progress_then_result():
 
 @pytest.mark.asyncio
 async def test_stream_evaluation_serializes_controlled_errors():
-    async def runner(report):
+    async def runner(report, cancellation_token):
         report(EvaluationProgress(processed=0, total=1))
         raise BadRequestError(
             {"code": "invalid_evaluation", "message": "Evaluation is invalid"}
@@ -73,3 +75,38 @@ async def test_stream_evaluation_serializes_controlled_errors():
             "message": "Evaluation is invalid",
         },
     }
+
+
+@pytest.mark.asyncio
+async def test_stream_evaluation_serializes_cooperative_cancellation():
+    async def runner(report, cancellation_token):
+        cancellation_token.cancel()
+        raise OperationCancelled("Operation cancelled")
+
+    events = _decode([event async for event in stream_evaluation(runner)])
+
+    assert events == [{"type": "cancelled"}]
+
+
+@pytest.mark.asyncio
+async def test_stream_evaluation_cancels_worker_when_consumer_closes_stream():
+    worker_stopped = asyncio.Event()
+
+    async def runner(report, cancellation_token):
+        report(EvaluationProgress(processed=0, total=1))
+        try:
+            while True:
+                await asyncio.sleep(0.001)
+                cancellation_token.raise_if_cancelled()
+        finally:
+            worker_stopped.set()
+
+    stream = stream_evaluation(runner)
+    first_event = _decode([await anext(stream)])
+    assert first_event == [
+        {"type": "progress", "processed": 0, "total": 1, "phase": "images"}
+    ]
+
+    await stream.aclose()
+
+    assert worker_stopped.is_set()

@@ -164,6 +164,10 @@ class BaseAdversarialAttack(ABC):
 
         return AttackParameters(**resolved)
 
+    def create_runner(self, model_wrapper, parameters, cancellation_token=None):
+        """Return an execution-scoped runner. Stateless attacks reuse themselves."""
+        return self
+
     def catalog_entry(self) -> dict[str, Any]:
         return {
             "id": self.id,

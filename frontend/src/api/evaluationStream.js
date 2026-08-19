@@ -12,7 +12,11 @@ function streamEventError(event) {
     return error
 }
 
-export async function streamEvaluationRequest(path, payload, { onProgress } = {}) {
+export async function streamEvaluationRequest(
+    path,
+    payload,
+    { onProgress, signal } = {},
+) {
     const token = getStoredToken()
     const headers = {
         'Content-Type': 'application/json',
@@ -25,6 +29,7 @@ export async function streamEvaluationRequest(path, payload, { onProgress } = {}
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
+        signal,
     })
 
     if (!response.ok) {
@@ -58,6 +63,11 @@ export async function streamEvaluationRequest(path, payload, { onProgress } = {}
         }
         if (event.type === 'result') {
             finalResult = event.data
+            return
+        }
+        if (event.type === 'cancelled') {
+            const error = new DOMException('Operation cancelled', 'AbortError')
+            throw error
         }
     }
 

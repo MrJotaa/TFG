@@ -1,9 +1,14 @@
 import pytest
 
+from ml.attacks.carlini_wagner import CarliniWagnerAttack
 from ml.attacks.fgsm import FGSMAttack
 from ml.attacks.pgd import PGDAttack
 from ml.attacks.random_noise import RandomNoiseAttack
-from ml.attacks.registry import get_attack, list_available_attacks
+from ml.attacks.registry import (
+    create_attack_runner,
+    get_attack,
+    list_available_attacks,
+)
 from ml.attacks.yolo_confidence import YOLOConfidenceAttack
 from schemas.attack import AttackType
 
@@ -13,6 +18,7 @@ from schemas.attack import AttackType
     [
         (AttackType.FGSM, FGSMAttack),
         (AttackType.PGD, PGDAttack),
+        (AttackType.CARLINI_WAGNER, CarliniWagnerAttack),
         (AttackType.RANDOM_NOISE, RandomNoiseAttack),
         (AttackType.YOLO_CONFIDENCE, YOLOConfidenceAttack),
     ],
@@ -33,9 +39,23 @@ def test_list_available_attacks_returns_all_registered_attacks():
     assert available_attacks == {
         AttackType.FGSM,
         AttackType.PGD,
+        AttackType.CARLINI_WAGNER,
         AttackType.RANDOM_NOISE,
         AttackType.YOLO_CONFIDENCE,
     }
+
+
+def test_create_attack_runner_keeps_legacy_attack_compatible():
+    legacy_attack = object()
+
+    assert (
+        create_attack_runner(
+            attack=legacy_attack,
+            model_wrapper=object(),
+            parameters=object(),
+        )
+        is legacy_attack
+    )
 
 
 def test_get_unknown_attack_raises_value_error():
@@ -52,6 +72,7 @@ def test_get_unknown_attack_raises_value_error():
     [
         (FGSMAttack(), True, False),
         (PGDAttack(), True, False),
+        (CarliniWagnerAttack(), True, False),
         (RandomNoiseAttack(), True, True),
         (YOLOConfidenceAttack(), False, True),
     ],
@@ -70,6 +91,7 @@ def test_attack_task_type_compatibility(
     [
         FGSMAttack(),
         PGDAttack(),
+        CarliniWagnerAttack(),
         RandomNoiseAttack(),
         YOLOConfidenceAttack(),
     ],
@@ -83,6 +105,7 @@ def test_registered_attacks_resolve_only_their_own_parameters():
 
     fgsm = get_attack(AttackType.FGSM)
     pgd = get_attack(AttackType.PGD)
+    carlini_wagner = get_attack(AttackType.CARLINI_WAGNER)
     random_noise = get_attack(AttackType.RANDOM_NOISE)
 
     assert fgsm.resolve_parameters(AttackParameters()).model_dump() == {
@@ -92,6 +115,13 @@ def test_registered_attacks_resolve_only_their_own_parameters():
         "epsilon": 0.03,
         "alpha": 0.01,
         "steps": 10,
+    }
+    assert carlini_wagner.resolve_parameters(AttackParameters()).model_dump() == {
+        "norm": "l2",
+        "confidence": 0.0,
+        "learning_rate": 0.01,
+        "binary_search_steps": 3,
+        "max_iter": 10,
     }
     assert random_noise.resolve_parameters(AttackParameters()).model_dump() == {
         "epsilon": 0.03,
@@ -138,3 +168,19 @@ def test_attack_catalog_exposes_capabilities_and_parameter_contracts():
     assert [
         parameter["key"] for parameter in catalog["random_noise"]["parameters"]
     ] == ["epsilon", "seed"]
+
+    assert catalog["carlini_wagner"]["knowledge_type"] == "white_box"
+    assert catalog["carlini_wagner"]["supported_task_types"] == ["classification"]
+    assert [
+        parameter["key"] for parameter in catalog["carlini_wagner"]["parameters"]
+    ] == [
+        "norm",
+        "confidence",
+        "learning_rate",
+        "binary_search_steps",
+        "max_iter",
+    ]
+    assert catalog["carlini_wagner"]["parameters"][0]["choices"] == [
+        {"value": "l2", "label": "L2"},
+        {"value": "linf", "label": "L∞"},
+    ]

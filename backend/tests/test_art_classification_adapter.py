@@ -1,5 +1,7 @@
 import numpy as np
 import pytest
+
+from core.cancellation import CancellationToken, OperationCancelled
 import torch
 
 from ml.adapters.art_classification import ARTClassificationAdapter
@@ -148,3 +150,18 @@ def test_art_adapter_rejects_prepared_input_with_wrong_shape():
 
     with pytest.raises(ValueError, match="does not match expected shape"):
         adapter.to_art_input(torch.zeros((1, 3, 8, 8), dtype=torch.float32))
+
+
+def test_art_estimator_honours_cooperative_cancellation():
+    model = FakeClassificationModel()
+    cancellation_token = CancellationToken()
+    adapter = ARTClassificationAdapter(
+        model,
+        cancellation_token=cancellation_token,
+    )
+    art_input = np.full((1, 3, 4, 4), 0.75, dtype=np.float32)
+
+    cancellation_token.cancel()
+
+    with pytest.raises(OperationCancelled, match="Operation cancelled"):
+        adapter.estimator.predict(art_input)

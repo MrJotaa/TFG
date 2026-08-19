@@ -4,7 +4,7 @@ import api.routes.predict as predict_route
 
 
 def test_predict_returns_prediction_response(client, monkeypatch):
-    async def fake_predict_image(dataset_id: str, image_id: str):
+    async def fake_predict_image(dataset_id: str, image_id: str, **kwargs):
         assert dataset_id == "dataset-1"
         assert image_id == "image-1"
 
@@ -56,7 +56,7 @@ def test_predict_with_missing_image_id_returns_422(client):
 
 
 def test_predict_propagates_service_error(client, monkeypatch):
-    async def fake_predict_image(dataset_id: str, image_id: str):
+    async def fake_predict_image(dataset_id: str, image_id: str, **kwargs):
         raise HTTPException(status_code=404, detail="Image not found")
 
     monkeypatch.setattr(predict_route, "predict_image", fake_predict_image)

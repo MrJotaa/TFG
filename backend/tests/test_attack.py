@@ -21,7 +21,7 @@ def _mock_prediction(label: str, confidence: float):
 
 
 def test_attack_returns_attack_response(client, monkeypatch):
-    async def fake_apply_adversarial_attack(request):
+    async def fake_apply_adversarial_attack(request, **kwargs):
         assert request.dataset_id == "dataset-1"
         assert request.image_id == "image-1"
         assert request.attack_type.value == "fgsm"
@@ -88,7 +88,7 @@ def test_attack_returns_attack_response(client, monkeypatch):
 
 
 def test_attack_uses_default_attack_parameters(client, monkeypatch):
-    async def fake_apply_adversarial_attack(request):
+    async def fake_apply_adversarial_attack(request, **kwargs):
         assert request.attack_type.value == "fgsm"
         assert request.parameters.epsilon == 0.03
         assert request.parameters.alpha == 0.01
@@ -182,7 +182,7 @@ def test_attack_with_invalid_epsilon_returns_422(client):
 
 
 def test_attack_propagates_service_error(client, monkeypatch):
-    async def fake_apply_adversarial_attack(request):
+    async def fake_apply_adversarial_attack(request, **kwargs):
         raise HTTPException(
             status_code=400,
             detail="Endpoint /attack currently supports classification models only.",
@@ -213,7 +213,13 @@ def test_attack_catalog_endpoint_exposes_registered_metadata(client):
     assert response.status_code == 200
 
     catalog = {item["id"]: item for item in response.json()}
-    assert set(catalog) == {"fgsm", "random_noise", "pgd", "yolo_confidence"}
+    assert set(catalog) == {
+        "fgsm",
+        "random_noise",
+        "pgd",
+        "carlini_wagner",
+        "yolo_confidence",
+    }
     assert catalog["fgsm"]["supported_task_types"] == ["classification"]
     assert catalog["yolo_confidence"]["supported_task_types"] == ["detection"]
     assert catalog["pgd"]["parameters"][0]["key"] == "epsilon"

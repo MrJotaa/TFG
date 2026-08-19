@@ -1,3 +1,6 @@
+import asyncio
+
+from core.cancellation import CancellationToken
 from core.task_compatibility import (
     DETECTION_TASK_TYPE,
     require_model_task_type,
@@ -16,7 +19,11 @@ from utils.result_files import (
 )
 
 
-async def detect_objects(request: DetectionRequest) -> DetectionResponse:
+async def detect_objects(
+    request: DetectionRequest,
+    *,
+    cancellation_token: CancellationToken | None = None,
+) -> DetectionResponse:
     image = await get_image_from_dataset(
         dataset_id=request.dataset_id,
         image_id=request.image_id,
@@ -30,7 +37,14 @@ async def detect_objects(request: DetectionRequest) -> DetectionResponse:
         endpoint="/detect",
     )
 
-    detection_result, annotated_image = model.detect_with_visualization(image)
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+    detection_result, annotated_image = await asyncio.to_thread(
+        model.detect_with_visualization,
+        image,
+    )
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
 
     result_id, result_path = create_result_directory(prefix="detection")
 

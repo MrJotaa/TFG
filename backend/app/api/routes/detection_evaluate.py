@@ -39,12 +39,13 @@ async def evaluate_detection_stream(
     request: DetectionEvaluationRequest,
     current_user: UserResponse = Depends(require_current_user),
 ) -> StreamingResponse:
-    async def runner(progress_callback):
+    async def runner(progress_callback, cancellation_token):
         return await evaluate_detection_dataset(
             request,
             owner_id=current_user.id,
             retention_seconds=current_user.result_retention_seconds,
             progress_callback=progress_callback,
+            cancellation_token=cancellation_token,
         )
 
     return StreamingResponse(

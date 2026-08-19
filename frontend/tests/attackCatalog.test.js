@@ -41,6 +41,22 @@ const catalog = [
             },
         ],
     },
+    {
+        id: 'carlini_wagner',
+        name: 'Carlini & Wagner',
+        supported_task_types: ['classification'],
+        parameters: [
+            {
+                key: 'norm',
+                summary_label: 'norm',
+                default: 'l2',
+                choices: [
+                    { value: 'l2', label: 'L2' },
+                    { value: 'linf', label: 'L∞' },
+                ],
+            },
+        ],
+    },
 ]
 
 test('catalog compatibility is driven by backend metadata', () => {
@@ -77,5 +93,13 @@ test('attack summaries use catalog names and parameter metadata', () => {
     assert.equal(
         formatAttackParameters('random_noise', { epsilon: 0.05, seed: 9 }, catalog),
         'ε=0.05 · seed=9',
+    )
+})
+
+
+test('select parameters use catalog choice labels in summaries', () => {
+    assert.equal(
+        formatAttackParameters('carlini_wagner', { norm: 'linf' }, catalog),
+        'norm=L∞',
     )
 })

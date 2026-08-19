@@ -1,3 +1,6 @@
+import asyncio
+
+from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
     CLASSIFICATION_TASK_TYPE,
@@ -24,7 +27,12 @@ from utils.result_files import (
 )
 
 
-async def generate_gradcam_for_image(dataset_id: str, image_id: str) -> GradCamResponse:
+async def generate_gradcam_for_image(
+    dataset_id: str,
+    image_id: str,
+    *,
+    cancellation_token: CancellationToken | None = None,
+) -> GradCamResponse:
     image = await get_image_from_dataset(
         dataset_id=dataset_id,
         image_id=image_id,
@@ -40,11 +48,16 @@ async def generate_gradcam_for_image(dataset_id: str, image_id: str) -> GradCamR
 
     source_image = image.copy().convert("RGB")
     model_input = model.preprocess(image)
-    result = generate_clean_gradcam(
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+    result = await asyncio.to_thread(
+        generate_clean_gradcam,
         model_wrapper=model,
         model_input=model_input,
         source_image=source_image,
     )
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
 
     result_id, result_path = create_result_directory(prefix="gradcam")
 
@@ -79,6 +92,8 @@ async def generate_gradcam_for_image(dataset_id: str, image_id: str) -> GradCamR
 
 async def generate_detection_explainability(
     request: DetectionExplainRequest,
+    *,
+    cancellation_token: CancellationToken | None = None,
 ) -> DetectionExplainResponse:
     image = await get_image_from_dataset(
         dataset_id=request.dataset_id,
@@ -93,13 +108,19 @@ async def generate_detection_explainability(
         endpoint="/explain/detection",
     )
 
-    detection_result = model.detect(image)
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+    detection_result = await asyncio.to_thread(model.detect, image)
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
     detections = detection_result.detections
 
     if not detections:
         raise BadRequestError("No detections found in the selected image.")
 
-    heatmap_image = generate_detection_eigencam(model, image)
+    heatmap_image = await asyncio.to_thread(generate_detection_eigencam, model, image)
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
 
     explanation_image = draw_detections_on_image(
         image=heatmap_image,

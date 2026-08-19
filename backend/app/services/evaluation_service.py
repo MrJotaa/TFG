@@ -6,6 +6,7 @@ from time import perf_counter
 
 import torch
 
+from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
     CLASSIFICATION_TASK_TYPE,
@@ -14,7 +15,11 @@ from core.task_compatibility import (
 )
 from ml.attacks.base import AdversarialAttackResult
 from ml.attacks.presentation import reconstruct_attack_in_source_geometry
-from ml.attacks.registry import get_attack, resolve_attack_parameters
+from ml.attacks.registry import (
+    create_attack_runner,
+    get_attack,
+    resolve_attack_parameters,
+)
 from ml.metrics.classification import (
     ClassificationEvaluationSample,
     build_evaluation_image_diagnostics,
@@ -114,6 +119,7 @@ async def evaluate_dataset(
     owner_id: str | None = None,
     retention_seconds: int = RESULTS_TTL_SECONDS,
     progress_callback: EvaluationProgressCallback | None = None,
+    cancellation_token: CancellationToken | None = None,
 ) -> EvaluationResponse:
     try:
         attack = get_attack(request.attack_type)
@@ -137,6 +143,7 @@ async def evaluate_dataset(
             attack=attack,
             execution=execution,
             progress_callback=progress_callback,
+            cancellation_token=cancellation_token,
         )
         completed = True
         return response
@@ -151,6 +158,7 @@ async def _evaluate_dataset(
     attack,
     execution: EvaluationExecution | None,
     progress_callback: EvaluationProgressCallback | None,
+    cancellation_token: CancellationToken | None,
 ) -> EvaluationResponse:
     logger.debug(
         ("classification_evaluation_started dataset_id=%s attack=%s steps=%s"),
@@ -230,6 +238,13 @@ async def _evaluate_dataset(
         },
     )
 
+    attack_runner = create_attack_runner(
+        attack=attack,
+        model_wrapper=model,
+        parameters=request.parameters,
+        cancellation_token=cancellation_token,
+    )
+
     setup_seconds = perf_counter() - setup_started
     model_device = _get_model_device(model)
     device_name = str(model_device) if model_device is not None else "unknown"
@@ -280,7 +295,10 @@ async def _evaluate_dataset(
         profile_totals["original_prediction"] += original_prediction_seconds
 
         stage_started = _start_stage(model_device)
-        attack_result = attack.apply(
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+        attack_result = await asyncio.to_thread(
+            attack_runner.apply,
             model_wrapper=model,
             image=image,
             parameters=attack_parameters_for_image(
@@ -288,8 +306,10 @@ async def _evaluate_dataset(
                 parameters=request.parameters,
                 image_id=image_id,
             ),
-            original_class_index=(original_prediction.class_index),
+            original_class_index=original_prediction.class_index,
         )
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
         attack_seconds = _finish_stage(
             stage_started,
             model_device,

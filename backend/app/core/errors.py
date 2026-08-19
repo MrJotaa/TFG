@@ -62,3 +62,9 @@ class GoneError(ApplicationError):
 
     status_code = 410
     default_detail = "Resource is no longer available"
+
+class ClientDisconnectedError(ApplicationError):
+    """El cliente canceló una operación que todavía estaba en ejecución."""
+
+    status_code = 499
+    default_detail = "Operation cancelled by client"

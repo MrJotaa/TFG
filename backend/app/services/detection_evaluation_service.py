@@ -1,13 +1,18 @@
 import asyncio
 import logging
 
+from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
     DETECTION_TASK_TYPE,
     require_attack_task_type,
     require_model_task_type,
 )
-from ml.attacks.registry import get_attack, resolve_attack_parameters
+from ml.attacks.registry import (
+    create_attack_runner,
+    get_attack,
+    resolve_attack_parameters,
+)
 from ml.models.detection_inference import (
     DetectionEvaluationInferenceConfiguration,
 )
@@ -63,6 +68,7 @@ async def evaluate_detection_dataset(
     owner_id: str | None = None,
     retention_seconds: int = RESULTS_TTL_SECONDS,
     progress_callback: EvaluationProgressCallback | None = None,
+    cancellation_token: CancellationToken | None = None,
 ) -> DetectionEvaluationResponse:
     try:
         attack = get_attack(request.attack_type)
@@ -89,6 +95,7 @@ async def evaluate_detection_dataset(
             result_id=result_id,
             execution=execution,
             progress_callback=progress_callback,
+            cancellation_token=cancellation_token,
         )
         completed = True
         return response
@@ -113,6 +120,7 @@ async def _evaluate_detection_dataset(
     result_id: str,
     execution: EvaluationExecution | None,
     progress_callback: EvaluationProgressCallback | None,
+    cancellation_token: CancellationToken | None,
 ) -> DetectionEvaluationResponse:
     dataset = await get_dataset(request.dataset_id)
 
@@ -127,6 +135,13 @@ async def _evaluate_detection_dataset(
     require_attack_task_type(
         attack=attack,
         task_type=model.task_type,
+    )
+
+    attack_runner = create_attack_runner(
+        attack=attack,
+        model_wrapper=model,
+        parameters=request.parameters,
+        cancellation_token=cancellation_token,
     )
 
     annotation_snapshot = await read_detection_annotation_snapshot(request.dataset_id)
@@ -175,7 +190,10 @@ async def _evaluate_detection_dataset(
             image_id=image_metadata.id,
         )
 
-        attack_result = attack.apply(
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+        attack_result = await asyncio.to_thread(
+            attack_runner.apply,
             model_wrapper=model,
             image=image,
             parameters=attack_parameters_for_image(
@@ -184,6 +202,8 @@ async def _evaluate_detection_dataset(
                 image_id=image_metadata.id,
             ),
         )
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
 
         adversarial_image = attack_result["adversarial_image"]
         adversarial_image_url = save_detection_evaluation_adversarial_image(

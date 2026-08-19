@@ -17,7 +17,7 @@ def _mock_detection(label: str = "car", confidence: float = 0.91):
 
 
 def test_detect_attack_returns_detection_attack_response(client, monkeypatch):
-    async def fake_apply_detection_attack(request):
+    async def fake_apply_detection_attack(request, **kwargs):
         assert request.dataset_id == "dataset-1"
         assert request.image_id == "image-1"
         assert request.attack_type.value == "yolo_confidence"
@@ -105,7 +105,7 @@ def test_detect_attack_returns_detection_attack_response(client, monkeypatch):
 
 
 def test_detect_attack_uses_default_parameters(client, monkeypatch):
-    async def fake_apply_detection_attack(request):
+    async def fake_apply_detection_attack(request, **kwargs):
         assert request.attack_type.value == "random_noise"
         assert request.parameters.epsilon == 0.03
         assert request.parameters.alpha == 0.01
@@ -208,7 +208,7 @@ def test_detect_attack_propagates_incompatible_attack_error(
     client,
     monkeypatch,
 ):
-    async def fake_apply_detection_attack(request):
+    async def fake_apply_detection_attack(request, **kwargs):
         raise HTTPException(
             status_code=400,
             detail=("Attack 'fgsm' does not support task type 'detection'"),
@@ -236,7 +236,7 @@ def test_detect_attack_propagates_incompatible_attack_error(
 
 
 def test_detect_attack_propagates_dataset_error(client, monkeypatch):
-    async def fake_apply_detection_attack(request):
+    async def fake_apply_detection_attack(request, **kwargs):
         raise HTTPException(status_code=404, detail="Image not found")
 
     monkeypatch.setattr(

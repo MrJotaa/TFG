@@ -1,3 +1,6 @@
+from inspect import Parameter, signature
+
+from ml.attacks.carlini_wagner import CarliniWagnerAttack
 from ml.attacks.fgsm import FGSMAttack
 from ml.attacks.pgd import PGDAttack
 from ml.attacks.random_noise import RandomNoiseAttack
@@ -8,6 +11,7 @@ _AVAILABLE_ATTACKS = {
     AttackType.FGSM: FGSMAttack(),
     AttackType.RANDOM_NOISE: RandomNoiseAttack(),
     AttackType.PGD: PGDAttack(),
+    AttackType.CARLINI_WAGNER: CarliniWagnerAttack(),
     AttackType.YOLO_CONFIDENCE: YOLOConfidenceAttack(),
 }
 
@@ -29,6 +33,30 @@ def resolve_attack_parameters(attack, parameters: AttackParameters) -> AttackPar
         resolved.setdefault(key, getattr(parameters, key))
 
     return AttackParameters(**resolved)
+
+
+def create_attack_runner(
+    attack,
+    model_wrapper,
+    parameters,
+    cancellation_token=None,
+):
+    factory = getattr(attack, "create_runner", None)
+    if not callable(factory):
+        return attack
+
+    factory_parameters = signature(factory).parameters
+    accepts_cancellation = "cancellation_token" in factory_parameters or any(
+        parameter.kind is Parameter.VAR_KEYWORD
+        for parameter in factory_parameters.values()
+    )
+    if accepts_cancellation:
+        return factory(
+            model_wrapper=model_wrapper,
+            parameters=parameters,
+            cancellation_token=cancellation_token,
+        )
+    return factory(model_wrapper=model_wrapper, parameters=parameters)
 
 
 def list_available_attacks():

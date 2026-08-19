@@ -27,7 +27,11 @@ export function formatAttackParameters(
             const value = Object.hasOwn(attackParameters ?? {}, parameter.key)
                 ? attackParameters[parameter.key]
                 : parameter.default
-            return `${parameter.summary_label}=${value}`
+            const selectedChoice = parameter.choices?.find(
+                (choice) => choice.value === value,
+            )
+            const displayValue = selectedChoice?.label ?? value
+            return `${parameter.summary_label}=${displayValue}`
         })
         .join(' · ')
 }

@@ -8,6 +8,7 @@ export function evaluateDetectionDataset({
     supervisedConfiguration,
     forceRecompute = false,
     onProgress,
+    signal,
 }) {
     return streamEvaluationRequest(
         '/detect/evaluate/stream',
@@ -18,7 +19,7 @@ export function evaluateDetectionDataset({
             supervised_configuration: supervisedConfiguration,
             force_recompute: forceRecompute,
         },
-        { onProgress },
+        { onProgress, signal },
     )
 }
 

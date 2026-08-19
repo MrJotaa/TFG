@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { applyAttack } from '../api/attack'
-import { resolveApiUrl } from '../api/client'
+import { isRequestCancelled, resolveApiUrl } from '../api/client'
 import { attackDetectionImage, detectImage } from '../api/detect'
 import { generateDetectionExplainability } from '../api/explainability'
 import { predictImage } from '../api/predict'
@@ -307,6 +307,7 @@ function ComparisonView() {
     const [loading, setLoading] = useState(false)
     const [loadingExplainability, setLoadingExplainability] = useState(false)
     const [errorState, setErrorState] = useState(null)
+    const requestAbortController = useRef(null)
 
     const taskType = activeModel?.task_type ?? 'classification'
     const isDetection = taskType === 'detection'
@@ -372,6 +373,25 @@ function ComparisonView() {
         : ''
     const busy = loading || loadingPrediction || loadingExplainability
 
+    useEffect(() => () => requestAbortController.current?.abort(), [])
+
+    function beginCancellableRequest() {
+        requestAbortController.current?.abort()
+        const controller = new AbortController()
+        requestAbortController.current = controller
+        return controller
+    }
+
+    function finishCancellableRequest(controller) {
+        if (requestAbortController.current === controller) {
+            requestAbortController.current = null
+        }
+    }
+
+    function handleCancelOperation() {
+        requestAbortController.current?.abort()
+    }
+
     function setCurrentError(message) {
         setErrorState(message ? { contextKey: imageContextKey, message } : null)
     }
@@ -382,6 +402,7 @@ function ComparisonView() {
             return
         }
 
+        const controller = beginCancellableRequest()
         try {
             setLoadingPrediction(true)
             setCurrentError('')
@@ -389,6 +410,7 @@ function ComparisonView() {
             const request = {
                 datasetId: selectedDataset.id,
                 imageId: selectedImage.id,
+                signal: controller.signal,
             }
             const result = isDetection
                 ? await detectImage(request)
@@ -396,8 +418,11 @@ function ComparisonView() {
             setPredictionResultState({ contextKey: imageContextKey, data: result })
             setActivePanelState({ contextKey: imageContextKey, panel: 'clean' })
         } catch (err) {
-            setCurrentError(err.message)
+            if (!isRequestCancelled(err)) {
+                setCurrentError(err.message)
+            }
         } finally {
+            finishCancellableRequest(controller)
             setLoadingPrediction(false)
         }
     }
@@ -413,11 +438,13 @@ function ComparisonView() {
             return
         }
 
+        const controller = beginCancellableRequest()
         const request = {
             datasetId: selectedDataset.id,
             imageId: selectedImage.id,
             attackType: selectedAttack,
             parameters: attackParameters,
+            signal: controller.signal,
         }
 
         try {
@@ -432,8 +459,11 @@ function ComparisonView() {
                 setActivePanelState({ contextKey: imageContextKey, panel: 'attack' })
             }
         } catch (err) {
-            setCurrentError(err.message)
+            if (!isRequestCancelled(err)) {
+                setCurrentError(err.message)
+            }
         } finally {
+            finishCancellableRequest(controller)
             setLoading(false)
         }
     }
@@ -444,12 +474,14 @@ function ComparisonView() {
             return
         }
 
+        const controller = beginCancellableRequest()
         try {
             setLoadingExplainability(true)
             setCurrentError('')
             const result = await generateDetectionExplainability({
                 datasetId: selectedDataset.id,
                 imageId: selectedImage.id,
+                signal: controller.signal,
             })
             setExplainabilityResultState({
                 contextKey: imageContextKey,
@@ -460,8 +492,11 @@ function ComparisonView() {
                 panel: 'explanation',
             })
         } catch (err) {
-            setCurrentError(err.message)
+            if (!isRequestCancelled(err)) {
+                setCurrentError(err.message)
+            }
         } finally {
+            finishCancellableRequest(controller)
             setLoadingExplainability(false)
         }
     }
@@ -619,6 +654,16 @@ function ComparisonView() {
                                         : explainabilityResult
                                           ? 'Regenerar EigenCAM'
                                           : 'Generar EigenCAM'}
+                                </button>
+                            )}
+
+                            {busy && (
+                                <button
+                                    type="button"
+                                    className="secondary-action"
+                                    onClick={handleCancelOperation}
+                                >
+                                    Cancelar
                                 </button>
                             )}
                         </div>

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from core.cancellation import CancellationToken
+
 import numpy as np
 import torch
 from art.estimators.classification import PyTorchClassifier
@@ -45,6 +47,34 @@ class _ARTClassificationLogitsModule(torch.nn.Module):
         return logits
 
 
+class _CancellablePyTorchClassifier(PyTorchClassifier):
+    def __init__(self, *args, cancellation_token: CancellationToken | None = None, **kwargs):
+        self._cancellation_token = cancellation_token
+        super().__init__(*args, **kwargs)
+
+    def _raise_if_cancelled(self) -> None:
+        if self._cancellation_token is not None:
+            self._cancellation_token.raise_if_cancelled()
+
+    def predict(self, *args, **kwargs):
+        self._raise_if_cancelled()
+        result = super().predict(*args, **kwargs)
+        self._raise_if_cancelled()
+        return result
+
+    def class_gradient(self, *args, **kwargs):
+        self._raise_if_cancelled()
+        result = super().class_gradient(*args, **kwargs)
+        self._raise_if_cancelled()
+        return result
+
+    def loss_gradient(self, *args, **kwargs):
+        self._raise_if_cancelled()
+        result = super().loss_gradient(*args, **kwargs)
+        self._raise_if_cancelled()
+        return result
+
+
 class ARTClassificationAdapter:
     """Adapta un clasificador PyTorch interno al contrato de clasificación de ART.
 
@@ -54,7 +84,11 @@ class ARTClassificationAdapter:
     propio modelo mediante ``forward_attack_logits``.
     """
 
-    def __init__(self, model_wrapper: BaseImageClassificationModel) -> None:
+    def __init__(
+        self,
+        model_wrapper: BaseImageClassificationModel,
+        cancellation_token: CancellationToken | None = None,
+    ) -> None:
         if getattr(model_wrapper, "task_type", None) != "classification":
             raise ValueError(
                 "ART classification adapter requires a classification model"
@@ -85,6 +119,7 @@ class ARTClassificationAdapter:
         self.nb_classes = len(class_labels)
         self.device = device
         self.clip_values = ART_CLASSIFICATION_CLIP_VALUES
+        self.cancellation_token = cancellation_token
 
         logits_model = _ARTClassificationLogitsModule(
             model_wrapper=model_wrapper,
@@ -150,7 +185,9 @@ class ARTClassificationAdapter:
         }
 
         if self.device.type != "cuda":
-            return PyTorchClassifier(**estimator_kwargs)
+            return _CancellablePyTorchClassifier(
+                **estimator_kwargs, cancellation_token=self.cancellation_token
+            )
 
         cuda_index = self.device.index
         if cuda_index is None:
@@ -159,7 +196,9 @@ class ARTClassificationAdapter:
         # ART elige torch.cuda.current_device() cuando device_type="gpu". El
         # contexto garantiza que no mueva inadvertidamente el modelo a otra GPU.
         with torch.cuda.device(cuda_index):
-            return PyTorchClassifier(**estimator_kwargs)
+            return _CancellablePyTorchClassifier(
+                **estimator_kwargs, cancellation_token=self.cancellation_token
+            )
 
     def _validate_prepared_tensor(self, prepared_input: torch.Tensor) -> None:
         if not isinstance(prepared_input, torch.Tensor):

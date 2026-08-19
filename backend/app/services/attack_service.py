@@ -1,3 +1,5 @@
+import asyncio
+from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
     CLASSIFICATION_TASK_TYPE,
@@ -6,7 +8,11 @@ from core.task_compatibility import (
 )
 from ml.attacks.base import AdversarialAttackResult
 from ml.attacks.presentation import reconstruct_attack_in_source_geometry
-from ml.attacks.registry import get_attack, resolve_attack_parameters
+from ml.attacks.registry import (
+    create_attack_runner,
+    get_attack,
+    resolve_attack_parameters,
+)
 from ml.explainability.gradcam import (
     generate_gradcam,
     generate_gradcam_from_prepared_input,
@@ -25,7 +31,11 @@ from utils.result_files import (
 )
 
 
-async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
+async def apply_adversarial_attack(
+    request: AttackRequest,
+    *,
+    cancellation_token: CancellationToken | None = None,
+) -> AttackResponse:
     try:
         attack = get_attack(request.attack_type)
         request.parameters = resolve_attack_parameters(attack, request.parameters)
@@ -50,20 +60,38 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         task_type=model.task_type,
     )
 
-    original_prediction = model.predict(image)
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+    original_prediction = await asyncio.to_thread(model.predict, image)
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
 
-    attack_result = attack.apply(
+    attack_runner = create_attack_runner(
+        attack=attack,
+        model_wrapper=model,
+        parameters=request.parameters,
+        cancellation_token=cancellation_token,
+    )
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+    attack_result = await asyncio.to_thread(
+        attack_runner.apply,
         model_wrapper=model,
         image=image,
         parameters=request.parameters,
     )
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
 
     if isinstance(attack_result, AdversarialAttackResult):
         perturbation_linf = attack_result.perturbation_linf
         perturbation_l2 = attack_result.perturbation_l2
-        adversarial_prediction = model.predict_from_prepared_input(
-            attack_result.adversarial_model_input
+        adversarial_prediction = await asyncio.to_thread(
+            model.predict_from_prepared_input,
+            attack_result.adversarial_model_input,
         )
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
 
         reconstruction = reconstruct_attack_in_source_geometry(
             source_image=image,
@@ -73,26 +101,44 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         perturbation_image_to_persist = reconstruction.perturbation_visualization
         del reconstruction
 
-        original_gradcam_result = generate_gradcam_from_prepared_input(
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+        original_gradcam_result = await asyncio.to_thread(
+            generate_gradcam_from_prepared_input,
             model_wrapper=model,
             model_input=attack_result.clean_model_input,
             visualization_image=image.copy().convert("RGB"),
         )
-        adversarial_gradcam_result = generate_gradcam_from_prepared_input(
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+        adversarial_gradcam_result = await asyncio.to_thread(
+            generate_gradcam_from_prepared_input,
             model_wrapper=model,
             model_input=attack_result.adversarial_model_input,
             visualization_image=adversarial_image_to_persist,
         )
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
     else:
         adversarial_image = attack_result["adversarial_image"]
         adversarial_image_to_persist = adversarial_image
         perturbation_image_to_persist = attack_result["perturbation_image"]
         perturbation_linf = attack_result["perturbation_linf"]
         perturbation_l2 = attack_result["perturbation_l2"]
-        adversarial_prediction = model.predict(adversarial_image)
+        adversarial_prediction = await asyncio.to_thread(model.predict, adversarial_image)
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
 
-        original_gradcam_result = generate_gradcam(model, image)
-        adversarial_gradcam_result = generate_gradcam(model, adversarial_image)
+        original_gradcam_result = await asyncio.to_thread(generate_gradcam, model, image)
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+        adversarial_gradcam_result = await asyncio.to_thread(
+            generate_gradcam,
+            model,
+            adversarial_image,
+        )
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
 
     confidence_difference = round(
         adversarial_prediction.confidence - original_prediction.confidence,
@@ -114,6 +160,9 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         perturbation_linf=perturbation_linf,
         perturbation_l2=perturbation_l2,
     )
+
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
 
     result_id, result_path = create_result_directory(prefix="attack")
 

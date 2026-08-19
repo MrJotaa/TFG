@@ -17,7 +17,7 @@ def _mock_detection(label: str = "car", confidence: float = 0.91):
 
 
 def test_detect_returns_detection_response(client, monkeypatch):
-    async def fake_detect_objects(request):
+    async def fake_detect_objects(request, **kwargs):
         assert request.dataset_id == "dataset-1"
         assert request.image_id == "image-1"
 
@@ -72,7 +72,7 @@ def test_detect_with_missing_image_id_returns_422(client):
 
 
 def test_detect_propagates_dataset_error(client, monkeypatch):
-    async def fake_detect_objects(request):
+    async def fake_detect_objects(request, **kwargs):
         raise HTTPException(status_code=404, detail="Image not found")
 
     monkeypatch.setattr(detect_route, "detect_objects", fake_detect_objects)
@@ -93,7 +93,7 @@ def test_detect_propagates_incompatible_model_error(
     client,
     monkeypatch,
 ):
-    async def fake_detect_objects(request):
+    async def fake_detect_objects(request, **kwargs):
         raise HTTPException(
             status_code=400,
             detail=("Endpoint '/detect' requires a detection model"),

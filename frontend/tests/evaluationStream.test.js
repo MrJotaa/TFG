@@ -76,3 +76,21 @@ test('stream evaluation propagates streamed application errors', async () => {
         globalThis.fetch = originalFetch
     }
 })
+
+
+test('stream evaluation exposes cancellation as AbortError', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async () => streamResponse(['{"type":"cancelled"}\n'])
+
+    try {
+        await assert.rejects(
+            () => streamEvaluationRequest('/evaluate/stream', { dataset_id: 'dataset-1' }),
+            (error) => {
+                assert.equal(error.name, 'AbortError')
+                return true
+            },
+        )
+    } finally {
+        globalThis.fetch = originalFetch
+    }
+})

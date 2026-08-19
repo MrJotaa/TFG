@@ -1,6 +1,6 @@
 import { apiRequest } from './client'
 
-export function predictImage({ datasetId, imageId }) {
+export function predictImage({ datasetId, imageId, signal }) {
     return apiRequest('/predict', {
         method: 'POST',
         headers: {
@@ -10,5 +10,6 @@ export function predictImage({ datasetId, imageId }) {
             dataset_id: datasetId,
             image_id: imageId,
         }),
+        signal,
     })
 }

@@ -3,7 +3,7 @@ import {
     evaluationProgressPercent,
 } from '../../utils/evaluationProgress'
 
-function EvaluationProgress({ progress, title, pendingMessage }) {
+function EvaluationProgress({ progress, title, pendingMessage, onCancel }) {
     if (!progress) {
         return (
             <section
@@ -16,6 +16,15 @@ function EvaluationProgress({ progress, title, pendingMessage }) {
                     <strong>{title}</strong>
                     <p>{pendingMessage}</p>
                 </div>
+                {onCancel && (
+                    <button
+                        type="button"
+                        className="secondary-action evaluation-cancel-button"
+                        onClick={onCancel}
+                    >
+                        Cancelar
+                    </button>
+                )}
             </section>
         )
     }
@@ -49,6 +58,15 @@ function EvaluationProgress({ progress, title, pendingMessage }) {
                 </div>
                 <p>{message}</p>
             </div>
+            {onCancel && (
+                <button
+                    type="button"
+                    className="secondary-action evaluation-cancel-button"
+                    onClick={onCancel}
+                >
+                    Cancelar
+                </button>
+            )}
         </section>
     )
 }

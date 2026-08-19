@@ -32,6 +32,7 @@ import {
     isAttackSupportedForTask,
 } from '../utils/attackCatalog'
 import { getAttackName } from '../utils/attackFormatting'
+import { isRequestCancelled } from '../api/client'
 
 const IOU_THRESHOLDS = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
 
@@ -62,6 +63,7 @@ function DetectionEvaluationPanel({
     )
     const eigenCamRequests = useRef(new Set())
     const eigenCamRun = useRef(0)
+    const evaluationAbortController = useRef(null)
     const isSupportedAttack = isAttackSupportedForTask(
         attackCatalog,
         selectedAttack,
@@ -109,17 +111,27 @@ function DetectionEvaluationPanel({
         eigenCamRun.current += 1
         eigenCamRequests.current.clear()
         dispatchEigenCam({ type: 'reset' })
-        const result = await evaluateDetectionDataset({
-            datasetId: selectedDataset.id,
-            attackType: selectedAttack,
-            parameters: attackParameters,
-            supervisedConfiguration: configuration,
-            forceRecompute,
-            onProgress: setProgress,
-        })
-        onStartNewEvaluation()
-        setEvaluationState({ contextKey, data: result })
-        setActiveTab('overview')
+        const controller = new AbortController()
+        evaluationAbortController.current = controller
+
+        try {
+            const result = await evaluateDetectionDataset({
+                datasetId: selectedDataset.id,
+                attackType: selectedAttack,
+                parameters: attackParameters,
+                supervisedConfiguration: configuration,
+                forceRecompute,
+                onProgress: setProgress,
+                signal: controller.signal,
+            })
+            onStartNewEvaluation()
+            setEvaluationState({ contextKey, data: result })
+            setActiveTab('overview')
+        } finally {
+            if (evaluationAbortController.current === controller) {
+                evaluationAbortController.current = null
+            }
+        }
     }
 
     async function handleEvaluate() {
@@ -151,7 +163,9 @@ function DetectionEvaluationPanel({
             }
             await runEvaluation(false)
         } catch (error) {
-            setErrorState({ contextKey, message: error.message })
+            if (!isRequestCancelled(error)) {
+                setErrorState({ contextKey, message: error.message })
+            }
         } finally {
             setLoading(false)
             setProgress(null)
@@ -171,7 +185,9 @@ function DetectionEvaluationPanel({
             setReuseCandidate(null)
             setActiveTab('overview')
         } catch (requestError) {
-            setErrorState({ contextKey, message: requestError.message })
+            if (!isRequestCancelled(requestError)) {
+                setErrorState({ contextKey, message: requestError.message })
+            }
         } finally {
             setLoading(false)
             setProgress(null)
@@ -184,11 +200,17 @@ function DetectionEvaluationPanel({
             setErrorState(null)
             await runEvaluation(true)
         } catch (requestError) {
-            setErrorState({ contextKey, message: requestError.message })
+            if (!isRequestCancelled(requestError)) {
+                setErrorState({ contextKey, message: requestError.message })
+            }
         } finally {
             setLoading(false)
             setProgress(null)
         }
+    }
+
+    function handleCancelEvaluation() {
+        evaluationAbortController.current?.abort()
     }
 
     async function handleGenerateEigenCam(evaluationId, imageId) {
@@ -353,6 +375,7 @@ function DetectionEvaluationPanel({
                     progress={progress}
                     title="Evaluando detecciones y calculando COCO y TIDE"
                     pendingMessage="Preparando la evaluación del dataset..."
+                    onCancel={handleCancelEvaluation}
                 />
             )}
 

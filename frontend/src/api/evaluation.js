@@ -7,6 +7,7 @@ export function evaluateDataset({
     parameters,
     forceRecompute = false,
     onProgress,
+    signal,
 }) {
     return streamEvaluationRequest(
         '/evaluate/stream',
@@ -16,7 +17,7 @@ export function evaluateDataset({
             parameters,
             force_recompute: forceRecompute,
         },
-        { onProgress },
+        { onProgress, signal },
     )
 }
 

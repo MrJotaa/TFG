@@ -1,10 +1,16 @@
+import asyncio
+from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
     DETECTION_TASK_TYPE,
     require_attack_task_type,
     require_model_task_type,
 )
-from ml.attacks.registry import get_attack, resolve_attack_parameters
+from ml.attacks.registry import (
+    create_attack_runner,
+    get_attack,
+    resolve_attack_parameters,
+)
 from ml.explainability.gradcam import (
     draw_detections_on_image,
     generate_detection_eigencam,
@@ -29,6 +35,8 @@ from utils.result_files import (
 
 async def apply_detection_attack(
     request: DetectionAttackRequest,
+    *,
+    cancellation_token: CancellationToken | None = None,
 ) -> DetectionAttackResponse:
     try:
         attack = get_attack(request.attack_type)
@@ -54,33 +62,60 @@ async def apply_detection_attack(
         task_type=model.task_type,
     )
 
-    original_detection_result, original_annotated_image = (
-        model.detect_with_visualization(image)
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+    original_detection_result, original_annotated_image = await asyncio.to_thread(
+        model.detect_with_visualization,
+        image,
     )
 
-    attack_result = attack.apply(
+    attack_runner = create_attack_runner(
+        attack=attack,
+        model_wrapper=model,
+        parameters=request.parameters,
+        cancellation_token=cancellation_token,
+    )
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+    attack_result = await asyncio.to_thread(
+        attack_runner.apply,
         model_wrapper=model,
         image=image,
         parameters=request.parameters,
     )
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
 
     adversarial_image = attack_result["adversarial_image"]
     perturbation_image = attack_result["perturbation_image"]
 
-    adversarial_detection_result, adversarial_annotated_image = (
-        model.detect_with_visualization(adversarial_image)
+    adversarial_detection_result, adversarial_annotated_image = await asyncio.to_thread(
+        model.detect_with_visualization,
+        adversarial_image,
     )
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
 
     original_detections = original_detection_result.detections
     adversarial_detections = adversarial_detection_result.detections
 
+    original_heatmap = await asyncio.to_thread(generate_detection_eigencam, model, image)
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
     original_explanation_image = draw_detections_on_image(
-        image=generate_detection_eigencam(model, image),
+        image=original_heatmap,
         detections=original_detections,
     )
 
+    adversarial_heatmap = await asyncio.to_thread(
+        generate_detection_eigencam,
+        model,
+        adversarial_image,
+    )
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
     adversarial_explanation_image = draw_detections_on_image(
-        image=generate_detection_eigencam(model, adversarial_image),
+        image=adversarial_heatmap,
         detections=adversarial_detections,
     )
 
@@ -106,6 +141,9 @@ async def apply_detection_attack(
         perturbation_linf=attack_result["perturbation_linf"],
         perturbation_l2=attack_result["perturbation_l2"],
     )
+
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
 
     result_id, result_path = create_result_directory(prefix="detection_attack")
 

@@ -1,6 +1,6 @@
 import { apiRequest } from './client'
 
-export function detectImage({ datasetId, imageId }) {
+export function detectImage({ datasetId, imageId, signal }) {
     return apiRequest('/detect', {
         method: 'POST',
         headers: {
@@ -10,6 +10,7 @@ export function detectImage({ datasetId, imageId }) {
             dataset_id: datasetId,
             image_id: imageId,
         }),
+        signal,
     })
 }
 
@@ -18,6 +19,7 @@ export function attackDetectionImage({
     imageId,
     attackType,
     parameters,
+    signal,
 }) {
     return apiRequest('/detect/attack', {
         method: 'POST',
@@ -30,5 +32,6 @@ export function attackDetectionImage({
             attack_type: attackType,
             parameters,
         }),
+        signal,
     })
 }

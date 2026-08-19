@@ -10,6 +10,7 @@ class AttackType(str, Enum):
     FGSM = "fgsm"
     RANDOM_NOISE = "random_noise"
     PGD = "pgd"
+    CARLINI_WAGNER = "carlini_wagner"
     YOLO_CONFIDENCE = "yolo_confidence"
 
 

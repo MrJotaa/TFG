@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import torch
 from PIL import Image
+from starlette.requests import Request
 
 import api.routes.explainability as explainability_route
 import ml.explainability.gradcam as gradcam_module
@@ -388,7 +389,7 @@ async def test_explain_endpoint_service_separates_model_input_and_source(
 
 @pytest.mark.asyncio
 async def test_gradcam_http_contract_remains_unchanged(monkeypatch):
-    async def fake_generate_gradcam_for_image(dataset_id, image_id):
+    async def fake_generate_gradcam_for_image(dataset_id, image_id, **kwargs):
         assert dataset_id == "dataset-1"
         assert image_id == "image-1"
         return {
@@ -424,7 +425,15 @@ async def test_gradcam_http_contract_remains_unchanged(monkeypatch):
         GradCamRequest(
             dataset_id="dataset-1",
             image_id="image-1",
-        )
+        ),
+        Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/explain/gradcam",
+                "headers": [],
+            }
+        ),
     )
 
     assert response == {

@@ -1,6 +1,6 @@
 import { apiRequest } from './client'
 
-export function applyAttack({ datasetId, imageId, attackType, parameters }) {
+export function applyAttack({ datasetId, imageId, attackType, parameters, signal }) {
     return apiRequest('/attack', {
         method: 'POST',
         headers: {
@@ -12,5 +12,6 @@ export function applyAttack({ datasetId, imageId, attackType, parameters }) {
             attack_type: attackType,
             parameters,
         }),
+        signal,
     })
 }

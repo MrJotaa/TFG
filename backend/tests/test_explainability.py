@@ -26,6 +26,7 @@ def test_gradcam_returns_explainability_response(
     async def fake_generate_gradcam_for_image(
         dataset_id: str,
         image_id: str,
+        **kwargs,
     ):
         assert dataset_id == "dataset-1"
         assert image_id == "image-1"
@@ -79,6 +80,7 @@ def test_gradcam_propagates_dataset_error(
     async def fake_generate_gradcam_for_image(
         dataset_id: str,
         image_id: str,
+        **kwargs,
     ):
         assert dataset_id == "dataset-1"
         assert image_id == "missing-image"
@@ -113,6 +115,7 @@ def test_gradcam_propagates_incompatible_model_error(
     async def fake_generate_gradcam_for_image(
         dataset_id: str,
         image_id: str,
+        **kwargs,
     ):
         assert dataset_id == "dataset-1"
         assert image_id == "image-1"
@@ -146,7 +149,7 @@ def test_detection_explainability_returns_response(
     client,
     monkeypatch,
 ):
-    async def fake_generate_detection_explainability(request):
+    async def fake_generate_detection_explainability(request, **kwargs):
         assert request.dataset_id == "dataset-1"
         assert request.image_id == "image-1"
 
@@ -213,7 +216,7 @@ def test_detection_explainability_propagates_dataset_error(
     client,
     monkeypatch,
 ):
-    async def fake_generate_detection_explainability(request):
+    async def fake_generate_detection_explainability(request, **kwargs):
         raise HTTPException(
             status_code=404,
             detail="Image not found",
@@ -241,7 +244,7 @@ def test_detection_explainability_propagates_incompatible_model_error(
     client,
     monkeypatch,
 ):
-    async def fake_generate_detection_explainability(request):
+    async def fake_generate_detection_explainability(request, **kwargs):
         raise HTTPException(
             status_code=400,
             detail=("Endpoint '/explain/detection' requires a detection model"),
@@ -271,7 +274,7 @@ def test_detection_explainability_propagates_no_detections_error(
     client,
     monkeypatch,
 ):
-    async def fake_generate_detection_explainability(request):
+    async def fake_generate_detection_explainability(request, **kwargs):
         raise HTTPException(
             status_code=400,
             detail="No detections found for this image.",

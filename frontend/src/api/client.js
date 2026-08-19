@@ -15,6 +15,10 @@ export function removeStoredToken() {
     localStorage.removeItem(AUTH_TOKEN_KEY)
 }
 
+export function isRequestCancelled(error) {
+    return error?.name === 'AbortError' || error?.cancelled === true
+}
+
 export function resolveApiUrl(path) {
     if (!path) {
         return null

@@ -8,6 +8,7 @@ from typing import Literal, TypeVar
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException
 
+from core.cancellation import CancellationToken, OperationCancelled
 from core.errors import ApplicationError
 
 EvaluationProgressPhase = Literal["images", "metrics"]
@@ -66,10 +67,11 @@ def _stream_error_payload(
 
 
 async def stream_evaluation(
-    runner: Callable[[EvaluationProgressCallback], Awaitable[TResponse]],
+    runner: Callable[[EvaluationProgressCallback, CancellationToken], Awaitable[TResponse]],
 ) -> AsyncIterator[bytes]:
     """Stream progress events and the final Pydantic evaluation response as NDJSON."""
     queue: asyncio.Queue[dict | BaseException] = asyncio.Queue()
+    cancellation_token = CancellationToken()
 
     def on_progress(progress: EvaluationProgress) -> None:
         queue.put_nowait(
@@ -83,7 +85,9 @@ async def stream_evaluation(
 
     async def run_evaluation() -> None:
         try:
-            response = await runner(on_progress)
+            response = await runner(on_progress, cancellation_token)
+        except OperationCancelled:
+            queue.put_nowait({"type": "cancelled"})
         except (ApplicationError, HTTPException) as error:
             queue.put_nowait(_stream_error_payload(error))
         else:
@@ -115,10 +119,9 @@ async def stream_evaluation(
                 raise event
 
             yield _json_line(event)
-            if event["type"] in {"result", "error"}:
+            if event["type"] in {"result", "error", "cancelled"}:
                 break
     finally:
-        if not task.done():
-            task.cancel()
+        cancellation_token.cancel()
         with suppress(asyncio.CancelledError):
             await task

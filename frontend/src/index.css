@@ -6521,3 +6521,14 @@ button {
     background: #2563eb;
     transition: width 180ms ease-out;
 }
+
+.evaluation-cancel-button {
+    margin-left: auto;
+    flex: 0 0 auto;
+}
+
+.evaluation-progress-card .evaluation-cancel-button {
+    display: block;
+    margin-top: 1rem;
+    margin-left: auto;
+}
