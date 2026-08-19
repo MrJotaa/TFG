@@ -219,6 +219,7 @@ def test_attack_catalog_endpoint_exposes_registered_metadata(client):
         "pgd",
         "carlini_wagner",
         "deepfool",
+        "hop_skip_jump",
         "yolo_confidence",
     }
     assert catalog["fgsm"]["supported_task_types"] == ["classification"]

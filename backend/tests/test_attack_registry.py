@@ -3,6 +3,7 @@ import pytest
 from ml.attacks.carlini_wagner import CarliniWagnerAttack
 from ml.attacks.deepfool import DeepFoolAttack
 from ml.attacks.fgsm import FGSMAttack
+from ml.attacks.hop_skip_jump import HopSkipJumpAttack
 from ml.attacks.pgd import PGDAttack
 from ml.attacks.random_noise import RandomNoiseAttack
 from ml.attacks.registry import (
@@ -21,6 +22,7 @@ from schemas.attack import AttackType
         (AttackType.PGD, PGDAttack),
         (AttackType.CARLINI_WAGNER, CarliniWagnerAttack),
         (AttackType.DEEPFOOL, DeepFoolAttack),
+        (AttackType.HOP_SKIP_JUMP, HopSkipJumpAttack),
         (AttackType.RANDOM_NOISE, RandomNoiseAttack),
         (AttackType.YOLO_CONFIDENCE, YOLOConfidenceAttack),
     ],
@@ -43,6 +45,7 @@ def test_list_available_attacks_returns_all_registered_attacks():
         AttackType.PGD,
         AttackType.CARLINI_WAGNER,
         AttackType.DEEPFOOL,
+        AttackType.HOP_SKIP_JUMP,
         AttackType.RANDOM_NOISE,
         AttackType.YOLO_CONFIDENCE,
     }
@@ -77,6 +80,7 @@ def test_get_unknown_attack_raises_value_error():
         (PGDAttack(), True, False),
         (CarliniWagnerAttack(), True, False),
         (DeepFoolAttack(), True, False),
+        (HopSkipJumpAttack(), True, False),
         (RandomNoiseAttack(), True, True),
         (YOLOConfidenceAttack(), False, True),
     ],
@@ -97,6 +101,7 @@ def test_attack_task_type_compatibility(
         PGDAttack(),
         CarliniWagnerAttack(),
         DeepFoolAttack(),
+        HopSkipJumpAttack(),
         RandomNoiseAttack(),
         YOLOConfidenceAttack(),
     ],
@@ -112,6 +117,7 @@ def test_registered_attacks_resolve_only_their_own_parameters():
     pgd = get_attack(AttackType.PGD)
     carlini_wagner = get_attack(AttackType.CARLINI_WAGNER)
     deepfool = get_attack(AttackType.DEEPFOOL)
+    hop_skip_jump = get_attack(AttackType.HOP_SKIP_JUMP)
     random_noise = get_attack(AttackType.RANDOM_NOISE)
 
     assert fgsm.resolve_parameters(AttackParameters()).model_dump() == {
@@ -133,6 +139,13 @@ def test_registered_attacks_resolve_only_their_own_parameters():
         "max_iter": 100,
         "overshoot": 1e-6,
         "nb_grads": 10,
+    }
+    assert hop_skip_jump.resolve_parameters(AttackParameters()).model_dump() == {
+        "norm": "l2",
+        "max_iter": 50,
+        "max_eval": 10000,
+        "init_eval": 100,
+        "init_size": 100,
     }
     assert random_noise.resolve_parameters(AttackParameters()).model_dump() == {
         "epsilon": 0.03,
@@ -201,3 +214,9 @@ def test_attack_catalog_exposes_capabilities_and_parameter_contracts():
     assert [
         parameter["key"] for parameter in catalog["deepfool"]["parameters"]
     ] == ["max_iter", "overshoot", "nb_grads"]
+
+    assert catalog["hop_skip_jump"]["knowledge_type"] == "black_box"
+    assert catalog["hop_skip_jump"]["supported_task_types"] == ["classification"]
+    assert [
+        parameter["key"] for parameter in catalog["hop_skip_jump"]["parameters"]
+    ] == ["norm", "max_iter", "max_eval", "init_eval", "init_size"]

@@ -56,21 +56,38 @@ class _CancellablePyTorchClassifier(PyTorchClassifier):
         if self._cancellation_token is not None:
             self._cancellation_token.raise_if_cancelled()
 
+    @staticmethod
+    def _normalize_input_dtype(args):
+        if not args:
+            return args
+
+        inputs = args[0]
+        if isinstance(inputs, np.ndarray) and inputs.dtype != np.float32:
+            inputs = inputs.astype(np.float32, copy=False)
+
+        return (inputs, *args[1:])
+
     def predict(self, *args, **kwargs):
         self._raise_if_cancelled()
-        result = super().predict(*args, **kwargs)
+        result = super().predict(*self._normalize_input_dtype(args), **kwargs)
         self._raise_if_cancelled()
         return result
 
     def class_gradient(self, *args, **kwargs):
         self._raise_if_cancelled()
-        result = super().class_gradient(*args, **kwargs)
+        result = super().class_gradient(
+            *self._normalize_input_dtype(args),
+            **kwargs,
+        )
         self._raise_if_cancelled()
         return result
 
     def loss_gradient(self, *args, **kwargs):
         self._raise_if_cancelled()
-        result = super().loss_gradient(*args, **kwargs)
+        result = super().loss_gradient(
+            *self._normalize_input_dtype(args),
+            **kwargs,
+        )
         self._raise_if_cancelled()
         return result
 

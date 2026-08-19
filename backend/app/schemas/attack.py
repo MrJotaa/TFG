@@ -12,6 +12,7 @@ class AttackType(str, Enum):
     PGD = "pgd"
     CARLINI_WAGNER = "carlini_wagner"
     DEEPFOOL = "deepfool"
+    HOP_SKIP_JUMP = "hop_skip_jump"
     YOLO_CONFIDENCE = "yolo_confidence"
 
 

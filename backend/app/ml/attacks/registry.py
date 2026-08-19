@@ -3,6 +3,7 @@ from inspect import Parameter, signature
 from ml.attacks.carlini_wagner import CarliniWagnerAttack
 from ml.attacks.deepfool import DeepFoolAttack
 from ml.attacks.fgsm import FGSMAttack
+from ml.attacks.hop_skip_jump import HopSkipJumpAttack
 from ml.attacks.pgd import PGDAttack
 from ml.attacks.random_noise import RandomNoiseAttack
 from ml.attacks.yolo_confidence import YOLOConfidenceAttack
@@ -14,6 +15,7 @@ _AVAILABLE_ATTACKS = {
     AttackType.PGD: PGDAttack(),
     AttackType.CARLINI_WAGNER: CarliniWagnerAttack(),
     AttackType.DEEPFOOL: DeepFoolAttack(),
+    AttackType.HOP_SKIP_JUMP: HopSkipJumpAttack(),
     AttackType.YOLO_CONFIDENCE: YOLOConfidenceAttack(),
 }
 
