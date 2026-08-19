@@ -1,4 +1,6 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { getAttacks } from '../api/attacks'
+import { buildAttackParameters } from '../utils/attackCatalog'
 
 const ExperimentContext = createContext(null)
 
@@ -7,13 +9,50 @@ export function ExperimentProvider({ children }) {
     const [selectedDataset, setSelectedDataset] = useState(null)
     const [selectedImage, setSelectedImage] = useState(null)
     const [activeModel, setActiveModel] = useState(null)
-    const [selectedAttack, setSelectedAttack] = useState('fgsm')
-    const [attackParameters, setAttackParameters] = useState({
-        epsilon: 0.03,
-        alpha: 0.01,
-        steps: 10,
-    })
+    const [attackCatalog, setAttackCatalog] = useState([])
+    const [attackCatalogLoading, setAttackCatalogLoading] = useState(true)
+    const [attackCatalogError, setAttackCatalogError] = useState('')
+    const [selectedAttack, setSelectedAttackState] = useState('fgsm')
+    const [attackParameters, setAttackParametersState] = useState({})
     const [recoveredEvaluation, setRecoveredEvaluation] = useState(null)
+
+    useEffect(() => {
+        let cancelled = false
+
+        async function loadAttackCatalog() {
+            try {
+                setAttackCatalogLoading(true)
+                setAttackCatalogError('')
+                const catalog = await getAttacks()
+                if (cancelled) return
+
+                setAttackCatalog(catalog)
+            } catch (error) {
+                if (!cancelled) setAttackCatalogError(error.message)
+            } finally {
+                if (!cancelled) setAttackCatalogLoading(false)
+            }
+        }
+
+        loadAttackCatalog()
+        return () => {
+            cancelled = true
+        }
+    }, [])
+
+
+    useEffect(() => {
+        if (attackCatalog.length === 0) return
+
+        setAttackParametersState((current) => {
+            const next = buildAttackParameters(
+                attackCatalog,
+                selectedAttack,
+                current,
+            )
+            return JSON.stringify(next) === JSON.stringify(current) ? current : next
+        })
+    }, [attackCatalog, selectedAttack])
 
     function selectDataset(dataset) {
         setRecoveredEvaluation(null)
@@ -25,20 +64,29 @@ export function ExperimentProvider({ children }) {
         setActiveModel(model)
     }
 
-    function selectAttack(attack) {
+    function selectAttack(attackId) {
         setRecoveredEvaluation(null)
-        setSelectedAttack(attack)
+        setSelectedAttackState(attackId)
+        setAttackParametersState((current) =>
+            buildAttackParameters(attackCatalog, attackId, current),
+        )
     }
 
     function updateAttackParameters(parameters) {
         setRecoveredEvaluation(null)
-        setAttackParameters(parameters)
+        setAttackParametersState(parameters)
     }
 
     function openRecoveredEvaluation({ historyItem, stored, dataset }) {
         setSelectedDataset(dataset)
-        setSelectedAttack(historyItem.attack_type)
-        setAttackParameters(historyItem.parameters)
+        setSelectedAttackState(historyItem.attack_type)
+        setAttackParametersState(
+            buildAttackParameters(
+                attackCatalog,
+                historyItem.attack_type,
+                historyItem.parameters,
+            ),
+        )
         setRecoveredEvaluation({
             historyItem,
             taskType: stored.task_type,
@@ -51,12 +99,8 @@ export function ExperimentProvider({ children }) {
         setSelectedDataset(null)
         setSelectedImage(null)
         setActiveModel(null)
-        setSelectedAttack('fgsm')
-        setAttackParameters({
-            epsilon: 0.03,
-            alpha: 0.01,
-            steps: 10,
-        })
+        setSelectedAttackState('fgsm')
+        setAttackParametersState(buildAttackParameters(attackCatalog, 'fgsm'))
         setRecoveredEvaluation(null)
     }
 
@@ -69,6 +113,9 @@ export function ExperimentProvider({ children }) {
         setSelectedImage,
         activeModel,
         setActiveModel: selectModel,
+        attackCatalog,
+        attackCatalogLoading,
+        attackCatalogError,
         selectedAttack,
         setSelectedAttack: selectAttack,
         attackParameters,

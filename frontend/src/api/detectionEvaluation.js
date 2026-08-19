@@ -4,11 +4,8 @@ import { streamEvaluationRequest } from './evaluationStream.js'
 export function evaluateDetectionDataset({
     datasetId,
     attackType,
-    epsilon,
-    alpha,
-    steps,
+    parameters,
     supervisedConfiguration,
-    seed = 0,
     forceRecompute = false,
     onProgress,
 }) {
@@ -17,12 +14,7 @@ export function evaluateDetectionDataset({
         {
             dataset_id: datasetId,
             attack_type: attackType,
-            parameters: {
-                epsilon,
-                alpha,
-                steps,
-                seed,
-            },
+            parameters,
             supervised_configuration: supervisedConfiguration,
             force_recompute: forceRecompute,
         },

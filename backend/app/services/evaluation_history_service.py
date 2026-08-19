@@ -21,7 +21,7 @@ from core.errors import (
     NotFoundError,
 )
 from db.collections import datasets_collection, evaluations_collection
-from ml.attacks.registry import get_attack
+from ml.attacks.registry import get_attack, resolve_attack_parameters
 from schemas.detection_evaluation import (
     DetectionEvaluationRequest,
     DetectionEvaluationResponse,
@@ -393,8 +393,13 @@ async def _build_identity(
 
     dataset_revision = int(dataset.get("dataset_revision", 0))
     dataset_fingerprint = _dataset_fingerprint(dataset)
-    parameters = request.parameters.model_dump(mode="json")
-    attack_revision = get_attack(request.attack_type).revision
+    try:
+        attack = get_attack(request.attack_type)
+        resolved_parameters = resolve_attack_parameters(attack, request.parameters)
+    except ValueError as error:
+        raise BadRequestError(str(error)) from error
+    parameters = resolved_parameters.model_dump(mode="json")
+    attack_revision = attack.revision
     supervised_configuration = None
     if task_type == "detection":
         configuration = getattr(request, "supervised_configuration", None)

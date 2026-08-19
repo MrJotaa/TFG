@@ -4,7 +4,7 @@ from core.task_compatibility import (
     require_attack_task_type,
     require_model_task_type,
 )
-from ml.attacks.registry import get_attack
+from ml.attacks.registry import get_attack, resolve_attack_parameters
 from ml.explainability.gradcam import (
     draw_detections_on_image,
     generate_detection_eigencam,
@@ -30,6 +30,12 @@ from utils.result_files import (
 async def apply_detection_attack(
     request: DetectionAttackRequest,
 ) -> DetectionAttackResponse:
+    try:
+        attack = get_attack(request.attack_type)
+        request.parameters = resolve_attack_parameters(attack, request.parameters)
+    except ValueError as error:
+        raise BadRequestError(str(error)) from error
+
     image = await get_image_from_dataset(
         dataset_id=request.dataset_id,
         image_id=request.image_id,
@@ -42,11 +48,6 @@ async def apply_detection_attack(
         expected_task_type=DETECTION_TASK_TYPE,
         endpoint="/detect/attack",
     )
-
-    try:
-        attack = get_attack(request.attack_type)
-    except ValueError as error:
-        raise BadRequestError(str(error)) from error
 
     require_attack_task_type(
         attack=attack,

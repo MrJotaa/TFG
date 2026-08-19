@@ -3,14 +3,58 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
-from ml.attacks.base import AdversarialAttackResult, BaseAdversarialAttack
+from ml.attacks.base import (
+    AdversarialAttackResult,
+    AttackParameterSpec,
+    BaseAdversarialAttack,
+)
 from ml.attacks.presentation import perturbation_to_visualization
 
 
 class PGDAttack(BaseAdversarialAttack):
     id = "pgd"
-    name = "Projected Gradient Descent"
-    supported_task_types = ["classification"]
+    name = "PGD"
+    description = "Ataque iterativo basado en gradiente"
+    knowledge_type = "white_box"
+    supported_task_types = ("classification",)
+    parameter_specs = (
+        AttackParameterSpec(
+            key="epsilon",
+            label="Epsilon",
+            summary_label="ε",
+            description="Presupuesto máximo de perturbación L-infinito",
+            value_type="float",
+            default=0.03,
+            control="range",
+            minimum=0.0,
+            maximum=0.3,
+            step=0.01,
+        ),
+        AttackParameterSpec(
+            key="alpha",
+            label="Alpha",
+            summary_label="α",
+            description="Tamaño de paso de cada iteración",
+            value_type="float",
+            default=0.01,
+            control="range",
+            minimum=0.0,
+            maximum=0.1,
+            step=0.001,
+        ),
+        AttackParameterSpec(
+            key="steps",
+            label="Steps",
+            summary_label="steps",
+            description="Número de iteraciones del ataque",
+            value_type="integer",
+            default=10,
+            control="number",
+            minimum=1,
+            maximum=100,
+            step=1,
+        ),
+    )
 
     def __init__(self):
         self.to_tensor = transforms.ToTensor()

@@ -4,10 +4,7 @@ import { streamEvaluationRequest } from './evaluationStream.js'
 export function evaluateDataset({
     datasetId,
     attackType,
-    epsilon,
-    alpha,
-    steps,
-    seed = 0,
+    parameters,
     forceRecompute = false,
     onProgress,
 }) {
@@ -16,12 +13,7 @@ export function evaluateDataset({
         {
             dataset_id: datasetId,
             attack_type: attackType,
-            parameters: {
-                epsilon: Number(epsilon),
-                alpha: Number(alpha),
-                steps: Number(steps),
-                seed: Number(seed),
-            },
+            parameters,
             force_recompute: forceRecompute,
         },
         { onProgress },

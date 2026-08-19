@@ -10,7 +10,7 @@ from schemas.classification_metrics import (
 class EvaluationRequest(BaseModel):
     dataset_id: str
     attack_type: AttackType = AttackType.FGSM
-    parameters: AttackParameters = AttackParameters()
+    parameters: AttackParameters = Field(default_factory=AttackParameters)
     force_recompute: bool = Field(default=False, exclude=True)
 
 

@@ -2,14 +2,54 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-from ml.attacks.base import BaseAdversarialAttack
+from ml.attacks.base import AttackParameterSpec, BaseAdversarialAttack
 
 
 class YOLOConfidenceAttack(BaseAdversarialAttack):
     id = "yolo_confidence"
-    name = "YOLO Confidence Attack"
+    name = "YOLO Confidence"
+    description = "Ataque de supresión de confianza para detección"
+    knowledge_type = "white_box"
     revision = "yolo26-end2end-confidence-v1"
-    supported_task_types = ["detection"]
+    supported_task_types = ("detection",)
+    parameter_specs = (
+        AttackParameterSpec(
+            key="epsilon",
+            label="Epsilon",
+            summary_label="ε",
+            description="Presupuesto máximo de perturbación L-infinito",
+            value_type="float",
+            default=0.03,
+            control="range",
+            minimum=0.0,
+            maximum=0.3,
+            step=0.01,
+        ),
+        AttackParameterSpec(
+            key="alpha",
+            label="Alpha",
+            summary_label="α",
+            description="Tamaño de paso de cada iteración",
+            value_type="float",
+            default=0.01,
+            control="range",
+            minimum=0.0,
+            maximum=0.1,
+            step=0.001,
+        ),
+        AttackParameterSpec(
+            key="steps",
+            label="Steps",
+            summary_label="steps",
+            description="Número de iteraciones del ataque",
+            value_type="integer",
+            default=10,
+            control="number",
+            minimum=1,
+            maximum=100,
+            step=1,
+        ),
+    )
 
     def __init__(self):
         self.to_pil = transforms.ToPILImage()

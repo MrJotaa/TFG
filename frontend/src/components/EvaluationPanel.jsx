@@ -25,23 +25,14 @@ import {
     isEvaluationGradCamResponse,
 } from '../utils/evaluationGradCamState'
 import { CLASSIFICATION_METRIC_GUIDES } from '../utils/evaluationMetricGuides'
-
-const ATTACK_NAMES = {
-    fgsm: 'FGSM',
-    random_noise: 'Random Noise',
-    pgd: 'PGD',
-}
-
-const DEFAULT_ATTACK_PARAMETERS = {
-    epsilon: 0.03,
-    alpha: 0.01,
-    steps: 10,
-}
+import { attackParametersKey } from '../utils/attackCatalog'
+import { getAttackName } from '../utils/attackFormatting'
 
 function EvaluationPanel({
     selectedDataset,
     selectedAttack = 'fgsm',
-    attackParameters = DEFAULT_ATTACK_PARAMETERS,
+    attackParameters = {},
+    attackCatalog = [],
     recoveredEvaluation = null,
     onStartNewEvaluation = () => {},
 }) {
@@ -58,18 +49,10 @@ function EvaluationPanel({
     const gradCamRequests = useRef(new Set())
     const gradCamRun = useRef(0)
 
-    const epsilon = attackParameters.epsilon
-    const alpha = attackParameters.alpha
-    const steps = attackParameters.steps
-    const seed = attackParameters.seed ?? 0
-
     const contextKey = [
         selectedDataset?.id || '',
         selectedAttack,
-        epsilon,
-        alpha,
-        steps,
-        seed,
+        attackParametersKey(attackParameters),
     ].join(':')
 
     const evaluation = recoveredEvaluation?.data ?? (
@@ -99,10 +82,7 @@ function EvaluationPanel({
         const result = await evaluateDataset({
             datasetId: selectedDataset.id,
             attackType: selectedAttack,
-            epsilon,
-            alpha,
-            steps,
-            seed,
+            parameters: attackParameters,
             forceRecompute,
             onProgress: setProgress,
         })
@@ -127,10 +107,7 @@ function EvaluationPanel({
                 taskType: 'classification',
                 datasetId: selectedDataset.id,
                 attackType: selectedAttack,
-                epsilon,
-                alpha,
-                steps,
-                seed,
+                parameters: attackParameters,
             })
             if (compatibility.match) {
                 setReuseCandidate(compatibility.match)
@@ -237,7 +214,7 @@ function EvaluationPanel({
         }
     }
 
-    const attackName = ATTACK_NAMES[selectedAttack] || selectedAttack
+    const attackName = getAttackName(selectedAttack, attackCatalog)
 
     if (!selectedDataset) {
         return (

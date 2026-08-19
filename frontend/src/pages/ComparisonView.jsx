@@ -8,7 +8,10 @@ import { predictImage } from '../api/predict'
 import AdversarialImageExplorer from '../components/visualExplorer/AdversarialImageExplorer'
 import { useExperiment } from '../context/ExperimentContext'
 import { resolveCleanDetectionResult } from '../utils/adversarialExplorer'
-import { isAttackSupportedForTask } from '../utils/attackCatalog'
+import {
+    attackParametersKey,
+    isAttackSupportedForTask,
+} from '../utils/attackCatalog'
 import {
     formatAttackParameters,
     getAttackName,
@@ -292,6 +295,7 @@ function ComparisonView() {
         selectedImage,
         setSelectedImage,
         activeModel,
+        attackCatalog,
         selectedAttack,
         attackParameters,
     } = useExperiment()
@@ -306,7 +310,11 @@ function ComparisonView() {
 
     const taskType = activeModel?.task_type ?? 'classification'
     const isDetection = taskType === 'detection'
-    const isAttackSupported = isAttackSupportedForTask(selectedAttack, taskType)
+    const isAttackSupported = isAttackSupportedForTask(
+        attackCatalog,
+        selectedAttack,
+        taskType,
+    )
     const datasetImages = useMemo(
         () => selectedDataset?.images ?? [],
         [selectedDataset],
@@ -322,9 +330,7 @@ function ComparisonView() {
     const attackContextKey = [
         imageContextKey,
         selectedAttack,
-        attackParameters.epsilon,
-        attackParameters.alpha,
-        attackParameters.steps,
+        attackParametersKey(attackParameters),
     ].join(':')
     const predictionResult = predictionResultState?.contextKey === imageContextKey
         ? predictionResultState.data
@@ -411,9 +417,7 @@ function ComparisonView() {
             datasetId: selectedDataset.id,
             imageId: selectedImage.id,
             attackType: selectedAttack,
-            epsilon: attackParameters.epsilon,
-            alpha: attackParameters.alpha,
-            steps: attackParameters.steps,
+            parameters: attackParameters,
         }
 
         try {
@@ -504,10 +508,10 @@ function ComparisonView() {
                     <p><strong>Dataset:</strong> {selectedDataset?.name || 'Sin dataset'}</p>
                     <p><strong>Imagen:</strong> {selectedImage?.filename || 'Sin imagen'}</p>
                     <p><strong>Modelo:</strong> {activeModel?.name || 'Sin modelo'}</p>
-                    <p><strong>Ataque:</strong> {getAttackName(selectedAttack)}</p>
+                    <p><strong>Ataque:</strong> {getAttackName(selectedAttack, attackCatalog)}</p>
                     <p>
                         <strong>Parámetros:</strong>{' '}
-                        {formatAttackParameters(selectedAttack, attackParameters)}
+                        {formatAttackParameters(selectedAttack, attackParameters, attackCatalog)}
                     </p>
                     <p>
                         <strong>Geometría:</strong> {imageDimensions || 'No disponible'}

@@ -27,12 +27,11 @@ import {
     isDetectionEigenCamResponse,
 } from '../utils/detectionEvaluationEigenCamState'
 import { DETECTION_METRIC_GUIDES } from '../utils/evaluationMetricGuides'
-import { isAttackSupportedForTask } from '../utils/attackCatalog'
-
-const ATTACK_NAMES = {
-    random_noise: 'Random Noise',
-    yolo_confidence: 'YOLO Confidence',
-}
+import {
+    attackParametersKey,
+    isAttackSupportedForTask,
+} from '../utils/attackCatalog'
+import { getAttackName } from '../utils/attackFormatting'
 
 const IOU_THRESHOLDS = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
 
@@ -40,6 +39,7 @@ function DetectionEvaluationPanel({
     selectedDataset,
     selectedAttack,
     attackParameters,
+    attackCatalog = [],
     recoveredEvaluation = null,
     onStartNewEvaluation = () => {},
 }) {
@@ -62,9 +62,8 @@ function DetectionEvaluationPanel({
     )
     const eigenCamRequests = useRef(new Set())
     const eigenCamRun = useRef(0)
-    const seed = attackParameters.seed ?? 0
-
     const isSupportedAttack = isAttackSupportedForTask(
+        attackCatalog,
         selectedAttack,
         'detection',
     )
@@ -72,14 +71,11 @@ function DetectionEvaluationPanel({
         Number.isFinite(configuration.confidence_threshold) &&
         configuration.confidence_threshold >= 0.001 &&
         configuration.confidence_threshold <= 1
-    const attackName = ATTACK_NAMES[selectedAttack] || selectedAttack
+    const attackName = getAttackName(selectedAttack, attackCatalog)
     const contextKey = [
         selectedDataset?.id ?? '',
         selectedAttack,
-        attackParameters.epsilon,
-        attackParameters.alpha,
-        attackParameters.steps,
-        seed,
+        attackParametersKey(attackParameters),
         configuration.confidence_threshold,
         configuration.iou_threshold,
         configuration.include_object_level_details,
@@ -116,10 +112,7 @@ function DetectionEvaluationPanel({
         const result = await evaluateDetectionDataset({
             datasetId: selectedDataset.id,
             attackType: selectedAttack,
-            epsilon: attackParameters.epsilon,
-            alpha: attackParameters.alpha,
-            steps: attackParameters.steps,
-            seed,
+            parameters: attackParameters,
             supervisedConfiguration: configuration,
             forceRecompute,
             onProgress: setProgress,
@@ -137,8 +130,7 @@ function DetectionEvaluationPanel({
         if (!isSupportedAttack) {
             setErrorState({
                 contextKey,
-                message:
-                    'Para evaluar un detector selecciona Random Noise o YOLO Confidence.',
+                message: 'El ataque seleccionado no es compatible con detección.',
             })
             return
         }
@@ -150,10 +142,7 @@ function DetectionEvaluationPanel({
                 taskType: 'detection',
                 datasetId: selectedDataset.id,
                 attackType: selectedAttack,
-                epsilon: attackParameters.epsilon,
-                alpha: attackParameters.alpha,
-                steps: attackParameters.steps,
-                seed,
+                parameters: attackParameters,
                 supervisedConfiguration: configuration,
             })
             if (compatibility.match) {

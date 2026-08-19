@@ -13,6 +13,10 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useExperiment } from '../context/ExperimentContext'
 import {
+    formatAttackParameters,
+    getAttackName,
+} from '../utils/attackFormatting'
+import {
     RESULT_RETENTION_OPTIONS,
     formatCreatedAgo,
     formatDateTime,
@@ -36,7 +40,11 @@ function HistoryStatus({ item }) {
 function ProfilePage() {
     const navigate = useNavigate()
     const { user, setUser, logout } = useAuth()
-    const { resetExperiment, openRecoveredEvaluation } = useExperiment()
+    const {
+        attackCatalog,
+        resetExperiment,
+        openRecoveredEvaluation,
+    } = useExperiment()
 
     const [name, setName] = useState(user?.name || '')
     const [email, setEmail] = useState(user?.email || '')
@@ -363,8 +371,8 @@ function ProfilePage() {
                                                 <small>{item.model_name}</small>
                                             </td>
                                             <td data-label="Configuración">
-                                                <strong>{item.attack_type.replaceAll('_', ' ')}</strong>
-                                                <small>ε {item.parameters.epsilon} · semilla {item.parameters.seed ?? 0}</small>
+                                                <strong>{getAttackName(item.attack_type, attackCatalog)}</strong>
+                                                <small>{formatAttackParameters(item.attack_type, item.parameters, attackCatalog)}</small>
                                             </td>
                                             <td data-label="Resultado">{historySummary(item)}</td>
                                             <td data-label="Creada" title={formatDateTime(item.created_at)}>

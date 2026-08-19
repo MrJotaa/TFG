@@ -17,9 +17,7 @@ export function attackDetectionImage({
     datasetId,
     imageId,
     attackType,
-    epsilon,
-    alpha,
-    steps,
+    parameters,
 }) {
     return apiRequest('/detect/attack', {
         method: 'POST',
@@ -30,11 +28,7 @@ export function attackDetectionImage({
             dataset_id: datasetId,
             image_id: imageId,
             attack_type: attackType,
-            parameters: {
-                epsilon,
-                alpha,
-                steps,
-            },
+            parameters,
         }),
     })
 }

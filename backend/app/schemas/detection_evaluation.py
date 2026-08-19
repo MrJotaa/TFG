@@ -15,7 +15,7 @@ from schemas.detection_metrics import (
 class DetectionEvaluationRequest(BaseModel):
     dataset_id: str
     attack_type: AttackType = AttackType.YOLO_CONFIDENCE
-    parameters: AttackParameters = AttackParameters()
+    parameters: AttackParameters = Field(default_factory=AttackParameters)
     supervised_configuration: DetectionSupervisedConfiguration = Field(
         default_factory=DetectionSupervisedConfiguration
     )

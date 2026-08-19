@@ -14,7 +14,7 @@ from core.task_compatibility import (
 )
 from ml.attacks.base import AdversarialAttackResult
 from ml.attacks.presentation import reconstruct_attack_in_source_geometry
-from ml.attacks.registry import get_attack
+from ml.attacks.registry import get_attack, resolve_attack_parameters
 from ml.metrics.classification import (
     ClassificationEvaluationSample,
     build_evaluation_image_diagnostics,
@@ -115,6 +115,12 @@ async def evaluate_dataset(
     retention_seconds: int = RESULTS_TTL_SECONDS,
     progress_callback: EvaluationProgressCallback | None = None,
 ) -> EvaluationResponse:
+    try:
+        attack = get_attack(request.attack_type)
+        request.parameters = resolve_attack_parameters(attack, request.parameters)
+    except ValueError as error:
+        raise BadRequestError(str(error)) from error
+
     execution = None
     if owner_id is not None:
         execution = await begin_evaluation_execution(
@@ -128,6 +134,7 @@ async def evaluate_dataset(
     try:
         response = await _evaluate_dataset(
             request,
+            attack=attack,
             execution=execution,
             progress_callback=progress_callback,
         )
@@ -141,6 +148,7 @@ async def evaluate_dataset(
 async def _evaluate_dataset(
     request: EvaluationRequest,
     *,
+    attack,
     execution: EvaluationExecution | None,
     progress_callback: EvaluationProgressCallback | None,
 ) -> EvaluationResponse:
@@ -148,7 +156,7 @@ async def _evaluate_dataset(
         ("classification_evaluation_started dataset_id=%s attack=%s steps=%s"),
         request.dataset_id,
         request.attack_type,
-        getattr(request.parameters, "steps", None),
+        request.parameters.model_dump().get("steps"),
     )
 
     evaluation_started = perf_counter()
@@ -169,11 +177,6 @@ async def _evaluate_dataset(
         expected_task_type=CLASSIFICATION_TASK_TYPE,
         endpoint="/evaluate",
     )
-
-    try:
-        attack = get_attack(request.attack_type)
-    except ValueError as error:
-        raise BadRequestError(str(error)) from error
 
     require_attack_task_type(
         attack=attack,

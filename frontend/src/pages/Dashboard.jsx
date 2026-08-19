@@ -21,6 +21,9 @@ function Dashboard() {
         setSelectedImage,
         activeModel,
         setActiveModel,
+        attackCatalog,
+        attackCatalogLoading,
+        attackCatalogError,
         selectedAttack,
         setSelectedAttack,
         attackParameters,
@@ -117,6 +120,9 @@ function Dashboard() {
                     attackParameters={attackParameters}
                     onChangeAttackParameters={setAttackParameters}
                     activeModel={activeModel}
+                    attackCatalog={attackCatalog}
+                    loading={attackCatalogLoading}
+                    error={attackCatalogError}
                 />
             </aside>
 
@@ -134,6 +140,7 @@ function Dashboard() {
                     activeModel={activeModel}
                     selectedAttack={selectedAttack}
                     attackParameters={attackParameters}
+                    attackCatalog={attackCatalog}
                     onGoToEvaluation={() => navigate('/evaluation')}
                     onGoToComparison={() => navigate('/comparison')}
                 />

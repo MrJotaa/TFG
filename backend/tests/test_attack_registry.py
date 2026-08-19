@@ -76,3 +76,65 @@ def test_attack_task_type_compatibility(
 )
 def test_attacks_reject_unknown_task_type(attack):
     assert attack.supports_task_type("segmentation") is False
+
+
+def test_registered_attacks_resolve_only_their_own_parameters():
+    from schemas.attack import AttackParameters
+
+    fgsm = get_attack(AttackType.FGSM)
+    pgd = get_attack(AttackType.PGD)
+    random_noise = get_attack(AttackType.RANDOM_NOISE)
+
+    assert fgsm.resolve_parameters(AttackParameters()).model_dump() == {
+        "epsilon": 0.03,
+    }
+    assert pgd.resolve_parameters(AttackParameters()).model_dump() == {
+        "epsilon": 0.03,
+        "alpha": 0.01,
+        "steps": 10,
+    }
+    assert random_noise.resolve_parameters(AttackParameters()).model_dump() == {
+        "epsilon": 0.03,
+        "seed": 0,
+    }
+
+
+def test_parameter_resolution_strips_irrelevant_legacy_values():
+    from schemas.attack import AttackParameters
+
+    fgsm = get_attack(AttackType.FGSM)
+    parameters = fgsm.resolve_parameters(
+        AttackParameters(epsilon=0.05, alpha=0.02, steps=30, seed=17)
+    )
+
+    assert parameters.model_dump() == {"epsilon": 0.05}
+
+
+def test_parameter_resolution_rejects_unknown_values():
+    from schemas.attack import AttackParameters
+
+    pgd = get_attack(AttackType.PGD)
+
+    with pytest.raises(ValueError, match="Unsupported parameters"):
+        pgd.resolve_parameters(AttackParameters(epsilon=0.03, learning_rate_typo=0.01))
+
+
+def test_attack_catalog_exposes_capabilities_and_parameter_contracts():
+    from ml.attacks.registry import list_attack_catalog
+
+    catalog = {item["id"]: item for item in list_attack_catalog()}
+
+    assert catalog["fgsm"]["knowledge_type"] == "white_box"
+    assert catalog["fgsm"]["supported_task_types"] == ["classification"]
+    assert [parameter["key"] for parameter in catalog["fgsm"]["parameters"]] == [
+        "epsilon"
+    ]
+
+    assert catalog["random_noise"]["knowledge_type"] == "baseline"
+    assert catalog["random_noise"]["supported_task_types"] == [
+        "classification",
+        "detection",
+    ]
+    assert [
+        parameter["key"] for parameter in catalog["random_noise"]["parameters"]
+    ] == ["epsilon", "seed"]

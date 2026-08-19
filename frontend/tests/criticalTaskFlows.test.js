@@ -8,27 +8,34 @@ import {
 import { resolveExperimentTaskType } from '../src/utils/experimentTask.js'
 import { activateModelInList } from '../src/utils/modelSelection.js'
 
+const ATTACK_CATALOG = [
+    { id: 'fgsm', supported_task_types: ['classification'] },
+    { id: 'random_noise', supported_task_types: ['classification', 'detection'] },
+    { id: 'pgd', supported_task_types: ['classification'] },
+    { id: 'yolo_confidence', supported_task_types: ['detection'] },
+]
+
 test('classification exposes only classification-compatible attacks', () => {
     assert.deepEqual(
-        getSupportedAttacksForTask('classification').map((attack) => attack.id),
+        getSupportedAttacksForTask(ATTACK_CATALOG, 'classification').map((attack) => attack.id),
         ['fgsm', 'random_noise', 'pgd'],
     )
-    assert.equal(isAttackSupportedForTask('yolo_confidence', 'classification'), false)
-    assert.equal(isAttackSupportedForTask('pgd', 'classification'), true)
+    assert.equal(isAttackSupportedForTask(ATTACK_CATALOG, 'yolo_confidence', 'classification'), false)
+    assert.equal(isAttackSupportedForTask(ATTACK_CATALOG, 'pgd', 'classification'), true)
 })
 
 test('detection exposes Random Noise and YOLO Confidence only', () => {
     assert.deepEqual(
-        getSupportedAttacksForTask('detection').map((attack) => attack.id),
+        getSupportedAttacksForTask(ATTACK_CATALOG, 'detection').map((attack) => attack.id),
         ['random_noise', 'yolo_confidence'],
     )
-    assert.equal(isAttackSupportedForTask('fgsm', 'detection'), false)
-    assert.equal(isAttackSupportedForTask('yolo_confidence', 'detection'), true)
+    assert.equal(isAttackSupportedForTask(ATTACK_CATALOG, 'fgsm', 'detection'), false)
+    assert.equal(isAttackSupportedForTask(ATTACK_CATALOG, 'yolo_confidence', 'detection'), true)
 })
 
 test('unknown attacks never become compatible by fallback', () => {
-    assert.equal(isAttackSupportedForTask('unknown', 'classification'), false)
-    assert.equal(isAttackSupportedForTask('unknown', 'detection'), false)
+    assert.equal(isAttackSupportedForTask(ATTACK_CATALOG, 'unknown', 'classification'), false)
+    assert.equal(isAttackSupportedForTask(ATTACK_CATALOG, 'unknown', 'detection'), false)
 })
 
 test('active model selects the evaluation task when there is no recovered result', () => {

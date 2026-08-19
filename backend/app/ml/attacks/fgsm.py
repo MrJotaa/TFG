@@ -3,14 +3,34 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
-from ml.attacks.base import AdversarialAttackResult, BaseAdversarialAttack
+from ml.attacks.base import (
+    AdversarialAttackResult,
+    AttackParameterSpec,
+    BaseAdversarialAttack,
+)
 from ml.attacks.presentation import perturbation_to_visualization
 
 
 class FGSMAttack(BaseAdversarialAttack):
     id = "fgsm"
-    name = "Fast Gradient Sign Method"
-    supported_task_types = ["classification"]
+    name = "FGSM"
+    description = "Ataque rápido basado en gradiente"
+    knowledge_type = "white_box"
+    supported_task_types = ("classification",)
+    parameter_specs = (
+        AttackParameterSpec(
+            key="epsilon",
+            label="Epsilon",
+            summary_label="ε",
+            description="Presupuesto máximo de perturbación L-infinito",
+            value_type="float",
+            default=0.03,
+            control="range",
+            minimum=0.0,
+            maximum=0.3,
+            step=0.01,
+        ),
+    )
 
     def __init__(self):
         self.to_tensor = transforms.ToTensor()

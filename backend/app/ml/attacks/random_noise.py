@@ -2,13 +2,41 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-from ml.attacks.base import BaseAdversarialAttack
+from ml.attacks.base import AttackParameterSpec, BaseAdversarialAttack
 
 
 class RandomNoiseAttack(BaseAdversarialAttack):
     id = "random_noise"
-    name = "Random Noise Baseline"
-    supported_task_types = ["classification", "detection"]
+    name = "Random Noise"
+    description = "Baseline con ruido aleatorio uniforme"
+    knowledge_type = "baseline"
+    supported_task_types = ("classification", "detection")
+    parameter_specs = (
+        AttackParameterSpec(
+            key="epsilon",
+            label="Epsilon",
+            summary_label="ε",
+            description="Amplitud máxima del ruido uniforme",
+            value_type="float",
+            default=0.03,
+            control="range",
+            minimum=0.0,
+            maximum=0.3,
+            step=0.01,
+        ),
+        AttackParameterSpec(
+            key="seed",
+            label="Seed",
+            summary_label="seed",
+            description="Semilla para reproducir exactamente el ruido generado",
+            value_type="integer",
+            default=0,
+            control="number",
+            minimum=0,
+            maximum=2_147_483_647,
+            step=1,
+        ),
+    )
 
     def __init__(self):
         self.to_tensor = transforms.ToTensor()

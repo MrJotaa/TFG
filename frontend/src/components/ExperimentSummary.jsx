@@ -9,6 +9,7 @@ function ExperimentSummary({
     activeModel,
     selectedAttack,
     attackParameters,
+    attackCatalog,
     onGoToEvaluation,
     onGoToComparison,
 }) {
@@ -41,13 +42,13 @@ function ExperimentSummary({
 
                 <article className="summary-card summary-card-yellow">
                     <span>Ataque activo</span>
-                    <strong>{getAttackName(selectedAttack)}</strong>
+                    <strong>{getAttackName(selectedAttack, attackCatalog)}</strong>
                 </article>
 
                 <article className="summary-card summary-card-red">
                     <span>Parámetros del ataque</span>
                     <strong>
-                        {formatAttackParameters(selectedAttack, attackParameters)}
+                        {formatAttackParameters(selectedAttack, attackParameters, attackCatalog)}
                     </strong>
                 </article>
             </div>

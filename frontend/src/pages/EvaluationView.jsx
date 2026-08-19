@@ -25,6 +25,7 @@ function EvaluationView() {
     const {
         selectedDataset,
         activeModel,
+        attackCatalog,
         selectedAttack,
         attackParameters,
         recoveredEvaluation,
@@ -36,7 +37,7 @@ function EvaluationView() {
         recoveredEvaluation,
     })
     const isDetection = taskType === 'detection'
-    const attackName = getAttackName(selectedAttack)
+    const attackName = getAttackName(selectedAttack, attackCatalog)
     const contextPanelId = 'evaluation-context-panel'
 
     return (
@@ -113,6 +114,7 @@ function EvaluationView() {
                         value={formatAttackParameters(
                             selectedAttack,
                             attackParameters,
+                            attackCatalog,
                         )}
                     />
                 </section>
@@ -123,6 +125,7 @@ function EvaluationView() {
                     selectedDataset={selectedDataset}
                     selectedAttack={selectedAttack}
                     attackParameters={attackParameters}
+                    attackCatalog={attackCatalog}
                     recoveredEvaluation={recoveredEvaluation}
                     onStartNewEvaluation={() => setRecoveredEvaluation(null)}
                 />
@@ -131,6 +134,7 @@ function EvaluationView() {
                     selectedDataset={selectedDataset}
                     selectedAttack={selectedAttack}
                     attackParameters={attackParameters}
+                    attackCatalog={attackCatalog}
                     recoveredEvaluation={recoveredEvaluation}
                     onStartNewEvaluation={() => setRecoveredEvaluation(null)}
                 />

@@ -17,10 +17,7 @@ export function findCompatibleEvaluation({
     taskType,
     datasetId,
     attackType,
-    epsilon,
-    alpha,
-    steps,
-    seed = 0,
+    parameters,
     supervisedConfiguration = null,
 }) {
     return apiRequest('/evaluations/compatibility', {
@@ -32,12 +29,7 @@ export function findCompatibleEvaluation({
             task_type: taskType,
             dataset_id: datasetId,
             attack_type: attackType,
-            parameters: {
-                epsilon: Number(epsilon),
-                alpha: Number(alpha),
-                steps: Number(steps),
-                seed: Number(seed),
-            },
+            parameters,
             supervised_configuration: supervisedConfiguration,
         }),
     })

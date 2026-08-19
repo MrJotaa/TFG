@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from schemas.attack import AttackParameters, AttackType
 from schemas.detection import DetectionPrediction
@@ -9,7 +9,7 @@ class DetectionAttackRequest(BaseModel):
     dataset_id: str
     image_id: str
     attack_type: AttackType = AttackType.RANDOM_NOISE
-    parameters: AttackParameters = AttackParameters()
+    parameters: AttackParameters = Field(default_factory=AttackParameters)
 
 
 class DetectionAttackComparison(BaseModel):

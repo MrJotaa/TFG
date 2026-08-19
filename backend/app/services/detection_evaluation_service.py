@@ -7,7 +7,7 @@ from core.task_compatibility import (
     require_attack_task_type,
     require_model_task_type,
 )
-from ml.attacks.registry import get_attack
+from ml.attacks.registry import get_attack, resolve_attack_parameters
 from ml.models.detection_inference import (
     DetectionEvaluationInferenceConfiguration,
 )
@@ -64,6 +64,12 @@ async def evaluate_detection_dataset(
     retention_seconds: int = RESULTS_TTL_SECONDS,
     progress_callback: EvaluationProgressCallback | None = None,
 ) -> DetectionEvaluationResponse:
+    try:
+        attack = get_attack(request.attack_type)
+        request.parameters = resolve_attack_parameters(attack, request.parameters)
+    except ValueError as error:
+        raise BadRequestError(str(error)) from error
+
     execution = None
     if owner_id is not None:
         execution = await begin_evaluation_execution(
@@ -79,6 +85,7 @@ async def evaluate_detection_dataset(
     try:
         response = await _evaluate_detection_dataset(
             request,
+            attack=attack,
             result_id=result_id,
             execution=execution,
             progress_callback=progress_callback,
@@ -102,6 +109,7 @@ async def evaluate_detection_dataset(
 async def _evaluate_detection_dataset(
     request: DetectionEvaluationRequest,
     *,
+    attack,
     result_id: str,
     execution: EvaluationExecution | None,
     progress_callback: EvaluationProgressCallback | None,
@@ -115,11 +123,6 @@ async def _evaluate_detection_dataset(
         expected_task_type=DETECTION_TASK_TYPE,
         endpoint="/detect/evaluate",
     )
-
-    try:
-        attack = get_attack(request.attack_type)
-    except ValueError as error:
-        raise BadRequestError(str(error)) from error
 
     require_attack_task_type(
         attack=attack,

@@ -7,6 +7,7 @@ let client
 let auth
 let datasets
 let models
+let attacks
 let predict
 let attack
 let detect
@@ -44,6 +45,7 @@ before(async () => {
         auth,
         datasets,
         models,
+        attacks,
         predict,
         attack,
         detect,
@@ -56,6 +58,7 @@ before(async () => {
         viteServer.ssrLoadModule('/src/api/auth.js'),
         viteServer.ssrLoadModule('/src/api/datasets.js'),
         viteServer.ssrLoadModule('/src/api/models.js'),
+        viteServer.ssrLoadModule('/src/api/attacks.js'),
         viteServer.ssrLoadModule('/src/api/predict.js'),
         viteServer.ssrLoadModule('/src/api/attack.js'),
         viteServer.ssrLoadModule('/src/api/detect.js'),
@@ -189,6 +192,14 @@ test('dataset upload keeps multipart headers browser-managed', async () => {
     assert.equal(call.options.body.get('files').name, 'sample.png')
 })
 
+test('attack catalog is retrieved from the backend source of truth', async () => {
+    const calls = captureFetch(() => jsonResponse([]))
+
+    await attacks.getAttacks()
+
+    assert.equal(calls[0].url, 'http://127.0.0.1:8000/attacks')
+})
+
 test('model selection and clean inference use the expected classification and detection endpoints', async () => {
     const calls = captureFetch((_url, _options, index) =>
         jsonResponse(index === 0 ? { id: 'yolo26n', task_type: 'detection' } : {}),
@@ -221,9 +232,7 @@ test('individual adversarial flows preserve attack parameters and explainability
         datasetId: 'dataset-1',
         imageId: 'image-1',
         attackType: 'pgd',
-        epsilon: '0.03',
-        alpha: '0.01',
-        steps: '10',
+        parameters: { epsilon: 0.03, alpha: 0.01, steps: 10 },
     })
     await explainability.generateGradCam({
         datasetId: 'dataset-1',
@@ -233,9 +242,7 @@ test('individual adversarial flows preserve attack parameters and explainability
         datasetId: 'dataset-1',
         imageId: 'image-1',
         attackType: 'yolo_confidence',
-        epsilon: 0.03,
-        alpha: 0.01,
-        steps: 10,
+        parameters: { epsilon: 0.03, alpha: 0.01, steps: 10 },
     })
     await explainability.generateDetectionExplainability({
         datasetId: 'dataset-1',
@@ -272,10 +279,7 @@ test('classification dataset evaluation streams real progress and final result',
     const result = await evaluation.evaluateDataset({
         datasetId: 'dataset-1',
         attackType: 'pgd',
-        epsilon: '0.03',
-        alpha: '0.01',
-        steps: '10',
-        seed: '7',
+        parameters: { epsilon: 0.03, alpha: 0.01, steps: 10 },
         forceRecompute: true,
         onProgress: (event) => progress.push(event),
     })
@@ -288,7 +292,6 @@ test('classification dataset evaluation streams real progress and final result',
             epsilon: 0.03,
             alpha: 0.01,
             steps: 10,
-            seed: 7,
         },
         force_recompute: true,
     })
@@ -314,10 +317,7 @@ test('detection evaluation keeps supervised configuration in the end-to-end flow
     const result = await detectionEvaluation.evaluateDetectionDataset({
         datasetId: 'dataset-2',
         attackType: 'yolo_confidence',
-        epsilon: 0.03,
-        alpha: 0.01,
-        steps: 10,
-        seed: 3,
+        parameters: { epsilon: 0.03, alpha: 0.01, steps: 10 },
         supervisedConfiguration: configuration,
         forceRecompute: false,
     })
@@ -330,7 +330,6 @@ test('detection evaluation keeps supervised configuration in the end-to-end flow
             epsilon: 0.03,
             alpha: 0.01,
             steps: 10,
-            seed: 3,
         },
         supervised_configuration: configuration,
         force_recompute: false,
@@ -352,10 +351,7 @@ test('evaluation compatibility and recovery preserve task-specific identity', as
         taskType: 'detection',
         datasetId: 'dataset-2',
         attackType: 'yolo_confidence',
-        epsilon: '0.03',
-        alpha: '0.01',
-        steps: '10',
-        seed: '5',
+        parameters: { epsilon: 0.03, alpha: 0.01, steps: 10 },
         supervisedConfiguration,
     })
     await evaluationHistory.getStoredEvaluation('evaluation/with spaces')
@@ -369,7 +365,6 @@ test('evaluation compatibility and recovery preserve task-specific identity', as
             epsilon: 0.03,
             alpha: 0.01,
             steps: 10,
-            seed: 5,
         },
         supervised_configuration: supervisedConfiguration,
     })

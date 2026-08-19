@@ -205,3 +205,15 @@ def test_attack_propagates_service_error(client, monkeypatch):
 
     assert response.status_code == 400
     assert "classification models only" in response.json()["detail"]
+
+
+def test_attack_catalog_endpoint_exposes_registered_metadata(client):
+    response = client.get("/attacks")
+
+    assert response.status_code == 200
+
+    catalog = {item["id"]: item for item in response.json()}
+    assert set(catalog) == {"fgsm", "random_noise", "pgd", "yolo_confidence"}
+    assert catalog["fgsm"]["supported_task_types"] == ["classification"]
+    assert catalog["yolo_confidence"]["supported_task_types"] == ["detection"]
+    assert catalog["pgd"]["parameters"][0]["key"] == "epsilon"

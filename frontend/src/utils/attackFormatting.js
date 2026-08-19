@@ -1,22 +1,33 @@
-export const ATTACK_NAMES = {
-    fgsm: 'FGSM',
-    random_noise: 'Random Noise',
-    pgd: 'PGD',
-    yolo_confidence: 'YOLO Confidence',
+import { getAttackDefinition } from './attackCatalog.js'
+
+export function getAttackName(attackId, attackCatalog = []) {
+    return getAttackDefinition(attackCatalog, attackId)?.name || attackId
 }
 
-export function getAttackName(attackId) {
-    return ATTACK_NAMES[attackId] || attackId
-}
+export function formatAttackParameters(
+    selectedAttack,
+    attackParameters,
+    attackCatalog = [],
+) {
+    const attack = getAttackDefinition(attackCatalog, selectedAttack)
 
-export function formatAttackParameters(selectedAttack, attackParameters) {
-    const baseParameters = `ε=${attackParameters.epsilon}`
-
-    const attacksWithIterations = ['pgd', 'yolo_confidence']
-
-    if (attacksWithIterations.includes(selectedAttack)) {
-        return `${baseParameters} · α=${attackParameters.alpha} · steps=${attackParameters.steps}`
+    if (!attack) {
+        const entries = Object.entries(attackParameters ?? {})
+        if (entries.length === 0) return 'Sin parámetros'
+        return entries
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([key, value]) => `${key}=${value}`)
+            .join(' · ')
     }
 
-    return baseParameters
+    if (attack.parameters.length === 0) return 'Sin parámetros'
+
+    return attack.parameters
+        .map((parameter) => {
+            const value = Object.hasOwn(attackParameters ?? {}, parameter.key)
+                ? attackParameters[parameter.key]
+                : parameter.default
+            return `${parameter.summary_label}=${value}`
+        })
+        .join(' · ')
 }

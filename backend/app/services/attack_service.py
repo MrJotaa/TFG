@@ -6,7 +6,7 @@ from core.task_compatibility import (
 )
 from ml.attacks.base import AdversarialAttackResult
 from ml.attacks.presentation import reconstruct_attack_in_source_geometry
-from ml.attacks.registry import get_attack
+from ml.attacks.registry import get_attack, resolve_attack_parameters
 from ml.explainability.gradcam import (
     generate_gradcam,
     generate_gradcam_from_prepared_input,
@@ -26,6 +26,12 @@ from utils.result_files import (
 
 
 async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
+    try:
+        attack = get_attack(request.attack_type)
+        request.parameters = resolve_attack_parameters(attack, request.parameters)
+    except ValueError as error:
+        raise BadRequestError(str(error)) from error
+
     image = await get_image_from_dataset(
         dataset_id=request.dataset_id,
         image_id=request.image_id,
@@ -38,11 +44,6 @@ async def apply_adversarial_attack(request: AttackRequest) -> AttackResponse:
         expected_task_type=CLASSIFICATION_TASK_TYPE,
         endpoint="/attack",
     )
-
-    try:
-        attack = get_attack(request.attack_type)
-    except ValueError as error:
-        raise BadRequestError(str(error)) from error
 
     require_attack_task_type(
         attack=attack,
