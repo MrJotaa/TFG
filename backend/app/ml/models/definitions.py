@@ -1,5 +1,6 @@
 from ml.models.registry import ModelRegistry
 from ml.models.resnet18.model import ResNet18Model
+from ml.models.swin_v2_t.model import SwinV2TinyModel
 from ml.models.ultralytics.config import UltralyticsDetectionModelConfig
 from ml.models.ultralytics.model import UltralyticsDetectionModel
 
@@ -21,6 +22,7 @@ def build_model_registry() -> ModelRegistry:
     return ModelRegistry(
         models=(
             ResNet18Model(),
+            SwinV2TinyModel(),
             UltralyticsDetectionModel(_YOLO26N_CONFIG),
         ),
         default_model_id="resnet18",

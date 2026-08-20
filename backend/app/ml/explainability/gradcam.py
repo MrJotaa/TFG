@@ -11,6 +11,27 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 from ml.models.detection import Detection
 
 
+def _reshape_gradcam_tensor(
+    model_wrapper,
+    tensor: torch.Tensor,
+    *,
+    tensor_name: str,
+) -> torch.Tensor:
+    """Normaliza activaciones y gradientes al contrato espacial de Grad-CAM."""
+    reshaped = model_wrapper.reshape_gradcam_tensor(tensor)
+
+    if not isinstance(reshaped, torch.Tensor):
+        raise TypeError(f"Grad-CAM {tensor_name} transform must return a tensor")
+
+    if reshaped.ndim != 4:
+        raise ValueError(
+            f"Grad-CAM {tensor_name} must have shape [B, C, H, W] after "
+            f"model transformation, got {tuple(reshaped.shape)}"
+        )
+
+    return reshaped
+
+
 def _calculate_gradcam(model_wrapper, model_input: torch.Tensor):
     """Calcula el mapa normalizado sobre la entrada científica del modelo."""
     model = model_wrapper.get_torch_model()
@@ -29,19 +50,34 @@ def _calculate_gradcam(model_wrapper, model_input: torch.Tensor):
             probabilities = F.softmax(output[0], dim=0)
 
             confidence, predicted_index = torch.max(probabilities, dim=0)
-            predicted_label = model_wrapper.categories[predicted_index.item()]
+            class_labels = model_wrapper.get_class_labels()
+            predicted_label = class_labels[predicted_index.item()]
 
-            activation = activations[0]
-            (gradient,) = torch.autograd.grad(
+            raw_activation = activations[0]
+            (raw_gradient,) = torch.autograd.grad(
                 outputs=output[0, predicted_index],
-                inputs=activation,
+                inputs=raw_activation,
             )
 
-        activation = activation.detach()
-        gradient = gradient.detach()
+        activation = _reshape_gradcam_tensor(
+            model_wrapper,
+            raw_activation.detach(),
+            tensor_name="activation",
+        )
+        gradient = _reshape_gradcam_tensor(
+            model_wrapper,
+            raw_gradient.detach(),
+            tensor_name="gradient",
+        )
+
+        if activation.shape != gradient.shape:
+            raise ValueError(
+                "Grad-CAM activation and gradient shapes must match after model "
+                "transformation"
+            )
 
         weights = gradient.mean(dim=(2, 3), keepdim=True)
-        cam = (weights * activation).sum(dim=1).squeeze()
+        cam = (weights * activation).sum(dim=1)[0]
 
         cam = torch.relu(cam)
         cam = cam.cpu().numpy()

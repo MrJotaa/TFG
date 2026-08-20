@@ -147,6 +147,22 @@ class BaseImageClassificationModel(BaseModel):
             f"Model '{self.id}' does not expose its classification attack input shape"
         )
 
+    def get_gradcam_target_layer(self) -> torch.nn.Module:
+        """Devuelve la capa cuyas activaciones se explican con Grad-CAM."""
+        raise NotImplementedError(
+            f"Model '{self.id}' does not expose a Grad-CAM target layer"
+        )
+
+    def reshape_gradcam_tensor(self, tensor: torch.Tensor) -> torch.Tensor:
+        """
+        Adapta activaciones o gradientes de Grad-CAM al formato [B, C, H, W].
+
+        Las CNN ya suelen exponer activaciones en ese formato y no necesitan
+        transformación. Arquitecturas como Vision Transformers pueden
+        sobrescribir este método para reconstruir su representación espacial.
+        """
+        return tensor
+
     def forward_attack_logits(
         self,
         prepared_input: torch.Tensor,
