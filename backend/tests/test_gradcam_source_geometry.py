@@ -37,8 +37,6 @@ class _TrackingModel(torch.nn.Module):
 
 
 class _TrackingWrapper:
-    categories = ("red", "green")
-
     def __init__(self):
         self.model = _TrackingModel()
         self.preprocess_calls = 0
@@ -52,6 +50,12 @@ class _TrackingWrapper:
     def get_gradcam_target_layer(self):
         return self.model.target_layer
 
+    def reshape_gradcam_tensor(self, tensor):
+        return tensor
+
+    def get_class_labels(self):
+        return ("red", "green")
+
     def preprocess(self, image):
         self.preprocess_calls += 1
         return torch.full((1, 3, 5, 7), 0.25)
@@ -61,6 +65,44 @@ class _TrackingWrapper:
         self.prepared_input = prepared_input
         self.normalized_input = prepared_input + 0.1
         return self.normalized_input
+
+
+class _ChannelsLastSpatialLayer(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.scale = torch.nn.Parameter(torch.tensor(1.0))
+
+    def forward(self, model_input):
+        return (model_input * self.scale).permute(0, 2, 3, 1)
+
+
+class _ChannelsLastModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.target_layer = _ChannelsLastSpatialLayer()
+
+    def forward(self, model_input):
+        activation = self.target_layer(model_input)
+        return activation[..., :2].mean(dim=(1, 2))
+
+
+class _ChannelsLastWrapper:
+    def __init__(self):
+        self.model = _ChannelsLastModel()
+        self.reshape_calls = 0
+
+    def get_torch_model(self):
+        return self.model
+
+    def get_gradcam_target_layer(self):
+        return self.model.target_layer
+
+    def reshape_gradcam_tensor(self, tensor):
+        self.reshape_calls += 1
+        return tensor.permute(0, 3, 1, 2)
+
+    def get_class_labels(self):
+        return ("red", "green")
 
 
 def _constant_red_colormap(values):
@@ -162,6 +204,36 @@ def test_gradcam_numeric_map_matches_independent_reference_without_warnings(recw
         for warning in recwarn
         if "Full backward hook is firing" in str(warning.message)
     ]
+
+
+def test_gradcam_uses_model_contract_for_channels_last_spatial_activations():
+    wrapper = _ChannelsLastWrapper()
+    model_input = torch.zeros((1, 3, 5, 7))
+    model_input[:, 0] = torch.linspace(0.1, 0.9, steps=35).reshape(5, 7)
+    model_input[:, 1] = 0.05
+
+    result = gradcam_module._calculate_gradcam(wrapper, model_input)
+
+    assert result["prediction"] == "red"
+    assert result["normalized_cam"].shape == (5, 7)
+    assert np.isfinite(result["normalized_cam"]).all()
+    assert wrapper.reshape_calls == 2
+
+
+def test_gradcam_rejects_non_spatial_model_transform():
+    wrapper = _TrackingWrapper()
+    wrapper.reshape_gradcam_tensor = lambda tensor: tensor.flatten(start_dim=2)
+
+    with pytest.raises(
+        ValueError,
+        match=r"Grad-CAM activation must have shape \[B, C, H, W\]",
+    ):
+        gradcam_module._calculate_gradcam(
+            wrapper,
+            torch.rand((1, 3, 5, 7)),
+        )
+
+    assert len(wrapper.model.target_layer._forward_hooks) == 0
 
 
 def test_gradcam_does_not_modify_existing_parameter_gradients():

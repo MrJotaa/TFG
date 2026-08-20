@@ -79,6 +79,12 @@ class _NoAttackRecalculationModel:
     def get_gradcam_target_layer(self):
         return self.model.target_layer
 
+    def get_class_labels(self):
+        return self.categories
+
+    def reshape_gradcam_tensor(self, tensor):
+        return tensor
+
     def normalize_attack_input(self, model_input):
         assert any(model_input is expected for expected in self.expected_inputs)
         self.normalization_inputs.append(model_input)
