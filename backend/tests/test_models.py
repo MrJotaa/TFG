@@ -115,6 +115,26 @@ def test_select_swin_v2_t_model_sets_transformer_as_active(client):
     )
 
 
+def test_switching_to_swin_unloads_previous_model_and_keeps_single_loaded_model(
+    client,
+):
+    resnet = model_service._model_registry.get_model("resnet18")
+    swin = model_service._model_registry.get_model("swin_v2_t")
+    yolo = model_service._model_registry.get_model("yolo26n")
+    resnet.load()
+
+    response = client.post("/models/swin_v2_t/select")
+
+    assert response.status_code == 200
+    assert resnet.is_loaded() is False
+    assert swin.is_loaded() is True
+    assert yolo.is_loaded() is False
+    assert sum(
+        instance.is_loaded()
+        for instance in model_service._model_registry.list_models()
+    ) == 1
+
+
 def test_select_yolo_model_sets_yolo_as_active(client):
     response = client.post("/models/yolo26n/select")
 

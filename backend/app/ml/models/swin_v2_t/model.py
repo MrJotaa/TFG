@@ -31,11 +31,11 @@ class SwinV2TinyModel(TorchvisionImageClassificationModel):
         return model, categories
 
     def get_gradcam_target_layer(self) -> torch.nn.Module:
-        """Use the final Swin block normalization before classification."""
+        """Use Swin's final spatial normalization before global pooling."""
         if not self.is_loaded():
             raise ValueError("Model is not loaded")
 
-        return self.get_torch_model().features[-1][-1].norm1
+        return self.get_torch_model().norm
 
     def reshape_gradcam_tensor(self, tensor: torch.Tensor) -> torch.Tensor:
         """Convert Swin's [B, H, W, C] activations to [B, C, H, W]."""

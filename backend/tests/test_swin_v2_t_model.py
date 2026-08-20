@@ -18,6 +18,7 @@ class _FakeSwin(torch.nn.Module):
             torch.nn.Identity(),
             torch.nn.Sequential(_FakeSwinBlock()),
         )
+        self.norm = torch.nn.LayerNorm(8)
 
     def forward(self, inputs):
         return torch.zeros((inputs.shape[0], 1000), device=inputs.device)
@@ -67,7 +68,7 @@ def test_swin_v2_t_exposes_gradcam_layer_and_converts_channels_last():
     channels_last = torch.zeros((1, 8, 8, 768))
     channels_first = model.reshape_gradcam_tensor(channels_last)
 
-    assert target_layer is fake_model.features[-1][-1].norm1
+    assert target_layer is fake_model.norm
     assert channels_first.shape == (1, 768, 8, 8)
 
 

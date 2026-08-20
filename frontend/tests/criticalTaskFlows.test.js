@@ -47,6 +47,12 @@ test('active model selects the evaluation task when there is no recovered result
     )
     assert.equal(
         resolveExperimentTaskType({
+            activeModel: { id: 'swin_v2_t', task_type: 'classification' },
+        }),
+        'classification',
+    )
+    assert.equal(
+        resolveExperimentTaskType({
             activeModel: { id: 'yolo26n', task_type: 'detection' },
         }),
         'detection',
@@ -78,14 +84,16 @@ test('task resolution defaults safely to classification before a model is select
 test('model selection leaves exactly one active and loaded model', () => {
     const models = [
         { id: 'resnet18', active: true, loaded: true },
+        { id: 'swin_v2_t', active: false, loaded: false },
         { id: 'yolo26n', active: false, loaded: false },
     ]
 
-    const selected = activateModelInList(models, 'yolo26n')
+    const selected = activateModelInList(models, 'swin_v2_t')
 
     assert.deepEqual(selected, [
         { id: 'resnet18', active: false, loaded: false },
-        { id: 'yolo26n', active: true, loaded: true },
+        { id: 'swin_v2_t', active: true, loaded: true },
+        { id: 'yolo26n', active: false, loaded: false },
     ])
     assert.equal(selected.filter((model) => model.active).length, 1)
     assert.equal(selected.filter((model) => model.loaded).length, 1)
