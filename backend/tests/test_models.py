@@ -129,10 +129,13 @@ def test_switching_to_swin_unloads_previous_model_and_keeps_single_loaded_model(
     assert resnet.is_loaded() is False
     assert swin.is_loaded() is True
     assert yolo.is_loaded() is False
-    assert sum(
-        instance.is_loaded()
-        for instance in model_service._model_registry.list_models()
-    ) == 1
+    assert (
+        sum(
+            instance.is_loaded()
+            for instance in model_service._model_registry.list_models()
+        )
+        == 1
+    )
 
 
 def test_select_yolo_model_sets_yolo_as_active(client):

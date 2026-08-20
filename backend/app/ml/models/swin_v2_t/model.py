@@ -40,8 +40,6 @@ class SwinV2TinyModel(TorchvisionImageClassificationModel):
     def reshape_gradcam_tensor(self, tensor: torch.Tensor) -> torch.Tensor:
         """Convert Swin's [B, H, W, C] activations to [B, C, H, W]."""
         if tensor.ndim != 4:
-            raise ValueError(
-                "Swin V2 Grad-CAM tensor must have shape [B, H, W, C]"
-            )
+            raise ValueError("Swin V2 Grad-CAM tensor must have shape [B, H, W, C]")
 
         return tensor.permute(0, 3, 1, 2)
