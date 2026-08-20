@@ -39,7 +39,7 @@ def test_get_models_returns_registered_models(client):
     models = response.json()
     model_ids = {model["id"] for model in models}
 
-    assert model_ids == {"resnet18", "yolo26n"}
+    assert model_ids == {"resnet18", "swin_v2_t", "yolo26n"}
 
     for model in models:
         assert "id" in model
@@ -49,9 +49,11 @@ def test_get_models_returns_registered_models(client):
         assert "task_type" in model
 
     resnet = next(model for model in models if model["id"] == "resnet18")
+    swin = next(model for model in models if model["id"] == "swin_v2_t")
     yolo = next(model for model in models if model["id"] == "yolo26n")
 
     assert resnet["task_type"] == "classification"
+    assert swin["task_type"] == "classification"
     assert yolo["task_type"] == "detection"
 
 
@@ -93,6 +95,23 @@ def test_model_revisions_are_internal_and_follow_active_model(client):
     assert "revision" not in select_response.json()
     assert (
         model_service.get_active_model_revision() == "ultralytics-yolo26n-coco-8.4.121"
+    )
+
+
+def test_select_swin_v2_t_model_sets_transformer_as_active(client):
+    response = client.post("/models/swin_v2_t/select")
+
+    assert response.status_code == 200
+
+    selected_model = response.json()
+
+    assert selected_model["id"] == "swin_v2_t"
+    assert selected_model["active"] is True
+    assert selected_model["loaded"] is True
+    assert selected_model["task_type"] == "classification"
+    assert (
+        model_service.get_active_model_revision()
+        == "torchvision-swin-v2-t-imagenet1k-v1"
     )
 
 

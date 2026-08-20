@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
+from torchvision.transforms import InterpolationMode
 
 from ml.models.base import BaseImageClassificationModel
 from ml.models.classification import (
@@ -26,6 +27,7 @@ class TorchvisionImageClassificationModel(BaseImageClassificationModel):
     """
 
     input_size: tuple[int, int]
+    input_interpolation = InterpolationMode.BILINEAR
     normalization_mean: tuple[float, ...]
     normalization_std: tuple[float, ...]
 
@@ -37,7 +39,10 @@ class TorchvisionImageClassificationModel(BaseImageClassificationModel):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._attack_input_transform = transforms.Compose(
             [
-                transforms.Resize(self.input_size),
+                transforms.Resize(
+                    self.input_size,
+                    interpolation=self.input_interpolation,
+                ),
                 transforms.ToTensor(),
             ]
         )
