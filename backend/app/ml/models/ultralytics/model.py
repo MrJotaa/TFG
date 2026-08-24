@@ -10,6 +10,7 @@ from ml.models.detection import DetectionResult
 from ml.models.detection_inference import (
     DetectionEvaluationInferenceConfiguration,
 )
+from ml.models.detection_visualization import draw_detections_on_image
 from ml.models.ultralytics.adapter import UltralyticsDetectionAdapter
 from ml.models.ultralytics.catalog import (
     UltralyticsClassCatalogError,
@@ -53,6 +54,9 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
             self.load()
 
         return self.model.model
+
+    def supports_detection_explainability(self) -> bool:
+        return bool(self.config.explainability_target_layer_indices)
 
     def get_explainability_target_layers(self):
         if self.model is None:
@@ -357,15 +361,6 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
             source_height=image.height,
         )
 
-    def _result_to_annotated_image(self, result: Results) -> Image.Image:
-        annotated_array = result.plot()
-
-        # Ultralytics/OpenCV puede devolver la imagen anotada en BGR.
-        # PIL espera RGB, por eso invertimos los canales.
-        annotated_array = annotated_array[:, :, ::-1].copy()
-
-        return Image.fromarray(annotated_array)
-
     def detect(self, image: Image.Image) -> DetectionResult:
         result = self._run_inference(image)
         return self._result_to_prediction(result, image)
@@ -386,16 +381,18 @@ class UltralyticsDetectionModel(BaseObjectDetectionModel):
         return self._result_to_prediction(result, image)
 
     def get_annotated_image(self, image: Image.Image) -> Image.Image:
-        result = self._run_inference(image)
-        return self._result_to_annotated_image(result)
+        detection_result = self.detect(image)
+        return draw_detections_on_image(image, detection_result.detections)
 
     def detect_with_visualization(
         self,
         image: Image.Image,
     ) -> tuple[DetectionResult, Image.Image]:
         result = self._run_inference(image)
-
         detection_result = self._result_to_prediction(result, image)
-        annotated_image = self._result_to_annotated_image(result)
+        annotated_image = draw_detections_on_image(
+            image,
+            detection_result.detections,
+        )
 
         return detection_result, annotated_image

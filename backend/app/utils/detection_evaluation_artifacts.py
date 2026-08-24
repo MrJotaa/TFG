@@ -9,7 +9,7 @@ from PIL import Image
 from core.errors import BadRequestError, GoneError
 from utils.result_files import RESULTS_BASE_PATH
 
-DETECTION_EIGENCAM_PIPELINE_VERSION = "detection-eigencam-v2-yolo26-p3-p5-rect"
+DETECTION_EIGENCAM_PIPELINE_VERSION = "detection-eigencam-v3-model-contract-spatial"
 
 
 def detection_evaluation_image_artifact_filenames(

@@ -278,6 +278,34 @@ class BaseObjectDetectionModel(BaseModel):
         """
         raise NotImplementedError(f"Model '{self.id}' does not expose a torch model")
 
+    def get_detection_explainability_model(self) -> torch.nn.Module:
+        """Devuelve el módulo PyTorch que ejecutará el motor CAM genérico."""
+        model = self.get_torch_model()
+        if not isinstance(model, torch.nn.Module):
+            raise TypeError(
+                f"Model '{self.id}' detection explainability model must be a "
+                "torch module"
+            )
+        return model
+
+    def reshape_detection_explainability_tensor(
+        self,
+        tensor: torch.Tensor,
+    ) -> torch.Tensor:
+        """Adapta activaciones CAM de detección al formato espacial [B, C, H, W]."""
+        if not isinstance(tensor, torch.Tensor):
+            raise TypeError("Detection explainability transform must return a tensor")
+        if tensor.ndim != 4:
+            raise ValueError(
+                "Detection explainability activation must have shape [B, C, H, W] "
+                f"after model transformation, got {tuple(tensor.shape)}"
+            )
+        return tensor
+
+    def supports_detection_explainability(self) -> bool:
+        """Indica si el detector expone actualmente el contrato CAM completo."""
+        return False
+
     def prepare_detection_explainability_input(
         self,
         image: Image.Image,

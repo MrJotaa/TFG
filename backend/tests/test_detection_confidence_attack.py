@@ -5,12 +5,12 @@ import torch
 from PIL import Image
 from torchvision.transforms.functional import to_tensor
 
-from ml.attacks.yolo_confidence import YOLOConfidenceAttack
+from ml.attacks.detection_confidence import DetectionConfidenceAttack
 
 
-class TinyYOLOModel(torch.nn.Module):
+class TinyDetectionModel(torch.nn.Module):
     """
-    Detector sintético con salida en formato YOLO [B, C, N].
+    Detector sintético para validar el bucle genérico de supresión de confianza.
 
     Los cuatro primeros canales representan las cajas.
     Los dos últimos representan puntuaciones de clase.
@@ -129,16 +129,16 @@ def _create_parameters(
     )
 
 
-def _create_attack() -> YOLOConfidenceAttack:
-    return YOLOConfidenceAttack()
+def _create_attack() -> DetectionConfidenceAttack:
+    return DetectionConfidenceAttack()
 
 
-def test_yolo_confidence_declares_algorithm_revision():
-    assert YOLOConfidenceAttack.revision == "yolo26-end2end-confidence-v1"
+def test_detection_confidence_declares_algorithm_revision():
+    assert DetectionConfidenceAttack.revision == "detection-confidence-linf-v2"
 
 
 def _capture_adversarial_tensor(
-    attack: YOLOConfidenceAttack,
+    attack: DetectionConfidenceAttack,
     monkeypatch,
 ) -> dict[str, torch.Tensor]:
     """
@@ -173,9 +173,9 @@ def _calculate_confidence(
     return objective.item()
 
 
-def test_yolo_confidence_returns_expected_result_structure():
+def test_detection_confidence_returns_expected_result_structure():
     attack = _create_attack()
-    model = TinyYOLOModel()
+    model = TinyDetectionModel()
     wrapper = FakeDetectionModelWrapper(model)
     original_image = _create_test_image()
 
@@ -206,11 +206,11 @@ def test_yolo_confidence_returns_expected_result_structure():
     assert result["perturbation_image"].mode == "RGB"
 
 
-def test_yolo_confidence_requires_loaded_model():
+def test_detection_confidence_requires_loaded_model():
     attack = _create_attack()
 
     wrapper = FakeDetectionModelWrapper(
-        model=TinyYOLOModel(),
+        model=TinyDetectionModel(),
         loaded=False,
     )
 
@@ -226,11 +226,11 @@ def test_yolo_confidence_requires_loaded_model():
         )
 
 
-def test_yolo_confidence_runs_configured_number_of_steps():
+def test_detection_confidence_runs_configured_number_of_steps():
     steps = 4
 
     attack = _create_attack()
-    model = TinyYOLOModel()
+    model = TinyDetectionModel()
     wrapper = FakeDetectionModelWrapper(model)
 
     attack.apply(
@@ -249,7 +249,7 @@ def test_yolo_confidence_runs_configured_number_of_steps():
     assert model.forward_calls == steps
 
 
-def test_yolo_confidence_uses_alpha_and_reduces_confidence(
+def test_detection_confidence_uses_alpha_and_reduces_confidence(
     monkeypatch,
 ):
     epsilon = 0.2
@@ -257,7 +257,7 @@ def test_yolo_confidence_uses_alpha_and_reduces_confidence(
     steps = 3
 
     attack = _create_attack()
-    model = TinyYOLOModel()
+    model = TinyDetectionModel()
     wrapper = FakeDetectionModelWrapper(model)
     original_image = _create_test_image(pixel_value=128)
 
@@ -306,7 +306,7 @@ def test_yolo_confidence_uses_alpha_and_reduces_confidence(
     )
 
 
-def test_yolo_confidence_projects_perturbation_to_epsilon(
+def test_detection_confidence_projects_perturbation_to_epsilon(
     monkeypatch,
 ):
     epsilon = 0.08
@@ -314,7 +314,7 @@ def test_yolo_confidence_projects_perturbation_to_epsilon(
     steps = 10
 
     attack = _create_attack()
-    model = TinyYOLOModel()
+    model = TinyDetectionModel()
     wrapper = FakeDetectionModelWrapper(model)
     original_image = _create_test_image(pixel_value=128)
 
@@ -358,11 +358,11 @@ def test_yolo_confidence_projects_perturbation_to_epsilon(
     )
 
 
-def test_yolo_confidence_output_remains_in_valid_pixel_range(
+def test_detection_confidence_output_remains_in_valid_pixel_range(
     monkeypatch,
 ):
     attack = _create_attack()
-    model = TinyYOLOModel()
+    model = TinyDetectionModel()
     wrapper = FakeDetectionModelWrapper(model)
 
     original_image = _create_test_image(pixel_value=5)
@@ -397,11 +397,11 @@ def test_yolo_confidence_output_remains_in_valid_pixel_range(
     assert result["perturbation_linf"] <= 0.2
 
 
-def test_yolo_confidence_with_zero_epsilon_does_not_modify_image(
+def test_detection_confidence_with_zero_epsilon_does_not_modify_image(
     monkeypatch,
 ):
     attack = _create_attack()
-    model = TinyYOLOModel()
+    model = TinyDetectionModel()
     wrapper = FakeDetectionModelWrapper(model)
     original_image = _create_test_image()
 
@@ -434,9 +434,9 @@ def test_yolo_confidence_with_zero_epsilon_does_not_modify_image(
     assert result["perturbation_l2"] == 0.0
 
 
-def test_yolo_confidence_does_not_accumulate_model_parameter_gradients():
+def test_detection_confidence_does_not_accumulate_model_parameter_gradients():
     attack = _create_attack()
-    model = TinyYOLOModel()
+    model = TinyDetectionModel()
     wrapper = FakeDetectionModelWrapper(model)
 
     attack.apply(
@@ -452,9 +452,9 @@ def test_yolo_confidence_does_not_accumulate_model_parameter_gradients():
     assert model.scale.grad is None
 
 
-def test_yolo_confidence_rejects_non_scalar_model_objective():
+def test_detection_confidence_rejects_non_scalar_model_objective():
     attack = _create_attack()
-    wrapper = FakeDetectionModelWrapper(TinyYOLOModel())
+    wrapper = FakeDetectionModelWrapper(TinyDetectionModel())
 
     def vector_objective(prepared_input):
         return prepared_input.mean(dim=(1, 2, 3))
@@ -476,9 +476,9 @@ def test_yolo_confidence_rejects_non_scalar_model_objective():
         )
 
 
-def test_yolo_confidence_rejects_objective_without_input_gradient():
+def test_detection_confidence_rejects_objective_without_input_gradient():
     attack = _create_attack()
-    wrapper = FakeDetectionModelWrapper(TinyYOLOModel())
+    wrapper = FakeDetectionModelWrapper(TinyDetectionModel())
 
     def detached_objective(prepared_input):
         return torch.tensor(

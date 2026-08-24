@@ -62,12 +62,12 @@ async def _identity(monkeypatch, attack_type: AttackType) -> dict:
     )
 
 
-async def test_yolo_confidence_revision_participates_in_evaluation_identity(
+async def test_detection_confidence_revision_participates_in_evaluation_identity(
     monkeypatch,
 ):
     identity = await _identity(monkeypatch, AttackType.YOLO_CONFIDENCE)
 
-    assert identity["attack_revision"] == "yolo26-end2end-confidence-v1"
+    assert identity["attack_revision"] == "detection-confidence-linf-v2"
 
 
 async def test_unversioned_attacks_keep_legacy_evaluation_identity_shape(monkeypatch):

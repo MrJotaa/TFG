@@ -2,6 +2,7 @@ import pytest
 
 from ml.attacks.carlini_wagner import CarliniWagnerAttack
 from ml.attacks.deepfool import DeepFoolAttack
+from ml.attacks.detection_confidence import DetectionConfidenceAttack
 from ml.attacks.fgsm import FGSMAttack
 from ml.attacks.hop_skip_jump import HopSkipJumpAttack
 from ml.attacks.pgd import PGDAttack
@@ -11,7 +12,6 @@ from ml.attacks.registry import (
     get_attack,
     list_available_attacks,
 )
-from ml.attacks.yolo_confidence import YOLOConfidenceAttack
 from ml.attacks.zoo import ZerothOrderOptimizationAttack
 from schemas.attack import AttackType
 
@@ -26,7 +26,7 @@ from schemas.attack import AttackType
         (AttackType.HOP_SKIP_JUMP, HopSkipJumpAttack),
         (AttackType.ZOO, ZerothOrderOptimizationAttack),
         (AttackType.RANDOM_NOISE, RandomNoiseAttack),
-        (AttackType.YOLO_CONFIDENCE, YOLOConfidenceAttack),
+        (AttackType.YOLO_CONFIDENCE, DetectionConfidenceAttack),
     ],
 )
 def test_get_attack_returns_registered_implementation(
@@ -86,7 +86,7 @@ def test_get_unknown_attack_raises_value_error():
         (HopSkipJumpAttack(), True, False),
         (ZerothOrderOptimizationAttack(), True, False),
         (RandomNoiseAttack(), True, True),
-        (YOLOConfidenceAttack(), False, True),
+        (DetectionConfidenceAttack(), False, True),
     ],
 )
 def test_attack_task_type_compatibility(
@@ -108,7 +108,7 @@ def test_attack_task_type_compatibility(
         HopSkipJumpAttack(),
         ZerothOrderOptimizationAttack(),
         RandomNoiseAttack(),
-        YOLOConfidenceAttack(),
+        DetectionConfidenceAttack(),
     ],
 )
 def test_attacks_reject_unknown_task_type(attack):

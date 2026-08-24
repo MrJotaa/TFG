@@ -39,7 +39,7 @@ def test_get_models_returns_registered_models(client):
     models = response.json()
     model_ids = {model["id"] for model in models}
 
-    assert model_ids == {"resnet18", "swin_v2_t", "yolo26n"}
+    assert model_ids == {"resnet18", "swin_v2_t", "yolo26n", "rf_detr_nano"}
 
     for model in models:
         assert "id" in model
@@ -51,10 +51,12 @@ def test_get_models_returns_registered_models(client):
     resnet = next(model for model in models if model["id"] == "resnet18")
     swin = next(model for model in models if model["id"] == "swin_v2_t")
     yolo = next(model for model in models if model["id"] == "yolo26n")
+    rf_detr = next(model for model in models if model["id"] == "rf_detr_nano")
 
     assert resnet["task_type"] == "classification"
     assert swin["task_type"] == "classification"
     assert yolo["task_type"] == "detection"
+    assert rf_detr["task_type"] == "detection"
 
 
 def test_get_models_marks_resnet18_as_active_by_default(client):
@@ -121,6 +123,7 @@ def test_switching_to_swin_unloads_previous_model_and_keeps_single_loaded_model(
     resnet = model_service._model_registry.get_model("resnet18")
     swin = model_service._model_registry.get_model("swin_v2_t")
     yolo = model_service._model_registry.get_model("yolo26n")
+    rf_detr = model_service._model_registry.get_model("rf_detr_nano")
     resnet.load()
 
     response = client.post("/models/swin_v2_t/select")
@@ -129,6 +132,7 @@ def test_switching_to_swin_unloads_previous_model_and_keeps_single_loaded_model(
     assert resnet.is_loaded() is False
     assert swin.is_loaded() is True
     assert yolo.is_loaded() is False
+    assert rf_detr.is_loaded() is False
     assert (
         sum(
             instance.is_loaded()
@@ -159,6 +163,23 @@ def test_select_yolo_model_sets_yolo_as_active(client):
 
     assert resnet["active"] is False
     assert yolo["active"] is True
+
+
+def test_select_rf_detr_model_sets_transformer_detector_as_active(client):
+    response = client.post("/models/rf_detr_nano/select")
+
+    assert response.status_code == 200
+
+    selected_model = response.json()
+
+    assert selected_model["id"] == "rf_detr_nano"
+    assert selected_model["active"] is True
+    assert selected_model["loaded"] is True
+    assert selected_model["task_type"] == "detection"
+    assert (
+        model_service.get_active_model_revision()
+        == "transformers-5.15.1-rf-detr-nano-coco-9f201577"
+    )
 
 
 def test_select_resnet18_model_sets_resnet_as_active(client):

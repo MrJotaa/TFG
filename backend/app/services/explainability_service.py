@@ -8,10 +8,10 @@ from core.task_compatibility import (
     require_model_task_type,
 )
 from ml.explainability.gradcam import (
-    draw_detections_on_image,
     generate_clean_gradcam,
     generate_detection_eigencam,
 )
+from ml.models.detection_visualization import draw_detections_on_image
 from schemas.detection import to_detection_predictions
 from schemas.explainability import (
     DetectionExplainRequest,
