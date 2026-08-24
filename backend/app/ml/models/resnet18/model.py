@@ -9,6 +9,7 @@ class ResNet18Model(TorchvisionImageClassificationModel):
     name = "ResNet18 pretrained"
     revision = "torchvision-default-v1"
     task_type = "classification"
+    evaluation_attack_micro_batch_size = 4
 
     input_size = (224, 224)
     normalization_mean = (0.485, 0.456, 0.406)

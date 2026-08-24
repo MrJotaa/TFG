@@ -12,6 +12,7 @@ class DetectionConfidenceAttack(BaseAdversarialAttack):
     knowledge_type = "white_box"
     revision = "detection-confidence-linf-v2"
     supported_task_types = ("detection",)
+    requires_exclusive_model_execution = True
     parameter_specs = (
         AttackParameterSpec(
             key="epsilon",

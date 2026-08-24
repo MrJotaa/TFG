@@ -4,8 +4,6 @@ import sys
 from datetime import datetime, timedelta, timezone
 from time import perf_counter
 
-import torch
-
 from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
@@ -13,11 +11,16 @@ from core.task_compatibility import (
     require_attack_task_type,
     require_model_task_type,
 )
-from ml.attacks.base import AdversarialAttackResult
+from ml.attacks.base import (
+    AdversarialAttackResult,
+    AdversarialEvaluationResult,
+)
 from ml.attacks.presentation import reconstruct_attack_in_source_geometry
 from ml.attacks.registry import (
+    apply_attack_runner_batch_for_evaluation,
     create_attack_runner,
     get_attack,
+    get_attack_runner_evaluation_batch_size,
     resolve_attack_parameters,
 )
 from ml.metrics.classification import (
@@ -35,6 +38,7 @@ from services.classification_label_service import (
     resolve_dataset_labels,
 )
 from services.dataset_service import (
+    dataset_read_snapshot,
     get_dataset,
     get_image_from_dataset,
 )
@@ -47,6 +51,13 @@ from services.evaluation_history_service import (
 from services.evaluation_progress import (
     EvaluationProgressCallback,
     report_evaluation_progress,
+)
+from services.evaluation_profiling import (
+    EvaluationProfile,
+    finish_profile_stage,
+    get_model_device,
+    log_evaluation_profile,
+    start_profile_stage,
 )
 from services.model_service import get_active_model_instance
 from utils.evaluation_artifacts import (
@@ -74,45 +85,6 @@ if not logger.handlers:
     logger.addHandler(handler)
 
 
-def _get_model_device(model) -> torch.device | None:
-    """Return the underlying torch device when the model exposes one."""
-    get_torch_model = getattr(model, "get_torch_model", None)
-
-    if not callable(get_torch_model):
-        return None
-
-    try:
-        torch_model = get_torch_model()
-        return next(torch_model.parameters()).device
-    except (
-        AttributeError,
-        NotImplementedError,
-        StopIteration,
-        TypeError,
-        ValueError,
-    ):
-        return None
-
-
-def _synchronize_device(device: torch.device | None) -> None:
-    """Synchronize CUDA so timings include completed GPU work."""
-    if device is not None and device.type == "cuda":
-        torch.cuda.synchronize(device)
-
-
-def _start_stage(device: torch.device | None = None) -> float:
-    _synchronize_device(device)
-    return perf_counter()
-
-
-def _finish_stage(
-    started_at: float,
-    device: torch.device | None = None,
-) -> float:
-    _synchronize_device(device)
-    return perf_counter() - started_at
-
-
 async def evaluate_dataset(
     request: EvaluationRequest,
     *,
@@ -138,18 +110,140 @@ async def evaluate_dataset(
 
     completed = False
     try:
-        response = await _evaluate_dataset(
-            request,
-            attack=attack,
-            execution=execution,
-            progress_callback=progress_callback,
-            cancellation_token=cancellation_token,
-        )
+        with dataset_read_snapshot(request.dataset_id):
+            response = await _evaluate_dataset(
+                request,
+                attack=attack,
+                execution=execution,
+                progress_callback=progress_callback,
+                cancellation_token=cancellation_token,
+            )
         completed = True
         return response
     finally:
         if execution is not None and not completed:
             await abort_evaluation_execution(execution)
+
+
+async def _iter_attacked_evaluation_images(
+    *,
+    dataset,
+    request: EvaluationRequest,
+    model,
+    attack_runner,
+    model_device: str,
+    profile_totals: dict[str, float],
+    cancellation_token: CancellationToken | None,
+):
+    """Prepare inputs and execute compatible attacks in bounded micro-batches."""
+    model_attack_batch_size = getattr(
+        model,
+        "evaluation_attack_micro_batch_size",
+        1,
+    )
+    if isinstance(model_attack_batch_size, bool) or not isinstance(
+        model_attack_batch_size,
+        int,
+    ):
+        raise TypeError("evaluation_attack_micro_batch_size must be an integer")
+    if model_attack_batch_size < 1:
+        raise ValueError("evaluation_attack_micro_batch_size must be positive")
+
+    attack_batch_size = min(
+        model_attack_batch_size,
+        get_attack_runner_evaluation_batch_size(attack_runner),
+    )
+
+    for batch_start in range(0, len(dataset.images), attack_batch_size):
+        batch_metadata = dataset.images[
+            batch_start : batch_start + attack_batch_size
+        ]
+        prepared_batch = []
+
+        for batch_offset, image_metadata in enumerate(batch_metadata):
+            if cancellation_token is not None:
+                cancellation_token.raise_if_cancelled()
+
+            image_index = batch_start + batch_offset + 1
+            image_id = image_metadata.id
+            filename = image_metadata.filename
+
+            stage_started = perf_counter()
+            image = await get_image_from_dataset(
+                dataset_id=request.dataset_id,
+                image_id=image_id,
+            )
+            load_image_seconds = perf_counter() - stage_started
+            profile_totals["load_image"] += load_image_seconds
+
+            image_width, image_height = image.size
+
+            stage_started = start_profile_stage(model_device)
+            clean_model_input = model.prepare_attack_input(image).detach()
+            original_prediction = model.predict_detailed_from_prepared_input(
+                prepared_input=clean_model_input,
+                top_k=5,
+            )
+            original_prediction_seconds = finish_profile_stage(
+                stage_started,
+                model_device,
+            )
+            profile_totals["original_prediction"] += original_prediction_seconds
+
+            prepared_batch.append(
+                {
+                    "image_index": image_index,
+                    "image_metadata": image_metadata,
+                    "image_id": image_id,
+                    "filename": filename,
+                    "image": image,
+                    "image_width": image_width,
+                    "image_height": image_height,
+                    "load_image_seconds": load_image_seconds,
+                    "clean_model_input": clean_model_input,
+                    "original_prediction": original_prediction,
+                    "original_prediction_seconds": original_prediction_seconds,
+                    "parameters": attack_parameters_for_image(
+                        attack_type=request.attack_type,
+                        parameters=request.parameters,
+                        image_id=image_id,
+                    ),
+                }
+            )
+
+        stage_started = start_profile_stage(model_device)
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+        attack_results = await asyncio.to_thread(
+            apply_attack_runner_batch_for_evaluation,
+            attack_runner,
+            model_wrapper=model,
+            images=tuple(item["image"] for item in prepared_batch),
+            prepared_inputs=tuple(
+                item["clean_model_input"] for item in prepared_batch
+            ),
+            parameters=tuple(item["parameters"] for item in prepared_batch),
+            original_class_indices=tuple(
+                item["original_prediction"].class_index
+                for item in prepared_batch
+            ),
+        )
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+        attack_batch_seconds = finish_profile_stage(
+            stage_started,
+            model_device,
+        )
+        profile_totals["attack"] += attack_batch_seconds
+        attack_seconds_per_image = attack_batch_seconds / len(prepared_batch)
+
+        for prepared_item, attack_result in zip(prepared_batch, attack_results):
+            yield {
+                **prepared_item,
+                "attack_result": attack_result,
+                "attack_seconds": attack_seconds_per_image,
+                "attack_batch_size": len(prepared_batch),
+            }
 
 
 async def _evaluate_dataset(
@@ -167,11 +261,16 @@ async def _evaluate_dataset(
         request.parameters.model_dump().get("steps"),
     )
 
-    evaluation_started = perf_counter()
+    profile = EvaluationProfile(
+        task_type="classification",
+        dataset_id=request.dataset_id,
+        attack_type=request.attack_type.value,
+    )
 
     dataset_started = perf_counter()
     dataset = await get_dataset(request.dataset_id)
     dataset_load_seconds = perf_counter() - dataset_started
+    profile.add("dataset_load", dataset_load_seconds)
 
     if not dataset.images:
         raise BadRequestError("Dataset must contain at least one image")
@@ -246,9 +345,8 @@ async def _evaluate_dataset(
     )
 
     setup_seconds = perf_counter() - setup_started
-    model_device = _get_model_device(model)
-    device_name = str(model_device) if model_device is not None else "unknown"
-
+    profile.add("setup", setup_seconds)
+    model_device = get_model_device(model)
     profile_totals = {
         "load_image": 0.0,
         "original_prediction": 0.0,
@@ -266,61 +364,43 @@ async def _evaluate_dataset(
         total=progress_total,
     )
 
-    for image_index, image_metadata in enumerate(dataset.images, start=1):
-        image_started = perf_counter()
+    async for prepared_item in _iter_attacked_evaluation_images(
+        dataset=dataset,
+        request=request,
+        model=model,
+        attack_runner=attack_runner,
+        model_device=model_device,
+        profile_totals=profile_totals,
+        cancellation_token=cancellation_token,
+    ):
+        image_index = prepared_item["image_index"]
+        image_metadata = prepared_item["image_metadata"]
+        image_id = prepared_item["image_id"]
+        filename = prepared_item["filename"]
+        image = prepared_item["image"]
+        image_width = prepared_item["image_width"]
+        image_height = prepared_item["image_height"]
+        load_image_seconds = prepared_item["load_image_seconds"]
+        clean_model_input = prepared_item["clean_model_input"]
+        original_prediction = prepared_item["original_prediction"]
+        original_prediction_seconds = prepared_item["original_prediction_seconds"]
+        attack_result = prepared_item["attack_result"]
+        attack_seconds = prepared_item["attack_seconds"]
+        attack_batch_size = prepared_item["attack_batch_size"]
 
-        image_id = image_metadata.id
-        filename = image_metadata.filename
-
-        stage_started = perf_counter()
-        image = await get_image_from_dataset(
-            dataset_id=request.dataset_id,
-            image_id=image_id,
+        structured_attack_result = isinstance(
+            attack_result,
+            (AdversarialAttackResult, AdversarialEvaluationResult),
         )
-        load_image_seconds = perf_counter() - stage_started
-        profile_totals["load_image"] += load_image_seconds
-
-        image_width, image_height = image.size
-
-        stage_started = _start_stage(model_device)
-        clean_model_input = model.prepare_attack_input(image).detach()
-        original_prediction = model.predict_detailed_from_prepared_input(
-            prepared_input=clean_model_input,
-            top_k=5,
-        )
-        original_prediction_seconds = _finish_stage(
-            stage_started,
-            model_device,
-        )
-        profile_totals["original_prediction"] += original_prediction_seconds
-
-        stage_started = _start_stage(model_device)
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
-        attack_result = await asyncio.to_thread(
-            attack_runner.apply,
-            model_wrapper=model,
-            image=image,
-            parameters=attack_parameters_for_image(
-                attack_type=request.attack_type,
-                parameters=request.parameters,
-                image_id=image_id,
-            ),
-            original_class_index=original_prediction.class_index,
-        )
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
-        attack_seconds = _finish_stage(
-            stage_started,
-            model_device,
-        )
-        profile_totals["attack"] += attack_seconds
-
-        if isinstance(attack_result, AdversarialAttackResult):
-            adversarial_image = attack_result.adversarial_image
+        if structured_attack_result:
             adversarial_model_input = attack_result.adversarial_model_input
             perturbation_linf = attack_result.perturbation_linf
             perturbation_l2 = attack_result.perturbation_l2
+            if isinstance(attack_result, AdversarialAttackResult):
+                attack_width, attack_height = attack_result.adversarial_image.size
+            else:
+                attack_height = int(adversarial_model_input.shape[-2])
+                attack_width = int(adversarial_model_input.shape[-1])
         else:
             adversarial_image = attack_result["adversarial_image"]
             adversarial_model_input = model.prepare_attack_input(
@@ -328,22 +408,22 @@ async def _evaluate_dataset(
             ).detach()
             perturbation_linf = attack_result["perturbation_linf"]
             perturbation_l2 = attack_result["perturbation_l2"]
-        attack_width, attack_height = adversarial_image.size
+            attack_width, attack_height = adversarial_image.size
 
-        stage_started = _start_stage(model_device)
+        stage_started = start_profile_stage(model_device)
 
         adversarial_prediction = model.predict_detailed_from_prepared_input(
             prepared_input=adversarial_model_input,
             top_k=5,
         )
 
-        adversarial_prediction_seconds = _finish_stage(
+        adversarial_prediction_seconds = finish_profile_stage(
             stage_started,
             model_device,
         )
         profile_totals["adversarial_prediction"] += adversarial_prediction_seconds
 
-        if isinstance(attack_result, AdversarialAttackResult):
+        if structured_attack_result:
             reconstruction = reconstruct_attack_in_source_geometry(
                 source_image=image,
                 model_space_delta=attack_result.model_space_delta,
@@ -417,7 +497,7 @@ async def _evaluate_dataset(
         stage_started = perf_counter()
 
         save_result_image(
-            image=image.copy().convert("RGB"),
+            image=image,
             result_id=result_id,
             result_path=result_path,
             filename=artifact_filenames["original_visual"],
@@ -498,7 +578,13 @@ async def _evaluate_dataset(
             )
         )
 
-        image_total_seconds = perf_counter() - image_started
+        image_total_seconds = (
+            load_image_seconds
+            + original_prediction_seconds
+            + attack_seconds
+            + adversarial_prediction_seconds
+            + save_images_seconds
+        )
 
         logger.debug(
             (
@@ -507,7 +593,7 @@ async def _evaluate_dataset(
                 "source_size=%sx%s attack_size=%sx%s "
                 "load_image=%.4fs "
                 "original_prediction=%.4fs "
-                "attack=%.4fs "
+                "attack=%.4fs attack_batch_size=%s "
                 "adversarial_prediction=%.4fs "
                 "save_images=%.4fs total=%.4fs"
             ),
@@ -520,6 +606,7 @@ async def _evaluate_dataset(
             load_image_seconds,
             original_prediction_seconds,
             attack_seconds,
+            attack_batch_size,
             adversarial_prediction_seconds,
             save_images_seconds,
             image_total_seconds,
@@ -527,7 +614,8 @@ async def _evaluate_dataset(
 
         del adversarial_image_to_persist
         del perturbation_image_to_persist
-        del adversarial_image
+        if not structured_attack_result:
+            del adversarial_image
         del clean_model_input
         del adversarial_model_input
         del image
@@ -556,6 +644,7 @@ async def _evaluate_dataset(
         class_labels=model.get_class_labels(),
     )
     metrics_seconds = perf_counter() - metrics_started
+    profile.add("metrics", metrics_seconds)
 
     total_images = len(results)
 
@@ -693,42 +782,28 @@ async def _evaluate_dataset(
         },
     )
     metadata_seconds = perf_counter() - metadata_started
+    profile.add("evaluation_persistence", metadata_seconds)
 
-    total_seconds = perf_counter() - evaluation_started
     attack_steps = getattr(
         request.parameters,
         "steps",
         None,
     )
 
-    logger.info(
-        (
-            "classification_evaluation_profile "
-            "dataset_id=%s attack=%s steps=%s "
-            "images=%d device=%s "
-            "dataset_load=%.4fs setup=%.4fs "
-            "load_images=%.4fs "
-            "original_predictions=%.4fs "
-            "attack_total=%.4fs "
-            "adversarial_predictions=%.4fs "
-            "save_images=%.4fs metrics=%.4fs "
-            "metadata=%.4fs total=%.4fs"
+    profile.add("image_load", profile_totals["load_image"])
+    profile.add("original_inference", profile_totals["original_prediction"])
+    profile.add("attack", profile_totals["attack"])
+    profile.add("adversarial_inference", profile_totals["adversarial_prediction"])
+    profile.add("artifact_persistence", profile_totals["save_images"])
+    log_evaluation_profile(
+        logger,
+        profile.payload(
+            model_id=model.id,
+            model_name=model.name,
+            total_images=total_images,
+            device=model_device,
+            extra={"attack_steps": attack_steps},
         ),
-        request.dataset_id,
-        request.attack_type,
-        attack_steps,
-        total_images,
-        device_name,
-        dataset_load_seconds,
-        setup_seconds,
-        profile_totals["load_image"],
-        profile_totals["original_prediction"],
-        profile_totals["attack"],
-        profile_totals["adversarial_prediction"],
-        profile_totals["save_images"],
-        metrics_seconds,
-        metadata_seconds,
-        total_seconds,
     )
 
     return response

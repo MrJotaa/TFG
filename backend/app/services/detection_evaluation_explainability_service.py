@@ -15,6 +15,7 @@ from schemas.detection_evaluation import (
 )
 from services.dataset_service import get_image_from_dataset
 from services.detection_evaluation_persistence import get_detection_evaluation
+from services.detection_model_execution import run_detection_model_operation
 from services.model_service import get_active_model_instance
 from utils.detection_evaluation_artifacts import (
     detection_eigencam_pair_is_available,
@@ -51,7 +52,7 @@ async def generate_detection_evaluation_image_eigencam(
                 "repeat the evaluation"
             )
 
-        model = get_active_model_instance()
+        model = await run_detection_model_operation(get_active_model_instance)
         require_model_task_type(
             model=model,
             expected_task_type=DETECTION_TASK_TYPE,
@@ -77,11 +78,19 @@ async def generate_detection_evaluation_image_eigencam(
             raise BadRequestError("Detection evaluation image geometries do not match")
 
         original_eigencam = _draw_stored_predictions(
-            generate_detection_eigencam(model, original_image),
+            await run_detection_model_operation(
+                generate_detection_eigencam,
+                model,
+                original_image,
+            ),
             image_result.original_detections,
         )
         adversarial_eigencam = _draw_stored_predictions(
-            generate_detection_eigencam(model, adversarial_image),
+            await run_detection_model_operation(
+                generate_detection_eigencam,
+                model,
+                adversarial_image,
+            ),
             image_result.adversarial_detections,
         )
         if (
@@ -92,7 +101,8 @@ async def generate_detection_evaluation_image_eigencam(
                 "Generated detection EigenCAM geometry does not match the source"
             )
 
-        save_detection_eigencam_pair(
+        await asyncio.to_thread(
+            save_detection_eigencam_pair,
             evaluation_id=evaluation_id,
             image_id=image_id,
             original_eigencam=original_eigencam,

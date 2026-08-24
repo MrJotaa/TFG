@@ -10,7 +10,11 @@ from torchvision.transforms.functional import to_pil_image
 
 from core.cancellation import CancellationToken
 from ml.adapters.art_classification import ARTClassificationAdapter
-from ml.attacks.base import AdversarialAttackResult, BaseAdversarialAttack
+from ml.attacks.base import (
+    AdversarialAttackResult,
+    AdversarialEvaluationResult,
+    BaseAdversarialAttack,
+)
 from ml.attacks.presentation import perturbation_to_visualization
 
 
@@ -52,14 +56,55 @@ class ARTClassificationAttackRunner:
         parameters,
         original_class_index: int | None = None,
     ) -> AdversarialAttackResult:
-        if model_wrapper is not self._model_wrapper:
-            raise ValueError("ART attack runner cannot be reused with another model")
-        if parameters.model_dump(mode="python") != self._parameters.model_dump(
-            mode="python"
-        ):
-            raise ValueError("ART attack runner parameters changed during execution")
+        self._validate_execution(model_wrapper, parameters)
+        prepared_input = model_wrapper.prepare_attack_input(image).detach()
+        tensor_result = self._apply_prepared_input(
+            model_wrapper=model_wrapper,
+            prepared_input=prepared_input,
+            parameters=parameters,
+            original_class_index=original_class_index,
+        )
+        return AdversarialAttackResult(
+            clean_model_input=tensor_result.clean_model_input,
+            adversarial_model_input=tensor_result.adversarial_model_input,
+            model_space_delta=tensor_result.model_space_delta,
+            adversarial_image=self._tensor_to_image(
+                tensor_result.adversarial_model_input
+            ),
+            perturbation_image=perturbation_to_visualization(
+                tensor_result.model_space_delta
+            ),
+            perturbation_linf=tensor_result.perturbation_linf,
+            perturbation_l2=tensor_result.perturbation_l2,
+        )
 
-        clean_model_input = model_wrapper.prepare_attack_input(image).detach()
+    def apply_for_evaluation(
+        self,
+        model_wrapper,
+        image: Image.Image,
+        prepared_input: torch.Tensor,
+        parameters,
+        original_class_index: int | None = None,
+    ) -> AdversarialEvaluationResult:
+        del image
+        return self._apply_prepared_input(
+            model_wrapper=model_wrapper,
+            prepared_input=prepared_input,
+            parameters=parameters,
+            original_class_index=original_class_index,
+        )
+
+    def _apply_prepared_input(
+        self,
+        *,
+        model_wrapper,
+        prepared_input: torch.Tensor,
+        parameters,
+        original_class_index: int | None,
+    ) -> AdversarialEvaluationResult:
+        self._validate_execution(model_wrapper, parameters)
+
+        clean_model_input = prepared_input.detach().clone()
         art_input = self._adapter.to_art_input(clean_model_input)
         labels = self._build_labels(original_class_index)
 
@@ -75,15 +120,21 @@ class ARTClassificationAttackRunner:
         perturbation_linf = model_space_delta.abs().max().item()
         perturbation_l2 = torch.linalg.vector_norm(model_space_delta).item()
 
-        return AdversarialAttackResult(
+        return AdversarialEvaluationResult(
             clean_model_input=clean_model_input,
             adversarial_model_input=adversarial_model_input,
             model_space_delta=model_space_delta,
-            adversarial_image=self._tensor_to_image(adversarial_model_input),
-            perturbation_image=perturbation_to_visualization(model_space_delta),
             perturbation_linf=round(perturbation_linf, 4),
             perturbation_l2=round(perturbation_l2, 4),
         )
+
+    def _validate_execution(self, model_wrapper, parameters) -> None:
+        if model_wrapper is not self._model_wrapper:
+            raise ValueError("ART attack runner cannot be reused with another model")
+        if parameters.model_dump(mode="python") != self._parameters.model_dump(
+            mode="python"
+        ):
+            raise ValueError("ART attack runner parameters changed during execution")
 
     def _build_labels(self, original_class_index: int | None) -> np.ndarray | None:
         if original_class_index is None:

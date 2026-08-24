@@ -109,8 +109,19 @@ class AttackParameterSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class AdversarialEvaluationResult:
+    """Resultado tensorial mínimo reutilizado por evaluaciones de datasets."""
+
+    clean_model_input: torch.Tensor
+    adversarial_model_input: torch.Tensor
+    model_space_delta: torch.Tensor
+    perturbation_linf: float
+    perturbation_l2: float
+
+
+@dataclass(frozen=True, slots=True)
 class AdversarialAttackResult:
-    """Resultado tensorial de un ataque en la entrada de clasificación."""
+    """Resultado completo de un ataque para flujos interactivos."""
 
     clean_model_input: torch.Tensor
     adversarial_model_input: torch.Tensor
@@ -139,6 +150,8 @@ class BaseAdversarialAttack(ABC):
     revision: str | None = None
     supported_task_types: tuple[str, ...] = ()
     parameter_specs: tuple[AttackParameterSpec, ...] = ()
+    requires_exclusive_model_execution = False
+    evaluation_micro_batch_size = 1
 
     def supports_task_type(self, task_type: str) -> bool:
         return task_type in self.supported_task_types
@@ -167,6 +180,68 @@ class BaseAdversarialAttack(ABC):
     def create_runner(self, model_wrapper, parameters, cancellation_token=None):
         """Return an execution-scoped runner. Stateless attacks reuse themselves."""
         return self
+
+    def apply_for_evaluation(
+        self,
+        model_wrapper,
+        image: Image.Image,
+        prepared_input: torch.Tensor,
+        parameters,
+        original_class_index: int | None = None,
+    ):
+        """
+        Optional optimized execution path for dataset evaluations.
+
+        The default keeps third-party and legacy attacks compatible by delegating
+        to ``apply``. Attacks that operate in model space may override this method
+        to reuse ``prepared_input`` and skip presentation-only work.
+        """
+        return self.apply(
+            model_wrapper=model_wrapper,
+            image=image,
+            parameters=parameters,
+            original_class_index=original_class_index,
+        )
+
+    def apply_many_for_evaluation(
+        self,
+        model_wrapper,
+        images,
+        prepared_inputs,
+        parameters,
+        original_class_indices,
+    ):
+        """Optional micro-batch path for dataset evaluations.
+
+        The default preserves compatibility and semantics by delegating each
+        sample to ``apply_for_evaluation`` independently. Concrete attacks may
+        override this when their mathematics are batch-separable.
+        """
+        if not (
+            len(images)
+            == len(prepared_inputs)
+            == len(parameters)
+            == len(original_class_indices)
+        ):
+            raise ValueError(
+                "Evaluation attack batch inputs must have matching lengths"
+            )
+
+        return tuple(
+            self.apply_for_evaluation(
+                model_wrapper=model_wrapper,
+                image=image,
+                prepared_input=prepared_input,
+                parameters=sample_parameters,
+                original_class_index=original_class_index,
+            )
+            for image, prepared_input, sample_parameters, original_class_index in zip(
+                images,
+                prepared_inputs,
+                parameters,
+                original_class_indices,
+            )
+        )
 
     def catalog_entry(self) -> dict[str, Any]:
         return {

@@ -8,8 +8,11 @@ from ml.attacks.hop_skip_jump import HopSkipJumpAttack
 from ml.attacks.pgd import PGDAttack
 from ml.attacks.random_noise import RandomNoiseAttack
 from ml.attacks.registry import (
+    apply_attack_runner_batch_for_evaluation,
+    apply_attack_runner_for_evaluation,
     create_attack_runner,
     get_attack,
+    get_attack_runner_evaluation_batch_size,
     list_available_attacks,
 )
 from ml.attacks.zoo import ZerothOrderOptimizationAttack
@@ -66,6 +69,115 @@ def test_create_attack_runner_keeps_legacy_attack_compatible():
         is legacy_attack
     )
 
+
+def test_apply_attack_runner_for_evaluation_uses_optional_fast_path():
+    prepared_input = object()
+    expected_result = object()
+
+    class OptimizedRunner:
+        def apply_for_evaluation(
+            self,
+            *,
+            model_wrapper,
+            image,
+            prepared_input: object,
+            parameters,
+            original_class_index,
+        ):
+            assert model_wrapper == "model"
+            assert image == "image"
+            assert prepared_input is prepared_input_reference
+            assert parameters == "parameters"
+            assert original_class_index == 7
+            return expected_result
+
+        def apply(self, **kwargs):
+            raise AssertionError("Legacy apply must not run when fast path exists")
+
+    prepared_input_reference = prepared_input
+    result = apply_attack_runner_for_evaluation(
+        OptimizedRunner(),
+        model_wrapper="model",
+        image="image",
+        prepared_input=prepared_input,
+        parameters="parameters",
+        original_class_index=7,
+    )
+
+    assert result is expected_result
+
+
+def test_apply_attack_runner_for_evaluation_keeps_legacy_runner_compatible():
+    calls = []
+    expected_result = object()
+
+    class LegacyRunner:
+        def apply(
+            self,
+            *,
+            model_wrapper,
+            image,
+            parameters,
+            original_class_index,
+        ):
+            calls.append(
+                (model_wrapper, image, parameters, original_class_index)
+            )
+            return expected_result
+
+    result = apply_attack_runner_for_evaluation(
+        LegacyRunner(),
+        model_wrapper="model",
+        image="image",
+        prepared_input=object(),
+        parameters="parameters",
+        original_class_index=3,
+    )
+
+    assert result is expected_result
+    assert calls == [("model", "image", "parameters", 3)]
+
+
+
+def test_attack_runner_evaluation_batch_size_defaults_to_one():
+    assert get_attack_runner_evaluation_batch_size(object()) == 1
+
+    class BatchedRunner:
+        evaluation_micro_batch_size = 4
+
+    assert get_attack_runner_evaluation_batch_size(BatchedRunner()) == 4
+
+
+def test_apply_attack_runner_batch_for_evaluation_uses_optional_batch_path():
+    expected_results = (object(), object())
+
+    class BatchedRunner:
+        def apply_many_for_evaluation(
+            self,
+            *,
+            model_wrapper,
+            images,
+            prepared_inputs,
+            parameters,
+            original_class_indices,
+        ):
+            assert model_wrapper == "model"
+            assert images == ("image-1", "image-2")
+            assert prepared_inputs == ("input-1", "input-2")
+            assert parameters == ("params-1", "params-2")
+            assert original_class_indices == (1, 2)
+            return expected_results
+
+    results = apply_attack_runner_batch_for_evaluation(
+        BatchedRunner(),
+        model_wrapper="model",
+        images=("image-1", "image-2"),
+        prepared_inputs=("input-1", "input-2"),
+        parameters=("params-1", "params-2"),
+        original_class_indices=(1, 2),
+    )
+
+    assert results == expected_results
 
 def test_get_unknown_attack_raises_value_error():
     with pytest.raises(ValueError, match="not supported"):
