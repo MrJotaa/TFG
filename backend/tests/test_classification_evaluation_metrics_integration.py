@@ -121,6 +121,41 @@ class FakeClassificationAttack:
         )
 
 
+class FastPathClassificationAttack(FakeClassificationAttack):
+    def __init__(
+        self,
+        perturbations: Sequence[tuple[float, float]],
+    ):
+        super().__init__(perturbations)
+        self.evaluation_prepared_inputs: list[torch.Tensor] = []
+
+    def apply(
+        self,
+        model_wrapper,
+        image: Image.Image,
+        parameters,
+        original_class_index: int | None = None,
+    ):
+        raise AssertionError("Evaluation should use apply_for_evaluation")
+
+    def apply_for_evaluation(
+        self,
+        model_wrapper,
+        image: Image.Image,
+        prepared_input: torch.Tensor,
+        parameters,
+        original_class_index: int | None = None,
+    ):
+        self.evaluation_prepared_inputs.append(prepared_input)
+        return FakeClassificationAttack.apply(
+            self,
+            model_wrapper=model_wrapper,
+            image=image,
+            parameters=parameters,
+            original_class_index=original_class_index,
+        )
+
+
 class FakeLegacyClassificationAttack:
     id = "random_noise"
     supported_task_types = ["classification"]
@@ -350,6 +385,36 @@ async def _run_evaluation(
     attack.model = model
 
     return response, attack, saved_metadata
+
+
+@pytest.mark.asyncio
+async def test_evaluation_reuses_clean_prepared_input_for_fast_path(monkeypatch):
+    dataset = _dataset([None])
+    attack = FastPathClassificationAttack([(0.03, 1.0)])
+
+    await _run_evaluation(
+        monkeypatch,
+        dataset=dataset,
+        prediction_pairs=[
+            (
+                _prediction((0.8, 0.1, 0.1)),
+                _prediction((0.2, 0.7, 0.1)),
+            )
+        ],
+        attack_override=attack,
+        attack_type=AttackType.FGSM,
+    )
+
+    assert len(attack.model.prepared_image_inputs) == 1
+    assert len(attack.model.prepared_inputs) == 2
+    assert len(attack.evaluation_prepared_inputs) == 1
+
+    prepared_for_prediction = attack.model.prepared_inputs[0]
+    prepared_for_evaluation = attack.evaluation_prepared_inputs[0]
+    prepared_from_image = attack.model.prepared_image_inputs[0]
+
+    assert prepared_for_evaluation is prepared_for_prediction
+    assert prepared_for_evaluation.data_ptr() == prepared_from_image.data_ptr()
 
 
 @pytest.mark.parametrize("attack_type", [AttackType.FGSM, AttackType.PGD])

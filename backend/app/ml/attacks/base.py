@@ -109,8 +109,19 @@ class AttackParameterSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class AdversarialEvaluationResult:
+    """Resultado tensorial mínimo reutilizado por evaluaciones de datasets."""
+
+    clean_model_input: torch.Tensor
+    adversarial_model_input: torch.Tensor
+    model_space_delta: torch.Tensor
+    perturbation_linf: float
+    perturbation_l2: float
+
+
+@dataclass(frozen=True, slots=True)
 class AdversarialAttackResult:
-    """Resultado tensorial de un ataque en la entrada de clasificación."""
+    """Resultado completo de un ataque para flujos interactivos."""
 
     clean_model_input: torch.Tensor
     adversarial_model_input: torch.Tensor
@@ -167,6 +178,28 @@ class BaseAdversarialAttack(ABC):
     def create_runner(self, model_wrapper, parameters, cancellation_token=None):
         """Return an execution-scoped runner. Stateless attacks reuse themselves."""
         return self
+
+    def apply_for_evaluation(
+        self,
+        model_wrapper,
+        image: Image.Image,
+        prepared_input: torch.Tensor,
+        parameters,
+        original_class_index: int | None = None,
+    ):
+        """
+        Optional optimized execution path for dataset evaluations.
+
+        The default keeps third-party and legacy attacks compatible by delegating
+        to ``apply``. Attacks that operate in model space may override this method
+        to reuse ``prepared_input`` and skip presentation-only work.
+        """
+        return self.apply(
+            model_wrapper=model_wrapper,
+            image=image,
+            parameters=parameters,
+            original_class_index=original_class_index,
+        )
 
     def catalog_entry(self) -> dict[str, Any]:
         return {

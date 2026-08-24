@@ -65,6 +65,34 @@ def create_attack_runner(
     return factory(model_wrapper=model_wrapper, parameters=parameters)
 
 
+def apply_attack_runner_for_evaluation(
+    runner,
+    *,
+    model_wrapper,
+    image,
+    prepared_input,
+    parameters,
+    original_class_index=None,
+):
+    """Use an evaluation-specific capability when a runner exposes it."""
+    evaluation_apply = getattr(runner, "apply_for_evaluation", None)
+    if callable(evaluation_apply):
+        return evaluation_apply(
+            model_wrapper=model_wrapper,
+            image=image,
+            prepared_input=prepared_input,
+            parameters=parameters,
+            original_class_index=original_class_index,
+        )
+
+    return runner.apply(
+        model_wrapper=model_wrapper,
+        image=image,
+        parameters=parameters,
+        original_class_index=original_class_index,
+    )
+
+
 def list_available_attacks():
     return list(_AVAILABLE_ATTACKS.keys())
 

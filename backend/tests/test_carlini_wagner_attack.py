@@ -5,7 +5,10 @@ from PIL import Image
 from torchvision.transforms.functional import pil_to_tensor
 
 import ml.attacks.carlini_wagner as carlini_wagner_module
-from ml.attacks.base import AdversarialAttackResult
+from ml.attacks.base import (
+    AdversarialAttackResult,
+    AdversarialEvaluationResult,
+)
 from ml.attacks.carlini_wagner import CarliniWagnerAttack
 from schemas.attack import AttackParameters
 
@@ -205,6 +208,49 @@ def test_carlini_wagner_runner_reuses_art_attack_and_original_class(monkeypatch)
         assert result.perturbation_linf == pytest.approx(0.01, abs=1e-4)
         assert result.adversarial_image.size == (4, 4)
         assert result.perturbation_image.size == (4, 4)
+
+
+def test_carlini_wagner_evaluation_runner_reuses_prepared_input(monkeypatch):
+    attack = CarliniWagnerAttack()
+    monkeypatch.setattr(
+        attack,
+        "build_art_attack",
+        lambda **kwargs: FakeARTAttack(),
+    )
+
+    model = FakeClassificationModel()
+    parameters = _resolved_parameters(max_iter=2)
+    runner = attack.create_runner(model_wrapper=model, parameters=parameters)
+    image = Image.new("RGB", (4, 4), color=(128, 128, 128))
+    prepared_input = model.prepare_attack_input(image).detach()
+
+    monkeypatch.setattr(
+        model,
+        "prepare_attack_input",
+        lambda image: (_ for _ in ()).throw(
+            AssertionError("Evaluation must reuse the prepared input")
+        ),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_tensor_to_image",
+        lambda tensor: (_ for _ in ()).throw(
+            AssertionError("Evaluation must not build model-space images")
+        ),
+    )
+
+    result = runner.apply_for_evaluation(
+        model_wrapper=model,
+        image=image,
+        prepared_input=prepared_input,
+        parameters=parameters,
+        original_class_index=1,
+    )
+
+    assert isinstance(result, AdversarialEvaluationResult)
+    assert result.clean_model_input is not None
+    assert torch.equal(result.clean_model_input, prepared_input)
+    assert result.adversarial_model_input.shape == prepared_input.shape
 
 
 def test_carlini_wagner_runner_rejects_out_of_range_original_class(monkeypatch):

@@ -8,6 +8,7 @@ from ml.attacks.hop_skip_jump import HopSkipJumpAttack
 from ml.attacks.pgd import PGDAttack
 from ml.attacks.random_noise import RandomNoiseAttack
 from ml.attacks.registry import (
+    apply_attack_runner_for_evaluation,
     create_attack_runner,
     get_attack,
     list_available_attacks,
@@ -65,6 +66,74 @@ def test_create_attack_runner_keeps_legacy_attack_compatible():
         )
         is legacy_attack
     )
+
+
+def test_apply_attack_runner_for_evaluation_uses_optional_fast_path():
+    prepared_input = object()
+    expected_result = object()
+
+    class OptimizedRunner:
+        def apply_for_evaluation(
+            self,
+            *,
+            model_wrapper,
+            image,
+            prepared_input: object,
+            parameters,
+            original_class_index,
+        ):
+            assert model_wrapper == "model"
+            assert image == "image"
+            assert prepared_input is prepared_input_reference
+            assert parameters == "parameters"
+            assert original_class_index == 7
+            return expected_result
+
+        def apply(self, **kwargs):
+            raise AssertionError("Legacy apply must not run when fast path exists")
+
+    prepared_input_reference = prepared_input
+    result = apply_attack_runner_for_evaluation(
+        OptimizedRunner(),
+        model_wrapper="model",
+        image="image",
+        prepared_input=prepared_input,
+        parameters="parameters",
+        original_class_index=7,
+    )
+
+    assert result is expected_result
+
+
+def test_apply_attack_runner_for_evaluation_keeps_legacy_runner_compatible():
+    calls = []
+    expected_result = object()
+
+    class LegacyRunner:
+        def apply(
+            self,
+            *,
+            model_wrapper,
+            image,
+            parameters,
+            original_class_index,
+        ):
+            calls.append(
+                (model_wrapper, image, parameters, original_class_index)
+            )
+            return expected_result
+
+    result = apply_attack_runner_for_evaluation(
+        LegacyRunner(),
+        model_wrapper="model",
+        image="image",
+        prepared_input=object(),
+        parameters="parameters",
+        original_class_index=3,
+    )
+
+    assert result is expected_result
+    assert calls == [("model", "image", "parameters", 3)]
 
 
 def test_get_unknown_attack_raises_value_error():

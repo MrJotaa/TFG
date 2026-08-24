@@ -5,6 +5,7 @@ from torchvision import transforms
 
 from ml.attacks.base import (
     AdversarialAttackResult,
+    AdversarialEvaluationResult,
     AttackParameterSpec,
     BaseAdversarialAttack,
 )
@@ -67,13 +68,55 @@ class PGDAttack(BaseAdversarialAttack):
         parameters,
         original_class_index: int | None = None,
     ) -> AdversarialAttackResult:
-        """
-        Aplica PGD en el espacio de entrada real del modelo.
+        """Aplica PGD y construye también las visualizaciones interactivas."""
+        if not model_wrapper.is_loaded():
+            raise ValueError("Model is not loaded")
+        prepared_input = model_wrapper.prepare_attack_input(image).detach()
+        tensor_result = self._apply_prepared_input(
+            model_wrapper=model_wrapper,
+            prepared_input=prepared_input,
+            parameters=parameters,
+            original_class_index=original_class_index,
+        )
+        return AdversarialAttackResult(
+            clean_model_input=tensor_result.clean_model_input,
+            adversarial_model_input=tensor_result.adversarial_model_input,
+            model_space_delta=tensor_result.model_space_delta,
+            adversarial_image=self._tensor_to_image(
+                tensor_result.adversarial_model_input
+            ),
+            perturbation_image=self._perturbation_to_image(
+                tensor_result.model_space_delta
+            ),
+            perturbation_linf=tensor_result.perturbation_linf,
+            perturbation_l2=tensor_result.perturbation_l2,
+        )
 
-        El propio modelo define el tamaño y la normalización. PGD
-        mantiene la perturbación dentro de la bola L-infinito de
-        radio epsilon y los píxeles dentro del rango [0, 1].
-        """
+    def apply_for_evaluation(
+        self,
+        model_wrapper,
+        image: Image.Image,
+        prepared_input: torch.Tensor,
+        parameters,
+        original_class_index: int | None = None,
+    ) -> AdversarialEvaluationResult:
+        del image
+        return self._apply_prepared_input(
+            model_wrapper=model_wrapper,
+            prepared_input=prepared_input,
+            parameters=parameters,
+            original_class_index=original_class_index,
+        )
+
+    def _apply_prepared_input(
+        self,
+        *,
+        model_wrapper,
+        prepared_input: torch.Tensor,
+        parameters,
+        original_class_index: int | None,
+    ) -> AdversarialEvaluationResult:
+        """Ejecuta PGD reutilizando una entrada ya preparada en [0, 1]."""
         if not model_wrapper.is_loaded():
             raise ValueError("Model is not loaded")
 
@@ -84,10 +127,8 @@ class PGDAttack(BaseAdversarialAttack):
         model = model_wrapper.get_torch_model()
         model.eval()
 
-        original_tensor = model_wrapper.prepare_attack_input(image).detach()
+        original_tensor = prepared_input.detach()
         adversarial_tensor = original_tensor.clone()
-
-        target = None
 
         if original_class_index is not None:
             target = torch.tensor(
@@ -104,11 +145,9 @@ class PGDAttack(BaseAdversarialAttack):
 
         for step_index in range(steps):
             adversarial_tensor = adversarial_tensor.detach().requires_grad_(True)
-
             normalized_adversarial = model_wrapper.normalize_attack_input(
                 adversarial_tensor
             )
-
             output = model(normalized_adversarial)
 
             if (
@@ -121,7 +160,6 @@ class PGDAttack(BaseAdversarialAttack):
                 )
 
             loss = F.cross_entropy(output, target)
-
             gradient = torch.autograd.grad(
                 loss,
                 adversarial_tensor,
@@ -130,13 +168,11 @@ class PGDAttack(BaseAdversarialAttack):
 
             with torch.no_grad():
                 stepped_tensor = adversarial_tensor + alpha * gradient.sign()
-
                 perturbation = torch.clamp(
                     stepped_tensor - original_tensor,
                     min=-epsilon,
                     max=epsilon,
                 )
-
                 adversarial_tensor = torch.clamp(
                     original_tensor + perturbation,
                     min=0.0,
@@ -150,23 +186,12 @@ class PGDAttack(BaseAdversarialAttack):
         perturbation_linf = model_space_delta.abs().max().item()
         perturbation_l2 = torch.linalg.vector_norm(model_space_delta).item()
 
-        adversarial_image = self._tensor_to_image(adversarial_model_input)
-        perturbation_image = self._perturbation_to_image(model_space_delta)
-
-        return AdversarialAttackResult(
+        return AdversarialEvaluationResult(
             clean_model_input=clean_model_input,
             adversarial_model_input=adversarial_model_input,
             model_space_delta=model_space_delta,
-            adversarial_image=adversarial_image,
-            perturbation_image=perturbation_image,
-            perturbation_linf=round(
-                perturbation_linf,
-                4,
-            ),
-            perturbation_l2=round(
-                perturbation_l2,
-                4,
-            ),
+            perturbation_linf=round(perturbation_linf, 4),
+            perturbation_l2=round(perturbation_l2, 4),
         )
 
     def _tensor_to_image(

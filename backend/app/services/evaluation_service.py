@@ -11,9 +11,13 @@ from core.task_compatibility import (
     require_attack_task_type,
     require_model_task_type,
 )
-from ml.attacks.base import AdversarialAttackResult
+from ml.attacks.base import (
+    AdversarialAttackResult,
+    AdversarialEvaluationResult,
+)
 from ml.attacks.presentation import reconstruct_attack_in_source_geometry
 from ml.attacks.registry import (
+    apply_attack_runner_for_evaluation,
     create_attack_runner,
     get_attack,
     resolve_attack_parameters,
@@ -270,9 +274,11 @@ async def _evaluate_dataset(
         if cancellation_token is not None:
             cancellation_token.raise_if_cancelled()
         attack_result = await asyncio.to_thread(
-            attack_runner.apply,
+            apply_attack_runner_for_evaluation,
+            attack_runner,
             model_wrapper=model,
             image=image,
+            prepared_input=clean_model_input,
             parameters=attack_parameters_for_image(
                 attack_type=request.attack_type,
                 parameters=request.parameters,
@@ -288,11 +294,19 @@ async def _evaluate_dataset(
         )
         profile_totals["attack"] += attack_seconds
 
-        if isinstance(attack_result, AdversarialAttackResult):
-            adversarial_image = attack_result.adversarial_image
+        structured_attack_result = isinstance(
+            attack_result,
+            (AdversarialAttackResult, AdversarialEvaluationResult),
+        )
+        if structured_attack_result:
             adversarial_model_input = attack_result.adversarial_model_input
             perturbation_linf = attack_result.perturbation_linf
             perturbation_l2 = attack_result.perturbation_l2
+            if isinstance(attack_result, AdversarialAttackResult):
+                attack_width, attack_height = attack_result.adversarial_image.size
+            else:
+                attack_height = int(adversarial_model_input.shape[-2])
+                attack_width = int(adversarial_model_input.shape[-1])
         else:
             adversarial_image = attack_result["adversarial_image"]
             adversarial_model_input = model.prepare_attack_input(
@@ -300,7 +314,7 @@ async def _evaluate_dataset(
             ).detach()
             perturbation_linf = attack_result["perturbation_linf"]
             perturbation_l2 = attack_result["perturbation_l2"]
-        attack_width, attack_height = adversarial_image.size
+            attack_width, attack_height = adversarial_image.size
 
         stage_started = start_profile_stage(model_device)
 
@@ -315,7 +329,7 @@ async def _evaluate_dataset(
         )
         profile_totals["adversarial_prediction"] += adversarial_prediction_seconds
 
-        if isinstance(attack_result, AdversarialAttackResult):
+        if structured_attack_result:
             reconstruction = reconstruct_attack_in_source_geometry(
                 source_image=image,
                 model_space_delta=attack_result.model_space_delta,
@@ -389,7 +403,7 @@ async def _evaluate_dataset(
         stage_started = perf_counter()
 
         save_result_image(
-            image=image.copy().convert("RGB"),
+            image=image,
             result_id=result_id,
             result_path=result_path,
             filename=artifact_filenames["original_visual"],
@@ -499,7 +513,8 @@ async def _evaluate_dataset(
 
         del adversarial_image_to_persist
         del perturbation_image_to_persist
-        del adversarial_image
+        if not structured_attack_result:
+            del adversarial_image
         del clean_model_input
         del adversarial_model_input
         del image

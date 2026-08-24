@@ -6,7 +6,10 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-from ml.attacks.base import AdversarialAttackResult
+from ml.attacks.base import (
+    AdversarialAttackResult,
+    AdversarialEvaluationResult,
+)
 from ml.attacks.fgsm import FGSMAttack
 
 
@@ -312,3 +315,34 @@ def test_fgsm_uses_model_prepared_input_size():
 
     assert result.adversarial_image.size == (16, 16)
     assert result.perturbation_image.size == (16, 16)
+
+
+def test_fgsm_evaluation_path_reuses_prepared_input(monkeypatch):
+    attack = FGSMAttack()
+    wrapper = FakeClassificationModelWrapper(TinyGradientModel())
+    image = _create_test_image()
+    prepared_input = wrapper.prepare_attack_input(image).detach()
+
+    def fail_if_prepared_again(_image):
+        raise AssertionError("Evaluation must reuse the already prepared input")
+
+    monkeypatch.setattr(wrapper, "prepare_attack_input", fail_if_prepared_again)
+    monkeypatch.setattr(
+        attack,
+        "_tensor_to_image",
+        lambda tensor: (_ for _ in ()).throw(
+            AssertionError("Evaluation must not build model-space images")
+        ),
+    )
+
+    result = attack.apply_for_evaluation(
+        model_wrapper=wrapper,
+        image=image,
+        prepared_input=prepared_input,
+        parameters=_create_parameters(epsilon=0.05),
+        original_class_index=0,
+    )
+
+    assert isinstance(result, AdversarialEvaluationResult)
+    assert torch.equal(result.clean_model_input, prepared_input)
+    assert result.adversarial_model_input.shape == prepared_input.shape
