@@ -4,8 +4,6 @@ import sys
 from datetime import datetime, timedelta, timezone
 from time import perf_counter
 
-import torch
-
 from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
@@ -48,6 +46,13 @@ from services.evaluation_progress import (
     EvaluationProgressCallback,
     report_evaluation_progress,
 )
+from services.evaluation_profiling import (
+    EvaluationProfile,
+    finish_profile_stage,
+    get_model_device,
+    log_evaluation_profile,
+    start_profile_stage,
+)
 from services.model_service import get_active_model_instance
 from utils.evaluation_artifacts import (
     evaluation_image_artifact_filenames,
@@ -72,45 +77,6 @@ if not logger.handlers:
         logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
     )
     logger.addHandler(handler)
-
-
-def _get_model_device(model) -> torch.device | None:
-    """Return the underlying torch device when the model exposes one."""
-    get_torch_model = getattr(model, "get_torch_model", None)
-
-    if not callable(get_torch_model):
-        return None
-
-    try:
-        torch_model = get_torch_model()
-        return next(torch_model.parameters()).device
-    except (
-        AttributeError,
-        NotImplementedError,
-        StopIteration,
-        TypeError,
-        ValueError,
-    ):
-        return None
-
-
-def _synchronize_device(device: torch.device | None) -> None:
-    """Synchronize CUDA so timings include completed GPU work."""
-    if device is not None and device.type == "cuda":
-        torch.cuda.synchronize(device)
-
-
-def _start_stage(device: torch.device | None = None) -> float:
-    _synchronize_device(device)
-    return perf_counter()
-
-
-def _finish_stage(
-    started_at: float,
-    device: torch.device | None = None,
-) -> float:
-    _synchronize_device(device)
-    return perf_counter() - started_at
 
 
 async def evaluate_dataset(
@@ -167,11 +133,16 @@ async def _evaluate_dataset(
         request.parameters.model_dump().get("steps"),
     )
 
-    evaluation_started = perf_counter()
+    profile = EvaluationProfile(
+        task_type="classification",
+        dataset_id=request.dataset_id,
+        attack_type=request.attack_type.value,
+    )
 
     dataset_started = perf_counter()
     dataset = await get_dataset(request.dataset_id)
     dataset_load_seconds = perf_counter() - dataset_started
+    profile.add("dataset_load", dataset_load_seconds)
 
     if not dataset.images:
         raise BadRequestError("Dataset must contain at least one image")
@@ -246,9 +217,8 @@ async def _evaluate_dataset(
     )
 
     setup_seconds = perf_counter() - setup_started
-    model_device = _get_model_device(model)
-    device_name = str(model_device) if model_device is not None else "unknown"
-
+    profile.add("setup", setup_seconds)
+    model_device = get_model_device(model)
     profile_totals = {
         "load_image": 0.0,
         "original_prediction": 0.0,
@@ -282,19 +252,19 @@ async def _evaluate_dataset(
 
         image_width, image_height = image.size
 
-        stage_started = _start_stage(model_device)
+        stage_started = start_profile_stage(model_device)
         clean_model_input = model.prepare_attack_input(image).detach()
         original_prediction = model.predict_detailed_from_prepared_input(
             prepared_input=clean_model_input,
             top_k=5,
         )
-        original_prediction_seconds = _finish_stage(
+        original_prediction_seconds = finish_profile_stage(
             stage_started,
             model_device,
         )
         profile_totals["original_prediction"] += original_prediction_seconds
 
-        stage_started = _start_stage(model_device)
+        stage_started = start_profile_stage(model_device)
         if cancellation_token is not None:
             cancellation_token.raise_if_cancelled()
         attack_result = await asyncio.to_thread(
@@ -310,7 +280,7 @@ async def _evaluate_dataset(
         )
         if cancellation_token is not None:
             cancellation_token.raise_if_cancelled()
-        attack_seconds = _finish_stage(
+        attack_seconds = finish_profile_stage(
             stage_started,
             model_device,
         )
@@ -330,14 +300,14 @@ async def _evaluate_dataset(
             perturbation_l2 = attack_result["perturbation_l2"]
         attack_width, attack_height = adversarial_image.size
 
-        stage_started = _start_stage(model_device)
+        stage_started = start_profile_stage(model_device)
 
         adversarial_prediction = model.predict_detailed_from_prepared_input(
             prepared_input=adversarial_model_input,
             top_k=5,
         )
 
-        adversarial_prediction_seconds = _finish_stage(
+        adversarial_prediction_seconds = finish_profile_stage(
             stage_started,
             model_device,
         )
@@ -556,6 +526,7 @@ async def _evaluate_dataset(
         class_labels=model.get_class_labels(),
     )
     metrics_seconds = perf_counter() - metrics_started
+    profile.add("metrics", metrics_seconds)
 
     total_images = len(results)
 
@@ -693,42 +664,28 @@ async def _evaluate_dataset(
         },
     )
     metadata_seconds = perf_counter() - metadata_started
+    profile.add("evaluation_persistence", metadata_seconds)
 
-    total_seconds = perf_counter() - evaluation_started
     attack_steps = getattr(
         request.parameters,
         "steps",
         None,
     )
 
-    logger.info(
-        (
-            "classification_evaluation_profile "
-            "dataset_id=%s attack=%s steps=%s "
-            "images=%d device=%s "
-            "dataset_load=%.4fs setup=%.4fs "
-            "load_images=%.4fs "
-            "original_predictions=%.4fs "
-            "attack_total=%.4fs "
-            "adversarial_predictions=%.4fs "
-            "save_images=%.4fs metrics=%.4fs "
-            "metadata=%.4fs total=%.4fs"
+    profile.add("image_load", profile_totals["load_image"])
+    profile.add("original_inference", profile_totals["original_prediction"])
+    profile.add("attack", profile_totals["attack"])
+    profile.add("adversarial_inference", profile_totals["adversarial_prediction"])
+    profile.add("artifact_persistence", profile_totals["save_images"])
+    log_evaluation_profile(
+        logger,
+        profile.payload(
+            model_id=model.id,
+            model_name=model.name,
+            total_images=total_images,
+            device=model_device,
+            extra={"attack_steps": attack_steps},
         ),
-        request.dataset_id,
-        request.attack_type,
-        attack_steps,
-        total_images,
-        device_name,
-        dataset_load_seconds,
-        setup_seconds,
-        profile_totals["load_image"],
-        profile_totals["original_prediction"],
-        profile_totals["attack"],
-        profile_totals["adversarial_prediction"],
-        profile_totals["save_images"],
-        metrics_seconds,
-        metadata_seconds,
-        total_seconds,
     )
 
     return response

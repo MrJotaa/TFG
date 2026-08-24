@@ -189,6 +189,12 @@ async def test_detection_evaluation_uses_canonical_deltas_and_legacy_success(
     )
 
     progress_events = []
+    profiles = []
+    monkeypatch.setattr(
+        detection_evaluation_service,
+        "log_evaluation_profile",
+        lambda logger, payload: profiles.append(payload),
+    )
     response = await detection_evaluation_service.evaluate_detection_dataset(
         DetectionEvaluationRequest(
             dataset_id="dataset-1",
@@ -231,6 +237,23 @@ async def test_detection_evaluation_uses_canonical_deltas_and_legacy_success(
         (2, 2, "images"),
         (2, 2, "metrics"),
     ]
+    assert len(profiles) == 1
+    assert profiles[0]["task_type"] == "detection"
+    assert profiles[0]["images"] == 2
+    assert profiles[0]["device"] == "unknown"
+    assert set(profiles[0]["stages_seconds"]) == {
+        "adversarial_inference",
+        "artifact_persistence",
+        "attack",
+        "dataset_load",
+        "evaluation_persistence",
+        "image_load",
+        "original_inference",
+        "per_image_metrics",
+        "setup",
+        "summary_metrics",
+        "supervised_metrics",
+    }
 
 
 class _SupervisedFakeModel:
