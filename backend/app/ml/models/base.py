@@ -278,6 +278,10 @@ class BaseObjectDetectionModel(BaseModel):
         """
         raise NotImplementedError(f"Model '{self.id}' does not expose a torch model")
 
+    def supports_detection_explainability(self) -> bool:
+        """Indica si el detector expone actualmente el contrato CAM completo."""
+        return False
+
     def prepare_detection_explainability_input(
         self,
         image: Image.Image,

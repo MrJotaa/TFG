@@ -12,10 +12,8 @@ from ml.attacks.registry import (
     get_attack,
     resolve_attack_parameters,
 )
-from ml.explainability.gradcam import (
-    draw_detections_on_image,
-    generate_detection_eigencam,
-)
+from ml.explainability.gradcam import generate_detection_eigencam
+from ml.models.detection_visualization import draw_detections_on_image
 from schemas.detection import to_detection_predictions
 from schemas.detection_attack import (
     DetectionAttackComparison,
@@ -100,27 +98,37 @@ async def apply_detection_attack(
     original_detections = original_detection_result.detections
     adversarial_detections = adversarial_detection_result.detections
 
-    original_heatmap = await asyncio.to_thread(
-        generate_detection_eigencam, model, image
-    )
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
-    original_explanation_image = draw_detections_on_image(
-        image=original_heatmap,
-        detections=original_detections,
-    )
-
-    adversarial_heatmap = await asyncio.to_thread(
-        generate_detection_eigencam,
+    original_explanation_image = None
+    adversarial_explanation_image = None
+    supports_explainability = getattr(
         model,
-        adversarial_image,
+        "supports_detection_explainability",
+        None,
     )
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
-    adversarial_explanation_image = draw_detections_on_image(
-        image=adversarial_heatmap,
-        detections=adversarial_detections,
-    )
+    if callable(supports_explainability) and supports_explainability():
+        original_heatmap = await asyncio.to_thread(
+            generate_detection_eigencam,
+            model,
+            image,
+        )
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+        original_explanation_image = draw_detections_on_image(
+            image=original_heatmap,
+            detections=original_detections,
+        )
+
+        adversarial_heatmap = await asyncio.to_thread(
+            generate_detection_eigencam,
+            model,
+            adversarial_image,
+        )
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+        adversarial_explanation_image = draw_detections_on_image(
+            image=adversarial_heatmap,
+            detections=adversarial_detections,
+        )
 
     metrics = calculate_detection_comparison(
         original_detections=original_detections,
@@ -178,38 +186,50 @@ async def apply_detection_attack(
         filename="perturbation.png",
     )
 
-    original_explanation_image_url = save_result_image(
-        image=original_explanation_image,
-        result_id=result_id,
-        result_path=result_path,
-        filename="original_explanation.png",
-    )
+    original_explanation_image_url = None
+    adversarial_explanation_image_url = None
+    if (
+        original_explanation_image is not None
+        and adversarial_explanation_image is not None
+    ):
+        original_explanation_image_url = save_result_image(
+            image=original_explanation_image,
+            result_id=result_id,
+            result_path=result_path,
+            filename="original_explanation.png",
+        )
+        adversarial_explanation_image_url = save_result_image(
+            image=adversarial_explanation_image,
+            result_id=result_id,
+            result_path=result_path,
+            filename="adversarial_explanation.png",
+        )
 
-    adversarial_explanation_image_url = save_result_image(
-        image=adversarial_explanation_image,
-        result_id=result_id,
-        result_path=result_path,
-        filename="adversarial_explanation.png",
-    )
+    metadata = {
+        "result_id": result_id,
+        "result_type": "detection_attack",
+        "dataset_id": request.dataset_id,
+        "image_id": request.image_id,
+        "model_id": model.id,
+        "model_name": model.name,
+        "attack_type": request.attack_type,
+        "parameters": request.parameters.model_dump(),
+        "original_detection_count": metrics.original_count,
+        "adversarial_detection_count": metrics.adversarial_count,
+        "expires_in_hours": 24,
+    }
+    if original_explanation_image_url and adversarial_explanation_image_url:
+        metadata.update(
+            {
+                "explanation_type": "eigencam",
+                "original_explanation_image": "original_explanation.png",
+                "adversarial_explanation_image": "adversarial_explanation.png",
+            }
+        )
 
     save_result_metadata(
         result_path=result_path,
-        metadata={
-            "result_id": result_id,
-            "result_type": "detection_attack",
-            "dataset_id": request.dataset_id,
-            "image_id": request.image_id,
-            "model_id": model.id,
-            "model_name": model.name,
-            "attack_type": request.attack_type,
-            "parameters": request.parameters.model_dump(),
-            "original_detection_count": metrics.original_count,
-            "adversarial_detection_count": metrics.adversarial_count,
-            "explanation_type": "eigencam",
-            "original_explanation_image": "original_explanation.png",
-            "adversarial_explanation_image": "adversarial_explanation.png",
-            "expires_in_hours": 24,
-        },
+        metadata=metadata,
     )
 
     return DetectionAttackResponse(

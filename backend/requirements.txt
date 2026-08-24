@@ -17,6 +17,7 @@ bcrypt==4.3.0
 matplotlib
 python-jose[cryptography]
 ultralytics==8.4.121
+transformers==5.15.1
 grad-cam
 pytest
 pytest-asyncio

@@ -33,14 +33,15 @@ def _registered_yolo26_model() -> UltralyticsDetectionModel:
     return model
 
 
-def test_yolo26_is_the_only_registered_detection_model():
+def test_yolo26_remains_registered_as_an_ultralytics_detector():
     registry = build_model_registry()
     detection_models = [
         model for model in registry.list_models() if model.task_type == "detection"
     ]
 
-    assert [model.id for model in detection_models] == [YOLO26_MODEL_ID]
-    assert isinstance(detection_models[0], UltralyticsDetectionModel)
+    yolo = next(model for model in detection_models if model.id == YOLO26_MODEL_ID)
+
+    assert isinstance(yolo, UltralyticsDetectionModel)
 
 
 def test_yolo26_runtime_configuration_matches_reproducible_contract():

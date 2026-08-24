@@ -426,6 +426,9 @@ async def test_detection_attack_service_keeps_canonical_detections_until_respons
         name = "Detector"
         task_type = "detection"
 
+        def supports_detection_explainability(self):
+            return True
+
         def detect_with_visualization(self, image):
             return _canonical_result(image), image
 
