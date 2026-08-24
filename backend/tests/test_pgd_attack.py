@@ -499,10 +499,7 @@ def test_pgd_evaluation_micro_batch_matches_individual_results():
         for pixel_value in (64, 96, 128, 192)
     ]
     prepared_inputs = [wrapper.prepare_attack_input(image) for image in images]
-    parameters = [
-        _create_parameters(epsilon=0.08, alpha=0.02, steps=3)
-        for _ in images
-    ]
+    parameters = [_create_parameters(epsilon=0.08, alpha=0.02, steps=3) for _ in images]
     original_class_indices = [0 for _ in images]
 
     individual_results = tuple(
@@ -559,8 +556,7 @@ def test_pgd_micro_batch_uses_one_forward_per_step():
         images=images,
         prepared_inputs=prepared_inputs,
         parameters=[
-            _create_parameters(epsilon=0.08, alpha=0.02, steps=steps)
-            for _ in images
+            _create_parameters(epsilon=0.08, alpha=0.02, steps=steps) for _ in images
         ],
         original_class_indices=[0 for _ in images],
     )

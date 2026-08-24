@@ -52,16 +52,16 @@ from services.evaluation_history_service import (
     begin_evaluation_execution,
     complete_evaluation_execution,
 )
-from services.evaluation_progress import (
-    EvaluationProgressCallback,
-    report_evaluation_progress,
-)
 from services.evaluation_profiling import (
     EvaluationProfile,
     finish_profile_stage,
     get_model_device,
     log_evaluation_profile,
     start_profile_stage,
+)
+from services.evaluation_progress import (
+    EvaluationProgressCallback,
+    report_evaluation_progress,
 )
 from services.model_service import get_active_model_instance
 from utils.detection_evaluation_artifacts import (
@@ -372,9 +372,7 @@ async def _evaluate_detection_dataset(
                 perturbation_l2=attack_result["perturbation_l2"],
                 adversarial_image_url=adversarial_image_url,
                 original_detections=to_detection_predictions(original_detections),
-                adversarial_detections=to_detection_predictions(
-                    adversarial_detections
-                ),
+                adversarial_detections=to_detection_predictions(adversarial_detections),
             )
         )
         per_image_metrics_seconds = perf_counter() - stage_started
@@ -509,9 +507,7 @@ async def _evaluate_detection_dataset(
             device=model_device,
             extra={
                 "supervised_metrics_available": supervised_context.available,
-                "reviewed_images": len(
-                    supervised_context.snapshot.reviewed_image_ids
-                ),
+                "reviewed_images": len(supervised_context.snapshot.reviewed_image_ids),
             },
         ),
     )

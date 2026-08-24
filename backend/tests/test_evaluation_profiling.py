@@ -68,8 +68,6 @@ def test_get_model_device_reads_exposed_torch_module():
     assert evaluation_profiling.get_model_device(Model()) == torch.device("cpu")
 
 
-
-
 def test_get_model_device_never_breaks_evaluation_for_diagnostic_failures():
     class Model:
         def get_torch_model(self):

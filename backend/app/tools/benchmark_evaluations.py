@@ -300,12 +300,8 @@ def _summary(runs: list[BenchmarkRun]) -> dict:
         "stdev_seconds": round(statistics.stdev(elapsed), 6)
         if len(elapsed) > 1
         else 0.0,
-        "mean_throughput_images_per_second": round(
-            statistics.fmean(throughput), 6
-        ),
-        "median_throughput_images_per_second": round(
-            statistics.median(throughput), 6
-        ),
+        "mean_throughput_images_per_second": round(statistics.fmean(throughput), 6),
+        "median_throughput_images_per_second": round(statistics.median(throughput), 6),
         "mean_response_bytes": round(statistics.fmean(response_bytes), 2),
     }
 
@@ -327,9 +323,7 @@ def _comparison(
         raise RuntimeError(f"{baseline_path} does not contain a benchmark summary")
     baseline_configuration = baseline.get("configuration")
     if not isinstance(baseline_configuration, dict):
-        raise RuntimeError(
-            f"{baseline_path} does not contain benchmark configuration"
-        )
+        raise RuntimeError(f"{baseline_path} does not contain benchmark configuration")
 
     comparable_keys = (
         "task",
@@ -349,8 +343,7 @@ def _comparison(
         mismatches.append("model.id")
     if mismatches:
         raise RuntimeError(
-            "Benchmark comparison configuration differs for: "
-            + ", ".join(mismatches)
+            "Benchmark comparison configuration differs for: " + ", ".join(mismatches)
         )
 
     keys = (
@@ -485,14 +478,13 @@ def main() -> int:
 
         summary = _summary(measured)
         resolved_parameters = measured[0].resolved_parameters
-        effective_supervised_configuration = (
-            measured[0].effective_supervised_configuration
-        )
+        effective_supervised_configuration = measured[
+            0
+        ].effective_supervised_configuration
         if any(run.resolved_parameters != resolved_parameters for run in measured):
             raise RuntimeError("Resolved attack parameters changed between runs")
         if any(
-            run.effective_supervised_configuration
-            != effective_supervised_configuration
+            run.effective_supervised_configuration != effective_supervised_configuration
             for run in measured
         ):
             raise RuntimeError(

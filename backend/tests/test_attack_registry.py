@@ -120,9 +120,7 @@ def test_apply_attack_runner_for_evaluation_keeps_legacy_runner_compatible():
             parameters,
             original_class_index,
         ):
-            calls.append(
-                (model_wrapper, image, parameters, original_class_index)
-            )
+            calls.append((model_wrapper, image, parameters, original_class_index))
             return expected_result
 
     result = apply_attack_runner_for_evaluation(
@@ -136,7 +134,6 @@ def test_apply_attack_runner_for_evaluation_keeps_legacy_runner_compatible():
 
     assert result is expected_result
     assert calls == [("model", "image", "parameters", 3)]
-
 
 
 def test_attack_runner_evaluation_batch_size_defaults_to_one():
@@ -178,6 +175,7 @@ def test_apply_attack_runner_batch_for_evaluation_uses_optional_batch_path():
     )
 
     assert results == expected_results
+
 
 def test_get_unknown_attack_raises_value_error():
     with pytest.raises(ValueError, match="not supported"):

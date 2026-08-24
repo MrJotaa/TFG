@@ -30,12 +30,12 @@ def test_detection_color_distinguishes_common_classes():
 
 
 def test_detection_color_falls_back_to_class_id_without_a_name():
-    assert detection_color(
+    assert detection_color(_detection(class_id=7, class_name=None)) == detection_color(
         _detection(class_id=7, class_name=None)
-    ) == detection_color(_detection(class_id=7, class_name=None))
-    assert detection_color(
-        _detection(class_id=7, class_name=None)
-    ) != detection_color(_detection(class_id=8, class_name=None))
+    )
+    assert detection_color(_detection(class_id=7, class_name=None)) != detection_color(
+        _detection(class_id=8, class_name=None)
+    )
 
 
 def test_draw_detections_keeps_source_geometry_and_uses_class_colors():

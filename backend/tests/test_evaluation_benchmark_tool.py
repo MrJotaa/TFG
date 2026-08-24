@@ -107,9 +107,7 @@ def test_benchmark_comparison_reports_percent_change(tmp_path):
 
     metrics = comparison["metrics"]
     assert metrics["mean_seconds"]["percent_change"] == -20.0
-    assert (
-        metrics["mean_throughput_images_per_second"]["percent_change"] == 25.0
-    )
+    assert metrics["mean_throughput_images_per_second"]["percent_change"] == 25.0
     assert metrics["mean_response_bytes"]["percent_change"] == 0.0
 
 

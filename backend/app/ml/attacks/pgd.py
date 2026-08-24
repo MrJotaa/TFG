@@ -181,9 +181,7 @@ class PGDAttack(BaseAdversarialAttack):
                     model_wrapper.normalize_attack_input(original_tensor)
                 )
             target = original_output.argmax(dim=1)
-            for sample_index, original_class_index in enumerate(
-                original_class_indices
-            ):
+            for sample_index, original_class_index in enumerate(original_class_indices):
                 if original_class_index is not None:
                     target[sample_index] = original_class_index
 

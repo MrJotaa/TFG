@@ -57,9 +57,7 @@ class RfDetrDetectionAdapter:
             or boxes.ndim != 2
             or boxes.shape[1] != 4
         ):
-            raise RfDetrDetectionAdapterError(
-                "RF-DETR boxes must have shape [N, 4]"
-            )
+            raise RfDetrDetectionAdapterError("RF-DETR boxes must have shape [N, 4]")
         if not boxes.is_floating_point():
             raise RfDetrDetectionAdapterError(
                 "RF-DETR boxes must use a floating-point dtype"

@@ -197,9 +197,7 @@ class RfDetrDetectionModel(BaseObjectDetectionModel):
 
         device, dtype = self._torch_model_device_and_dtype()
         return (
-            to_tensor(image.convert("RGB"))
-            .unsqueeze(0)
-            .to(device=device, dtype=dtype)
+            to_tensor(image.convert("RGB")).unsqueeze(0).to(device=device, dtype=dtype)
         )
 
     def _attack_processor_configuration(

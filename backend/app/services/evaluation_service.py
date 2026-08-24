@@ -48,16 +48,16 @@ from services.evaluation_history_service import (
     begin_evaluation_execution,
     complete_evaluation_execution,
 )
-from services.evaluation_progress import (
-    EvaluationProgressCallback,
-    report_evaluation_progress,
-)
 from services.evaluation_profiling import (
     EvaluationProfile,
     finish_profile_stage,
     get_model_device,
     log_evaluation_profile,
     start_profile_stage,
+)
+from services.evaluation_progress import (
+    EvaluationProgressCallback,
+    report_evaluation_progress,
 )
 from services.model_service import get_active_model_instance
 from utils.evaluation_artifacts import (
@@ -155,9 +155,7 @@ async def _iter_attacked_evaluation_images(
     )
 
     for batch_start in range(0, len(dataset.images), attack_batch_size):
-        batch_metadata = dataset.images[
-            batch_start : batch_start + attack_batch_size
-        ]
+        batch_metadata = dataset.images[batch_start : batch_start + attack_batch_size]
         prepared_batch = []
 
         for batch_offset, image_metadata in enumerate(batch_metadata):
@@ -219,13 +217,10 @@ async def _iter_attacked_evaluation_images(
             attack_runner,
             model_wrapper=model,
             images=tuple(item["image"] for item in prepared_batch),
-            prepared_inputs=tuple(
-                item["clean_model_input"] for item in prepared_batch
-            ),
+            prepared_inputs=tuple(item["clean_model_input"] for item in prepared_batch),
             parameters=tuple(item["parameters"] for item in prepared_batch),
             original_class_indices=tuple(
-                item["original_prediction"].class_index
-                for item in prepared_batch
+                item["original_prediction"].class_index for item in prepared_batch
             ),
         )
         if cancellation_token is not None:

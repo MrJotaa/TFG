@@ -522,7 +522,6 @@ async def test_evaluation_uses_attack_micro_batches_and_preserves_result_order(
     ]
 
 
-
 @pytest.mark.asyncio
 async def test_evaluation_keeps_single_sample_attacks_for_models_without_batch_opt_in(
     monkeypatch,
@@ -549,7 +548,6 @@ async def test_evaluation_keeps_single_sample_attacks_for_models_without_batch_o
     )
 
     assert attack.batch_sizes == [1, 1]
-
 
 
 @pytest.mark.parametrize("attack_type", [AttackType.FGSM, AttackType.PGD])

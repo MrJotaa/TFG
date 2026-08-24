@@ -36,9 +36,7 @@ def normalize_rf_detr_id2label(
                     f"invalid RF-DETR class id {raw_class_id!r}"
                 ) from error
         else:
-            raise RfDetrClassCatalogError(
-                f"invalid RF-DETR class id {raw_class_id!r}"
-            )
+            raise RfDetrClassCatalogError(f"invalid RF-DETR class id {raw_class_id!r}")
 
         if class_id < 0:
             raise RfDetrClassCatalogError("RF-DETR class IDs must not be negative")

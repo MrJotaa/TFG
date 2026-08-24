@@ -486,8 +486,7 @@ async def test_rf_detr_runs_through_supervised_detection_evaluation(
     assert response.supervised.available is True
     assert response.supervised.original.aggregate.map_50_95 == pytest.approx(1.0)
     assert (
-        response.supervised.original.per_class[0].reference.model_class_name
-        == "person"
+        response.supervised.original.per_class[0].reference.model_class_name == "person"
     )
     assert len(saved_adversarial_images) == 1
     assert saved_adversarial_images[0].size == source_image.size

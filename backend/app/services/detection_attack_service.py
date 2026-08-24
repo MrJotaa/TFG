@@ -65,11 +65,12 @@ async def apply_detection_attack(
 
     if cancellation_token is not None:
         cancellation_token.raise_if_cancelled()
-    original_detection_result, original_annotated_image = (
-        await run_detection_model_operation(
-            model.detect_with_visualization,
-            image,
-        )
+    (
+        original_detection_result,
+        original_annotated_image,
+    ) = await run_detection_model_operation(
+        model.detect_with_visualization,
+        image,
     )
 
     attack_runner = create_attack_runner(
@@ -92,11 +93,12 @@ async def apply_detection_attack(
     adversarial_image = attack_result["adversarial_image"]
     perturbation_image = attack_result["perturbation_image"]
 
-    adversarial_detection_result, adversarial_annotated_image = (
-        await run_detection_model_operation(
-            model.detect_with_visualization,
-            adversarial_image,
-        )
+    (
+        adversarial_detection_result,
+        adversarial_annotated_image,
+    ) = await run_detection_model_operation(
+        model.detect_with_visualization,
+        adversarial_image,
     )
     if cancellation_token is not None:
         cancellation_token.raise_if_cancelled()
