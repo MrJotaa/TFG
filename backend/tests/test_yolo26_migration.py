@@ -7,6 +7,7 @@ import pytest
 import torch
 from PIL import Image
 
+from ml.attacks.detection_confidence import DetectionConfidenceAttack
 from ml.attacks.yolo_confidence import YOLOConfidenceAttack
 from ml.models.definitions import build_model_registry
 from ml.models.detection import DetectionResult
@@ -66,8 +67,9 @@ def test_yolo26_runtime_configuration_matches_reproducible_contract():
 def test_yolo26_scientific_pipeline_revisions_remain_explicit():
     assert "yolo26" in DETECTION_PIPELINE_VERSION
     assert "end2end" in DETECTION_PIPELINE_VERSION
-    assert "yolo26" in YOLOConfidenceAttack.revision
-    assert "end2end" in YOLOConfidenceAttack.revision
+    assert DetectionConfidenceAttack.revision == "detection-confidence-linf-v2"
+    assert YOLOConfidenceAttack is DetectionConfidenceAttack
+    assert DetectionConfidenceAttack.id == "yolo_confidence"
     assert "yolo26" in DETECTION_EIGENCAM_PIPELINE_VERSION
     assert "p3-p5" in DETECTION_EIGENCAM_PIPELINE_VERSION
 

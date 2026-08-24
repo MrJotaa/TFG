@@ -2,7 +2,9 @@ import gc
 from collections.abc import Mapping
 
 import torch
+import torch.nn.functional as F
 from PIL import Image
+from torchvision.transforms.functional import to_tensor
 from transformers import AutoImageProcessor, AutoModelForObjectDetection
 
 from ml.detection_categories import DetectionClassCatalog
@@ -17,6 +19,7 @@ from ml.models.rf_detr.adapter import RfDetrDetectionAdapter
 from ml.models.rf_detr.catalog import (
     RfDetrClassCatalogError,
     build_rf_detr_class_catalog,
+    is_rf_detr_placeholder_label,
     normalize_rf_detr_id2label,
 )
 from ml.models.rf_detr.config import RfDetrDetectionModelConfig
@@ -125,6 +128,182 @@ class RfDetrDetectionModel(BaseObjectDetectionModel):
         if self._class_catalog is None:
             raise RuntimeError("RF-DETR class catalog did not finish loading")
         return self._class_catalog
+
+    def _torch_model_device_and_dtype(self) -> tuple[torch.device, torch.dtype]:
+        torch_model = self.get_torch_model()
+        try:
+            parameter = next(torch_model.parameters())
+        except StopIteration:
+            return self.device, torch.float32
+        return parameter.device, parameter.dtype
+
+    def prepare_detection_attack_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        """Return source-geometry pixels in [0, 1] for adversarial updates."""
+        if not isinstance(image, Image.Image):
+            raise TypeError("image must be a PIL Image")
+
+        device, dtype = self._torch_model_device_and_dtype()
+        return (
+            to_tensor(image.convert("RGB"))
+            .unsqueeze(0)
+            .to(device=device, dtype=dtype)
+        )
+
+    def _attack_processor_configuration(
+        self,
+    ) -> tuple[tuple[int, int], torch.Tensor, torch.Tensor]:
+        if not self.is_loaded():
+            self.load()
+        if self.image_processor is None:
+            raise RuntimeError("RF-DETR image processor did not finish loading")
+
+        processor = self.image_processor
+        required_flags = {
+            "do_resize": True,
+            "do_rescale": True,
+            "do_normalize": True,
+        }
+        for attribute, expected in required_flags.items():
+            if getattr(processor, attribute, None) is not expected:
+                raise NotImplementedError(
+                    f"RF-DETR attack preprocessing requires {attribute}={expected}"
+                )
+
+        size = getattr(processor, "size", None)
+        if isinstance(size, Mapping):
+            height = size.get("height")
+            width = size.get("width")
+        else:
+            height = getattr(size, "height", None)
+            width = getattr(size, "width", None)
+        if not isinstance(height, int) or not isinstance(width, int):
+            raise NotImplementedError(
+                "RF-DETR differentiable attacks require an exact "
+                "height/width processor size"
+            )
+        if height <= 0 or width <= 0:
+            raise RuntimeError("RF-DETR image processor exposes an invalid size")
+
+        mean = getattr(processor, "image_mean", None)
+        std = getattr(processor, "image_std", None)
+        if not isinstance(mean, (list, tuple)) or len(mean) != 3:
+            raise NotImplementedError(
+                "RF-DETR differentiable attacks require a three-channel image mean"
+            )
+        if not isinstance(std, (list, tuple)) or len(std) != 3:
+            raise NotImplementedError(
+                "RF-DETR differentiable attacks require a three-channel image std"
+            )
+        if any(float(value) <= 0 for value in std):
+            raise RuntimeError("RF-DETR image processor exposes an invalid image std")
+
+        device, dtype = self._torch_model_device_and_dtype()
+        mean_tensor = torch.tensor(mean, device=device, dtype=dtype).view(1, 3, 1, 1)
+        std_tensor = torch.tensor(std, device=device, dtype=dtype).view(1, 3, 1, 1)
+        return (height, width), mean_tensor, std_tensor
+
+    def _differentiable_attack_model_input(
+        self,
+        prepared_input: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if (
+            not isinstance(prepared_input, torch.Tensor)
+            or prepared_input.ndim != 4
+            or prepared_input.shape[1] != 3
+        ):
+            raise ValueError(
+                "prepared detection attack input must have shape [B, 3, H, W]"
+            )
+        if not prepared_input.is_floating_point():
+            raise TypeError("prepared detection attack input must be floating point")
+
+        (height, width), mean, std = self._attack_processor_configuration()
+        # ``prepared_input`` ya representa el rescale 1/255 del procesador
+        # oficial: mantenemos [0, 1] en geometría fuente durante el ataque.
+        resized = F.interpolate(
+            prepared_input,
+            size=(height, width),
+            mode="bilinear",
+            align_corners=False,
+            antialias=True,
+        )
+        pixel_values = (resized - mean) / std
+        pixel_mask = torch.ones(
+            (prepared_input.shape[0], height, width),
+            device=prepared_input.device,
+            dtype=torch.long,
+        )
+        return pixel_values, pixel_mask
+
+    def _valid_attack_class_ids(self, *, num_classes: int) -> tuple[int, ...]:
+        if self._id2label is None:
+            raise RuntimeError("RF-DETR class mapping is not loaded")
+
+        class_ids = tuple(
+            class_id
+            for class_id, class_name in sorted(self._id2label.items())
+            if not is_rf_detr_placeholder_label(class_name)
+        )
+        if not class_ids:
+            raise RuntimeError(
+                "RF-DETR does not expose any valid classes for confidence suppression"
+            )
+        if min(class_ids) < 0 or max(class_ids) >= num_classes:
+            raise ValueError(
+                "RF-DETR class catalog does not match the logits class dimension"
+            )
+        return class_ids
+
+    @staticmethod
+    def _query_confidence_objective(
+        logits: torch.Tensor,
+        *,
+        valid_class_ids: tuple[int, ...],
+    ) -> torch.Tensor:
+        if not isinstance(logits, torch.Tensor) or logits.ndim != 3:
+            raise ValueError("Unexpected RF-DETR object-detection logits structure")
+        if logits.shape[0] <= 0 or logits.shape[1] <= 0 or logits.shape[2] <= 0:
+            raise ValueError("RF-DETR logits do not contain detection queries")
+        if not valid_class_ids:
+            raise ValueError("RF-DETR confidence objective requires valid class ids")
+        if min(valid_class_ids) < 0 or max(valid_class_ids) >= logits.shape[2]:
+            raise ValueError("RF-DETR confidence class ids exceed the logits dimension")
+
+        class_index = torch.tensor(
+            valid_class_ids,
+            device=logits.device,
+            dtype=torch.long,
+        )
+        valid_probabilities = logits.index_select(dim=2, index=class_index).sigmoid()
+        query_confidences = valid_probabilities.amax(dim=2)
+        return query_confidences.mean()
+
+    def detection_confidence_objective(
+        self,
+        prepared_input: torch.Tensor,
+    ) -> torch.Tensor:
+        torch_model = self.get_torch_model()
+        torch_model.eval()
+
+        pixel_values, pixel_mask = self._differentiable_attack_model_input(
+            prepared_input
+        )
+        outputs = torch_model(
+            pixel_values=pixel_values,
+            pixel_mask=pixel_mask,
+        )
+        logits = getattr(outputs, "logits", None)
+        if not isinstance(logits, torch.Tensor):
+            raise ValueError("RF-DETR output does not expose object-detection logits")
+
+        valid_class_ids = self._valid_attack_class_ids(num_classes=logits.shape[-1])
+        return self._query_confidence_objective(
+            logits,
+            valid_class_ids=valid_class_ids,
+        )
 
     def _prepare_inputs(self, image: Image.Image) -> dict[str, object]:
         if not isinstance(image, Image.Image):

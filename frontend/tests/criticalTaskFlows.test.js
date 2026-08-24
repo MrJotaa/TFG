@@ -24,7 +24,7 @@ test('classification exposes only classification-compatible attacks', () => {
     assert.equal(isAttackSupportedForTask(ATTACK_CATALOG, 'pgd', 'classification'), true)
 })
 
-test('detection exposes Random Noise and YOLO Confidence only', () => {
+test('detection exposes Random Noise and Detection Confidence only', () => {
     assert.deepEqual(
         getSupportedAttacksForTask(ATTACK_CATALOG, 'detection').map((attack) => attack.id),
         ['random_noise', 'yolo_confidence'],

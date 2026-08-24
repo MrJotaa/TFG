@@ -7,6 +7,7 @@ import torch
 from PIL import Image
 
 import ml.models.rf_detr.model as rf_detr_model_module
+from ml.attacks.detection_confidence import DetectionConfidenceAttack
 from ml.detection_categories import DetectionClass
 from ml.models.definitions import build_model_registry
 from ml.models.detection import DetectionResult
@@ -45,6 +46,13 @@ def _build_model() -> RfDetrDetectionModel:
 
 class _FakeProcessor:
     def __init__(self, native_result=None):
+        self.do_resize = True
+        self.do_rescale = True
+        self.do_normalize = True
+        self.do_pad = True
+        self.size = {"height": 384, "width": 384}
+        self.image_mean = [0.485, 0.456, 0.406]
+        self.image_std = [0.229, 0.224, 0.225]
         self.native_result = native_result or {
             "scores": torch.tensor([], dtype=torch.float32),
             "labels": torch.tensor([], dtype=torch.int64),
@@ -93,7 +101,11 @@ class _FakeProviderModel(torch.nn.Module):
 
     def forward(self, **inputs):
         self.forward_calls.append(inputs)
-        return SimpleNamespace(logits=torch.tensor([1.0]))
+        pixel_values = inputs["pixel_values"]
+        batch_size = pixel_values.shape[0]
+        signal = pixel_values.mean(dim=(1, 2, 3)) * self.weight
+        logits = signal[:, None, None].expand(batch_size, 3, 13)
+        return SimpleNamespace(logits=logits)
 
 
 def _install_fake_provider(monkeypatch, *, processor=None, provider_model=None):
@@ -448,3 +460,121 @@ def test_registry_exposes_both_detection_architectures():
     ]
 
     assert [model.id for model in detection_models] == ["yolo26n", RF_DETR_MODEL_ID]
+
+
+def test_rf_detr_attack_input_preserves_source_geometry_and_model_device(monkeypatch):
+    _install_fake_provider(monkeypatch)
+    model = _build_model()
+    model.load()
+    image = Image.new("RGB", (640, 320), color=(128, 64, 32))
+
+    prepared = model.prepare_detection_attack_input(image)
+
+    assert prepared.shape == (1, 3, 320, 640)
+    assert prepared.device == model.device
+    assert prepared.dtype == model.get_torch_model().weight.dtype
+    assert prepared.min().item() >= 0.0
+    assert prepared.max().item() <= 1.0
+
+
+def test_rf_detr_differentiable_attack_preprocessing_matches_checkpoint_contract(
+    monkeypatch,
+):
+    _install_fake_provider(monkeypatch)
+    model = _build_model()
+    model.load()
+    image = Image.new("RGB", (32, 20), color=(128, 128, 128))
+    prepared = model.prepare_detection_attack_input(image)
+
+    pixel_values, pixel_mask = model._differentiable_attack_model_input(prepared)
+
+    assert pixel_values.shape == (1, 3, 384, 384)
+    assert pixel_mask.shape == (1, 384, 384)
+    assert torch.all(pixel_mask == 1)
+
+    source_value = 128 / 255
+    expected_channels = torch.tensor(
+        [
+            (source_value - 0.485) / 0.229,
+            (source_value - 0.456) / 0.224,
+            (source_value - 0.406) / 0.225,
+        ],
+        device=pixel_values.device,
+        dtype=pixel_values.dtype,
+    )
+    observed_channels = pixel_values[0, :, 100, 100]
+    assert torch.allclose(observed_channels, expected_channels, atol=1e-6)
+
+
+def test_rf_detr_confidence_objective_matches_query_semantics_and_ignores_na():
+    probabilities = torch.tensor(
+        [
+            [
+                [0.99, 0.20, 0.95, 0.60],
+                [0.98, 0.40, 0.96, 0.10],
+            ]
+        ],
+        dtype=torch.float32,
+    )
+    logits = torch.logit(probabilities).requires_grad_(True)
+
+    objective = RfDetrDetectionModel._query_confidence_objective(
+        logits,
+        valid_class_ids=(1, 3),
+    )
+
+    assert objective.item() == pytest.approx(0.5)
+    assert objective.requires_grad is True
+
+
+def test_rf_detr_confidence_objective_propagates_gradient_to_source_image(
+    monkeypatch,
+):
+    processor, provider_model, *_ = _install_fake_provider(monkeypatch)
+    model = _build_model()
+    model.load()
+    image = Image.new("RGB", (64, 40), color=(192, 192, 192))
+    prepared = model.prepare_detection_attack_input(image).requires_grad_(True)
+
+    objective = model.detection_confidence_objective(prepared)
+    (gradient,) = torch.autograd.grad(objective, prepared)
+
+    assert objective.ndim == 0
+    assert objective.requires_grad is True
+    assert gradient.shape == prepared.shape
+    assert torch.isfinite(gradient).all()
+    assert torch.count_nonzero(gradient) > 0
+    attack_forward = provider_model.forward_calls[-1]
+    assert attack_forward["pixel_values"].shape == (1, 3, 384, 384)
+    assert attack_forward["pixel_mask"].shape == (1, 384, 384)
+    assert processor.size == {"height": 384, "width": 384}
+    assert all(parameter.grad is None for parameter in provider_model.parameters())
+
+
+def test_detection_confidence_attack_runs_against_rf_detr_contract(monkeypatch):
+    _install_fake_provider(monkeypatch)
+    model = _build_model()
+    model.load()
+    attack = DetectionConfidenceAttack()
+    image = Image.new("RGB", (32, 24), color=(192, 192, 192))
+
+    original_prepared = model.prepare_detection_attack_input(image)
+    original_objective = model.detection_confidence_objective(original_prepared).item()
+
+    result = attack.apply(
+        model_wrapper=model,
+        image=image,
+        parameters=SimpleNamespace(epsilon=0.03, alpha=0.01, steps=2),
+    )
+
+    adversarial_prepared = model.prepare_detection_attack_input(
+        result["adversarial_image"]
+    )
+    adversarial_objective = model.detection_confidence_objective(
+        adversarial_prepared
+    ).item()
+
+    assert adversarial_objective < original_objective
+    assert result["perturbation_linf"] <= 0.03
+    assert result["adversarial_image"].size == image.size
+    assert result["perturbation_image"].size == image.size

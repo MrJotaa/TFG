@@ -14,6 +14,7 @@ class AttackType(str, Enum):
     DEEPFOOL = "deepfool"
     HOP_SKIP_JUMP = "hop_skip_jump"
     ZOO = "zoo"
+    # ID legacy serializado: se conserva para clientes y resultados existentes.
     YOLO_CONFIDENCE = "yolo_confidence"
 
 
