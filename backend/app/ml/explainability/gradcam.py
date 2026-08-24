@@ -165,43 +165,37 @@ def generate_gradcam(model_wrapper, image: Image.Image):
     }
 
 
-class _YOLOOutputWrapper(torch.nn.Module):
-    """Adapta la salida end-to-end de YOLO26 al contrato mínimo de EigenCAM."""
+class _DetectionEigenCamForward(torch.nn.Module):
+    """Ejecuta cualquier detector sin construir un grafo que EigenCAM no necesita."""
 
-    def __init__(self, model):
+    def __init__(self, model: torch.nn.Module):
         super().__init__()
         self.model = model
 
-    def forward(self, input_tensor):
-        # EigenCAM solo necesita activaciones, no gradientes. ``no_grad`` evita
-        # construir un grafo grande sin crear inference tensors que puedan
-        # contaminar los caches geométricos usados después por ataques.
+    def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
-            output = self.model(input_tensor)
+            self.model(input_tensor)
 
-        if isinstance(output, (list, tuple)) and output:
-            output = output[0]
-
-        if not isinstance(output, torch.Tensor):
-            raise ValueError("Could not extract tensor output from YOLO model")
-
-        if output.ndim == 3 and output.shape[-1] >= 5:
-            return output[..., 4]
-        return output
+        # BaseCAM espera una salida tipo clasificación cuando ``targets=None``.
+        # EigenCAM no utiliza ese target, así que exponemos un tensor neutro y
+        # mantenemos completamente opacas las salidas reales del detector.
+        return input_tensor.new_zeros((input_tensor.shape[0], 1))
 
 
 def generate_detection_eigencam(model_wrapper, image: Image.Image) -> Image.Image:
-    """Genera un EigenCAM multiescala y lo proyecta a geometría fuente."""
-    torch_model = model_wrapper.get_torch_model()
+    """Genera EigenCAM sin conocer la arquitectura concreta del detector."""
+    torch_model = model_wrapper.get_detection_explainability_model()
     target_layers = model_wrapper.get_explainability_target_layers()
     input_tensor = model_wrapper.prepare_detection_explainability_input(image)
+    reshape_transform = model_wrapper.reshape_detection_explainability_tensor
 
     torch_model.eval()
-    wrapped_model = _YOLOOutputWrapper(torch_model)
+    forward_model = _DetectionEigenCamForward(torch_model)
 
     with EigenCAM(
-        model=wrapped_model,
+        model=forward_model,
         target_layers=target_layers,
+        reshape_transform=reshape_transform,
     ) as cam:
         grayscale_cam = cam(
             input_tensor=input_tensor,

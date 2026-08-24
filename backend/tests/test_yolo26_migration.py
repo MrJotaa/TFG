@@ -70,8 +70,8 @@ def test_yolo26_scientific_pipeline_revisions_remain_explicit():
     assert DetectionConfidenceAttack.revision == "detection-confidence-linf-v2"
     assert YOLOConfidenceAttack is DetectionConfidenceAttack
     assert DetectionConfidenceAttack.id == "yolo_confidence"
-    assert "yolo26" in DETECTION_EIGENCAM_PIPELINE_VERSION
-    assert "p3-p5" in DETECTION_EIGENCAM_PIPELINE_VERSION
+    assert "model-contract" in DETECTION_EIGENCAM_PIPELINE_VERSION
+    assert "yolo26" not in DETECTION_EIGENCAM_PIPELINE_VERSION
 
 
 def test_production_backend_contains_no_legacy_yolov8_references():

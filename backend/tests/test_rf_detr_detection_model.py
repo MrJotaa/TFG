@@ -578,3 +578,72 @@ def test_detection_confidence_attack_runs_against_rf_detr_contract(monkeypatch):
     assert result["perturbation_linf"] <= 0.03
     assert result["adversarial_image"].size == image.size
     assert result["perturbation_image"].size == image.size
+
+
+class _FakeRfDetrProjector(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.layer_norm = torch.nn.Identity()
+
+
+class _FakeRfDetrExplainabilityProvider(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.weight = torch.nn.Parameter(torch.tensor(1.0))
+        self.config = SimpleNamespace(id2label={1: "person", 3: "car"})
+        self.model = SimpleNamespace(
+            backbone=SimpleNamespace(projector=_FakeRfDetrProjector())
+        )
+
+    def forward(self, pixel_values=None, pixel_mask=None, **kwargs):
+        if pixel_values is None:
+            raise ValueError("pixel_values are required")
+        return SimpleNamespace(logits=pixel_values.mean((2, 3))[:, None, :])
+
+
+def test_rf_detr_explainability_uses_spatial_projector_and_checkpoint_geometry():
+    model = _build_model()
+    provider = _FakeRfDetrExplainabilityProvider()
+    model.model = provider
+    model.image_processor = _FakeProcessor()
+    model._id2label = {1: "person", 3: "car"}
+    model._class_catalog = build_rf_detr_class_catalog(
+        model_id=model.id,
+        model_name=model.name,
+        id2label=model._id2label,
+    )
+    source_image = Image.new("RGB", (23, 17), color=(20, 30, 40))
+
+    prepared = model.prepare_detection_explainability_input(source_image)
+
+    assert model.supports_detection_explainability() is True
+    assert model.get_detection_explainability_model() is provider
+    assert model.get_explainability_target_layers() == [
+        provider.model.backbone.projector.layer_norm
+    ]
+    assert prepared.shape == (1, 3, 384, 384)
+    assert torch.isfinite(prepared).all()
+
+    cam = torch.linspace(0.0, 1.0, steps=384 * 384).reshape(384, 384).numpy()
+    projected = model.project_detection_explainability_map(cam, source_image)
+
+    assert projected.shape == (17, 23)
+    assert projected.dtype.name == "float32"
+    assert float(projected.min()) >= 0.0
+    assert float(projected.max()) <= 1.0
+
+
+def test_rf_detr_explainability_rejects_unexpected_transformers_structure():
+    model = _build_model()
+    provider = _FakeProviderModel()
+    model.model = provider
+    model.image_processor = _FakeProcessor()
+    model._id2label = {1: "person", 3: "car"}
+    model._class_catalog = build_rf_detr_class_catalog(
+        model_id=model.id,
+        model_name=model.name,
+        id2label=model._id2label,
+    )
+
+    with pytest.raises(RuntimeError, match="pinned Transformers architecture"):
+        model.get_explainability_target_layers()

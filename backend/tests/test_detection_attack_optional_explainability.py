@@ -121,7 +121,7 @@ async def test_detection_attack_succeeds_without_optional_explainability(monkeyp
     assert "adversarial_explanation_image" not in saved_metadata
 
 
-def test_rf_detr_does_not_claim_explainability_before_its_subissue():
+def test_rf_detr_claims_explainability_after_model_contract_integration():
     from ml.models.rf_detr.config import RfDetrDetectionModelConfig
     from ml.models.rf_detr.model import RfDetrDetectionModel
 
@@ -135,4 +135,4 @@ def test_rf_detr_does_not_claim_explainability_before_its_subissue():
         )
     )
 
-    assert model.supports_detection_explainability() is False
+    assert model.supports_detection_explainability() is True

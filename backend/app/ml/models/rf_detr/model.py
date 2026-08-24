@@ -1,6 +1,7 @@
 import gc
 from collections.abc import Mapping
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
@@ -112,6 +113,55 @@ class RfDetrDetectionModel(BaseObjectDetectionModel):
         if self.model is None:
             raise RuntimeError("RF-DETR model did not finish loading")
         return self.model
+
+    def supports_detection_explainability(self) -> bool:
+        return True
+
+    def get_explainability_target_layers(self) -> list[torch.nn.Module]:
+        """Use the spatial projector consumed directly by the DETR decoder."""
+        torch_model = self.get_torch_model()
+        # Transformers convierte aquí las features multietapa de DINOv2 en el
+        # mapa espacial [B, C, H, W] que RF-DETR aplana y entrega al decoder.
+        try:
+            target_layer = torch_model.model.backbone.projector.layer_norm
+        except AttributeError as error:
+            raise RuntimeError(
+                "RF-DETR explainability target layer is incompatible with the "
+                "pinned Transformers architecture"
+            ) from error
+
+        if not isinstance(target_layer, torch.nn.Module):
+            raise RuntimeError("RF-DETR explainability target is not a torch module")
+        return [target_layer]
+
+    def prepare_detection_explainability_input(
+        self,
+        image: Image.Image,
+    ) -> torch.Tensor:
+        """Reproduce the checkpoint preprocessing while retaining CAM geometry."""
+        source_tensor = self.prepare_detection_attack_input(image)
+        pixel_values, _pixel_mask = self._differentiable_attack_model_input(
+            source_tensor
+        )
+        return pixel_values
+
+    def project_detection_explainability_map(
+        self,
+        normalized_cam: np.ndarray,
+        source_image: Image.Image,
+    ) -> np.ndarray:
+        """Project the fixed-size RF-DETR CAM back to source-image geometry."""
+        if not isinstance(normalized_cam, np.ndarray) or normalized_cam.ndim != 2:
+            raise TypeError("normalized_cam must be a two-dimensional numpy array")
+        if not isinstance(source_image, Image.Image):
+            raise TypeError("source_image must be a PIL Image")
+
+        cam_image = Image.fromarray(
+            np.uint8(np.clip(normalized_cam, 0.0, 1.0) * 255),
+            mode="L",
+        )
+        projected = cam_image.resize(source_image.size, Image.Resampling.BILINEAR)
+        return np.asarray(projected, dtype=np.float32) / 255.0
 
     def get_detection_class_catalog(self) -> DetectionClassCatalog:
         if not self.is_loaded():
