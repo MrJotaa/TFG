@@ -33,6 +33,7 @@ from services.classification_label_service import (
     resolve_dataset_labels,
 )
 from services.dataset_service import (
+    dataset_read_snapshot,
     get_dataset,
     get_image_from_dataset,
 )
@@ -104,13 +105,14 @@ async def evaluate_dataset(
 
     completed = False
     try:
-        response = await _evaluate_dataset(
-            request,
-            attack=attack,
-            execution=execution,
-            progress_callback=progress_callback,
-            cancellation_token=cancellation_token,
-        )
+        with dataset_read_snapshot(request.dataset_id):
+            response = await _evaluate_dataset(
+                request,
+                attack=attack,
+                execution=execution,
+                progress_callback=progress_callback,
+                cancellation_token=cancellation_token,
+            )
         completed = True
         return response
     finally:

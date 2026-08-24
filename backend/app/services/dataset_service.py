@@ -2,6 +2,10 @@ import mimetypes
 import os
 import shutil
 import uuid
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
+from typing import Iterator
 
 from bson import ObjectId
 from fastapi import UploadFile
@@ -37,6 +41,35 @@ DATASET_NOT_FOUND_MESSAGE = "Dataset not found"
 USER_NOT_FOUND_MESSAGE = "User not found"
 IMAGE_NOT_FOUND_MESSAGE = "Image not found"
 IMAGE_FILE_NOT_FOUND_MESSAGE = "Image file not found"
+
+
+@dataclass(slots=True)
+class _DatasetReadSnapshot:
+    dataset_id: str
+    object_id: ObjectId | None = None
+    dataset: dict | None = None
+    images_by_id: dict[str, dict] | None = None
+
+
+_ACTIVE_DATASET_READ_SNAPSHOT: ContextVar[_DatasetReadSnapshot | None] = ContextVar(
+    "active_dataset_read_snapshot",
+    default=None,
+)
+
+
+@contextmanager
+def dataset_read_snapshot(dataset_id: str) -> Iterator[None]:
+    """Reuse one consistent dataset view during a read-only evaluation.
+
+    The scope is task-local, so concurrent evaluations never share cached
+    dataset documents. Mutating dataset operations must remain outside it.
+    """
+    snapshot = _DatasetReadSnapshot(dataset_id=dataset_id)
+    token = _ACTIVE_DATASET_READ_SNAPSHOT.set(snapshot)
+    try:
+        yield
+    finally:
+        _ACTIVE_DATASET_READ_SNAPSHOT.reset(token)
 
 
 def _to_dataset_image(
@@ -87,19 +120,42 @@ async def _get_dataset_document(
     dataset_id: str,
 ) -> tuple[ObjectId, dict]:
     object_id = _validate_dataset_id(dataset_id)
+    snapshot = _ACTIVE_DATASET_READ_SNAPSHOT.get()
+
+    if (
+        snapshot is not None
+        and snapshot.dataset_id == dataset_id
+        and snapshot.dataset is not None
+        and snapshot.object_id is not None
+    ):
+        return snapshot.object_id, snapshot.dataset
+
     dataset = await datasets_collection.find_one({"_id": object_id})
 
     if not dataset:
         raise NotFoundError(DATASET_NOT_FOUND_MESSAGE)
 
+    if snapshot is not None and snapshot.dataset_id == dataset_id:
+        snapshot.object_id = object_id
+        snapshot.dataset = dataset
+        snapshot.images_by_id = {image["id"]: image for image in dataset["images"]}
+
     return object_id, dataset
 
 
 def _get_image_metadata(dataset: dict, image_id: str) -> dict:
-    image_metadata = next(
-        (image for image in dataset["images"] if image["id"] == image_id),
-        None,
-    )
+    snapshot = _ACTIVE_DATASET_READ_SNAPSHOT.get()
+    if (
+        snapshot is not None
+        and snapshot.dataset is dataset
+        and snapshot.images_by_id is not None
+    ):
+        image_metadata = snapshot.images_by_id.get(image_id)
+    else:
+        image_metadata = next(
+            (image for image in dataset["images"] if image["id"] == image_id),
+            None,
+        )
 
     if not image_metadata:
         raise NotFoundError(IMAGE_NOT_FOUND_MESSAGE)

@@ -24,7 +24,11 @@ from schemas.detection_evaluation import (
     DetectionEvaluationResponse,
     DetectionEvaluationSummary,
 )
-from services.dataset_service import get_dataset, get_image_from_dataset
+from services.dataset_service import (
+    dataset_read_snapshot,
+    get_dataset,
+    get_image_from_dataset,
+)
 from services.detection_annotation_snapshot import (
     read_detection_annotation_snapshot,
 )
@@ -97,14 +101,15 @@ async def evaluate_detection_dataset(
     )
     completed = False
     try:
-        response = await _evaluate_detection_dataset(
-            request,
-            attack=attack,
-            result_id=result_id,
-            execution=execution,
-            progress_callback=progress_callback,
-            cancellation_token=cancellation_token,
-        )
+        with dataset_read_snapshot(request.dataset_id):
+            response = await _evaluate_detection_dataset(
+                request,
+                attack=attack,
+                result_id=result_id,
+                execution=execution,
+                progress_callback=progress_callback,
+                cancellation_token=cancellation_token,
+            )
         completed = True
         return response
     finally:
