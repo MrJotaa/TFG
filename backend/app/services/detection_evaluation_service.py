@@ -36,6 +36,10 @@ from services.detection_evaluation_persistence import (
     new_detection_evaluation_id,
     persist_detection_evaluation,
 )
+from services.detection_model_execution import (
+    run_detection_attack_operation,
+    run_detection_model_operation,
+)
 from services.detection_supervised_evaluation import (
     build_detection_supervised_metrics,
     build_legacy_detection_result,
@@ -146,7 +150,7 @@ async def _evaluate_detection_dataset(
     profile.add("dataset_load", perf_counter() - dataset_started)
 
     setup_started = perf_counter()
-    model = get_active_model_instance()
+    model = await run_detection_model_operation(get_active_model_instance)
 
     require_model_task_type(
         model=model,
@@ -231,8 +235,8 @@ async def _evaluate_detection_dataset(
         stage_started = start_profile_stage(model_device)
         if cancellation_token is not None:
             cancellation_token.raise_if_cancelled()
-        attack_result = await asyncio.to_thread(
-            attack_runner.apply,
+        attack_result = await run_detection_attack_operation(
+            attack_runner,
             model_wrapper=model,
             image=image,
             parameters=attack_parameters_for_image(
@@ -248,7 +252,8 @@ async def _evaluate_detection_dataset(
 
         adversarial_image = attack_result["adversarial_image"]
         stage_started = perf_counter()
-        adversarial_image_url = save_detection_evaluation_adversarial_image(
+        adversarial_image_url = await asyncio.to_thread(
+            save_detection_evaluation_adversarial_image,
             evaluation_id=result_id,
             image_id=image_metadata.id,
             image=adversarial_image,
@@ -258,7 +263,8 @@ async def _evaluate_detection_dataset(
 
         if supervised_context.available:
             stage_started = start_profile_stage(model_device)
-            original_scientific_result = model.detect_for_evaluation(
+            original_scientific_result = await run_detection_model_operation(
+                model.detect_for_evaluation,
                 image,
                 inference_configuration,
             )
@@ -268,7 +274,8 @@ async def _evaluate_detection_dataset(
             )
 
             stage_started = start_profile_stage(model_device)
-            adversarial_scientific_result = model.detect_for_evaluation(
+            adversarial_scientific_result = await run_detection_model_operation(
+                model.detect_for_evaluation,
                 adversarial_image,
                 inference_configuration,
             )
@@ -292,14 +299,20 @@ async def _evaluate_detection_dataset(
             )
         else:
             stage_started = start_profile_stage(model_device)
-            original_detection_result = model.detect(image)
+            original_detection_result = await run_detection_model_operation(
+                model.detect,
+                image,
+            )
             original_inference_seconds = finish_profile_stage(
                 stage_started,
                 model_device,
             )
 
             stage_started = start_profile_stage(model_device)
-            adversarial_detection_result = model.detect(adversarial_image)
+            adversarial_detection_result = await run_detection_model_operation(
+                model.detect,
+                adversarial_image,
+            )
             adversarial_inference_seconds = finish_profile_stage(
                 stage_started,
                 model_device,
@@ -444,7 +457,8 @@ async def _evaluate_detection_dataset(
     profile.add("summary_metrics", perf_counter() - summary_started)
 
     supervised_metrics_started = perf_counter()
-    supervised = build_detection_supervised_metrics(
+    supervised = await asyncio.to_thread(
+        build_detection_supervised_metrics,
         context=supervised_context,
         original_results_by_image_id=original_supervised_results,
         adversarial_results_by_image_id=adversarial_supervised_results,

@@ -150,6 +150,7 @@ class BaseAdversarialAttack(ABC):
     revision: str | None = None
     supported_task_types: tuple[str, ...] = ()
     parameter_specs: tuple[AttackParameterSpec, ...] = ()
+    requires_exclusive_model_execution = False
 
     def supports_task_type(self, task_type: str) -> bool:
         return task_type in self.supported_task_types

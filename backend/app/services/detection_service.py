@@ -1,5 +1,3 @@
-import asyncio
-
 from core.cancellation import CancellationToken
 from core.task_compatibility import (
     DETECTION_TASK_TYPE,
@@ -11,6 +9,7 @@ from schemas.detection import (
     to_detection_predictions,
 )
 from services.dataset_service import get_image_from_dataset
+from services.detection_model_execution import run_detection_model_operation
 from services.model_service import get_active_model_instance
 from utils.result_files import (
     create_result_directory,
@@ -29,7 +28,7 @@ async def detect_objects(
         image_id=request.image_id,
     )
 
-    model = get_active_model_instance()
+    model = await run_detection_model_operation(get_active_model_instance)
 
     require_model_task_type(
         model=model,
@@ -39,7 +38,7 @@ async def detect_objects(
 
     if cancellation_token is not None:
         cancellation_token.raise_if_cancelled()
-    detection_result, annotated_image = await asyncio.to_thread(
+    detection_result, annotated_image = await run_detection_model_operation(
         model.detect_with_visualization,
         image,
     )
