@@ -17,9 +17,10 @@ from ml.attacks.base import (
 )
 from ml.attacks.presentation import reconstruct_attack_in_source_geometry
 from ml.attacks.registry import (
-    apply_attack_runner_for_evaluation,
+    apply_attack_runner_batch_for_evaluation,
     create_attack_runner,
     get_attack,
+    get_attack_runner_evaluation_batch_size,
     resolve_attack_parameters,
 )
 from ml.metrics.classification import (
@@ -122,6 +123,127 @@ async def evaluate_dataset(
     finally:
         if execution is not None and not completed:
             await abort_evaluation_execution(execution)
+
+
+async def _iter_attacked_evaluation_images(
+    *,
+    dataset,
+    request: EvaluationRequest,
+    model,
+    attack_runner,
+    model_device: str,
+    profile_totals: dict[str, float],
+    cancellation_token: CancellationToken | None,
+):
+    """Prepare inputs and execute compatible attacks in bounded micro-batches."""
+    model_attack_batch_size = getattr(
+        model,
+        "evaluation_attack_micro_batch_size",
+        1,
+    )
+    if isinstance(model_attack_batch_size, bool) or not isinstance(
+        model_attack_batch_size,
+        int,
+    ):
+        raise TypeError("evaluation_attack_micro_batch_size must be an integer")
+    if model_attack_batch_size < 1:
+        raise ValueError("evaluation_attack_micro_batch_size must be positive")
+
+    attack_batch_size = min(
+        model_attack_batch_size,
+        get_attack_runner_evaluation_batch_size(attack_runner),
+    )
+
+    for batch_start in range(0, len(dataset.images), attack_batch_size):
+        batch_metadata = dataset.images[
+            batch_start : batch_start + attack_batch_size
+        ]
+        prepared_batch = []
+
+        for batch_offset, image_metadata in enumerate(batch_metadata):
+            if cancellation_token is not None:
+                cancellation_token.raise_if_cancelled()
+
+            image_index = batch_start + batch_offset + 1
+            image_id = image_metadata.id
+            filename = image_metadata.filename
+
+            stage_started = perf_counter()
+            image = await get_image_from_dataset(
+                dataset_id=request.dataset_id,
+                image_id=image_id,
+            )
+            load_image_seconds = perf_counter() - stage_started
+            profile_totals["load_image"] += load_image_seconds
+
+            image_width, image_height = image.size
+
+            stage_started = start_profile_stage(model_device)
+            clean_model_input = model.prepare_attack_input(image).detach()
+            original_prediction = model.predict_detailed_from_prepared_input(
+                prepared_input=clean_model_input,
+                top_k=5,
+            )
+            original_prediction_seconds = finish_profile_stage(
+                stage_started,
+                model_device,
+            )
+            profile_totals["original_prediction"] += original_prediction_seconds
+
+            prepared_batch.append(
+                {
+                    "image_index": image_index,
+                    "image_metadata": image_metadata,
+                    "image_id": image_id,
+                    "filename": filename,
+                    "image": image,
+                    "image_width": image_width,
+                    "image_height": image_height,
+                    "load_image_seconds": load_image_seconds,
+                    "clean_model_input": clean_model_input,
+                    "original_prediction": original_prediction,
+                    "original_prediction_seconds": original_prediction_seconds,
+                    "parameters": attack_parameters_for_image(
+                        attack_type=request.attack_type,
+                        parameters=request.parameters,
+                        image_id=image_id,
+                    ),
+                }
+            )
+
+        stage_started = start_profile_stage(model_device)
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+        attack_results = await asyncio.to_thread(
+            apply_attack_runner_batch_for_evaluation,
+            attack_runner,
+            model_wrapper=model,
+            images=tuple(item["image"] for item in prepared_batch),
+            prepared_inputs=tuple(
+                item["clean_model_input"] for item in prepared_batch
+            ),
+            parameters=tuple(item["parameters"] for item in prepared_batch),
+            original_class_indices=tuple(
+                item["original_prediction"].class_index
+                for item in prepared_batch
+            ),
+        )
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+        attack_batch_seconds = finish_profile_stage(
+            stage_started,
+            model_device,
+        )
+        profile_totals["attack"] += attack_batch_seconds
+        attack_seconds_per_image = attack_batch_seconds / len(prepared_batch)
+
+        for prepared_item, attack_result in zip(prepared_batch, attack_results):
+            yield {
+                **prepared_item,
+                "attack_result": attack_result,
+                "attack_seconds": attack_seconds_per_image,
+                "attack_batch_size": len(prepared_batch),
+            }
 
 
 async def _evaluate_dataset(
@@ -242,57 +364,29 @@ async def _evaluate_dataset(
         total=progress_total,
     )
 
-    for image_index, image_metadata in enumerate(dataset.images, start=1):
-        image_started = perf_counter()
-
-        image_id = image_metadata.id
-        filename = image_metadata.filename
-
-        stage_started = perf_counter()
-        image = await get_image_from_dataset(
-            dataset_id=request.dataset_id,
-            image_id=image_id,
-        )
-        load_image_seconds = perf_counter() - stage_started
-        profile_totals["load_image"] += load_image_seconds
-
-        image_width, image_height = image.size
-
-        stage_started = start_profile_stage(model_device)
-        clean_model_input = model.prepare_attack_input(image).detach()
-        original_prediction = model.predict_detailed_from_prepared_input(
-            prepared_input=clean_model_input,
-            top_k=5,
-        )
-        original_prediction_seconds = finish_profile_stage(
-            stage_started,
-            model_device,
-        )
-        profile_totals["original_prediction"] += original_prediction_seconds
-
-        stage_started = start_profile_stage(model_device)
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
-        attack_result = await asyncio.to_thread(
-            apply_attack_runner_for_evaluation,
-            attack_runner,
-            model_wrapper=model,
-            image=image,
-            prepared_input=clean_model_input,
-            parameters=attack_parameters_for_image(
-                attack_type=request.attack_type,
-                parameters=request.parameters,
-                image_id=image_id,
-            ),
-            original_class_index=original_prediction.class_index,
-        )
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
-        attack_seconds = finish_profile_stage(
-            stage_started,
-            model_device,
-        )
-        profile_totals["attack"] += attack_seconds
+    async for prepared_item in _iter_attacked_evaluation_images(
+        dataset=dataset,
+        request=request,
+        model=model,
+        attack_runner=attack_runner,
+        model_device=model_device,
+        profile_totals=profile_totals,
+        cancellation_token=cancellation_token,
+    ):
+        image_index = prepared_item["image_index"]
+        image_metadata = prepared_item["image_metadata"]
+        image_id = prepared_item["image_id"]
+        filename = prepared_item["filename"]
+        image = prepared_item["image"]
+        image_width = prepared_item["image_width"]
+        image_height = prepared_item["image_height"]
+        load_image_seconds = prepared_item["load_image_seconds"]
+        clean_model_input = prepared_item["clean_model_input"]
+        original_prediction = prepared_item["original_prediction"]
+        original_prediction_seconds = prepared_item["original_prediction_seconds"]
+        attack_result = prepared_item["attack_result"]
+        attack_seconds = prepared_item["attack_seconds"]
+        attack_batch_size = prepared_item["attack_batch_size"]
 
         structured_attack_result = isinstance(
             attack_result,
@@ -484,7 +578,13 @@ async def _evaluate_dataset(
             )
         )
 
-        image_total_seconds = perf_counter() - image_started
+        image_total_seconds = (
+            load_image_seconds
+            + original_prediction_seconds
+            + attack_seconds
+            + adversarial_prediction_seconds
+            + save_images_seconds
+        )
 
         logger.debug(
             (
@@ -493,7 +593,7 @@ async def _evaluate_dataset(
                 "source_size=%sx%s attack_size=%sx%s "
                 "load_image=%.4fs "
                 "original_prediction=%.4fs "
-                "attack=%.4fs "
+                "attack=%.4fs attack_batch_size=%s "
                 "adversarial_prediction=%.4fs "
                 "save_images=%.4fs total=%.4fs"
             ),
@@ -506,6 +606,7 @@ async def _evaluate_dataset(
             load_image_seconds,
             original_prediction_seconds,
             attack_seconds,
+            attack_batch_size,
             adversarial_prediction_seconds,
             save_images_seconds,
             image_total_seconds,

@@ -151,6 +151,7 @@ class BaseAdversarialAttack(ABC):
     supported_task_types: tuple[str, ...] = ()
     parameter_specs: tuple[AttackParameterSpec, ...] = ()
     requires_exclusive_model_execution = False
+    evaluation_micro_batch_size = 1
 
     def supports_task_type(self, task_type: str) -> bool:
         return task_type in self.supported_task_types
@@ -200,6 +201,46 @@ class BaseAdversarialAttack(ABC):
             image=image,
             parameters=parameters,
             original_class_index=original_class_index,
+        )
+
+    def apply_many_for_evaluation(
+        self,
+        model_wrapper,
+        images,
+        prepared_inputs,
+        parameters,
+        original_class_indices,
+    ):
+        """Optional micro-batch path for dataset evaluations.
+
+        The default preserves compatibility and semantics by delegating each
+        sample to ``apply_for_evaluation`` independently. Concrete attacks may
+        override this when their mathematics are batch-separable.
+        """
+        if not (
+            len(images)
+            == len(prepared_inputs)
+            == len(parameters)
+            == len(original_class_indices)
+        ):
+            raise ValueError(
+                "Evaluation attack batch inputs must have matching lengths"
+            )
+
+        return tuple(
+            self.apply_for_evaluation(
+                model_wrapper=model_wrapper,
+                image=image,
+                prepared_input=prepared_input,
+                parameters=sample_parameters,
+                original_class_index=original_class_index,
+            )
+            for image, prepared_input, sample_parameters, original_class_index in zip(
+                images,
+                prepared_inputs,
+                parameters,
+                original_class_indices,
+            )
         )
 
     def catalog_entry(self) -> dict[str, Any]:

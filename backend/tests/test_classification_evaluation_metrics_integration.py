@@ -6,7 +6,10 @@ import torch
 from PIL import Image
 
 import services.evaluation_service as evaluation_service
-from ml.attacks.base import AdversarialAttackResult
+from ml.attacks.base import (
+    AdversarialAttackResult,
+    AdversarialEvaluationResult,
+)
 from ml.models.classification import (
     ClassificationClassScore,
     DetailedClassificationPrediction,
@@ -26,6 +29,7 @@ class FakeClassificationModel:
     id = "test-classifier"
     name = "Test classifier"
     task_type = "classification"
+    evaluation_attack_micro_batch_size = 4
 
     def __init__(
         self,
@@ -156,6 +160,56 @@ class FastPathClassificationAttack(FakeClassificationAttack):
         )
 
 
+class BatchFastPathClassificationAttack:
+    id = "fgsm"
+    supported_task_types = ["classification"]
+    evaluation_micro_batch_size = 2
+
+    def __init__(self):
+        self.batch_sizes: list[int] = []
+        self.original_class_index_batches: list[tuple[int | None, ...]] = []
+
+    def supports_task_type(self, task_type: str) -> bool:
+        return task_type in self.supported_task_types
+
+    def apply(self, **kwargs):
+        raise AssertionError("Evaluation should use the micro-batch fast path")
+
+    def apply_for_evaluation(self, **kwargs):
+        raise AssertionError("Evaluation should use apply_many_for_evaluation")
+
+    def apply_many_for_evaluation(
+        self,
+        model_wrapper,
+        images,
+        prepared_inputs,
+        parameters,
+        original_class_indices,
+    ):
+        assert model_wrapper.task_type == "classification"
+        assert all(
+            sample_parameters.epsilon == pytest.approx(0.03)
+            for sample_parameters in parameters
+        )
+        self.batch_sizes.append(len(images))
+        self.original_class_index_batches.append(tuple(original_class_indices))
+
+        results = []
+        for prepared_input in prepared_inputs:
+            adversarial_model_input = prepared_input.detach().clone()
+            model_space_delta = torch.zeros_like(adversarial_model_input)
+            results.append(
+                AdversarialEvaluationResult(
+                    clean_model_input=prepared_input.detach().clone(),
+                    adversarial_model_input=adversarial_model_input,
+                    model_space_delta=model_space_delta,
+                    perturbation_linf=0.0,
+                    perturbation_l2=0.0,
+                )
+            )
+        return tuple(results)
+
+
 class FakeLegacyClassificationAttack:
     id = "random_noise"
     supported_task_types = ["classification"]
@@ -255,17 +309,25 @@ async def _run_evaluation(
     attack_override=None,
     attack_type: AttackType = AttackType.PGD,
     progress_callback=None,
+    model_attack_micro_batch_size: int = 4,
 ):
-    flattened_predictions = [
-        prediction for pair in prediction_pairs for prediction in pair
-    ]
-
-    model = FakeClassificationModel(flattened_predictions)
-
     if perturbations is None:
         perturbations = [(0.03, 1.0) for _ in dataset.images]
 
     attack = attack_override or FakeClassificationAttack(perturbations)
+    attack_batch_size = min(
+        model_attack_micro_batch_size,
+        getattr(attack, "evaluation_micro_batch_size", 1),
+    )
+
+    flattened_predictions = []
+    for batch_start in range(0, len(prediction_pairs), attack_batch_size):
+        batch_pairs = prediction_pairs[batch_start : batch_start + attack_batch_size]
+        flattened_predictions.extend(pair[0] for pair in batch_pairs)
+        flattened_predictions.extend(pair[1] for pair in batch_pairs)
+
+    model = FakeClassificationModel(flattened_predictions)
+    model.evaluation_attack_micro_batch_size = model_attack_micro_batch_size
     saved_metadata: dict = {}
     saved_images: dict[str, Image.Image] = {}
     saved_scientific_inputs: dict[str, dict] = {}
@@ -415,6 +477,79 @@ async def test_evaluation_reuses_clean_prepared_input_for_fast_path(monkeypatch)
 
     assert prepared_for_evaluation is prepared_for_prediction
     assert prepared_for_evaluation.data_ptr() == prepared_from_image.data_ptr()
+
+
+@pytest.mark.asyncio
+async def test_evaluation_uses_attack_micro_batches_and_preserves_result_order(
+    monkeypatch,
+):
+    dataset = _dataset([None, None, None])
+    attack = BatchFastPathClassificationAttack()
+    prediction_pairs = [
+        (
+            _prediction((0.8, 0.1, 0.1)),
+            _prediction((0.7, 0.2, 0.1)),
+        ),
+        (
+            _prediction((0.1, 0.8, 0.1)),
+            _prediction((0.2, 0.7, 0.1)),
+        ),
+        (
+            _prediction((0.1, 0.2, 0.7)),
+            _prediction((0.2, 0.2, 0.6)),
+        ),
+    ]
+
+    response, _, _ = await _run_evaluation(
+        monkeypatch,
+        dataset=dataset,
+        prediction_pairs=prediction_pairs,
+        attack_override=attack,
+        attack_type=AttackType.FGSM,
+    )
+
+    assert attack.batch_sizes == [2, 1]
+    assert attack.original_class_index_batches == [(0, 1), (2,)]
+    assert [result.image_id for result in response.results] == [
+        "image-1",
+        "image-2",
+        "image-3",
+    ]
+    assert [result.original_label for result in response.results] == [
+        "cat",
+        "dog",
+        "car",
+    ]
+
+
+
+@pytest.mark.asyncio
+async def test_evaluation_keeps_single_sample_attacks_for_models_without_batch_opt_in(
+    monkeypatch,
+):
+    dataset = _dataset([None, None])
+    attack = BatchFastPathClassificationAttack()
+
+    await _run_evaluation(
+        monkeypatch,
+        dataset=dataset,
+        prediction_pairs=[
+            (
+                _prediction((0.8, 0.1, 0.1)),
+                _prediction((0.7, 0.2, 0.1)),
+            ),
+            (
+                _prediction((0.1, 0.8, 0.1)),
+                _prediction((0.2, 0.7, 0.1)),
+            ),
+        ],
+        attack_override=attack,
+        attack_type=AttackType.FGSM,
+        model_attack_micro_batch_size=1,
+    )
+
+    assert attack.batch_sizes == [1, 1]
+
 
 
 @pytest.mark.parametrize("attack_type", [AttackType.FGSM, AttackType.PGD])

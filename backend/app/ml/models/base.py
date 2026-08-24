@@ -52,6 +52,7 @@ class BaseImageClassificationModel(BaseModel):
     """
 
     task_type = "classification"
+    evaluation_attack_micro_batch_size = 1
 
     @abstractmethod
     def prepare_attack_input(

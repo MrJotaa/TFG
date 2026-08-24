@@ -34,6 +34,16 @@ class TinyGradientModel(torch.nn.Module):
         )
 
 
+class CountingGradientModel(TinyGradientModel):
+    def __init__(self):
+        super().__init__()
+        self.forward_calls = 0
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        self.forward_calls += 1
+        return super().forward(inputs)
+
+
 class UpperBoundaryGradientModel(torch.nn.Module):
     """
     Modelo controlado que produce gradiente positivo para imágenes claras.
@@ -346,3 +356,73 @@ def test_fgsm_evaluation_path_reuses_prepared_input(monkeypatch):
     assert isinstance(result, AdversarialEvaluationResult)
     assert torch.equal(result.clean_model_input, prepared_input)
     assert result.adversarial_model_input.shape == prepared_input.shape
+
+
+def test_fgsm_evaluation_micro_batch_matches_individual_results():
+    attack = FGSMAttack()
+    wrapper = FakeClassificationModelWrapper(TinyGradientModel())
+    images = [
+        _create_test_image(pixel_value=pixel_value)
+        for pixel_value in (64, 96, 128, 192)
+    ]
+    prepared_inputs = [wrapper.prepare_attack_input(image) for image in images]
+    parameters = [_create_parameters(epsilon=0.05) for _ in images]
+    original_class_indices = [0 for _ in images]
+
+    individual_results = tuple(
+        attack.apply_for_evaluation(
+            model_wrapper=wrapper,
+            image=image,
+            prepared_input=prepared_input,
+            parameters=sample_parameters,
+            original_class_index=original_class_index,
+        )
+        for image, prepared_input, sample_parameters, original_class_index in zip(
+            images,
+            prepared_inputs,
+            parameters,
+            original_class_indices,
+        )
+    )
+
+    batch_results = attack.apply_many_for_evaluation(
+        model_wrapper=wrapper,
+        images=images,
+        prepared_inputs=prepared_inputs,
+        parameters=parameters,
+        original_class_indices=original_class_indices,
+    )
+
+    assert attack.evaluation_micro_batch_size == 4
+    assert len(batch_results) == len(individual_results)
+    for individual, batched in zip(individual_results, batch_results):
+        assert torch.allclose(
+            batched.adversarial_model_input,
+            individual.adversarial_model_input,
+            atol=1e-7,
+        )
+        assert torch.allclose(
+            batched.model_space_delta,
+            individual.model_space_delta,
+            atol=1e-7,
+        )
+        assert batched.perturbation_linf == individual.perturbation_linf
+        assert batched.perturbation_l2 == individual.perturbation_l2
+
+
+def test_fgsm_micro_batch_uses_single_model_forward():
+    model = CountingGradientModel()
+    attack = FGSMAttack()
+    wrapper = FakeClassificationModelWrapper(model)
+    images = [_create_test_image(pixel_value=value) for value in (64, 96, 128, 192)]
+    prepared_inputs = [wrapper.prepare_attack_input(image) for image in images]
+
+    attack.apply_many_for_evaluation(
+        model_wrapper=wrapper,
+        images=images,
+        prepared_inputs=prepared_inputs,
+        parameters=[_create_parameters(epsilon=0.03) for _ in images],
+        original_class_indices=[0 for _ in images],
+    )
+
+    assert model.forward_calls == 1

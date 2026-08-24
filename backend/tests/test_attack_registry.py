@@ -8,9 +8,11 @@ from ml.attacks.hop_skip_jump import HopSkipJumpAttack
 from ml.attacks.pgd import PGDAttack
 from ml.attacks.random_noise import RandomNoiseAttack
 from ml.attacks.registry import (
+    apply_attack_runner_batch_for_evaluation,
     apply_attack_runner_for_evaluation,
     create_attack_runner,
     get_attack,
+    get_attack_runner_evaluation_batch_size,
     list_available_attacks,
 )
 from ml.attacks.zoo import ZerothOrderOptimizationAttack
@@ -135,6 +137,47 @@ def test_apply_attack_runner_for_evaluation_keeps_legacy_runner_compatible():
     assert result is expected_result
     assert calls == [("model", "image", "parameters", 3)]
 
+
+
+def test_attack_runner_evaluation_batch_size_defaults_to_one():
+    assert get_attack_runner_evaluation_batch_size(object()) == 1
+
+    class BatchedRunner:
+        evaluation_micro_batch_size = 4
+
+    assert get_attack_runner_evaluation_batch_size(BatchedRunner()) == 4
+
+
+def test_apply_attack_runner_batch_for_evaluation_uses_optional_batch_path():
+    expected_results = (object(), object())
+
+    class BatchedRunner:
+        def apply_many_for_evaluation(
+            self,
+            *,
+            model_wrapper,
+            images,
+            prepared_inputs,
+            parameters,
+            original_class_indices,
+        ):
+            assert model_wrapper == "model"
+            assert images == ("image-1", "image-2")
+            assert prepared_inputs == ("input-1", "input-2")
+            assert parameters == ("params-1", "params-2")
+            assert original_class_indices == (1, 2)
+            return expected_results
+
+    results = apply_attack_runner_batch_for_evaluation(
+        BatchedRunner(),
+        model_wrapper="model",
+        images=("image-1", "image-2"),
+        prepared_inputs=("input-1", "input-2"),
+        parameters=("params-1", "params-2"),
+        original_class_indices=(1, 2),
+    )
+
+    assert results == expected_results
 
 def test_get_unknown_attack_raises_value_error():
     with pytest.raises(ValueError, match="not supported"):

@@ -12,6 +12,7 @@ class SwinV2TinyModel(TorchvisionImageClassificationModel):
     name = "Swin Transformer V2 Tiny pretrained"
     revision = "torchvision-swin-v2-t-imagenet1k-v1"
     task_type = "classification"
+    evaluation_attack_micro_batch_size = 2
 
     # The official weights use a 256x256 crop after resizing to 260. The
     # application keeps a direct resize to model geometry so adversarial
