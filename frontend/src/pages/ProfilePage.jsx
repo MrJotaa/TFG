@@ -139,7 +139,7 @@ function ProfilePage() {
         const dataset = datasets.find((candidate) => candidate.id === item.dataset_id)
         if (!dataset) {
             setHistoryError(
-                'El dataset asociado ya no está disponible y el resultado no puede reabrirse.',
+                'El conjunto de datos asociado ya no está disponible y el resultado no puede reabrirse.',
             )
             return
         }
@@ -163,7 +163,7 @@ function ProfilePage() {
             return
         }
         const confirmed = window.confirm(
-            '¿Seguro que quieres eliminar tu cuenta? También se eliminarán tus datasets y resultados. Esta acción no se puede deshacer.',
+            '¿Seguro que quieres eliminar tu cuenta? También se eliminarán tus conjuntos de datos y resultados. Esta acción no se puede deshacer.',
         )
         if (!confirmed) return
         try {
@@ -201,14 +201,14 @@ function ProfilePage() {
             <div className="page-toolbar">
                 <div>
                     <h2>Configuración de usuario</h2>
-                    <p>Gestiona tu cuenta, datasets y resultados temporales.</p>
+                    <p>Gestiona tu cuenta, conjuntos de datos y resultados temporales.</p>
                 </div>
                 <button
                     type="button"
                     className="secondary-action"
                     onClick={() => navigate('/dashboard')}
                 >
-                    Volver al dashboard
+                    Volver al panel principal
                 </button>
             </div>
 
@@ -257,7 +257,7 @@ function ProfilePage() {
                 <section className="management-card profile-summary-card">
                     <div className="profile-card-heading">
                         <div>
-                            <h3>Datasets</h3>
+                            <h3>Conjuntos de datos</h3>
                             <p><strong>{datasets.length}</strong> disponibles</p>
                         </div>
                         <button
@@ -269,7 +269,7 @@ function ProfilePage() {
                         </button>
                     </div>
                     {datasets.length === 0 ? (
-                        <p>No tienes datasets creados.</p>
+                        <p>No tienes conjuntos de datos creados.</p>
                     ) : (
                         <div className="profile-dataset-list compact">
                             {datasets.slice(0, 5).map((dataset) => (
@@ -425,7 +425,7 @@ function ProfilePage() {
                 <section className="management-card danger-zone profile-danger-row">
                     <div>
                         <h3>Zona peligrosa</h3>
-                        <p>Eliminar la cuenta borrará datasets, evaluaciones y artefactos asociados.</p>
+                        <p>Eliminar la cuenta borrará conjuntos de datos, evaluaciones y artefactos asociados.</p>
                     </div>
                     <label>
                         Confirma tu contraseña

@@ -35,12 +35,12 @@ UPLOADS_DATASETS_PATH = os.getenv(
     "uploads/datasets",
 )
 
-INVALID_DATASET_ID_MESSAGE = "Invalid dataset id"
-INVALID_USER_ID_MESSAGE = "Invalid user id"
-DATASET_NOT_FOUND_MESSAGE = "Dataset not found"
-USER_NOT_FOUND_MESSAGE = "User not found"
-IMAGE_NOT_FOUND_MESSAGE = "Image not found"
-IMAGE_FILE_NOT_FOUND_MESSAGE = "Image file not found"
+INVALID_DATASET_ID_MESSAGE = "Identificador de conjunto de datos no válido"
+INVALID_USER_ID_MESSAGE = "Identificador de usuario no válido"
+DATASET_NOT_FOUND_MESSAGE = "Conjunto de datos no encontrado"
+USER_NOT_FOUND_MESSAGE = "Usuario no encontrado"
+IMAGE_NOT_FOUND_MESSAGE = "Imagen no encontrada"
+IMAGE_FILE_NOT_FOUND_MESSAGE = "Archivo de imagen no encontrado"
 
 
 @dataclass(slots=True)
@@ -168,10 +168,10 @@ def _read_authoritative_image_dimensions(image_path: str) -> tuple[int, int]:
         with Image.open(image_path) as image:
             width, height = image.size
     except (OSError, ValueError) as error:
-        raise BadRequestError("Uploaded file is not a valid image") from error
+        raise BadRequestError("El archivo subido no es una imagen válida") from error
 
     if width <= 0 or height <= 0:
-        raise BadRequestError("Uploaded image dimensions are invalid")
+        raise BadRequestError("Las dimensiones de la imagen subida no son válidas")
 
     return width, height
 
@@ -188,11 +188,11 @@ async def create_dataset_from_images(
         raise NotFoundError(USER_NOT_FOUND_MESSAGE)
 
     if not files:
-        raise BadRequestError("Dataset must contain at least one image")
+        raise BadRequestError("El conjunto de datos debe contener al menos una imagen")
 
     for file in files:
         if not is_valid_image_file(file.filename):
-            raise BadRequestError(f"Invalid image file: {file.filename}")
+            raise BadRequestError(f"Archivo de imagen no válido: {file.filename}")
 
     dataset_id = ObjectId()
     dataset_path = os.path.join(
@@ -303,7 +303,7 @@ async def add_images_to_dataset(
     object_id, dataset = await _get_dataset_document(dataset_id)
 
     if not files:
-        raise BadRequestError("At least one image must be provided")
+        raise BadRequestError("Debes proporcionar al menos una imagen")
 
     images_metadata = []
 
@@ -311,7 +311,7 @@ async def add_images_to_dataset(
     try:
         for file in files:
             if not is_valid_image_file(file.filename):
-                raise BadRequestError(f"Invalid image file: {file.filename}")
+                raise BadRequestError(f"Archivo de imagen no válido: {file.filename}")
 
             image_id = str(uuid.uuid4())
             extension = os.path.splitext(file.filename)[1].lower()

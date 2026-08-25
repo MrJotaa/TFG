@@ -45,7 +45,7 @@ function EvaluationView() {
             <header className="evaluation-page-hero compact">
                 <div className="evaluation-page-heading">
                     <span className="evaluation-eyebrow">
-                        {isDetection ? 'Object detection' : 'Image classification'}
+                        {isDetection ? 'Detección de objetos' : 'Clasificación de imágenes'}
                     </span>
                     <h2>
                         {isDetection
@@ -54,8 +54,8 @@ function EvaluationView() {
                     </h2>
                     <p>
                         {isDetection
-                            ? 'Compara el comportamiento original y adversarial del detector.'
-                            : 'Compara el rendimiento original y adversarial del modelo.'}
+                            ? 'Compara el comportamiento original y tras el ataque del detector.'
+                            : 'Compara el rendimiento original y tras el ataque del modelo.'}
                     </p>
                 </div>
 
@@ -81,7 +81,7 @@ function EvaluationView() {
                         className="secondary-action evaluation-back-button"
                         onClick={() => navigate('/dashboard')}
                     >
-                        Volver al dashboard
+                        Volver al panel principal
                     </button>
                 </div>
             </header>
@@ -93,7 +93,7 @@ function EvaluationView() {
                     aria-label="Contexto del experimento"
                 >
                     <ContextItem
-                        label="Dataset"
+                        label="Conjunto de datos"
                         value={selectedDataset?.name || 'Sin seleccionar'}
                     />
                     <ContextItem

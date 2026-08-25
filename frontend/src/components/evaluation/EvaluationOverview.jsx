@@ -210,7 +210,7 @@ function EvaluationOverview({ evaluation }) {
                     <div className="evaluation-section-heading">
                         <div>
                             <span className="evaluation-eyebrow">Comparación global</span>
-                            <h3>Original frente a adversarial</h3>
+                            <h3>Original frente a tras el ataque</h3>
                         </div>
                     </div>
 
@@ -265,7 +265,7 @@ function EvaluationOverview({ evaluation }) {
                     tone="neutral"
                 />
                 <MetricCard
-                    label="F1 macro adversarial"
+                    label="F1 macro tras el ataque"
                     value={aggregate ? formatRatio(aggregate.adversarial.f1_macro) : '—'}
                     helper="Tras aplicar la perturbación"
                     tone="neutral"
@@ -281,7 +281,7 @@ function EvaluationOverview({ evaluation }) {
                     value={formatAvailableMetric(
                         robustness.average_true_class_probability_drop,
                     )}
-                    helper="Promedio original menos adversarial"
+                    helper="Promedio original menos tras el ataque"
                     tone="neutral"
                 />
                 <MetricCard
@@ -300,7 +300,7 @@ function EvaluationOverview({ evaluation }) {
 
             <section className="evaluation-surface evaluation-coverage-card">
                 <div>
-                    <span className="evaluation-eyebrow">Calidad del dataset</span>
+                    <span className="evaluation-eyebrow">Calidad del conjunto de datos</span>
                     <h3>Cobertura de etiquetas</h3>
                     <p>
                         {formatInteger(labelResolution.resolved_labels)} de{' '}

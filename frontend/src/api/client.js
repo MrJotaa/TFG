@@ -33,14 +33,14 @@ export function resolveApiUrl(path) {
 
 export async function apiErrorFromResponse(response) {
     const error = await response.json().catch(() => ({
-        detail: 'Unexpected API error',
+        detail: 'Error inesperado de la API',
     }))
 
     const detail = error.detail
     const message =
         typeof detail === 'string'
             ? detail
-            : detail?.message || 'Unexpected API error'
+            : detail?.message || 'Error inesperado de la API'
     const requestError = new Error(message)
     requestError.status = response.status
     requestError.details =

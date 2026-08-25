@@ -87,8 +87,8 @@ def _metric_difference(
         or adversarial.value is None
     ):
         return _unavailable_metric(
-            "Delta is unavailable because the metric is "
-            "undefined for original or adversarial predictions"
+            "La diferencia no está disponible porque la métrica "
+            "no está definida para las predicciones originales o tras el ataque"
         )
 
     return _available_metric(original.value - adversarial.value)
@@ -280,13 +280,14 @@ def _build_per_class_snapshot(
     warning = None
 
     if support < 2:
-        warning = "Class support is lower than 2 samples"
+        warning = "El soporte de la clase es inferior a 2 muestras"
 
     if predicted_count == 0:
         precision_metric = MetricValue(
             available=False,
             reason=(
-                "Precision is undefined because no samples were predicted as this class"
+                "La precisión no está definida porque ninguna muestra fue "
+                "predicha como esta clase"
             ),
             warning=warning,
         )
@@ -529,7 +530,7 @@ def calculate_advanced_classification_metrics(
         average_margin_drop = _available_metric(_average(margin_drops))
     else:
         average_margin_drop = _unavailable_metric(
-            "Prediction margin requires at least two model classes"
+            "El margen de predicción requiere al menos dos clases del modelo"
         )
 
     supervised = None
@@ -558,8 +559,8 @@ def calculate_advanced_classification_metrics(
             conditional_asr = _available_metric(correct_to_incorrect / correct_original)
         else:
             conditional_asr = _unavailable_metric(
-                "Conditional attack success rate requires "
-                "at least one correct original prediction"
+                "La tasa de éxito condicional del ataque requiere "
+                "al menos una predicción original correcta"
             )
 
         if incorrect_original:
@@ -568,8 +569,8 @@ def calculate_advanced_classification_metrics(
             )
         else:
             corrected_by_attack_rate = _unavailable_metric(
-                "Corrected-by-attack rate requires at "
-                "least one incorrect original prediction"
+                "La tasa de corrección tras el ataque requiere "
+                "al menos una predicción original incorrecta"
             )
 
         true_class_probability_drops = [
@@ -675,9 +676,8 @@ def calculate_advanced_classification_metrics(
 
         if label_resolution.unresolved_labels:
             warning = (
-                f"{label_resolution.unresolved_labels} "
-                "labeled images were excluded because "
-                "their labels could not be resolved"
+                "Imágenes etiquetadas excluidas por etiquetas no resueltas: "
+                f"{label_resolution.unresolved_labels}"
             )
 
         supervised_status = AvailabilityStatus(
@@ -686,9 +686,12 @@ def calculate_advanced_classification_metrics(
         )
     else:
         no_labels_reason = (
-            "Dataset has no labeled images"
+            "El conjunto de datos no contiene imágenes etiquetadas"
             if not label_resolution.labeled_images
-            else ("No dataset labels match the active model classes")
+            else (
+                "Ninguna etiqueta del conjunto de datos coincide con las "
+                "clases del modelo activo"
+            )
         )
 
         clean_accuracy = _unavailable_metric(no_labels_reason)

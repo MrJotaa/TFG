@@ -22,9 +22,9 @@ class FGSMAttack(BaseAdversarialAttack):
     parameter_specs = (
         AttackParameterSpec(
             key="epsilon",
-            label="Epsilon",
+            label="Épsilon (ε)",
             summary_label="ε",
-            description="Presupuesto máximo de perturbación L-infinito",
+            description="Presupuesto máximo de perturbación L∞",
             value_type="float",
             default=0.03,
             control="range",

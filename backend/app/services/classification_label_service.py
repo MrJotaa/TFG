@@ -223,7 +223,7 @@ class ClassificationLabelResolver:
             return ClassificationLabelMatch(
                 provided_label=provided_label,
                 normalized_label=normalized_label,
-                reason="Label is empty",
+                reason="La etiqueta está vacía",
             )
 
         candidate_indices = sorted(
@@ -245,14 +245,14 @@ class ClassificationLabelResolver:
             return ClassificationLabelMatch(
                 provided_label=provided_label,
                 normalized_label=normalized_label,
-                reason=("Label does not match any model class"),
+                reason=("La etiqueta no coincide con ninguna clase del modelo"),
             )
 
         if len(candidate_indices) > 1:
             return ClassificationLabelMatch(
                 provided_label=provided_label,
                 normalized_label=normalized_label,
-                reason=("Label matches multiple model classes"),
+                reason=("La etiqueta coincide con varias clases del modelo"),
                 candidate_classes=candidate_classes,
             )
 
@@ -349,7 +349,10 @@ def resolve_dataset_labels(
                 image_id=image.id,
                 filename=image.filename,
                 provided_label=provided_label,
-                reason=(match.reason or "Label could not be resolved"),
+                reason=(
+                    match.reason
+                    or "No se pudo asociar la etiqueta con una clase del modelo"
+                ),
                 candidate_classes=list(match.candidate_classes),
             )
         )

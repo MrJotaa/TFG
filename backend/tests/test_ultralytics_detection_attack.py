@@ -72,7 +72,7 @@ def _build_model(
     model = UltralyticsDetectionModel(
         UltralyticsDetectionModelConfig(
             id="yolo26n",
-            name="YOLO26n pretrained",
+            name="YOLO26n · preentrenado en COCO",
             revision="ultralytics-yolo26n-coco-8.4.121",
             weights="yolo26n.pt",
             image_size=image_size,

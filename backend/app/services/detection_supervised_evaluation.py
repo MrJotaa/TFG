@@ -231,17 +231,17 @@ def prepare_detection_supervised_evaluation(
     warnings = []
     if status_counts["unreviewed"]:
         warnings.append(
-            f"{status_counts['unreviewed']} unreviewed images were excluded"
+            f"Imágenes sin revisar excluidas: {status_counts['unreviewed']}"
         )
     unresolved_total = (
         unresolved_categories + ambiguous_categories + conflicting_categories
     )
     if unresolved_total:
-        warnings.append(f"{unresolved_total} unresolved categories were excluded")
+        warnings.append(f"Categorías sin resolver excluidas: {unresolved_total}")
     if objects_excluded_by_resolution:
         warnings.append(
-            f"{objects_excluded_by_resolution} objects were excluded by "
-            "category resolution"
+            f"Objetos excluidos por resolución de categorías: "
+            f"{objects_excluded_by_resolution}"
         )
     warning = "; ".join(warnings) if warnings else None
 

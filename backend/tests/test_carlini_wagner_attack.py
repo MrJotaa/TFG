@@ -92,7 +92,7 @@ def test_carlini_wagner_linf_drops_l2_only_search_parameter():
 def test_carlini_wagner_parameter_contract_rejects_unknown_norm():
     attack = CarliniWagnerAttack()
 
-    with pytest.raises(ValueError, match="must be one of"):
+    with pytest.raises(ValueError, match="debe ser uno de"):
         attack.resolve_parameters(AttackParameters(norm="l1"))
 
 

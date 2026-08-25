@@ -597,9 +597,9 @@ def test_available_supervised_metrics_include_partial_coverage_and_deltas():
         metrics.configuration.interactive_output_confidence_comparison
         == "strictly_greater_than"
     )
-    assert "unreviewed images were excluded" in metrics.warning
-    assert "unresolved categories were excluded" in metrics.warning
-    assert "objects were excluded by category resolution" in metrics.warning
+    assert "Imágenes sin revisar excluidas" in metrics.warning
+    assert "Categorías sin resolver excluidas" in metrics.warning
+    assert "Objetos excluidos por resolución de categorías" in metrics.warning
     coverage = metrics.annotation_coverage
     assert coverage.total_images == 3
     assert coverage.reviewed_images == 2

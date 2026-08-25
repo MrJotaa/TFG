@@ -95,7 +95,7 @@ def _resolution(
                 "image_id": f"unresolved-{index}",
                 "filename": f"image-{index}.png",
                 "provided_label": "unknown",
-                "reason": ("Label does not match any model class"),
+                "reason": ("La etiqueta no coincide con ninguna clase del modelo"),
             }
             for index in range(labeled_images - resolved_labels)
         ],

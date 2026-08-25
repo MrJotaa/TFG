@@ -28,7 +28,7 @@ function DetectionOverview({ evaluation }) {
                             tone="original"
                         />
                         <MetricCard
-                            label="mAP adversarial"
+                            label="mAP tras el ataque"
                             value={formatRatio(supervised.adversarial.aggregate.map_50_95)}
                             helper="Rendimiento después del ataque"
                             tone="adversarial"
@@ -38,7 +38,7 @@ function DetectionOverview({ evaluation }) {
                             value={formatSignedPercentagePoints(
                                 supervised.deltas.aggregate.map_50_95.absolute,
                             )}
-                            helper="Original menos adversarial"
+                            helper="Original menos resultado tras el ataque"
                             tone="danger"
                         />
                         <MetricCard
@@ -61,7 +61,7 @@ function DetectionOverview({ evaluation }) {
                             <div className="evaluation-section-heading">
                                 <div>
                                     <span className="evaluation-eyebrow">Transiciones por objeto</span>
-                                    <h3>Ground truth original frente a adversarial</h3>
+                                    <h3>Objetos de referencia antes y después del ataque</h3>
                                 </div>
                             </div>
 
@@ -104,14 +104,14 @@ function DetectionOverview({ evaluation }) {
                                     <small>F1</small>
                                 </div>
                                 <div>
-                                    <span>Adversarial</span>
+                                    <span>Tras el ataque</span>
                                     <strong>{formatRatio(supervised.adversarial.operating_point.f1)}</strong>
                                     <small>F1</small>
                                 </div>
                             </div>
 
                             <p>
-                                Confianza ≥ {formatDecimal(supervised.configuration.confidence_threshold, 2)} · IoU de matching ≥{' '}
+                                Confianza ≥ {formatDecimal(supervised.configuration.confidence_threshold, 2)} · IoU de emparejamiento ≥{' '}
                                 {formatDecimal(supervised.configuration.iou_threshold, 2)}
                             </p>
                         </article>
@@ -124,7 +124,7 @@ function DetectionOverview({ evaluation }) {
                 </div>
             )}
 
-            <section className="evaluation-secondary-grid" aria-label="Métricas descriptivas legacy">
+            <section className="evaluation-secondary-grid" aria-label="Métricas descriptivas históricas">
                 <MetricCard
                     label="Detecciones originales"
                     value={formatInteger(summary.total_original_detections)}
@@ -132,13 +132,13 @@ function DetectionOverview({ evaluation }) {
                     tone="original"
                 />
                 <MetricCard
-                    label="Detecciones adversarias"
+                    label="Detecciones tras el ataque"
                     value={formatInteger(summary.total_adversarial_detections)}
                     helper="No equivale por sí sola a pérdida de calidad"
                     tone="adversarial"
                 />
                 <MetricCard
-                    label="Éxito heurístico (legacy)"
+                    label="Indicador heurístico de éxito"
                     value={formatRatio(summary.attack_success_rate)}
                     helper="Reducción de conteo o confianza media"
                     tone="neutral"
@@ -150,7 +150,7 @@ function DetectionOverview({ evaluation }) {
                     tone="neutral"
                 />
                 <MetricCard
-                    label="Confianza media adversarial"
+                    label="Confianza media tras el ataque"
                     value={formatDecimal(summary.average_adversarial_confidence)}
                     helper="Sobre detecciones publicadas"
                     tone="neutral"

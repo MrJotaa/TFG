@@ -225,5 +225,5 @@ def test_attack_catalog_endpoint_exposes_registered_metadata(client):
     }
     assert catalog["fgsm"]["supported_task_types"] == ["classification"]
     assert catalog["yolo_confidence"]["supported_task_types"] == ["detection"]
-    assert catalog["yolo_confidence"]["name"] == "Detection Confidence"
+    assert catalog["yolo_confidence"]["name"] == "Supresión de confianza"
     assert catalog["pgd"]["parameters"][0]["key"] == "epsilon"

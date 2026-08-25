@@ -7,7 +7,7 @@ from ml.attacks.base import AttackParameterSpec, BaseAdversarialAttack
 
 class DetectionConfidenceAttack(BaseAdversarialAttack):
     id = "yolo_confidence"
-    name = "Detection Confidence"
+    name = "Supresión de confianza"
     description = "Ataque de supresión de confianza para detección"
     knowledge_type = "white_box"
     revision = "detection-confidence-linf-v2"
@@ -16,9 +16,9 @@ class DetectionConfidenceAttack(BaseAdversarialAttack):
     parameter_specs = (
         AttackParameterSpec(
             key="epsilon",
-            label="Epsilon",
+            label="Épsilon (ε)",
             summary_label="ε",
-            description="Presupuesto máximo de perturbación L-infinito",
+            description="Presupuesto máximo de perturbación L∞",
             value_type="float",
             default=0.03,
             control="range",
@@ -28,7 +28,7 @@ class DetectionConfidenceAttack(BaseAdversarialAttack):
         ),
         AttackParameterSpec(
             key="alpha",
-            label="Alpha",
+            label="Alfa (α)",
             summary_label="α",
             description="Tamaño de paso de cada iteración",
             value_type="float",
@@ -40,8 +40,8 @@ class DetectionConfidenceAttack(BaseAdversarialAttack):
         ),
         AttackParameterSpec(
             key="steps",
-            label="Steps",
-            summary_label="steps",
+            label="Iteraciones",
+            summary_label="iter",
             description="Número de iteraciones del ataque",
             value_type="integer",
             default=10,

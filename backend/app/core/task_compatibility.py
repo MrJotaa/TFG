@@ -3,6 +3,15 @@ from core.errors import BadRequestError
 CLASSIFICATION_TASK_TYPE = "classification"
 DETECTION_TASK_TYPE = "detection"
 
+TASK_TYPE_LABELS = {
+    CLASSIFICATION_TASK_TYPE: "clasificación",
+    DETECTION_TASK_TYPE: "detección",
+}
+
+
+def _task_type_label(task_type: str) -> str:
+    return TASK_TYPE_LABELS.get(task_type, task_type)
+
 
 def require_model_task_type(
     model,
@@ -23,8 +32,9 @@ def require_model_task_type(
     actual_task_type = getattr(model, "task_type", None)
 
     if actual_task_type != expected_task_type:
+        task_label = _task_type_label(expected_task_type)
         raise BadRequestError(
-            f"Endpoint '{endpoint}' requires a {expected_task_type} model"
+            f"El endpoint '{endpoint}' requiere un modelo de {task_label}"
         )
 
 
@@ -39,6 +49,7 @@ def require_attack_task_type(
         BadRequestError: si el ataque no es compatible.
     """
     if not attack.supports_task_type(task_type):
+        task_label = _task_type_label(task_type)
         raise BadRequestError(
-            f"Attack '{attack.id}' does not support task type '{task_type}'"
+            f"El ataque '{attack.id}' no es compatible con la tarea de {task_label}"
         )

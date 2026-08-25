@@ -93,7 +93,7 @@ def test_get_user_with_invalid_id_returns_400(client):
     response = client.get("/users/invalid-id")
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Invalid user id"
+    assert response.json()["detail"] == "Identificador de usuario no válido"
 
 
 def test_get_user_with_unknown_id_returns_404(client):
@@ -189,7 +189,7 @@ def test_update_user_with_invalid_id_returns_400(client):
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Invalid user id"
+    assert response.json()["detail"] == "Identificador de usuario no válido"
 
 
 def test_update_unknown_user_returns_404(client):
@@ -221,7 +221,7 @@ def test_delete_user_with_invalid_id_returns_400(client):
     response = client.delete("/users/invalid-id")
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Invalid user id"
+    assert response.json()["detail"] == "Identificador de usuario no válido"
 
 
 def test_delete_unknown_user_returns_404(client):
@@ -247,11 +247,11 @@ def test_get_user_datasets_with_invalid_user_id_returns_400(client):
     response = client.get("/users/invalid-id/datasets")
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Invalid user id"
+    assert response.json()["detail"] == "Identificador de usuario no válido"
 
 
 def test_get_user_datasets_for_unknown_user_returns_404(client):
     response = client.get("/users/507f1f77bcf86cd799439011/datasets")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"
+    assert response.json()["detail"] == "Usuario no encontrado"

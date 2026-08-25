@@ -52,14 +52,14 @@ def test_zoo_parameter_contract_accepts_custom_values():
 @pytest.mark.parametrize(
     ("parameters", "message"),
     [
-        ({"confidence": -0.1}, "greater than or equal"),
-        ({"learning_rate": 0}, "greater than or equal"),
-        ({"max_iter": 0}, "greater than or equal"),
-        ({"binary_search_steps": 0}, "greater than or equal"),
-        ({"initial_const": 0}, "greater than or equal"),
-        ({"nb_parallel": 0}, "greater than or equal"),
-        ({"use_resize": "true"}, "must be a boolean"),
-        ({"variable_h": 0}, "greater than or equal"),
+        ({"confidence": -0.1}, "mayor o igual"),
+        ({"learning_rate": 0}, "mayor o igual"),
+        ({"max_iter": 0}, "mayor o igual"),
+        ({"binary_search_steps": 0}, "mayor o igual"),
+        ({"initial_const": 0}, "mayor o igual"),
+        ({"nb_parallel": 0}, "mayor o igual"),
+        ({"use_resize": "true"}, "debe ser booleano"),
+        ({"variable_h": 0}, "mayor o igual"),
     ],
 )
 def test_zoo_parameter_contract_rejects_invalid_values(parameters, message):

@@ -88,7 +88,7 @@ async def import_dataset_coco_annotations(
 @router.delete("/datasets/{dataset_id}")
 async def delete_dataset_by_id(dataset_id: str) -> dict:
     await delete_dataset(dataset_id)
-    return {"message": "Dataset deleted successfully"}
+    return {"message": "Conjunto de datos eliminado correctamente"}
 
 
 @router.get(
@@ -126,7 +126,7 @@ async def delete_dataset_image(
     image_id: str,
 ) -> dict:
     await delete_image_from_dataset(dataset_id, image_id)
-    return {"message": "Image deleted successfully"}
+    return {"message": "Imagen eliminada correctamente"}
 
 
 @router.patch(

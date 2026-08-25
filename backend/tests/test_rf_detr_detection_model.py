@@ -26,7 +26,7 @@ from ml.models.rf_detr.model import RfDetrDetectionModel
 
 TRANSFORMERS_VERSION = "5.15.1"
 RF_DETR_MODEL_ID = "rf_detr_nano"
-RF_DETR_MODEL_NAME = "RF-DETR Nano pretrained"
+RF_DETR_MODEL_NAME = "RF-DETR Nano · preentrenado en COCO"
 RF_DETR_CHECKPOINT = "Roboflow/rf-detr-nano"
 RF_DETR_CHECKPOINT_REVISION = "9f201577d9415f0378084748d27e68586e6b3600"
 RF_DETR_REVISION = "transformers-5.15.1-rf-detr-nano-coco-9f201577"

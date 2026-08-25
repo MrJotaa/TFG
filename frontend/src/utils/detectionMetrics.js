@@ -1,27 +1,27 @@
 const UNAVAILABLE_REASON_MESSAGES = {
     no_annotation_snapshot:
-        'El dataset no tiene un snapshot de anotaciones disponible.',
+        'El conjunto de datos no tiene anotaciones de detección disponibles.',
     no_reviewed_images:
-        'Todavía no hay imágenes revisadas en el snapshot de anotaciones.',
+        'Todavía no hay imágenes revisadas en las anotaciones de detección.',
     no_resolved_categories:
         'Ninguna categoría anotada se ha podido resolver contra el modelo.',
     no_resolved_ground_truth_objects:
-        'No hay objetos ground truth evaluables con categorías resueltas.',
+        'No hay objetos de referencia evaluables con categorías resueltas.',
 }
 
 export const COCO_METRIC_ROWS = [
-    ['map_50_95', 'mAP@[.50:.95]', 'Precisión media en diez umbrales de IoU; es la referencia COCO principal.'],
-    ['ap_50', 'AP@0.50', 'Precisión media exigiendo al menos un 50 % de solapamiento.'],
-    ['ap_75', 'AP@0.75', 'Precisión media con una localización más estricta: IoU mínimo de 0,75.'],
-    ['ar_1', 'AR@1', 'Recall medio permitiendo como máximo una detección por imagen.'],
-    ['ar_10', 'AR@10', 'Recall medio permitiendo como máximo diez detecciones por imagen.'],
-    ['ar_100', 'AR@100', 'Recall medio permitiendo como máximo cien detecciones por imagen.'],
-    ['ap_small', 'AP small', 'Precisión media para objetos con área inferior a 32² píxeles.'],
-    ['ap_medium', 'AP medium', 'Precisión media para objetos con área entre 32² y 96² píxeles.'],
-    ['ap_large', 'AP large', 'Precisión media para objetos con área igual o superior a 96² píxeles.'],
-    ['ar_small', 'AR small', 'Recall medio para objetos pequeños según la escala COCO.'],
-    ['ar_medium', 'AR medium', 'Recall medio para objetos medianos según la escala COCO.'],
-    ['ar_large', 'AR large', 'Recall medio para objetos grandes según la escala COCO.'],
+    ['map_50_95', 'mAP@[0.50:0.95]', 'mAP COCO promediado en diez umbrales de IoU; es la referencia principal.'],
+    ['ap_50', 'AP@0.50', 'AP con un umbral IoU mínimo de 0,50.'],
+    ['ap_75', 'AP@0.75', 'AP con una localización más estricta: IoU mínimo de 0,75.'],
+    ['ar_1', 'AR@1', 'AR permitiendo como máximo una detección por imagen.'],
+    ['ar_10', 'AR@10', 'AR permitiendo como máximo diez detecciones por imagen.'],
+    ['ar_100', 'AR@100', 'AR permitiendo como máximo cien detecciones por imagen.'],
+    ['ap_small', 'AP pequeño', 'AP para objetos con área inferior a 32² píxeles.'],
+    ['ap_medium', 'AP mediano', 'AP para objetos con área entre 32² y 96² píxeles.'],
+    ['ap_large', 'AP grande', 'AP para objetos con área igual o superior a 96² píxeles.'],
+    ['ar_small', 'AR pequeño', 'AR para objetos pequeños según la escala COCO.'],
+    ['ar_medium', 'AR mediano', 'AR para objetos medianos según la escala COCO.'],
+    ['ar_large', 'AR grande', 'AR para objetos grandes según la escala COCO.'],
 ]
 
 export const TIDE_ERROR_DEFINITIONS = {

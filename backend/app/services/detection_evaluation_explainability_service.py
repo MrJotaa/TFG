@@ -48,8 +48,8 @@ async def generate_detection_evaluation_image_eigencam(
 
         if not image_result.adversarial_image_url:
             raise GoneError(
-                "Detection evaluation explainability inputs are not available; "
-                "repeat the evaluation"
+                "Los datos necesarios para la explicabilidad de la evaluación de detección ya no están disponibles; "
+                "repite la evaluación"
             )
 
         model = await run_detection_model_operation(get_active_model_instance)
@@ -62,7 +62,7 @@ async def generate_detection_evaluation_image_eigencam(
         )
         if model.id != evaluation.model_id:
             raise BadRequestError(
-                "The model used by this detection evaluation is not active"
+                "El modelo utilizado en esta evaluación de detección no está activo"
             )
 
         original_image = await get_image_from_dataset(
@@ -75,7 +75,7 @@ async def generate_detection_evaluation_image_eigencam(
             image_id=image_id,
         )
         if original_image.size != adversarial_image.size:
-            raise BadRequestError("Detection evaluation image geometries do not match")
+            raise BadRequestError("Las geometrías de las imágenes de la evaluación de detección no coinciden")
 
         original_eigencam = _draw_stored_predictions(
             await run_detection_model_operation(
@@ -121,7 +121,7 @@ def _resolve_image_result(
         None,
     )
     if image_result is None:
-        raise NotFoundError("Detection evaluation image not found")
+        raise NotFoundError("Imagen de la evaluación de detección no encontrada")
     return image_result
 
 

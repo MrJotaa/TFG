@@ -146,7 +146,7 @@ function EvaluationConfusionMatrices({ evaluation }) {
                             aria-pressed={variant === 'adversarial'}
                             onClick={() => setVariant('adversarial')}
                         >
-                            Adversarial
+                            Tras el ataque
                         </button>
                     </div>
 
@@ -320,7 +320,7 @@ function EvaluationConfusionMatrices({ evaluation }) {
                 <strong>Nota:</strong>
                 <span>
                     También aparecen clases que solo fueron predichas por el modelo, aunque no
-                    existan como etiqueta real en el dataset. La vista compacta conserva esas
+                    existan como etiqueta real en el conjunto de datos. La vista compacta conserva esas
                     columnas y oculta únicamente filas sin muestras reales.
                 </span>
             </div>

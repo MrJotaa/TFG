@@ -68,25 +68,25 @@ def test_invalid_resource_ids_return_standardized_400(
             "GET",
             f"/users/{UNKNOWN_OBJECT_ID}",
             None,
-            "User not found",
+            "Usuario no encontrado",
         ),
         (
             "GET",
             f"/users/{UNKNOWN_OBJECT_ID}/datasets",
             None,
-            "User not found",
+            "Usuario no encontrado",
         ),
         (
             "GET",
             f"/datasets/{UNKNOWN_OBJECT_ID}",
             None,
-            "Dataset not found",
+            "Conjunto de datos no encontrado",
         ),
         (
             "POST",
             "/models/unknown-model/select",
             None,
-            "Model not found",
+            "Modelo no encontrado",
         ),
     ],
 )
@@ -278,7 +278,7 @@ def test_dataset_endpoints_return_404_for_missing_dataset(
 
     assert response.status_code == 404
     assert response.json() == {
-        "detail": "Dataset not found",
+        "detail": "Conjunto de datos no encontrado",
     }
 
 
@@ -295,7 +295,7 @@ def test_login_with_unknown_user_returns_standardized_401(
 
     assert response.status_code == 401
     assert response.json() == {
-        "detail": "Invalid email or password",
+        "detail": "Correo electrónico o contraseña no válidos",
     }
 
 

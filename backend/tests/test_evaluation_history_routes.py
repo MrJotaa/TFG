@@ -13,7 +13,7 @@ def _history_item(owner_dataset_id="dataset-1"):
         "dataset_name": "Validation set",
         "dataset_revision": 3,
         "model_id": "resnet18",
-        "model_name": "ResNet18 pretrained",
+        "model_name": "ResNet-18 · preentrenado en ImageNet-1K",
         "attack_type": "fgsm",
         "parameters": {
             "epsilon": 0.03,

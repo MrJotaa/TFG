@@ -43,19 +43,19 @@ class CocoImportValidationError(BadRequestError):
 
 def normalize_external_file_name(file_name: str) -> str:
     if not isinstance(file_name, str) or not file_name.strip():
-        raise ValueError("file_name must be a non-empty string")
+        raise ValueError("file_name debe ser una cadena no vacía")
 
     normalized = file_name.strip().replace("\\", "/")
 
     if any(ord(character) < 32 for character in normalized):
-        raise ValueError("file_name contains control characters")
+        raise ValueError("file_name contiene caracteres de control")
     if normalized.startswith("/") or WINDOWS_DRIVE_PATTERN.match(normalized):
-        raise ValueError("absolute paths are not allowed")
+        raise ValueError("no se permiten rutas absolutas")
 
     path = PurePosixPath(normalized)
 
     if any(part in {"", ".", ".."} for part in path.parts):
-        raise ValueError("unsafe path segments are not allowed")
+        raise ValueError("no se permiten segmentos de ruta inseguros")
 
     return path.as_posix()
 
@@ -64,7 +64,7 @@ def _require_list(root: dict, field: str) -> list:
     value = root.get(field)
     if not isinstance(value, list):
         raise CocoImportValidationError(
-            f"'{field}' must be an array",
+            f"'{field}' debe ser una lista",
             section=field,
             field=field,
         )
@@ -74,7 +74,7 @@ def _require_list(root: dict, field: str) -> list:
 def _require_object(value, section: str, index: int) -> dict:
     if not isinstance(value, dict):
         raise CocoImportValidationError(
-            f"{section}[{index}] must be an object",
+            f"{section}[{index}] debe ser un objeto",
             section=section,
         )
     return value
@@ -89,7 +89,7 @@ def _require_integer(
 ) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise CocoImportValidationError(
-            f"'{field}' must be an integer",
+            f"'{field}' debe ser un entero",
             section=section,
             field=field,
             coco_id=coco_id,
@@ -106,7 +106,7 @@ def _require_finite_number(
 ) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise CocoImportValidationError(
-            f"'{field}' must be numeric",
+            f"'{field}' debe ser numérico",
             section=section,
             field=field,
             coco_id=coco_id,
@@ -116,14 +116,14 @@ def _require_finite_number(
         numeric_value = float(value)
     except OverflowError as error:
         raise CocoImportValidationError(
-            f"'{field}' must be finite",
+            f"'{field}' debe ser finito",
             section=section,
             field=field,
             coco_id=coco_id,
         ) from error
     if not math.isfinite(numeric_value):
         raise CocoImportValidationError(
-            f"'{field}' must be finite",
+            f"'{field}' debe ser finito",
             section=section,
             field=field,
             coco_id=coco_id,
@@ -144,13 +144,13 @@ class CocoAnnotationImporter:
             root = json.loads(decoded)
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
             raise CocoImportValidationError(
-                "The uploaded file is not valid UTF-8 COCO JSON",
+                "El archivo subido no contiene un JSON COCO UTF-8 válido",
                 section="root",
             ) from error
 
         if not isinstance(root, dict):
             raise CocoImportValidationError(
-                "COCO root must be an object",
+                "La raíz del JSON COCO debe ser un objeto",
                 section="root",
             )
 
@@ -194,7 +194,7 @@ class CocoAnnotationImporter:
 
             if category_id in category_by_external_id:
                 raise CocoImportValidationError(
-                    f"Duplicate category id {category_id}",
+                    f"ID de categoría duplicado: {category_id}",
                     section="categories",
                     field="id",
                     coco_id=category_id,
@@ -203,7 +203,7 @@ class CocoAnnotationImporter:
             name = category.get("name")
             if not isinstance(name, str) or not name.strip():
                 raise CocoImportValidationError(
-                    "Category name must be a non-empty string",
+                    "El nombre de la categoría debe ser una cadena no vacía",
                     section="categories",
                     field="name",
                     coco_id=category_id,
@@ -213,7 +213,7 @@ class CocoAnnotationImporter:
             normalized_name = name.casefold()
             if normalized_name in normalized_names:
                 raise CocoImportValidationError(
-                    f"Duplicate category name '{name}'",
+                    f"Nombre de categoría duplicado: '{name}'",
                     section="categories",
                     field="name",
                     coco_id=category_id,
@@ -222,7 +222,7 @@ class CocoAnnotationImporter:
             supercategory = category.get("supercategory")
             if supercategory is not None and not isinstance(supercategory, str):
                 raise CocoImportValidationError(
-                    "'supercategory' must be a string or null",
+                    "'supercategory' debe ser una cadena o null",
                     section="categories",
                     field="supercategory",
                     coco_id=category_id,
@@ -280,7 +280,7 @@ class CocoAnnotationImporter:
 
             if coco_image_id in image_by_external_id:
                 raise CocoImportValidationError(
-                    f"Duplicate image id {coco_image_id}",
+                    f"ID de imagen duplicado: {coco_image_id}",
                     section="images",
                     field="id",
                     coco_id=coco_image_id,
@@ -309,7 +309,7 @@ class CocoAnnotationImporter:
 
             if not candidates:
                 raise CocoImportValidationError(
-                    "COCO image could not be matched to the dataset",
+                    "La imagen COCO no se pudo asociar con ninguna imagen del conjunto de datos",
                     section="images",
                     field="file_name",
                     coco_id=coco_image_id,
@@ -317,7 +317,7 @@ class CocoAnnotationImporter:
                 )
             if len(candidates) > 1:
                 raise CocoImportValidationError(
-                    "COCO image match is ambiguous",
+                    "La correspondencia de la imagen COCO es ambigua",
                     section="images",
                     field="file_name",
                     coco_id=coco_image_id,
@@ -327,7 +327,7 @@ class CocoAnnotationImporter:
             dataset_image = candidates[0]
             if dataset_image.image_id in mapped_dataset_image_ids:
                 raise CocoImportValidationError(
-                    "The same dataset image is associated more than once",
+                    "La misma imagen del conjunto de datos está asociada más de una vez",
                     section="images",
                     field="file_name",
                     coco_id=coco_image_id,
@@ -353,7 +353,7 @@ class CocoAnnotationImporter:
                 or not declared_height.is_integer()
             ):
                 raise CocoImportValidationError(
-                    "Image dimensions must be positive integers",
+                    "Las dimensiones de la imagen deben ser enteros positivos",
                     section="images",
                     field="width/height",
                     coco_id=coco_image_id,
@@ -365,8 +365,8 @@ class CocoAnnotationImporter:
             ):
                 raise CocoImportValidationError(
                     (
-                        "Declared COCO dimensions do not match the authoritative "
-                        "dataset image dimensions"
+                        "Las dimensiones declaradas en COCO no coinciden con las dimensiones de "
+                        "la imagen de referencia del conjunto de datos"
                     ),
                     section="images",
                     field="width/height",
@@ -406,7 +406,7 @@ class CocoAnnotationImporter:
             )
             if annotation_id in annotation_ids:
                 raise CocoImportValidationError(
-                    f"Duplicate annotation id {annotation_id}",
+                    f"ID de anotación duplicado: {annotation_id}",
                     section="annotations",
                     field="id",
                     coco_id=annotation_id,
@@ -422,7 +422,7 @@ class CocoAnnotationImporter:
             dataset_image = image_by_external_id.get(image_id)
             if dataset_image is None:
                 raise CocoImportValidationError(
-                    f"Annotation references unknown COCO image id {image_id}",
+                    f"La anotación hace referencia a un ID de imagen COCO desconocido: {image_id}",
                     section="annotations",
                     field="image_id",
                     coco_id=annotation_id,
@@ -437,7 +437,7 @@ class CocoAnnotationImporter:
             category = category_by_external_id.get(category_id)
             if category is None:
                 raise CocoImportValidationError(
-                    f"Annotation references unknown category id {category_id}",
+                    f"La anotación hace referencia a un ID de categoría desconocido: {category_id}",
                     section="annotations",
                     field="category_id",
                     coco_id=annotation_id,
@@ -446,7 +446,7 @@ class CocoAnnotationImporter:
             bbox = annotation.get("bbox")
             if not isinstance(bbox, list) or len(bbox) != 4:
                 raise CocoImportValidationError(
-                    "'bbox' must contain [x, y, width, height]",
+                    "'bbox' debe contener [x, y, width, height]",
                     section="annotations",
                     field="bbox",
                     coco_id=annotation_id,
@@ -462,7 +462,7 @@ class CocoAnnotationImporter:
             ]
             if width <= 0 or height <= 0:
                 raise CocoImportValidationError(
-                    "Bounding-box width and height must be greater than zero",
+                    "La anchura y la altura de la caja delimitadora deben ser mayores que cero",
                     section="annotations",
                     field="bbox",
                     coco_id=annotation_id,
@@ -475,7 +475,7 @@ class CocoAnnotationImporter:
             ]
             if x < 0 or y < 0 or x2 > authoritative_width or y2 > authoritative_height:
                 raise CocoImportValidationError(
-                    "Bounding box is outside authoritative image bounds",
+                    "La caja delimitadora está fuera de los límites de la imagen de referencia",
                     section="annotations",
                     field="bbox",
                     coco_id=annotation_id,
@@ -495,7 +495,7 @@ class CocoAnnotationImporter:
             )
             if area <= 0:
                 raise CocoImportValidationError(
-                    "'area' must be greater than zero",
+                    "'area' debe ser mayor que cero",
                     section="annotations",
                     field="area",
                     coco_id=annotation_id,
@@ -508,7 +508,7 @@ class CocoAnnotationImporter:
                 or raw_iscrowd not in {0, 1}
             ):
                 raise CocoImportValidationError(
-                    "'iscrowd' must be 0 or 1",
+                    "'iscrowd' debe ser 0 o 1",
                     section="annotations",
                     field="iscrowd",
                     coco_id=annotation_id,

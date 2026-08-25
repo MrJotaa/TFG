@@ -95,7 +95,7 @@ function ModelSelector({ onActiveModelChange }) {
                 onClick={handleSelectModel}
                 disabled={!selectedModelId || loading}
             >
-                {loading ? 'Seleccionando...' : 'Select'}
+                {loading ? 'Seleccionando...' : 'Seleccionar'}
             </button>
         </div>
     )

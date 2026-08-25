@@ -113,12 +113,12 @@ def _support_warning(
     warnings = []
 
     if positive_count < 2:
-        warnings.append("Curve contains fewer than 2 positive samples")
+        warnings.append("La curva contiene menos de 2 muestras positivas")
 
     if negative_count == 0:
-        warnings.append("Curve contains no negative samples and is degenerate")
+        warnings.append("La curva no contiene muestras negativas y es degenerada")
     elif negative_count < 2:
-        warnings.append("Curve contains fewer than 2 negative samples")
+        warnings.append("La curva contiene menos de 2 muestras negativas")
 
     if not warnings:
         return None
@@ -181,13 +181,13 @@ def _calculate_roc_curve(
 
     if positive_count == 0:
         return _unavailable_curve(
-            reason=("ROC requires at least one positive sample"),
+            reason=("ROC requiere al menos una muestra positiva"),
             warning=warning,
         )
 
     if negative_count == 0:
         return _unavailable_curve(
-            reason=("ROC requires at least one negative sample"),
+            reason=("ROC requiere al menos una muestra negativa"),
             warning=warning,
         )
 
@@ -232,7 +232,9 @@ def _calculate_precision_recall_curve(
 
     if positive_count == 0:
         return _unavailable_curve(
-            reason=("Precision-recall analysis requires at least one positive sample"),
+            reason=(
+                "El análisis Precision–Recall requiere al menos una muestra positiva"
+            ),
             warning=warning,
         )
 
@@ -275,7 +277,7 @@ def _calculate_macro_metric(
     metric_name: str,
 ) -> MetricValue:
     if not curve_results:
-        return _unavailable_metric(f"Macro {metric_name} requires at least one class")
+        return _unavailable_metric(f"Macro {metric_name} requiere al menos una clase")
 
     raw_scores = [
         result.raw_score for result in curve_results if result.raw_score is not None
@@ -283,14 +285,14 @@ def _calculate_macro_metric(
 
     if len(raw_scores) != len(curve_results):
         return _unavailable_metric(
-            f"Macro {metric_name} is unavailable because "
-            "at least one class metric is undefined"
+            f"Macro {metric_name} no está disponible porque "
+            "al menos una métrica de clase no está definida"
         )
 
     warning = None
 
     if any(result.series.warning is not None for result in curve_results):
-        warning = "At least one class has limited positive or negative support"
+        warning = "Al menos una clase tiene soporte positivo o negativo limitado"
 
     return _available_metric(
         value=sum(raw_scores) / len(raw_scores),

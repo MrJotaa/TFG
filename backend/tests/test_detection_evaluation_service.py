@@ -416,7 +416,7 @@ async def test_detection_evaluation_integrates_supervised_metrics_once(
 
     supervised = response.supervised
     assert supervised.available is True
-    assert "1 unreviewed images were excluded" in supervised.warning
+    assert "Imágenes sin revisar excluidas: 1" in supervised.warning
     assert supervised.original.aggregate.map_50_95 == 1.0
     assert supervised.adversarial.aggregate.map_50_95 == 0.0
     assert supervised.deltas.aggregate.map_50_95.absolute == 1.0

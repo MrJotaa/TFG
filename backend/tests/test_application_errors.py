@@ -23,22 +23,22 @@ from main import app
         (
             ApplicationError,
             500,
-            "Application error",
+            "Error de la aplicación",
         ),
         (
             BadRequestError,
             400,
-            "Bad request",
+            "Solicitud no válida",
         ),
         (
             UnauthorizedError,
             401,
-            "Unauthorized",
+            "No autorizado",
         ),
         (
             NotFoundError,
             404,
-            "Resource not found",
+            "Recurso no encontrado",
         ),
     ],
 )
@@ -140,7 +140,7 @@ def test_unexpected_error_returns_generic_500_response():
 
     assert response.status_code == 500
     assert response.json() == {
-        "detail": "Internal server error",
+        "detail": "Error interno del servidor",
     }
 
     assert "Sensitive internal database failure" not in response.text

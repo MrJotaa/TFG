@@ -24,14 +24,14 @@ function ExperimentSummary({
             <div className="summary-heading">
                 <h2>Resumen del Experimento</h2>
                 <p>
-                    Configura el experimento seleccionando dataset, imagen, modelo y
+                    Configura el experimento seleccionando conjunto de datos, imagen, modelo y
                     ataque antes de ejecutar el análisis.
                 </p>
             </div>
 
             <div className="summary-grid">
                 <article className="summary-card summary-card-blue">
-                    <span>Imagen / dataset seleccionado</span>
+                    <span>Imagen / conjunto de datos seleccionado</span>
                     <strong>{selectedTarget}</strong>
                 </article>
 

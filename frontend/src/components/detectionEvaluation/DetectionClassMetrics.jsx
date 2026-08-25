@@ -75,10 +75,10 @@ function DetectionClassMetrics({ evaluation }) {
         <div className="evaluation-tab-content">
             <section className="evaluation-surface class-metrics-header">
                 <div>
-                    <span className="evaluation-eyebrow">Desglose category-aware</span>
+                    <span className="evaluation-eyebrow">Desglose por categoría</span>
                     <h3>Rendimiento y transiciones por clase</h3>
                     <p>
-                        Compara AP, AR y el punto de operación con el soporte ground truth de cada categoría resuelta.
+                        Compara AP, AR y el punto de operación con el número de objetos de referencia de cada categoría resuelta.
                     </p>
                 </div>
                 <div className="class-metrics-summary">
@@ -116,12 +116,12 @@ function DetectionClassMetrics({ evaluation }) {
                                 <th>Clase</th>
                                 <th>Soporte</th>
                                 <th>AP orig.</th>
-                                <th>AP adv.</th>
+                                <th>AP tras ataque</th>
                                 <th>Δ AP</th>
                                 <th>AR orig.</th>
-                                <th>AR adv.</th>
+                                <th>AR tras ataque</th>
                                 <th>TP / FP / FN orig.</th>
-                                <th>TP / FP / FN adv.</th>
+                                <th>TP / FP / FN tras ataque</th>
                                 <th>Preservados</th>
                                 <th>Suprimidos</th>
                                 <th>Recuperados</th>

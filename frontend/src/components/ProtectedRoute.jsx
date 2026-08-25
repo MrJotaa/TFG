@@ -8,7 +8,7 @@ function ProtectedRoute() {
         return (
             <main className="auth-page">
                 <section className="auth-card">
-                    <h1>Adversarial AI App</h1>
+                    <h1>Analizador de ataques adversarios</h1>
                     <p>Cargando sesión...</p>
                 </section>
             </main>

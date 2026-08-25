@@ -173,13 +173,13 @@ function Dashboard() {
 
                 <div className="sidebar-block">
                     <div className="sidebar-title-row">
-                        <div className="sidebar-block-title">Datasets</div>
+                        <div className="sidebar-block-title">Conjuntos de datos</div>
 
                         <button
                             type="button"
                             className="icon-button"
                             onClick={() => navigate('/datasets')}
-                            title="Gestionar datasets"
+                            title="Gestionar conjuntos de datos"
                         >
                             ⚙
                         </button>

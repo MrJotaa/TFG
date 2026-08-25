@@ -75,7 +75,7 @@ function DatasetManager() {
 
     async function handleDeleteDataset(datasetId) {
         const confirmed = window.confirm(
-            '¿Seguro que quieres borrar este dataset? Esta acción no se puede deshacer.',
+            '¿Seguro que quieres borrar este conjunto de datos? Esta acción no se puede deshacer.',
         )
 
         if (!confirmed) return
@@ -101,8 +101,8 @@ function DatasetManager() {
         <div className="dataset-manager-page">
             <div className="page-toolbar">
                 <div>
-                    <h2>Gestión de Datasets</h2>
-                    <p>Gestiona datasets, imágenes y etiquetas asociadas.</p>
+                    <h2>Gestión de conjuntos de datos</h2>
+                    <p>Gestiona conjuntos de datos, imágenes y etiquetas asociadas.</p>
                 </div>
 
                 <button
@@ -110,7 +110,7 @@ function DatasetManager() {
                     className="secondary-action"
                     onClick={() => navigate('/dashboard')}
                 >
-                    Volver al Dashboard
+                    Volver al panel principal
                 </button>
             </div>
 
@@ -119,12 +119,12 @@ function DatasetManager() {
             <div className="dataset-manager-layout">
                 <aside className="dataset-manager-sidebar">
                     <section className="management-card">
-                        <h3>My Datasets</h3>
+                        <h3>Mis conjuntos de datos</h3>
 
                         {!user ? (
-                            <p>Inicia sesión para ver tus datasets.</p>
+                            <p>Inicia sesión para ver tus conjuntos de datos.</p>
                         ) : datasets.length === 0 ? (
-                            <p>No hay datasets disponibles.</p>
+                            <p>No hay conjuntos de datos disponibles.</p>
                         ) : (
                             <div className="management-list">
                                 {datasets.map((dataset) => (
@@ -171,7 +171,7 @@ function DatasetManager() {
                     </section>
 
                     <section className="management-card">
-                        <h3>Subir un Nuevo Dataset</h3>
+                        <h3>Subir un nuevo conjunto de datos</h3>
 
                         <DatasetUploader
                             selectedUser={user}
@@ -187,12 +187,12 @@ function DatasetManager() {
                 <section className="dataset-manager-content">
                     <div className="management-card">
                         <h3>
-                            Dataset Seleccionado:{' '}
-                            <span>{selectedDataset?.name || 'None'}</span>
+                            Conjunto de datos seleccionado:{' '}
+                            <span>{selectedDataset?.name || 'Sin seleccionar'}</span>
                         </h3>
 
                         {!selectedDataset ? (
-                            <p>Selecciona un dataset para gestionar sus imágenes.</p>
+                            <p>Selecciona un conjunto de datos para gestionar sus imágenes.</p>
                         ) : (
                             <>
                                 <p>

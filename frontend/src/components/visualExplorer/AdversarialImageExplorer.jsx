@@ -241,7 +241,7 @@ function AdversarialImageExplorer({
             <header className="adversarial-explorer-header">
                 <div>
                     <span className="evaluation-eyebrow">Exploración visual</span>
-                    <h3 id="explorer-title">Original frente a adversaria</h3>
+                    <h3 id="explorer-title">Original frente al resultado tras el ataque</h3>
                     <p>
                         Inspecciona el mismo encuadre con transformación sincronizada.
                         La imagen se conserva en su geometría de origen.
@@ -289,7 +289,7 @@ function AdversarialImageExplorer({
                             aria-pressed={layer === 'explanation'}
                             onClick={() => setLayer('explanation')}
                         >
-                            {taskType === 'detection' ? 'EigenCAM' : 'Grad-CAM'}
+                            {taskType === 'detection' ? 'Eigen-CAM' : 'Grad-CAM'}
                         </button>
                     )}
                 </div>
@@ -360,9 +360,9 @@ function AdversarialImageExplorer({
                         {...viewportHandlers}
                     />
                     <ExplorerImage
-                        title="Adversaria"
+                        title="Tras el ataque"
                         imageUrl={pair.adversarial}
-                        alt={`Vista adversaria de ${filename || 'la imagen'}`}
+                        alt={`Vista tras el ataque de ${filename || 'la imagen'}`}
                         zoom={zoom}
                         pan={pan}
                         {...viewportHandlers}

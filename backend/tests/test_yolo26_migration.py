@@ -20,7 +20,7 @@ from utils.detection_evaluation_artifacts import (
 
 ULTRALYTICS_VERSION = "8.4.121"
 YOLO26_MODEL_ID = "yolo26n"
-YOLO26_MODEL_NAME = "YOLO26n pretrained"
+YOLO26_MODEL_NAME = "YOLO26n · preentrenado en COCO"
 YOLO26_WEIGHTS = "yolo26n.pt"
 YOLO26_REVISION = f"ultralytics-yolo26n-coco-{ULTRALYTICS_VERSION}"
 YOLO26_EXPLAINABILITY_LAYERS = (16, 19, 22)

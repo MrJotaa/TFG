@@ -30,7 +30,7 @@ def _build_ultralytics_model() -> UltralyticsDetectionModel:
     return UltralyticsDetectionModel(
         UltralyticsDetectionModelConfig(
             id="yolo26n",
-            name="YOLO26n pretrained",
+            name="YOLO26n · preentrenado en COCO",
             revision="ultralytics-yolo26n-coco-8.4.121",
             weights="yolo26n.pt",
             end_to_end=True,
@@ -398,7 +398,7 @@ async def test_detection_service_uses_ultralytics_adapter_and_preserves_http_con
     assert inference_calls == 1
     assert response.model_dump() == {
         "model_id": "yolo26n",
-        "model_name": "YOLO26n pretrained",
+        "model_name": "YOLO26n · preentrenado en COCO",
         "detections": [
             {
                 "label": "car",

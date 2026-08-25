@@ -5,7 +5,7 @@ import {
 } from './client.js'
 
 function streamEventError(event) {
-    const error = new Error(event.message || 'Unexpected evaluation error')
+    const error = new Error(event.message || 'Error inesperado durante la evaluación')
     error.status = event.status || 500
     error.details =
         event.detail && typeof event.detail === 'object' ? event.detail : null
@@ -36,7 +36,7 @@ export async function streamEvaluationRequest(
         throw await apiErrorFromResponse(response)
     }
     if (!response.body) {
-        throw new Error('Evaluation progress stream is not available')
+        throw new Error('El flujo de progreso de la evaluación no está disponible')
     }
 
     const reader = response.body.getReader()
@@ -66,7 +66,7 @@ export async function streamEvaluationRequest(
             return
         }
         if (event.type === 'cancelled') {
-            const error = new DOMException('Operation cancelled', 'AbortError')
+            const error = new DOMException('Operación cancelada', 'AbortError')
             throw error
         }
     }
@@ -97,7 +97,7 @@ export async function streamEvaluationRequest(
     }
 
     if (finalResult === null) {
-        throw new Error('Evaluation stream ended without a result')
+        throw new Error('El flujo de evaluación terminó sin devolver un resultado')
     }
     return finalResult
 }

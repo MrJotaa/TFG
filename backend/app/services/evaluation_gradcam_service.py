@@ -66,7 +66,7 @@ async def generate_evaluation_image_gradcam(
             endpoint=(f"/evaluations/{evaluation_id}/images/{image_id}/gradcam"),
         )
         if model.id != metadata.get("model_id"):
-            raise BadRequestError("The model used by this evaluation is not active")
+            raise BadRequestError("El modelo utilizado en esta evaluación no está activo")
 
         clean_model_input, adversarial_model_input = _load_scientific_inputs(
             result_path=result_path,
@@ -85,7 +85,7 @@ async def generate_evaluation_image_gradcam(
         )
 
         if original_image.size != adversarial_image.size:
-            raise BadRequestError("Evaluation visual artifact geometries do not match")
+            raise BadRequestError("Las geometrías de los artefactos visuales de la evaluación no coinciden")
 
         clean_model_input = _move_to_model_device(clean_model_input, model)
         adversarial_model_input = _move_to_model_device(
@@ -143,27 +143,27 @@ def _resolve_evaluation_path(evaluation_id: str) -> str:
         not evaluation_id.startswith("evaluation_")
         or os.path.basename(evaluation_id) != evaluation_id
     ):
-        raise NotFoundError("Evaluation not found")
+        raise NotFoundError("Evaluación no encontrada")
 
     result_path = os.path.join(RESULTS_BASE_PATH, evaluation_id)
     if not os.path.isdir(result_path):
-        raise NotFoundError("Evaluation not found")
+        raise NotFoundError("Evaluación no encontrada")
     return result_path
 
 
 def _load_metadata(result_path: str) -> dict:
     metadata_path = os.path.join(result_path, "metadata.json")
     if not os.path.isfile(metadata_path):
-        raise BadRequestError("Evaluation is not complete")
+        raise BadRequestError("La evaluación no está completada")
 
     try:
         with open(metadata_path, encoding="utf-8") as metadata_file:
             metadata = json.load(metadata_file)
     except (OSError, ValueError) as error:
-        raise BadRequestError("Evaluation metadata is invalid") from error
+        raise BadRequestError("Los metadatos de la evaluación no son válidos") from error
 
     if not isinstance(metadata, dict):
-        raise BadRequestError("Evaluation metadata is invalid")
+        raise BadRequestError("Los metadatos de la evaluación no son válidos")
     return metadata
 
 
@@ -178,22 +178,22 @@ def _validate_access_and_state(
         metadata.get("result_id") != evaluation_id
         or metadata.get("result_type") != "evaluation"
     ):
-        raise NotFoundError("Evaluation not found")
+        raise NotFoundError("Evaluación no encontrada")
     if metadata.get("owner_id") != current_user_id:
-        raise ForbiddenError("Evaluation belongs to another user")
+        raise ForbiddenError("La evaluación pertenece a otro usuario")
     if metadata.get("status") != "completed":
-        raise BadRequestError("Evaluation is not complete")
+        raise BadRequestError("La evaluación no está completada")
     if read_result_expiration(result_path) <= time.time():
-        raise GoneError("Evaluation has expired")
+        raise GoneError("La evaluación ha caducado")
 
 
 def _resolve_image_entry(metadata: dict, image_id: str) -> dict:
     images = metadata.get("images")
     if not isinstance(images, dict):
-        raise BadRequestError("Evaluation image manifest is invalid")
+        raise BadRequestError("El manifiesto de imágenes de la evaluación no es válido")
     image_entry = images.get(image_id)
     if not isinstance(image_entry, dict):
-        raise NotFoundError("Evaluation image not found")
+        raise NotFoundError("Imagen de la evaluación no encontrada")
     return image_entry
 
 
@@ -208,7 +208,7 @@ def _load_scientific_inputs(
     filename = image_entry.get("model_inputs_filename")
     artifact_path = _resolve_artifact_path(result_path, filename)
     if not os.path.isfile(artifact_path):
-        raise GoneError("Evaluation scientific artifact is no longer available")
+        raise GoneError("El artefacto científico de la evaluación ya no está disponible")
 
     try:
         artifact = load_evaluation_model_inputs(artifact_path)
@@ -230,23 +230,23 @@ def _load_scientific_inputs(
         TypeError,
         ValueError,
     ) as error:
-        raise BadRequestError("Evaluation scientific artifact is invalid") from error
+        raise BadRequestError("El artefacto científico de la evaluación no es válido") from error
 
 
 def _load_rgb_image(result_path: str, filename) -> Image.Image:
     image_path = _resolve_artifact_path(result_path, filename)
     if not os.path.isfile(image_path):
-        raise GoneError("Evaluation visual artifact is no longer available")
+        raise GoneError("El artefacto visual de la evaluación ya no está disponible")
     try:
         with Image.open(image_path) as image:
             return image.copy().convert("RGB")
     except (OSError, ValueError) as error:
-        raise BadRequestError("Evaluation visual artifact is invalid") from error
+        raise BadRequestError("El artefacto visual de la evaluación no es válido") from error
 
 
 def _resolve_artifact_path(result_path: str, filename) -> str:
     if not isinstance(filename, str) or os.path.basename(filename) != filename:
-        raise BadRequestError("Evaluation artifact reference is invalid")
+        raise BadRequestError("La referencia del artefacto de la evaluación no es válida")
     return os.path.join(result_path, filename)
 
 

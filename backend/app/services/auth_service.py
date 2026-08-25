@@ -13,8 +13,8 @@ from utils.security import (
     verify_password,
 )
 
-INVALID_CREDENTIALS_MESSAGE = "Invalid email or password"
-INVALID_TOKEN_MESSAGE = "Invalid or expired token"
+INVALID_CREDENTIALS_MESSAGE = "Correo electrónico o contraseña no válidos"
+INVALID_TOKEN_MESSAGE = "Token no válido o caducado"
 
 
 def create_auth_response(user: UserResponse) -> AuthResponse:
@@ -65,11 +65,11 @@ async def get_current_user(token: str) -> UserResponse:
     user_id = payload.get("sub")
 
     if not user_id:
-        raise UnauthorizedError("Invalid token payload")
+        raise UnauthorizedError("Contenido del token no válido")
 
     user_document = await get_user_document_by_id(user_id)
 
     if not user_document:
-        raise UnauthorizedError("User not found")
+        raise UnauthorizedError("Usuario no encontrado")
 
     return user_to_response(user_document)

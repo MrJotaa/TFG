@@ -90,7 +90,7 @@ def test_require_model_task_type_rejects_incompatible_model():
 
     with pytest.raises(
         BadRequestError,
-        match=("Endpoint '/predict' requires a classification model"),
+        match=("El endpoint '/predict' requiere un modelo de clasificación"),
     ):
         require_model_task_type(
             model=model,
@@ -122,7 +122,7 @@ def test_require_attack_task_type_rejects_incompatible_attack():
 
     with pytest.raises(
         BadRequestError,
-        match=("Attack 'yolo_confidence' does not support task type 'classification'"),
+        match=("El ataque 'yolo_confidence' no es compatible con la tarea de clasificación"),
     ):
         require_attack_task_type(
             attack=attack,
@@ -161,7 +161,7 @@ def test_predict_rejects_detection_model(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Endpoint '/predict' requires a classification model"
+        "El endpoint '/predict' requiere un modelo de clasificación"
     )
 
 
@@ -197,7 +197,7 @@ def test_attack_rejects_detection_model(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Endpoint '/attack' requires a classification model"
+        "El endpoint '/attack' requiere un modelo de clasificación"
     )
 
 
@@ -243,7 +243,7 @@ def test_attack_rejects_detection_only_attack(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Attack 'yolo_confidence' does not support task type 'classification'"
+        "El ataque 'yolo_confidence' no es compatible con la tarea de clasificación"
     )
 
 
@@ -270,7 +270,7 @@ def test_evaluate_rejects_detection_model(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Endpoint '/evaluate' requires a classification model"
+        "El endpoint '/evaluate' requiere un modelo de clasificación"
     )
 
 
@@ -307,7 +307,7 @@ def test_evaluate_rejects_detection_only_attack(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Attack 'yolo_confidence' does not support task type 'classification'"
+        "El ataque 'yolo_confidence' no es compatible con la tarea de clasificación"
     )
 
 
@@ -342,7 +342,7 @@ def test_detect_rejects_classification_model(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Endpoint '/detect' requires a detection model"
+        "El endpoint '/detect' requiere un modelo de detección"
     )
 
 
@@ -378,7 +378,7 @@ def test_detection_attack_rejects_classification_model(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Endpoint '/detect/attack' requires a detection model"
+        "El endpoint '/detect/attack' requiere un modelo de detección"
     )
 
 
@@ -424,7 +424,7 @@ def test_detection_attack_rejects_classification_only_attack(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Attack 'fgsm' does not support task type 'detection'"
+        "El ataque 'fgsm' no es compatible con la tarea de detección"
     )
 
 
@@ -459,7 +459,7 @@ def test_detection_evaluate_rejects_classification_model(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Endpoint '/detect/evaluate' requires a detection model"
+        "El endpoint '/detect/evaluate' requiere un modelo de detección"
     )
 
 
@@ -504,7 +504,7 @@ def test_detection_evaluate_rejects_classification_only_attack(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Attack 'fgsm' does not support task type 'detection'"
+        "El ataque 'fgsm' no es compatible con la tarea de detección"
     )
 
 
@@ -539,7 +539,7 @@ def test_gradcam_rejects_detection_model(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Endpoint '/explain/gradcam' requires a classification model"
+        "El endpoint '/explain/gradcam' requiere un modelo de clasificación"
     )
 
 
@@ -574,5 +574,5 @@ def test_detection_explainability_rejects_classification_model(
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Endpoint '/explain/detection' requires a detection model"
+        "El endpoint '/explain/detection' requiere un modelo de detección"
     )

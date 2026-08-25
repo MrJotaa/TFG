@@ -54,7 +54,7 @@ export function CoverageSummary({ coverage }) {
                 <h5>Objetos por categoría</h5>
                 {coverage.objects_by_category.length === 0 ? (
                     <p className="muted-text">
-                        El snapshot no contiene categorías.
+                        Las anotaciones no contienen categorías.
                     </p>
                 ) : (
                     <ul>
@@ -111,7 +111,7 @@ function CocoAnnotationPanel({ selectedDataset, onAnnotationsImported }) {
         if (
             shouldConfirmCocoReplacement(visibleCoverage)
             && !window.confirm(
-                'Esta importación reemplazará por completo el snapshot de anotaciones actual. ¿Quieres continuar?',
+                'Esta importación reemplazará por completo las anotaciones actuales. ¿Quieres continuar?',
             )
         ) {
             return
@@ -132,7 +132,7 @@ function CocoAnnotationPanel({ selectedDataset, onAnnotationsImported }) {
             form.reset()
             setSuccess(
                 result.replaced_existing_snapshot
-                    ? 'Snapshot COCO reemplazado correctamente.'
+                    ? 'Anotaciones COCO reemplazadas correctamente.'
                     : 'Anotaciones COCO importadas correctamente.',
             )
             onAnnotationsImported?.(result)
@@ -148,8 +148,8 @@ function CocoAnnotationPanel({ selectedDataset, onAnnotationsImported }) {
             <div>
                 <h4>Anotaciones de detección</h4>
                 <p>
-                    Importa un archivo COCO JSON. Cada importación es un snapshot
-                    completo y reemplaza el anterior; no se mezclan anotaciones.
+                    Importa un archivo COCO JSON. Cada importación reemplaza por completo
+                    las anotaciones anteriores; no se mezclan anotaciones.
                 </p>
             </div>
 
@@ -181,7 +181,7 @@ function CocoAnnotationPanel({ selectedDataset, onAnnotationsImported }) {
                     {importing
                         ? 'Importando anotaciones...'
                         : visibleCoverage?.has_annotation_snapshot
-                          ? 'Reemplazar snapshot COCO'
+                          ? 'Reemplazar anotaciones COCO'
                           : 'Importar anotaciones COCO'}
                 </button>
             </form>

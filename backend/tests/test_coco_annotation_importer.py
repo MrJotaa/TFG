@@ -189,7 +189,7 @@ def test_coco_importer_rejects_unmatched_dataset_image():
     payload = _valid_coco()
     payload["images"][0]["file_name"] = "missing.png"
 
-    with pytest.raises(CocoImportValidationError, match="could not be matched"):
+    with pytest.raises(CocoImportValidationError, match="no se pudo asociar"):
         _parse(payload)
 
 
@@ -201,7 +201,7 @@ def test_coco_importer_rejects_ambiguous_basename():
         _dataset_image("two", "b/image.png"),
     ]
 
-    with pytest.raises(CocoImportValidationError, match="ambiguous"):
+    with pytest.raises(CocoImportValidationError, match="ambigua"):
         _parse(payload, images)
 
 
@@ -216,5 +216,5 @@ def test_coco_importer_rejects_same_dataset_image_associated_twice():
         }
     )
 
-    with pytest.raises(CocoImportValidationError, match="more than once"):
+    with pytest.raises(CocoImportValidationError, match="más de una vez"):
         _parse(payload)

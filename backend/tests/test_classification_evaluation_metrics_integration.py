@@ -881,7 +881,7 @@ async def test_evaluation_excludes_only_unresolved_labels_from_supervised_metric
     assert robustness.unchanged_predictions == 1
 
     assert metrics.supervised_status.available is True
-    assert "1 labeled images were excluded" in metrics.supervised_status.warning
+    assert "Imágenes etiquetadas excluidas por etiquetas no resueltas: 1" in metrics.supervised_status.warning
     assert supervised is not None
     assert supervised.aggregate.original.accuracy == 1.0
     assert supervised.aggregate.adversarial.accuracy == 0.0
@@ -902,14 +902,14 @@ async def test_evaluation_excludes_only_unresolved_labels_from_supervised_metric
     assert unresolved_diagnostics.transition is None
     assert (
         unresolved_diagnostics.label_resolution_reason
-        == "Label does not match any model class"
+        == "La etiqueta no coincide con ninguna clase del modelo"
     )
 
     assert unlabeled_diagnostics.ground_truth_class is None
     assert unlabeled_diagnostics.transition is None
     assert (
         unlabeled_diagnostics.label_resolution_reason
-        == "Image has no ground-truth label"
+        == "La imagen no tiene una etiqueta de referencia"
     )
 
     assert response.summary.labeled_images == 1
@@ -945,14 +945,14 @@ async def test_evaluation_without_labels_keeps_unsupervised_robustness(
     assert metrics.label_resolution.resolved_labels == 0
     assert metrics.supervised is None
     assert metrics.supervised_status.available is False
-    assert metrics.supervised_status.reason == "Dataset has no labeled images"
+    assert metrics.supervised_status.reason == "El conjunto de datos no contiene imágenes etiquetadas"
 
     assert robustness.total_images == 2
     assert robustness.changed_predictions == 1
     assert robustness.unchanged_predictions == 1
     assert robustness.prediction_flip_rate == 0.5
     assert robustness.clean_accuracy.available is False
-    assert robustness.clean_accuracy.reason == "Dataset has no labeled images"
+    assert robustness.clean_accuracy.reason == "El conjunto de datos no contiene imágenes etiquetadas"
 
     assert response.summary.labeled_images == 0
     assert response.summary.original_accuracy is None
@@ -962,7 +962,7 @@ async def test_evaluation_without_labels_keeps_unsupervised_robustness(
     assert all(
         result.diagnostics.transition is None
         and result.diagnostics.label_resolution_reason
-        == "Image has no ground-truth label"
+        == "La imagen no tiene una etiqueta de referencia"
         for result in response.results
     )
 
@@ -995,7 +995,7 @@ async def test_evaluation_with_only_unresolved_labels_disables_supervised_metric
     assert metrics.supervised_status.available is False
     assert (
         metrics.supervised_status.reason
-        == "No dataset labels match the active model classes"
+        == "Ninguna etiqueta del conjunto de datos coincide con las clases del modelo activo"
     )
 
     assert metrics.robustness.changed_predictions == 1
@@ -1006,7 +1006,7 @@ async def test_evaluation_with_only_unresolved_labels_disables_supervised_metric
 
     assert diagnostics.ground_truth_class is None
     assert diagnostics.transition is None
-    assert diagnostics.label_resolution_reason == "Label does not match any model class"
+    assert diagnostics.label_resolution_reason == "La etiqueta no coincide con ninguna clase del modelo"
 
     assert response.summary.labeled_images == 0
     assert response.summary.original_accuracy is None

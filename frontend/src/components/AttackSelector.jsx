@@ -132,7 +132,7 @@ function AttackSelector({
 
             {attackCatalog.length > 0 && (
                 <p className="muted-text">
-                    Compatibles con {activeTaskType}:{' '}
+                    Compatibles con {activeTaskType === 'classification' ? 'clasificación' : 'detección'}:{' '}
                     {supportedAttacks.map((attack) => attack.name).join(', ') || 'ninguno'}.
                 </p>
             )}

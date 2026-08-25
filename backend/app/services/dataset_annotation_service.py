@@ -49,7 +49,7 @@ async def _get_owned_dataset_document(
     if dataset is None:
         raise NotFoundError(DATASET_NOT_FOUND_MESSAGE)
     if str(dataset["owner_id"]) != current_user.id:
-        raise ForbiddenError("Dataset belongs to another user")
+        raise ForbiddenError("El conjunto de datos pertenece a otro usuario")
 
     return object_id, dataset
 
@@ -64,7 +64,7 @@ async def _read_coco_upload(file: UploadFile) -> bytes:
         or not normalized_filename.lower().endswith(".json")
     ):
         raise CocoImportValidationError(
-            "Upload must be a safely named .json file",
+            "El archivo debe ser un .json con un nombre seguro",
             section="upload",
             field="filename",
             image_name=filename or None,
@@ -76,7 +76,7 @@ async def _read_coco_upload(file: UploadFile) -> bytes:
         "text/json",
     }:
         raise CocoImportValidationError(
-            "Unsupported COCO upload content type",
+            "El tipo de contenido del archivo COCO no es compatible",
             section="upload",
             field="content_type",
         )
@@ -88,7 +88,7 @@ async def _read_coco_upload(file: UploadFile) -> bytes:
         if total_size > COCO_MAX_UPLOAD_BYTES:
             raise CocoImportValidationError(
                 (
-                    "COCO JSON exceeds the configured upload limit of "
+                    "El JSON COCO supera el límite de subida configurado de "
                     f"{COCO_MAX_UPLOAD_BYTES} bytes"
                 ),
                 section="upload",
@@ -98,7 +98,7 @@ async def _read_coco_upload(file: UploadFile) -> bytes:
 
     if total_size == 0:
         raise CocoImportValidationError(
-            "COCO JSON file is empty",
+            "El archivo JSON COCO está vacío",
             section="upload",
             field="size",
         )
@@ -126,7 +126,7 @@ def _authoritative_dimensions(image_metadata: dict) -> tuple[int, int]:
             width, height = image.size
     except (OSError, TypeError, ValueError) as error:
         raise CocoImportValidationError(
-            "Authoritative dataset image could not be read",
+            "No se pudo leer la imagen de referencia del conjunto de datos",
             section="dataset_images",
             field="path",
             image_name=image_metadata.get("filename"),
@@ -134,7 +134,7 @@ def _authoritative_dimensions(image_metadata: dict) -> tuple[int, int]:
 
     if width <= 0 or height <= 0:
         raise CocoImportValidationError(
-            "Authoritative dataset image dimensions are invalid",
+            "Las dimensiones de la imagen de referencia del conjunto de datos no son válidas",
             section="dataset_images",
             field="dimensions",
             image_name=image_metadata.get("filename"),
@@ -368,7 +368,7 @@ async def import_coco_annotations(
                 {
                     "code": "annotation_import_conflict",
                     "message": (
-                        "Dataset changed while importing annotations; retry the import"
+                        "El conjunto de datos cambió durante la importación de anotaciones; repite la importación"
                     ),
                     "snapshot_applied": False,
                 }
@@ -463,7 +463,7 @@ async def get_annotation_coverage(
         if latest_dataset is None:
             raise NotFoundError(DATASET_NOT_FOUND_MESSAGE)
         if str(latest_dataset["owner_id"]) != current_user.id:
-            raise ForbiddenError("Dataset belongs to another user")
+            raise ForbiddenError("El conjunto de datos pertenece a otro usuario")
 
         latest_state = (
             latest_dataset.get("dataset_revision", 0),
@@ -475,5 +475,5 @@ async def get_annotation_coverage(
         dataset = latest_dataset
 
     raise ConflictError(
-        "Dataset changed repeatedly while reading annotation coverage; retry"
+        "El conjunto de datos cambió repetidamente al leer la cobertura de anotaciones; inténtalo de nuevo"
     )

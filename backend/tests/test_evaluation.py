@@ -264,7 +264,7 @@ def test_evaluate_stream_emits_progress_and_final_result(
             result_id="evaluation-stream-1",
             dataset_id=request.dataset_id,
             model_id="resnet18",
-            model_name="ResNet18 pretrained",
+            model_name="ResNet-18 · preentrenado en ImageNet-1K",
             attack_type=request.attack_type,
             parameters=request.parameters,
             summary=EvaluationSummary(

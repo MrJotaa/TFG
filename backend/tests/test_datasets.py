@@ -50,7 +50,7 @@ def test_create_dataset_with_invalid_user_returns_400(
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Invalid user id"
+    assert response.json()["detail"] == "Identificador de usuario no válido"
 
 
 def test_create_dataset_with_non_existing_user_returns_404(
@@ -69,7 +69,7 @@ def test_create_dataset_with_non_existing_user_returns_404(
     )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"
+    assert response.json()["detail"] == "Usuario no encontrado"
 
 
 def test_create_dataset_with_invalid_file_extension_returns_400(
@@ -130,14 +130,14 @@ def test_get_dataset_with_invalid_id_returns_400(client):
     response = client.get("/datasets/invalid-id")
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Invalid dataset id"
+    assert response.json()["detail"] == "Identificador de conjunto de datos no válido"
 
 
 def test_get_dataset_with_unknown_id_returns_404(client):
     response = client.get("/datasets/507f1f77bcf86cd799439011")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Dataset not found"
+    assert response.json()["detail"] == "Conjunto de datos no encontrado"
 
 
 def test_list_dataset_images_returns_images(
@@ -200,7 +200,7 @@ def test_add_image_to_unknown_dataset_returns_404(
     )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Dataset not found"
+    assert response.json()["detail"] == "Conjunto de datos no encontrado"
 
 
 def test_get_dataset_image_returns_file(
@@ -229,7 +229,7 @@ def test_get_unknown_dataset_image_returns_404(
     response = client.get(f"/datasets/{dataset_id}/images/unknown-image")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Image not found"
+    assert response.json()["detail"] == "Imagen no encontrada"
 
 
 def test_update_image_label_returns_updated_image(
@@ -286,7 +286,7 @@ def test_update_unknown_image_label_returns_404(
     )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Image not found"
+    assert response.json()["detail"] == "Imagen no encontrada"
 
 
 def test_delete_dataset_image_removes_image(
@@ -321,7 +321,7 @@ def test_delete_unknown_dataset_image_returns_404(
     response = client.delete(f"/datasets/{dataset_id}/images/unknown-image")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Image not found"
+    assert response.json()["detail"] == "Imagen no encontrada"
 
 
 def test_delete_dataset_removes_dataset(
@@ -338,14 +338,14 @@ def test_delete_dataset_removes_dataset(
     get_response = client.get(f"/datasets/{dataset_id}")
 
     assert get_response.status_code == 404
-    assert get_response.json()["detail"] == "Dataset not found"
+    assert get_response.json()["detail"] == "Conjunto de datos no encontrado"
 
 
 def test_delete_unknown_dataset_returns_404(client):
     response = client.delete("/datasets/507f1f77bcf86cd799439011")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Dataset not found"
+    assert response.json()["detail"] == "Conjunto de datos no encontrado"
 
 
 def test_get_user_datasets_returns_only_user_datasets(
