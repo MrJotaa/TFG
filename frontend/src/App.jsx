@@ -3,6 +3,7 @@ import AppLayout from './components/layout/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { ExperimentProvider } from './context/ExperimentContext'
+import { NavigationGuardProvider } from './context/NavigationGuardContext'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import Dashboard from './pages/Dashboard'
@@ -16,7 +17,8 @@ function App() {
     <AuthProvider>
       <ExperimentProvider>
         <BrowserRouter>
-          <Routes>
+          <NavigationGuardProvider>
+            <Routes>
             <Route path="/" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
 
@@ -39,7 +41,8 @@ function App() {
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+            </Routes>
+          </NavigationGuardProvider>
         </BrowserRouter>
       </ExperimentProvider>
     </AuthProvider>

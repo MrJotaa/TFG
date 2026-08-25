@@ -1,0 +1,1326 @@
+/*
+ * Global visual system.
+ *
+ * This layer intentionally lives outside index.css while the final UI pass is
+ * in progress. Existing screens can keep their current layout and progressively
+ * migrate to these semantic tokens without a risky all-at-once CSS rewrite.
+ */
+
+:root {
+    --bg: #f4f7fb;
+    --surface: #ffffff;
+    --surface-raised: #ffffff;
+    --surface-soft: #f8fafc;
+    --surface-muted: #eef3f8;
+    --surface-hover: #f1f5f9;
+    --surface-translucent: rgba(255, 255, 255, 0.9);
+
+    --border: #d8e2ef;
+    --border-subtle: #e8eef6;
+    --border-strong: #c4d1e1;
+
+    --text: #172033;
+    --text-soft: #334155;
+    --muted: #64748b;
+    --muted-strong: #475569;
+
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-soft: #eff6ff;
+    --primary-soft-strong: #dbeafe;
+    --primary-border: #bfdbfe;
+    --primary-contrast: #ffffff;
+
+    --danger: #dc2626;
+    --danger-dark: #b91c1c;
+    --danger-soft: #fef2f2;
+    --danger-border: #fecaca;
+    --danger-text: #991b1b;
+
+    --success: #059669;
+    --success-soft: #ecfdf5;
+    --success-border: #a7f3d0;
+    --success-text: #047857;
+
+    --warning: #d97706;
+    --warning-soft: #fffbeb;
+    --warning-border: #fde68a;
+    --warning-text: #92400e;
+
+    --info-soft: #eff6ff;
+    --info-border: #bfdbfe;
+    --info-text: #1e40af;
+
+    --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.055);
+    --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.07);
+    --shadow-md: 0 18px 45px rgba(15, 23, 42, 0.09);
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-pill: 999px;
+
+    --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    --transition-fast: 150ms ease;
+    --transition-base: 200ms ease;
+
+    --evaluation-original: var(--primary);
+    --evaluation-adversarial: var(--danger);
+    --evaluation-danger: var(--danger);
+    --evaluation-success: var(--success);
+    --evaluation-ink: var(--text);
+    --evaluation-muted: var(--muted);
+    --evaluation-line: var(--border);
+    --evaluation-soft: var(--surface-soft);
+}
+
+html[data-theme='dark'] {
+    --bg: #09111f;
+    --surface: #111b2e;
+    --surface-raised: #152238;
+    --surface-soft: #17243a;
+    --surface-muted: #1d2b42;
+    --surface-hover: #22324b;
+    --surface-translucent: rgba(17, 27, 46, 0.92);
+
+    --border: #2b3a52;
+    --border-subtle: #223149;
+    --border-strong: #3b4c66;
+
+    --text: #e8eef8;
+    --text-soft: #cbd5e1;
+    --muted: #9aa9bd;
+    --muted-strong: #b4c0d0;
+
+    --primary: #60a5fa;
+    --primary-dark: #3b82f6;
+    --primary-soft: #172d4d;
+    --primary-soft-strong: #1d3a61;
+    --primary-border: #315a88;
+    --primary-contrast: #07111f;
+
+    --danger: #fb7185;
+    --danger-dark: #f43f5e;
+    --danger-soft: #3a1c29;
+    --danger-border: #713044;
+    --danger-text: #fda4af;
+
+    --success: #34d399;
+    --success-soft: #12352e;
+    --success-border: #266457;
+    --success-text: #6ee7b7;
+
+    --warning: #fbbf24;
+    --warning-soft: #3b2d13;
+    --warning-border: #70531c;
+    --warning-text: #fcd34d;
+
+    --info-soft: #172d4d;
+    --info-border: #315a88;
+    --info-text: #93c5fd;
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-sm: 0 5px 16px rgba(0, 0, 0, 0.22);
+    --shadow-soft: 0 12px 34px rgba(0, 0, 0, 0.24);
+    --shadow-md: 0 20px 50px rgba(0, 0, 0, 0.3);
+    --focus-ring: 0 0 0 3px rgba(96, 165, 250, 0.26);
+}
+
+html {
+    min-width: 320px;
+    background: var(--bg);
+}
+
+body {
+    min-width: 320px;
+    min-height: 100vh;
+    color: var(--text);
+    background:
+        radial-gradient(circle at 12% -10%, rgba(37, 99, 235, 0.08), transparent 28rem),
+        var(--bg);
+    transition:
+        color var(--transition-base),
+        background-color var(--transition-base);
+}
+
+html[data-theme='dark'] body {
+    background:
+        radial-gradient(circle at 12% -10%, rgba(59, 130, 246, 0.13), transparent 30rem),
+        radial-gradient(circle at 92% 5%, rgba(124, 58, 237, 0.07), transparent 24rem),
+        var(--bg);
+}
+
+::selection {
+    background: var(--primary-soft-strong);
+    color: var(--text);
+}
+
+a {
+    color: var(--primary);
+    text-underline-offset: 0.16em;
+}
+
+a:hover {
+    color: var(--primary-dark);
+}
+
+button,
+a,
+input,
+select,
+textarea,
+summary {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+    transition:
+        border-color var(--transition-fast),
+        background-color var(--transition-fast),
+        color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        opacity var(--transition-fast);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid transparent;
+    box-shadow: var(--focus-ring);
+}
+
+input,
+select,
+textarea {
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--text);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--muted);
+    opacity: 0.8;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+    background: var(--surface-muted);
+    color: var(--muted);
+}
+
+/* Shared action language */
+.primary-action,
+.secondary-action,
+.danger-action {
+    min-height: 40px;
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+}
+
+.primary-action {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: var(--primary-contrast);
+    box-shadow: var(--shadow-xs);
+}
+
+.primary-action:hover:not(:disabled) {
+    border-color: var(--primary-dark);
+    background: var(--primary-dark);
+}
+
+.secondary-action {
+    border-color: var(--border-strong);
+    background: var(--surface);
+    color: var(--text-soft);
+}
+
+.secondary-action:hover:not(:disabled) {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.danger-action {
+    border-color: var(--danger);
+    background: var(--danger);
+    color: #ffffff;
+}
+
+.danger-action:hover:not(:disabled) {
+    border-color: var(--danger-dark);
+    background: var(--danger-dark);
+}
+
+.error {
+    color: var(--danger-text);
+}
+
+.muted-text,
+.status-muted {
+    color: var(--muted);
+}
+
+/* Theme chooser */
+.theme-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    width: max-content;
+    padding: 0.22rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-muted);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.theme-option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 34px;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 750;
+}
+
+.theme-option svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.theme-option:hover {
+    color: var(--text);
+}
+
+.theme-option[aria-pressed='true'] {
+    border-color: var(--border);
+    background: var(--surface-raised);
+    color: var(--primary);
+    box-shadow: var(--shadow-xs);
+}
+
+.theme-switcher.compact .theme-option {
+    width: 34px;
+    padding: 0;
+}
+
+.theme-switcher.compact .theme-option span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* Global protected-app frame */
+.app-shell {
+    padding: 0.65rem;
+    gap: 0.65rem;
+}
+
+.app-header,
+.app-footer {
+    border-color: var(--border);
+    background: var(--surface-translucent);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(14px);
+}
+
+.app-session-header {
+    min-height: 58px;
+    justify-content: space-between;
+    padding: 0.5rem 0.65rem;
+    border-radius: var(--radius-lg);
+}
+
+.app-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.68rem;
+    min-width: 0;
+    padding: 0.25rem 0.4rem;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+}
+
+.app-brand:hover {
+    background: var(--surface-hover);
+}
+
+.app-brand-mark {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid var(--primary-border);
+    border-radius: 11px;
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.app-brand-mark svg {
+    width: 21px;
+    height: 21px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.75;
+}
+
+.app-brand-copy,
+.header-user-copy {
+    display: grid;
+    min-width: 0;
+}
+
+.app-brand-copy strong {
+    overflow: hidden;
+    font-size: 0.88rem;
+    letter-spacing: -0.01em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-brand-copy small {
+    margin-top: 0.08rem;
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 650;
+}
+
+.header-user-actions {
+    gap: 0.5rem;
+}
+
+.header-user-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.52rem;
+    min-height: 40px;
+    padding: 0.25rem 0.55rem 0.25rem 0.3rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text);
+}
+
+.header-user-link:hover {
+    border-color: var(--border);
+    background: var(--surface-hover);
+    color: var(--text);
+}
+
+.header-user-avatar {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 0.78rem;
+    font-weight: 850;
+}
+
+.header-user-copy {
+    max-width: 180px;
+}
+
+.header-user-copy small,
+.header-user-copy strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.header-user-copy small {
+    color: var(--muted);
+    font-size: 0.62rem;
+    font-weight: 650;
+}
+
+.header-user-copy strong {
+    margin-top: 0.05rem;
+    color: var(--text);
+    font-size: 0.78rem;
+}
+
+.header-logout-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.42rem;
+    min-height: 40px;
+    padding: 0.45rem 0.68rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--muted-strong);
+    font-weight: 700;
+}
+
+.header-logout-button:hover {
+    border-color: var(--danger-border);
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.header-logout-button svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.app-footer {
+    color: var(--muted);
+}
+
+/* Public pages get theme access now; their redesign belongs to the next issues. */
+.auth-page {
+    position: relative;
+}
+
+.auth-theme-control {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
+}
+
+.auth-card {
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-md);
+}
+
+.auth-card p {
+    color: var(--muted);
+}
+
+.auth-card label {
+    color: var(--text-soft);
+}
+
+.auth-card input {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+/* Common surfaces: this is the compatibility bridge for the existing UI. */
+.page-toolbar,
+.management-card,
+.dashboard-sidebar,
+.dashboard-main-panel,
+.view-panel,
+.context-summary,
+.analysis-card,
+.comparison-header,
+.comparison-detail-card,
+.evaluation-run-card,
+.metrics-section,
+.metric-card,
+.info-card,
+.empty-state,
+.profile-history-table-wrapper,
+.coco-annotation-panel,
+.detection-image-result-card,
+.adversarial-explorer,
+.individual-analysis-toolbar {
+    border-color: var(--border);
+    background-color: var(--surface);
+    color: var(--text);
+}
+
+.page-toolbar,
+.management-card,
+.context-summary,
+.analysis-card,
+.comparison-header,
+.comparison-detail-card,
+.evaluation-run-card,
+.metrics-section,
+.info-card,
+.empty-state {
+    box-shadow: var(--shadow-xs);
+}
+
+.page-toolbar p,
+.dataset-management-item p,
+.comparison-header p,
+.evaluation-run-card p,
+.metric-card span,
+.metric-card small,
+.image-filename,
+.sidebar-list-item small,
+.sidebar-block-title,
+.retention-control label {
+    color: var(--muted);
+}
+
+.sidebar-list-item:hover,
+.dashboard-user-button:hover {
+    background: var(--surface-hover);
+}
+
+.sidebar-list-item.active,
+.dataset-management-item.active {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--text);
+}
+
+.dashboard-user-card,
+.attack-config,
+.image-card,
+.dataset-management-item,
+.history-task-filter,
+.profile-history-table th,
+.evaluation-table th,
+.annotation-category-distribution li,
+.annotation-status {
+    border-color: var(--border);
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+.resize-handle:hover::after {
+    background: var(--border-strong);
+}
+
+.sidebar-block,
+.user-panel,
+.profile-history-table th,
+.profile-history-table td {
+    border-color: var(--border-subtle);
+}
+
+/* Semantic feedback */
+.success-message,
+.history-status.completed,
+.annotation-status.reviewed_with_objects {
+    border-color: var(--success-border);
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+.danger-zone,
+.metric-card.tone-danger {
+    border-color: var(--danger-border);
+    background: var(--danger-soft);
+}
+
+.annotation-status.reviewed_empty,
+.history-status.expiring {
+    border-color: var(--warning-border);
+    background: var(--warning-soft);
+    color: var(--warning-text);
+}
+
+/* Evaluation subsystem already uses semantic variables; keep them theme-aware. */
+.evaluation-metric-guide,
+.evaluation-info-banner {
+    border-color: var(--info-border);
+    background: var(--info-soft);
+}
+
+.evaluation-metric-guide summary,
+.evaluation-metric-guide-grid dt {
+    color: var(--info-text);
+}
+
+.evaluation-info-icon {
+    background: var(--primary-soft-strong);
+    color: var(--primary);
+}
+
+.evaluation-metric-guide summary small,
+.evaluation-metric-guide-intro,
+.evaluation-metric-guide-grid dd,
+.evaluation-metric-guide-note {
+    color: var(--muted-strong);
+}
+
+.evaluation-metric-guide-intro,
+.evaluation-metric-guide-grid > div,
+.evaluation-metric-guide-note {
+    border-color: var(--info-border);
+}
+
+.evaluation-metric-guide-note {
+    background: var(--primary-soft);
+}
+
+/* Dark-mode compatibility for screens that still contain literal light colours. */
+html[data-theme='dark'] :is(
+    .page-toolbar,
+    .management-card,
+    .dashboard-sidebar,
+    .dashboard-main-panel,
+    .view-panel,
+    .context-summary,
+    .analysis-card,
+    .comparison-header,
+    .comparison-detail-card,
+    .evaluation-run-card,
+    .metrics-section,
+    .metric-card,
+    .info-card,
+    .empty-state,
+    .evaluation-results-shell,
+    .evaluation-surface,
+    .evaluation-metric-card,
+    .evaluation-chart-tooltip,
+    .evaluation-donut,
+    .evaluation-donut > div,
+    .class-metric-card,
+    .class-metric-mini-grid,
+    .confusion-matrix-scroll,
+    .curve-score-card,
+    .curve-modal,
+    .curve-tooltip,
+    .curve-unavailable-panel,
+    .evaluation-image-card,
+    .evaluation-image-preview,
+    .evaluation-image-preview img,
+    .evaluation-image-diagnostics,
+    .evaluation-rerun-footer,
+    .detection-image-result-card,
+    .detection-eigencam-section,
+    .adversarial-explorer,
+    .adversarial-explorer-identity,
+    .adversarial-explorer-toolbar,
+    .adversarial-perturbation-panel,
+    .adversarial-detection-list,
+    .individual-analysis-toolbar,
+    .clean-prediction-result,
+    .clean-detection-result,
+    .detection-explainability-result,
+    .clean-detection-summary .adversarial-detection-list,
+    .individual-analysis-empty
+) {
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--text);
+}
+
+html[data-theme='dark'] :is(
+    .dashboard-user-card,
+    .attack-config,
+    .image-card,
+    .dataset-management-item,
+    .history-task-filter,
+    .profile-history-table th,
+    .evaluation-table th,
+    .evaluation-context-strip,
+    .evaluation-tab,
+    .evaluation-tab small,
+    .detection-run-controls input[type='number'],
+    .detection-run-controls select,
+    .detection-object-explorer-toolbar input,
+    .detection-object-explorer-toolbar select,
+    .detection-curve-header select,
+    .class-metrics-toolbar input,
+    .class-metrics-toolbar select,
+    .class-metrics-legend,
+    .class-metric-badges span,
+    .class-metric-track,
+    .evaluation-segmented-control button,
+    .confusion-matrix-table thead th,
+    .confusion-matrix-table tbody th,
+    .curve-controls select,
+    .evaluation-images-toolbar input,
+    .curve-expand-button,
+    .curve-modal-close,
+    .evaluation-image-filter-list button,
+    .evaluation-detail-button,
+    .evaluation-pagination button,
+    .coco-annotation-panel,
+    .annotation-category-distribution li,
+    .annotation-status,
+    .adversarial-explorer-segmented,
+    .adversarial-zoom-controls button,
+    .adversarial-detection-list summary span,
+    .individual-analysis-tabs
+) {
+    border-color: var(--border);
+    background: var(--surface-soft);
+    color: var(--text-soft);
+}
+
+html[data-theme='dark'] :is(
+    .sidebar-list-item:hover,
+    .dashboard-user-button:hover,
+    .evaluation-tab:hover,
+    .evaluation-image-filter-list button:hover
+) {
+    background: var(--surface-hover);
+}
+
+html[data-theme='dark'] :is(
+    .sidebar-list-item.active,
+    .dataset-management-item.active,
+    .evaluation-tab.active,
+    .evaluation-segmented-control button.active,
+    .evaluation-image-filter-list button.active,
+    .adversarial-explorer-segmented button.active,
+    .individual-analysis-tabs button.active
+) {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+    box-shadow: var(--shadow-xs);
+}
+
+html[data-theme='dark'] :is(
+    .evaluation-metric-guide summary small,
+    .evaluation-metric-guide-intro,
+    .evaluation-metric-guide-grid dd,
+    .detection-explained-metric small,
+    .tide-errors-table th small,
+    .tide-tooltip > p,
+    .tide-special-card dt,
+    .sidebar-block-title,
+    .sidebar-list-item small,
+    .user-card-label,
+    .dashboard-user-card span,
+    .summary-heading p,
+    .image-filename,
+    .page-toolbar p,
+    .dataset-management-item p,
+    .muted-text,
+    .image-placeholder,
+    .comparison-header p,
+    .status-muted,
+    .evaluation-run-card p,
+    .metric-card span,
+    .metric-card small,
+    .retention-control label,
+    .history-task-filter button,
+    .profile-history-table th,
+    .evaluation-reuse-copy p,
+    .text-action,
+    .evaluation-tab,
+    .evaluation-tab small,
+    .evaluation-metric-card-heading span,
+    .evaluation-legend-pills span,
+    .evaluation-chart-legend,
+    .evaluation-impact-list dt,
+    .evaluation-loading-card p,
+    .detection-run-controls label > span,
+    .detection-object-explorer-toolbar label > span,
+    .detection-curve-header label > span,
+    .detection-outcome-list dt,
+    .detection-coverage-meters label,
+    .class-metrics-toolbar label > span,
+    .class-metrics-legend,
+    .class-metric-main-label,
+    .class-metric-unavailable-label,
+    .curve-controls label > span,
+    .evaluation-images-toolbar label > span,
+    .evaluation-image-preview figcaption,
+    .detection-image-result-card > header small,
+    .detection-preview figcaption,
+    .detection-preview figcaption span,
+    .detection-preview-note,
+    .detection-image-result-metrics dt,
+    .detection-image-result-metrics dd,
+    .detection-eigencam-action span,
+    .detection-eigencam-preview figcaption,
+    .adversarial-explorer-header p,
+    .adversarial-explorer-help,
+    .adversarial-perturbation-panel p,
+    .adversarial-image-navigation span,
+    .adversarial-explorer-loading p,
+    .individual-analysis-empty p,
+    .clean-prediction-confidence
+) {
+    color: var(--muted);
+}
+
+html[data-theme='dark'] :is(
+    .tide-special-card h3,
+    .tide-special-card dd,
+    .adversarial-explorer-header h3,
+    .adversarial-split-control output,
+    .adversarial-detection-list summary,
+    .clean-detection-summary h3,
+    .clean-prediction-summary h3
+) {
+    color: var(--text);
+}
+
+html[data-theme='dark'] .evaluation-page-hero,
+html[data-theme='dark'] .evaluation-page-hero.compact {
+    border-color: var(--border);
+    background:
+        radial-gradient(circle at top right, rgba(124, 58, 237, 0.16), transparent 36%),
+        radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.14), transparent 40%),
+        var(--surface);
+    box-shadow: var(--shadow-md);
+}
+
+html[data-theme='dark'] .evaluation-back-button {
+    border-color: var(--primary-border);
+    background: var(--surface-soft);
+    color: var(--primary);
+}
+
+html[data-theme='dark'] .evaluation-reuse-notice,
+html[data-theme='dark'] .evaluation-info-banner {
+    border-color: var(--info-border);
+    background: var(--info-soft);
+    color: var(--text-soft);
+}
+
+html[data-theme='dark'] :is(
+    .evaluation-warning-banner,
+    .annotation-status.reviewed_empty,
+    .history-status.expiring
+) {
+    border-color: var(--warning-border);
+    background: var(--warning-soft);
+    color: var(--warning-text);
+}
+
+html[data-theme='dark'] :is(
+    .evaluation-error-banner,
+    .evaluation-gradcam-error,
+    .danger-zone,
+    .metric-card.tone-danger
+) {
+    border-color: var(--danger-border);
+    background: var(--danger-soft);
+    color: var(--danger-text);
+}
+
+html[data-theme='dark'] :is(
+    .success-message,
+    .history-status.completed,
+    .annotation-status.reviewed_with_objects,
+    .metric-card.tone-success
+) {
+    border-color: var(--success-border);
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+html[data-theme='dark'] :is(
+    .analysis-image,
+    .clean-prediction-image img,
+    .clean-detection-image img,
+    .adversarial-perturbation-panel img
+) {
+    border-color: var(--border);
+    background: #0a1220;
+}
+
+html[data-theme='dark'] .simple-bar-track,
+html[data-theme='dark'] .evaluation-progress-track,
+html[data-theme='dark'] .detection-outcome-bar,
+html[data-theme='dark'] .evaluation-coverage-meter {
+    background: var(--surface-muted);
+}
+
+html[data-theme='dark'] .profile-history-table td {
+    border-color: var(--border-subtle);
+}
+
+html[data-theme='dark'] :is(
+    .profile-history-table tbody tr:hover,
+    .evaluation-table tbody tr:hover
+) {
+    background: rgba(96, 165, 250, 0.055);
+}
+
+/* Recharts inherits many colours from CSS/SVG attributes. These rules keep
+   axes and grids legible until each evaluation view is polished separately. */
+html[data-theme='dark'] :is(
+    .recharts-cartesian-axis-tick-value,
+    .recharts-legend-item-text,
+    .recharts-text
+) {
+    fill: var(--muted);
+    color: var(--muted) !important;
+}
+
+html[data-theme='dark'] .recharts-cartesian-grid line {
+    stroke: var(--border);
+}
+
+html[data-theme='dark'] .recharts-tooltip-wrapper {
+    color: var(--text);
+}
+
+@media (max-width: 720px) {
+    .app-brand-copy small,
+    .header-user-copy small,
+    .header-logout-button span {
+        display: none;
+    }
+
+    .header-user-copy {
+        max-width: 110px;
+    }
+}
+
+@media (max-width: 520px) {
+    .header-user-actions {
+        width: auto;
+    }
+
+    .app-shell {
+        padding: 0.4rem;
+    }
+
+    .app-session-header {
+        min-height: 52px;
+        padding: 0.38rem;
+    }
+
+    .app-brand-copy {
+        display: none;
+    }
+
+    .app-brand-mark {
+        width: 34px;
+        height: 34px;
+    }
+
+    .header-user-copy {
+        display: none;
+    }
+
+    .header-user-link {
+        padding-right: 0.3rem;
+    }
+
+    .header-logout-button {
+        width: 38px;
+        padding-inline: 0;
+    }
+
+    .auth-theme-control {
+        top: 0.65rem;
+        right: 0.65rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
+/* Remaining legacy accents kept semantic in dark mode. */
+html[data-theme='dark'] :is(.icon-button, .attack-summary-line) {
+    border-color: var(--border);
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+html[data-theme='dark'] .icon-button:hover {
+    background: var(--surface-hover);
+}
+
+html[data-theme='dark'] .summary-card-blue {
+    background: #123148;
+}
+
+html[data-theme='dark'] .summary-card-green {
+    background: var(--success-soft);
+}
+
+html[data-theme='dark'] .summary-card-yellow {
+    background: var(--warning-soft);
+}
+
+html[data-theme='dark'] .summary-card-red {
+    background: var(--danger-soft);
+}
+
+html[data-theme='dark'] .task-pill.classification {
+    background: #2d2450;
+    color: #c4b5fd;
+}
+
+html[data-theme='dark'] :is(
+    .task-pill.detection,
+    .history-status.running,
+    .detection-outcome-badge.outcome-preserved
+) {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+html[data-theme='dark'] .evaluation-reuse-notice.near-expiration {
+    border-color: var(--warning-border);
+    background: var(--warning-soft);
+}
+
+html[data-theme='dark'] .sidebar-list-item:disabled {
+    background: var(--surface-soft);
+    color: var(--muted);
+}
+
+html[data-theme='dark'] .evaluation-impact-list .tone-warning dt::before {
+    background: var(--warning-soft);
+}
+
+html[data-theme='dark'] .evaluation-coverage-meter > div {
+    background: var(--primary);
+}
+
+html[data-theme='dark'] :is(
+    .detection-metrics-table th[scope='row'],
+    .detection-class-table th[scope='row'],
+    .detection-object-aggregate-table th[scope='row'],
+    .detection-images-table th[scope='row'],
+    .detection-object-detail-row td,
+    .confusion-matrix-stat-grid article,
+    .detection-image-result-metrics div,
+    .evaluation-gradcam-action
+) {
+    border-color: var(--border);
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+html[data-theme='dark'] .detection-operating-comparison div + div {
+    border-color: var(--border);
+    background: var(--surface-soft);
+}
+
+html[data-theme='dark'] .detection-methodology-badge {
+    background: #292858;
+    color: #c7d2fe;
+}
+
+html[data-theme='dark'] :is(
+    .detection-object-detail-button,
+    .evaluation-gradcam-button
+) {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+html[data-theme='dark'] :is(
+    .detection-object-detail-button:hover,
+    .evaluation-gradcam-button:hover:not(:disabled)
+) {
+    border-color: var(--primary);
+    background: var(--primary-soft-strong);
+}
+
+html[data-theme='dark'] :is(
+    .detection-outcome-badge.outcome-suppressed,
+    .detection-legacy-badge.success,
+    .class-metric-badges .tone-danger,
+    .class-metric-miniature .tone-danger,
+    .class-metric-delta.tone-danger,
+    .evaluation-status-badge.danger
+) {
+    background: var(--danger-soft);
+    color: var(--danger-text);
+}
+
+html[data-theme='dark'] :is(
+    .detection-outcome-badge.outcome-recovered,
+    .class-metric-badges .tone-success,
+    .class-metric-miniature .tone-success,
+    .class-metric-delta.tone-success,
+    .evaluation-status-badge.success
+) {
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+html[data-theme='dark'] :is(
+    .detection-outcome-badge.outcome-missed_both,
+    .detection-legacy-badge.neutral,
+    .class-metric-badges .tone-neutral,
+    .class-metric-miniature .tone-neutral,
+    .class-metric-delta.tone-neutral,
+    .evaluation-status-badge.neutral
+) {
+    background: var(--surface-muted);
+    color: var(--muted-strong);
+}
+
+html[data-theme='dark'] .evaluation-status-badge.warning,
+html[data-theme='dark'] .evaluation-image-warning {
+    border-color: var(--warning-border);
+    background: var(--warning-soft);
+    color: var(--warning-text);
+}
+
+html[data-theme='dark'] .confusion-matrix-scroll::-webkit-scrollbar-track {
+    background: var(--surface-soft);
+}
+
+html[data-theme='dark'] .evaluation-legend-pills .reference {
+    border-color: var(--border);
+    background: var(--surface-soft);
+    color: var(--muted-strong);
+}
+
+html[data-theme='dark'] :is(
+    .evaluation-detail-button:hover,
+    .evaluation-rerun-button:hover
+) {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+html[data-theme='dark'] .evaluation-rerun-button {
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--muted-strong);
+}
+
+html[data-theme='dark'] .adversarial-overlay-divider {
+    background: #e2e8f0;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+
+/* Navigation protection for temporary analysis work */
+.navigation-guard-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(7, 17, 31, 0.58);
+    backdrop-filter: blur(5px);
+}
+
+.navigation-guard-dialog {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.85rem 1rem;
+    width: min(100%, 520px);
+    padding: 1.15rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    background: var(--surface-raised);
+    color: var(--text);
+    box-shadow: var(--shadow-md);
+}
+
+.navigation-guard-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid var(--warning-border);
+    border-radius: 13px;
+    background: var(--warning-soft);
+    color: var(--warning);
+}
+
+.navigation-guard-dialog.danger .navigation-guard-icon {
+    border-color: var(--danger-border);
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.navigation-guard-icon svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.navigation-guard-copy {
+    min-width: 0;
+}
+
+.navigation-guard-copy h2 {
+    margin: 0.18rem 0 0;
+    color: var(--text);
+    font-size: 1.05rem;
+    letter-spacing: -0.015em;
+}
+
+.navigation-guard-copy p {
+    margin: 0.5rem 0 0;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+.navigation-guard-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    padding-top: 0.15rem;
+}
+
+.navigation-guard-actions button {
+    margin: 0;
+    min-width: 138px;
+}
+
+@media (max-width: 560px) {
+    .navigation-guard-dialog {
+        grid-template-columns: 1fr;
+    }
+
+    .navigation-guard-actions {
+        grid-column: 1;
+        flex-direction: column-reverse;
+    }
+
+    .navigation-guard-actions button {
+        width: 100%;
+    }
+}

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import ThemeSwitcher from '../components/ThemeSwitcher'
 
 function LoginPage() {
     const navigate = useNavigate()
@@ -30,6 +31,10 @@ function LoginPage() {
 
     return (
         <main className="auth-page">
+            <div className="auth-theme-control">
+                <ThemeSwitcher compact />
+            </div>
+
             <section className="auth-card">
                 <h1>Analizador de ataques adversarios</h1>
                 <h2>Iniciar sesión</h2>

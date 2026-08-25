@@ -1,4 +1,4 @@
-import { useMemo, useReducer, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
     evaluateDataset,
     generateEvaluationGradCam,
@@ -28,6 +28,7 @@ import { CLASSIFICATION_METRIC_GUIDES } from '../utils/evaluationMetricGuides'
 import { attackParametersKey } from '../utils/attackCatalog'
 import { getAttackName } from '../utils/attackFormatting'
 import { isRequestCancelled } from '../api/client'
+import { useNavigationGuard } from '../context/NavigationGuardContext'
 
 function EvaluationPanel({
     selectedDataset,
@@ -40,6 +41,8 @@ function EvaluationPanel({
     const [evaluationState, setEvaluationState] = useState(null)
     const [activeTab, setActiveTab] = useState('overview')
     const [loading, setLoading] = useState(false)
+    const { setNavigationProtection, clearNavigationProtection } =
+        useNavigationGuard()
     const [progress, setProgress] = useState(null)
     const [errorState, setErrorState] = useState(null)
     const [reuseCandidate, setReuseCandidate] = useState(null)
@@ -50,6 +53,15 @@ function EvaluationPanel({
     const gradCamRequests = useRef(new Set())
     const gradCamRun = useRef(0)
     const evaluationAbortController = useRef(null)
+
+    useEffect(() => {
+        setNavigationProtection({ busy: loading })
+    }, [loading, setNavigationProtection])
+
+    useEffect(() => () => {
+        evaluationAbortController.current?.abort()
+        clearNavigationProtection()
+    }, [clearNavigationProtection])
 
     const contextKey = [
         selectedDataset?.id || '',

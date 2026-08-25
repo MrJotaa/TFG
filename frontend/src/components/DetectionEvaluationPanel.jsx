@@ -1,4 +1,4 @@
-import { useMemo, useReducer, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
     evaluateDetectionDataset,
     generateDetectionEvaluationEigenCam,
@@ -33,6 +33,7 @@ import {
 } from '../utils/attackCatalog'
 import { getAttackName } from '../utils/attackFormatting'
 import { isRequestCancelled } from '../api/client'
+import { useNavigationGuard } from '../context/NavigationGuardContext'
 
 const IOU_THRESHOLDS = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
 
@@ -47,6 +48,8 @@ function DetectionEvaluationPanel({
     const [evaluationState, setEvaluationState] = useState(null)
     const [activeTab, setActiveTab] = useState('overview')
     const [loading, setLoading] = useState(false)
+    const { setNavigationProtection, clearNavigationProtection } =
+        useNavigationGuard()
     const [progress, setProgress] = useState(null)
     const [errorState, setErrorState] = useState(null)
     const [reuseCandidate, setReuseCandidate] = useState(null)
@@ -64,6 +67,15 @@ function DetectionEvaluationPanel({
     const eigenCamRequests = useRef(new Set())
     const eigenCamRun = useRef(0)
     const evaluationAbortController = useRef(null)
+
+    useEffect(() => {
+        setNavigationProtection({ busy: loading })
+    }, [loading, setNavigationProtection])
+
+    useEffect(() => () => {
+        evaluationAbortController.current?.abort()
+        clearNavigationProtection()
+    }, [clearNavigationProtection])
     const isSupportedAttack = isAttackSupportedForTask(
         attackCatalog,
         selectedAttack,

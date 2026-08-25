@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import DetectionEvaluationPanel from '../components/DetectionEvaluationPanel'
 import EvaluationPanel from '../components/EvaluationPanel'
 import { useExperiment } from '../context/ExperimentContext'
+import { useNavigationGuard } from '../context/NavigationGuardContext'
 import { resolveExperimentTaskType } from '../utils/experimentTask'
 import {
     formatAttackParameters,
@@ -21,6 +22,7 @@ function ContextItem({ label, value }) {
 function EvaluationView() {
     const navigate = useNavigate()
     const [isContextOpen, setIsContextOpen] = useState(false)
+    const { requestNavigation } = useNavigationGuard()
 
     const {
         selectedDataset,
@@ -79,7 +81,7 @@ function EvaluationView() {
                     <button
                         type="button"
                         className="secondary-action evaluation-back-button"
-                        onClick={() => navigate('/dashboard')}
+                        onClick={() => requestNavigation(() => navigate('/dashboard'))}
                     >
                         Volver al panel principal
                     </button>

@@ -7,6 +7,7 @@ import { generateDetectionExplainability } from '../api/explainability'
 import { predictImage } from '../api/predict'
 import AdversarialImageExplorer from '../components/visualExplorer/AdversarialImageExplorer'
 import { useExperiment } from '../context/ExperimentContext'
+import { useNavigationGuard } from '../context/NavigationGuardContext'
 import { resolveCleanDetectionResult } from '../utils/adversarialExplorer'
 import {
     attackParametersKey,
@@ -299,6 +300,8 @@ function ComparisonView() {
         selectedAttack,
         attackParameters,
     } = useExperiment()
+    const { setNavigationProtection, clearNavigationProtection, requestNavigation } =
+        useNavigationGuard()
     const [predictionResultState, setPredictionResultState] = useState(null)
     const [attackResultState, setAttackResultState] = useState(null)
     const [explainabilityResultState, setExplainabilityResultState] = useState(null)
@@ -372,8 +375,18 @@ function ComparisonView() {
         ? errorState.message
         : ''
     const busy = loading || loadingPrediction || loadingExplainability
+    const hasTemporaryWork = Boolean(
+        predictionResult || attackResult || explainabilityResult,
+    )
 
-    useEffect(() => () => requestAbortController.current?.abort(), [])
+    useEffect(() => {
+        setNavigationProtection({ hasTemporaryWork, busy })
+    }, [hasTemporaryWork, busy, setNavigationProtection])
+
+    useEffect(() => () => {
+        requestAbortController.current?.abort()
+        clearNavigationProtection()
+    }, [clearNavigationProtection])
 
     function beginCancellableRequest() {
         requestAbortController.current?.abort()
@@ -509,6 +522,10 @@ function ComparisonView() {
         }
     }
 
+    function navigateToDashboard() {
+        requestNavigation(() => navigate('/dashboard'))
+    }
+
     const imageDimensions = selectedImage?.width && selectedImage?.height
         ? `${selectedImage.width} × ${selectedImage.height} px`
         : null
@@ -532,7 +549,7 @@ function ComparisonView() {
                 <button
                     type="button"
                     className="secondary-action"
-                    onClick={() => navigate('/dashboard')}
+                    onClick={navigateToDashboard}
                 >
                     Volver al panel principal
                 </button>
@@ -563,7 +580,7 @@ function ComparisonView() {
                     <button
                         type="button"
                         className="secondary-action"
-                        onClick={() => navigate('/dashboard')}
+                        onClick={navigateToDashboard}
                     >
                         Configurar experimento
                     </button>

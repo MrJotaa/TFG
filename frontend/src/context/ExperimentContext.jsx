@@ -6,11 +6,13 @@ import {
     useState,
 } from 'react'
 import { getAttacks } from '../api/attacks'
+import { useAuth } from './AuthContext'
 import { buildAttackParameters } from '../utils/attackCatalog'
 
 const ExperimentContext = createContext(null)
 
 export function ExperimentProvider({ children }) {
+    const { isAuthenticated } = useAuth()
     const [datasets, setDatasets] = useState([])
     const [selectedDataset, setSelectedDataset] = useState(null)
     const [selectedImage, setSelectedImage] = useState(null)
@@ -23,6 +25,12 @@ export function ExperimentProvider({ children }) {
     const [recoveredEvaluation, setRecoveredEvaluation] = useState(null)
 
     useEffect(() => {
+        if (!isAuthenticated) {
+            setAttackCatalogLoading(false)
+            setAttackCatalogError('')
+            return undefined
+        }
+
         let cancelled = false
 
         async function loadAttackCatalog() {
@@ -34,7 +42,13 @@ export function ExperimentProvider({ children }) {
 
                 setAttackCatalog(catalog)
             } catch (error) {
-                if (!cancelled) setAttackCatalogError(error.message)
+                if (!cancelled) {
+                    setAttackCatalogError(
+                        error?.status
+                            ? error.message
+                            : 'No se pudo conectar con el servidor.',
+                    )
+                }
             } finally {
                 if (!cancelled) setAttackCatalogLoading(false)
             }
@@ -44,7 +58,7 @@ export function ExperimentProvider({ children }) {
         return () => {
             cancelled = true
         }
-    }, [])
+    }, [isAuthenticated])
 
 
     useEffect(() => {
