@@ -1,12 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
-function ImageLabelEditor({ image, onSaveLabel }) {
+function ImageLabelEditorForm({ image, onSaveLabel }) {
     const [label, setLabel] = useState(image.label || '')
     const [saving, setSaving] = useState(false)
-
-    useEffect(() => {
-        setLabel(image.label || '')
-    }, [image])
 
     async function handleSave() {
         try {
@@ -31,6 +27,18 @@ function ImageLabelEditor({ image, onSaveLabel }) {
                 {saving ? 'Guardando...' : 'Guardar'}
             </button>
         </div>
+    )
+}
+
+function ImageLabelEditor({ image, onSaveLabel }) {
+    const editorKey = `${image.id}:${image.label || ''}`
+
+    return (
+        <ImageLabelEditorForm
+            key={editorKey}
+            image={image}
+            onSaveLabel={onSaveLabel}
+        />
     )
 }
 

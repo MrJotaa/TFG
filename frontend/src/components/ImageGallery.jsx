@@ -7,23 +7,55 @@ import {
 import ImageLabelEditor from './ImageLabelEditor'
 import { getAnnotationStatusLabel } from '../utils/cocoAnnotations'
 
+function CheckIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m6.5 12.3 3.4 3.4 7.6-7.6" />
+        </svg>
+    )
+}
+
+function ExpandIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8.5 4H4v4.5M15.5 4H20v4.5M20 15.5V20h-4.5M8.5 20H4v-4.5" />
+        </svg>
+    )
+}
+
+function CloseIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m6 6 12 12M18 6 6 18" />
+        </svg>
+    )
+}
+
+function imageSource(image) {
+    return `http://127.0.0.1:8000${image.url}`
+}
+
 function ImageGallery({
     selectedDataset,
     selectedImage,
     onSelectImage,
     refreshKey,
     compact = false,
+    workspace = false,
+    allowPreview = false,
     showLabelEditor = true,
     showDeleteButton = false,
     onImageDeleted,
 }) {
     const [images, setImages] = useState([])
     const [error, setError] = useState('')
+    const [previewImage, setPreviewImage] = useState(null)
 
     useEffect(() => {
         async function loadImages() {
             if (!selectedDataset) {
                 setImages([])
+                setPreviewImage(null)
                 return
             }
 
@@ -38,6 +70,17 @@ function ImageGallery({
 
         loadImages()
     }, [selectedDataset, refreshKey])
+
+    useEffect(() => {
+        if (!previewImage) return undefined
+
+        function handleKeyDown(event) {
+            if (event.key === 'Escape') setPreviewImage(null)
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [previewImage])
 
     async function handleLabelChange(imageId, label) {
         if (!selectedDataset) return
@@ -94,71 +137,155 @@ function ImageGallery({
         }
     }
 
+    const galleryClassName = [
+        'image-gallery',
+        compact ? 'compact' : '',
+        workspace ? 'workspace-image-gallery' : '',
+    ].filter(Boolean).join(' ')
+
     return (
-        <div className={compact ? 'image-gallery compact' : 'image-gallery'}>
-            {!compact && <h2>Imágenes</h2>}
+        <div className={galleryClassName}>
+            {!compact && !workspace && <h2>Imágenes</h2>}
 
             {error && <p className="error">{error}</p>}
 
             {!selectedDataset ? (
-                <p>Selecciona un conjunto de datos para ver sus imágenes.</p>
+                workspace ? (
+                    <div className="dashboard-empty-state">
+                        <strong>Selecciona un conjunto de datos</strong>
+                        <span>Sus imágenes aparecerán aquí para comenzar el análisis.</span>
+                    </div>
+                ) : (
+                    <p>Selecciona un conjunto de datos para ver sus imágenes.</p>
+                )
             ) : images.length === 0 ? (
-                <p>Este conjunto de datos no tiene imágenes.</p>
+                workspace ? (
+                    <div className="dashboard-empty-state">
+                        <strong>Dataset vacío</strong>
+                        <span>Este conjunto de datos todavía no contiene imágenes.</span>
+                    </div>
+                ) : (
+                    <p>Este conjunto de datos no tiene imágenes.</p>
+                )
             ) : (
                 <div className="image-grid">
-                    {images.map((image) => (
-                        <div
-                            key={image.id}
-                            className={
-                                selectedImage?.id === image.id
-                                    ? 'image-card selected'
-                                    : 'image-card'
-                            }
-                        >
-                            <button
-                                type="button"
-                                className="image-button"
-                                onClick={() => onSelectImage(image)}
+                    {images.map((image) => {
+                        const isSelected = selectedImage?.id === image.id
+                        return (
+                            <div
+                                key={image.id}
+                                className={`image-card${isSelected ? ' selected' : ''}`}
                             >
-                                <img
-                                    src={`http://127.0.0.1:8000${image.url}`}
-                                    alt={image.filename}
-                                />
-                            </button>
+                                <div className="image-card-visual">
+                                    <button
+                                        type="button"
+                                        className="image-button"
+                                        onClick={() => onSelectImage(image)}
+                                        aria-pressed={isSelected}
+                                        title={`Seleccionar ${image.filename}`}
+                                    >
+                                        <img
+                                            src={imageSource(image)}
+                                            alt={image.filename}
+                                        />
+                                    </button>
 
-                            {!compact && (
-                                <>
-                                    <p className="image-filename">
+                                    {workspace && isSelected && (
+                                        <span className="image-selection-mark" aria-label="Imagen seleccionada">
+                                            <CheckIcon />
+                                        </span>
+                                    )}
+
+                                    {allowPreview && (
+                                        <button
+                                            type="button"
+                                            className="image-preview-button"
+                                            onClick={() => setPreviewImage(image)}
+                                            title={`Ampliar ${image.filename}`}
+                                            aria-label={`Ampliar ${image.filename}`}
+                                        >
+                                            <ExpandIcon />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {workspace ? (
+                                    <p className="workspace-image-name" title={image.filename}>
                                         {image.filename}
                                     </p>
-                                    <span
-                                        className={`annotation-status ${image.annotation_review_status || 'unreviewed'}`}
+                                ) : !compact ? (
+                                    <>
+                                        <p className="image-filename">{image.filename}</p>
+                                        <span
+                                            className={`annotation-status ${image.annotation_review_status || 'unreviewed'}`}
+                                        >
+                                            {getAnnotationStatusLabel(
+                                                image.annotation_review_status,
+                                            )}
+                                        </span>
+                                    </>
+                                ) : null}
+
+                                {showLabelEditor && (
+                                    <ImageLabelEditor
+                                        image={image}
+                                        onSaveLabel={handleLabelChange}
+                                    />
+                                )}
+
+                                {showDeleteButton && (
+                                    <button
+                                        type="button"
+                                        className="danger-action small full-width"
+                                        onClick={() => handleDeleteImage(image.id)}
                                     >
-                                        {getAnnotationStatusLabel(
-                                            image.annotation_review_status,
-                                        )}
-                                    </span>
-                                </>
-                            )}
+                                        Borrar
+                                    </button>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
 
-                            {showLabelEditor && (
-                                <ImageLabelEditor
-                                    image={image}
-                                    onSaveLabel={handleLabelChange}
-                                />
-                            )}
-
-                            {showDeleteButton && (
-                                <button
-                                    type="button"
-                                    className="danger-action small full-width"
-                                    onClick={() => handleDeleteImage(image.id)}
-                                >
-                                    Borrar
-                                </button>
-                            )}
+            {previewImage && (
+                <div
+                    className="image-lightbox-backdrop"
+                    role="presentation"
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) setPreviewImage(null)
+                    }}
+                >
+                    <section
+                        className="image-lightbox"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={`Vista ampliada de ${previewImage.filename}`}
+                    >
+                        <header>
+                            <div>
+                                <span className="dashboard-section-eyebrow">Vista ampliada</span>
+                                <strong>{previewImage.filename}</strong>
+                            </div>
+                            <button
+                                type="button"
+                                className="image-lightbox-close"
+                                onClick={() => setPreviewImage(null)}
+                                aria-label="Cerrar vista ampliada"
+                            >
+                                <CloseIcon />
+                            </button>
+                        </header>
+                        <div className="image-lightbox-content">
+                            <img src={imageSource(previewImage)} alt={previewImage.filename} />
                         </div>
-                    ))}
+                        {previewImage.label && (
+                            <footer>
+                                <span>Etiqueta</span>
+                                <strong>{previewImage.label}</strong>
+                            </footer>
+                        )}
+                    </section>
                 </div>
             )}
         </div>

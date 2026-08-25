@@ -100,10 +100,16 @@ export function NavigationGuardProvider({ children }) {
     const [pendingRequest, setPendingRequest] = useState(null)
 
     const setNavigationProtection = useCallback((nextProtection = {}) => {
-        setProtection({
+        const normalizedProtection = {
             hasTemporaryWork: Boolean(nextProtection.hasTemporaryWork),
             busy: Boolean(nextProtection.busy),
-        })
+        }
+
+        setProtection(normalizedProtection)
+
+        if (!shouldProtectNavigation(normalizedProtection)) {
+            setPendingRequest(null)
+        }
     }, [])
 
     const clearNavigationProtection = useCallback(() => {
@@ -137,11 +143,6 @@ export function NavigationGuardProvider({ children }) {
         action?.()
     }, [pendingRequest])
 
-    useEffect(() => {
-        if (pendingRequest && !shouldProtectNavigation(protection)) {
-            setPendingRequest(null)
-        }
-    }, [pendingRequest, protection])
 
     useEffect(() => {
         if (!shouldProtectNavigation(protection)) return undefined

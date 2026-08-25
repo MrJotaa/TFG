@@ -15,19 +15,23 @@ function UserSelector({
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
 
-    async function loadUsers() {
-        try {
-            setError('')
-            const data = await getUsers()
-            setUsers(data)
-        } catch (err) {
-            setError(err.message)
-        }
-    }
-
     useEffect(() => {
-        if (showExistingUsers) {
-            loadUsers()
+        if (!showExistingUsers) return undefined
+
+        let cancelled = false
+
+        getUsers()
+            .then((data) => {
+                if (cancelled) return
+                setError('')
+                setUsers(data)
+            })
+            .catch((err) => {
+                if (!cancelled) setError(err.message)
+            })
+
+        return () => {
+            cancelled = true
         }
     }, [showExistingUsers])
 

@@ -100,9 +100,6 @@ function AppLayout() {
 
             <Outlet />
 
-            <footer className="app-footer">
-                © 2026 Analizador de ataques adversarios. Todos los derechos reservados.
-            </footer>
         </main>
     )
 }

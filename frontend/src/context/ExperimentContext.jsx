@@ -3,6 +3,7 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useRef,
     useState,
 } from 'react'
 import { getAttacks } from '../api/attacks'
@@ -18,30 +19,40 @@ export function ExperimentProvider({ children }) {
     const [selectedImage, setSelectedImage] = useState(null)
     const [activeModel, setActiveModel] = useState(null)
     const [attackCatalog, setAttackCatalog] = useState([])
-    const [attackCatalogLoading, setAttackCatalogLoading] = useState(true)
     const [attackCatalogError, setAttackCatalogError] = useState('')
     const [selectedAttack, setSelectedAttackState] = useState('fgsm')
+    const selectedAttackRef = useRef(selectedAttack)
     const [attackParameters, setAttackParametersState] = useState({})
     const [recoveredEvaluation, setRecoveredEvaluation] = useState(null)
 
+
+    const attackCatalogLoading = Boolean(
+        isAuthenticated && attackCatalog.length === 0 && !attackCatalogError,
+    )
+
     useEffect(() => {
-        if (!isAuthenticated) {
-            setAttackCatalogLoading(false)
-            setAttackCatalogError('')
-            return undefined
-        }
+        if (!isAuthenticated || attackCatalog.length > 0) return undefined
 
         let cancelled = false
 
-        async function loadAttackCatalog() {
-            try {
-                setAttackCatalogLoading(true)
-                setAttackCatalogError('')
-                const catalog = await getAttacks()
+        Promise.resolve().then(() => {
+            if (!cancelled) setAttackCatalogError('')
+        })
+
+        getAttacks()
+            .then((catalog) => {
                 if (cancelled) return
 
                 setAttackCatalog(catalog)
-            } catch (error) {
+                setAttackParametersState((current) =>
+                    buildAttackParameters(
+                        catalog,
+                        selectedAttackRef.current,
+                        current,
+                    ),
+                )
+            })
+            .catch((error) => {
                 if (!cancelled) {
                     setAttackCatalogError(
                         error?.status
@@ -49,30 +60,12 @@ export function ExperimentProvider({ children }) {
                             : 'No se pudo conectar con el servidor.',
                     )
                 }
-            } finally {
-                if (!cancelled) setAttackCatalogLoading(false)
-            }
-        }
+            })
 
-        loadAttackCatalog()
         return () => {
             cancelled = true
         }
-    }, [isAuthenticated])
-
-
-    useEffect(() => {
-        if (attackCatalog.length === 0) return
-
-        setAttackParametersState((current) => {
-            const next = buildAttackParameters(
-                attackCatalog,
-                selectedAttack,
-                current,
-            )
-            return JSON.stringify(next) === JSON.stringify(current) ? current : next
-        })
-    }, [attackCatalog, selectedAttack])
+    }, [isAuthenticated, attackCatalog.length])
 
     const selectDataset = useCallback((dataset) => {
         setRecoveredEvaluation(null)
@@ -85,6 +78,7 @@ export function ExperimentProvider({ children }) {
     }, [])
 
     const selectAttack = useCallback((attackId) => {
+        selectedAttackRef.current = attackId
         setRecoveredEvaluation(null)
         setSelectedAttackState(attackId)
         setAttackParametersState((current) =>
@@ -98,6 +92,7 @@ export function ExperimentProvider({ children }) {
     }, [])
 
     function openRecoveredEvaluation({ historyItem, stored, dataset }) {
+        selectedAttackRef.current = historyItem.attack_type
         setSelectedDataset(dataset)
         setSelectedAttackState(historyItem.attack_type)
         setAttackParametersState(
@@ -115,6 +110,7 @@ export function ExperimentProvider({ children }) {
     }
 
     function resetExperiment() {
+        selectedAttackRef.current = 'fgsm'
         setDatasets([])
         setSelectedDataset(null)
         setSelectedImage(null)

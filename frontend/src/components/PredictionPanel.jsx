@@ -1,19 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { predictImage } from '../api/predict'
 import { generateGradCam } from '../api/explainability'
 
-function PredictionPanel({ selectedDataset, selectedImage }) {
+function PredictionPanelContent({ selectedDataset, selectedImage }) {
     const [prediction, setPrediction] = useState(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [gradCam, setGradCam] = useState(null)
     const [gradCamLoading, setGradCamLoading] = useState(false)
-
-    useEffect(() => {
-        setPrediction(null)
-        setGradCam(null)
-        setError('')
-    }, [selectedDataset, selectedImage])
 
     async function handlePredict() {
         if (!selectedDataset || !selectedImage) {
@@ -131,6 +125,18 @@ function PredictionPanel({ selectedDataset, selectedImage }) {
                 </div>
             )}
         </div>
+    )
+}
+
+function PredictionPanel({ selectedDataset, selectedImage }) {
+    const selectionKey = `${selectedDataset?.id || 'none'}:${selectedImage?.id || 'none'}`
+
+    return (
+        <PredictionPanelContent
+            key={selectionKey}
+            selectedDataset={selectedDataset}
+            selectedImage={selectedImage}
+        />
     )
 }
 
