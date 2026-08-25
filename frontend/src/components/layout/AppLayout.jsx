@@ -56,6 +56,7 @@ function AppLayout() {
                     className="app-brand"
                     onClick={() => navigateSafely('/dashboard')}
                     aria-label="Ir al panel principal"
+                    title="Volver al panel principal"
                 >
                     <span className="app-brand-mark">
                         <BrandMark />

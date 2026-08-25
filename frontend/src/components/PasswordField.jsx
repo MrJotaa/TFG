@@ -30,6 +30,7 @@ function PasswordField({
     placeholder = 'Introduce tu contraseña',
     error = '',
     disabled = false,
+    required = true,
     visible,
     onVisibleChange,
     showToggle = true,
@@ -59,7 +60,7 @@ function PasswordField({
                     onBlur={onBlur}
                     autoComplete={autoComplete}
                     placeholder={placeholder}
-                    required
+                    required={required}
                     disabled={disabled}
                     aria-invalid={Boolean(error)}
                     aria-describedby={errorId}

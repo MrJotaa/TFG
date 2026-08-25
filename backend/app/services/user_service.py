@@ -104,6 +104,19 @@ async def update_user(
         update_data["email"] = user_data.email
 
     if user_data.password is not None:
+        hashed_password = user.get("password")
+
+        if not user_data.current_password:
+            raise BadRequestError(
+                "Debes introducir tu contraseña actual para cambiarla"
+            )
+
+        if not hashed_password or not verify_password(
+            user_data.current_password,
+            hashed_password,
+        ):
+            raise BadRequestError("Contraseña actual no válida")
+
         update_data["password"] = hash_password(user_data.password)
 
     if update_data:

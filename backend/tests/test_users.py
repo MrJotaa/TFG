@@ -150,6 +150,7 @@ def test_update_user_password_allows_login_with_new_password(
         f"/users/{user_id}",
         json={
             "password": "new-secure-password-123",
+            "current_password": "secure-password-123",
         },
     )
 
@@ -165,6 +166,43 @@ def test_update_user_password_allows_login_with_new_password(
 
     assert login_response.status_code == 200
     assert login_response.json()["access_token"]
+
+
+def test_update_user_password_requires_current_password(
+    client,
+    registered_user,
+):
+    user_id = registered_user["user"]["id"]
+
+    response = client.patch(
+        f"/users/{user_id}",
+        json={
+            "password": "new-secure-password-123",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Debes introducir tu contraseña actual para cambiarla"
+    )
+
+
+def test_update_user_password_rejects_wrong_current_password(
+    client,
+    registered_user,
+):
+    user_id = registered_user["user"]["id"]
+
+    response = client.patch(
+        f"/users/{user_id}",
+        json={
+            "password": "new-secure-password-123",
+            "current_password": "wrong-password",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Contraseña actual no válida"
 
 
 def test_update_user_with_invalid_email_returns_422(client, registered_user):
