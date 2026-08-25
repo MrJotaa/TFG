@@ -1,11 +1,5 @@
 import { useEffect, useState } from 'react'
-import {
-    deleteDatasetImage,
-    getDatasetImages,
-    updateImageLabel,
-} from '../api/datasets'
-import ImageLabelEditor from './ImageLabelEditor'
-import { getAnnotationStatusLabel } from '../utils/cocoAnnotations'
+import { getDatasetImages } from '../api/datasets'
 
 function CheckIcon() {
     return (
@@ -43,33 +37,39 @@ function ImageGallery({
     compact = false,
     workspace = false,
     allowPreview = false,
-    showLabelEditor = true,
-    showDeleteButton = false,
-    onImageDeleted,
+    onImagesLoaded,
+    filterImage,
 }) {
     const [images, setImages] = useState([])
     const [error, setError] = useState('')
     const [previewImage, setPreviewImage] = useState(null)
 
     useEffect(() => {
-        async function loadImages() {
-            if (!selectedDataset) {
+        let active = true
+
+        if (!selectedDataset) {
+            Promise.resolve().then(() => {
+                if (!active) return
                 setImages([])
                 setPreviewImage(null)
-                return
-            }
-
-            try {
-                setError('')
-                const data = await getDatasetImages(selectedDataset.id)
-                setImages(data)
-            } catch (err) {
-                setError(err.message)
-            }
+                onImagesLoaded?.([])
+            })
+            return () => { active = false }
         }
 
-        loadImages()
-    }, [selectedDataset, refreshKey])
+        getDatasetImages(selectedDataset.id)
+            .then((data) => {
+                if (!active) return
+                setError('')
+                setImages(data)
+                onImagesLoaded?.(data)
+            })
+            .catch((requestError) => {
+                if (active) setError(requestError.message)
+            })
+
+        return () => { active = false }
+    }, [selectedDataset, refreshKey, onImagesLoaded])
 
     useEffect(() => {
         if (!previewImage) return undefined
@@ -82,61 +82,7 @@ function ImageGallery({
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [previewImage])
 
-    async function handleLabelChange(imageId, label) {
-        if (!selectedDataset) return
-
-        try {
-            setError('')
-
-            const updatedImage = await updateImageLabel({
-                datasetId: selectedDataset.id,
-                imageId,
-                label,
-            })
-
-            setImages((currentImages) =>
-                currentImages.map((image) =>
-                    image.id === imageId
-                        ? { ...image, label: updatedImage.label }
-                        : image,
-                ),
-            )
-        } catch (err) {
-            setError(err.message)
-        }
-    }
-
-    async function handleDeleteImage(imageId) {
-        if (!selectedDataset) return
-
-        const confirmed = window.confirm(
-            '¿Seguro que quieres borrar esta imagen? Esta acción no se puede deshacer.',
-        )
-
-        if (!confirmed) return
-
-        try {
-            setError('')
-
-            await deleteDatasetImage({
-                datasetId: selectedDataset.id,
-                imageId,
-            })
-
-            setImages((currentImages) =>
-                currentImages.filter((image) => image.id !== imageId),
-            )
-
-            if (selectedImage?.id === imageId) {
-                onSelectImage(null)
-            }
-
-            onImageDeleted?.(imageId)
-        } catch (err) {
-            setError(err.message)
-        }
-    }
-
+    const visibleImages = filterImage ? images.filter(filterImage) : images
     const galleryClassName = [
         'image-gallery',
         compact ? 'compact' : '',
@@ -146,7 +92,6 @@ function ImageGallery({
     return (
         <div className={galleryClassName}>
             {!compact && !workspace && <h2>Imágenes</h2>}
-
             {error && <p className="error">{error}</p>}
 
             {!selectedDataset ? (
@@ -161,15 +106,20 @@ function ImageGallery({
             ) : images.length === 0 ? (
                 workspace ? (
                     <div className="dashboard-empty-state">
-                        <strong>Dataset vacío</strong>
+                        <strong>Conjunto vacío</strong>
                         <span>Este conjunto de datos todavía no contiene imágenes.</span>
                     </div>
                 ) : (
                     <p>Este conjunto de datos no tiene imágenes.</p>
                 )
+            ) : visibleImages.length === 0 ? (
+                <div className="dashboard-empty-state">
+                    <strong>No hay imágenes en este filtro</strong>
+                    <span>Prueba otra vista para seguir gestionando el conjunto de datos.</span>
+                </div>
             ) : (
                 <div className="image-grid">
-                    {images.map((image) => {
+                    {visibleImages.map((image) => {
                         const isSelected = selectedImage?.id === image.id
                         return (
                             <div
@@ -184,10 +134,7 @@ function ImageGallery({
                                         aria-pressed={isSelected}
                                         title={`Seleccionar ${image.filename}`}
                                     >
-                                        <img
-                                            src={imageSource(image)}
-                                            alt={image.filename}
-                                        />
+                                        <img src={imageSource(image)} alt={image.filename} />
                                     </button>
 
                                     {workspace && isSelected && (
@@ -214,34 +161,8 @@ function ImageGallery({
                                         {image.filename}
                                     </p>
                                 ) : !compact ? (
-                                    <>
-                                        <p className="image-filename">{image.filename}</p>
-                                        <span
-                                            className={`annotation-status ${image.annotation_review_status || 'unreviewed'}`}
-                                        >
-                                            {getAnnotationStatusLabel(
-                                                image.annotation_review_status,
-                                            )}
-                                        </span>
-                                    </>
+                                    <p className="image-filename">{image.filename}</p>
                                 ) : null}
-
-                                {showLabelEditor && (
-                                    <ImageLabelEditor
-                                        image={image}
-                                        onSaveLabel={handleLabelChange}
-                                    />
-                                )}
-
-                                {showDeleteButton && (
-                                    <button
-                                        type="button"
-                                        className="danger-action small full-width"
-                                        onClick={() => handleDeleteImage(image.id)}
-                                    >
-                                        Borrar
-                                    </button>
-                                )}
                             </div>
                         )
                     })}

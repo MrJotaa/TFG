@@ -392,3 +392,97 @@ def test_get_user_datasets_returns_only_user_datasets(
         "Dataset A",
         "Dataset B",
     }
+
+
+def test_create_dataset_persists_task_type(
+    client,
+    registered_user,
+    image_file_factory,
+):
+    user_id = registered_user["user"]["id"]
+
+    response = client.post(
+        "/datasets",
+        data={
+            "user_id": user_id,
+            "name": "Detection Dataset",
+            "task_type": "detection",
+        },
+        files=[image_file_factory("image.png")],
+    )
+
+    assert response.status_code == 200
+    assert response.json()["task_type"] == "detection"
+
+
+def test_legacy_dataset_without_task_type_remains_unclassified(
+    client,
+    created_dataset,
+):
+    response = client.get(f"/datasets/{created_dataset['id']}")
+
+    assert response.status_code == 200
+    assert response.json()["task_type"] is None
+
+
+def test_update_dataset_metadata_renames_and_defines_legacy_task_type(
+    client,
+    created_dataset,
+):
+    response = client.patch(
+        f"/datasets/{created_dataset['id']}",
+        json={
+            "name": "Renamed Dataset",
+            "task_type": "classification",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Renamed Dataset"
+    assert data["task_type"] == "classification"
+
+    persisted = client.get(f"/datasets/{created_dataset['id']}")
+    assert persisted.status_code == 200
+    assert persisted.json()["name"] == "Renamed Dataset"
+    assert persisted.json()["task_type"] == "classification"
+
+
+def test_dataset_task_type_cannot_change_after_being_defined(
+    client,
+    registered_user,
+    image_file_factory,
+):
+    user_id = registered_user["user"]["id"]
+    created = client.post(
+        "/datasets",
+        data={
+            "user_id": user_id,
+            "name": "Classification Dataset",
+            "task_type": "classification",
+        },
+        files=[image_file_factory("image.png")],
+    )
+    assert created.status_code == 200
+
+    response = client.patch(
+        f"/datasets/{created.json()['id']}",
+        json={"task_type": "detection"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "El tipo del conjunto de datos no puede cambiar una vez definido"
+    )
+
+
+def test_update_dataset_rejects_blank_name(client, created_dataset):
+    response = client.patch(
+        f"/datasets/{created_dataset['id']}",
+        json={"name": "   "},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "El nombre del conjunto de datos no puede estar vacío"
+    )

@@ -178,6 +178,7 @@ test('dataset upload keeps multipart headers browser-managed', async () => {
     await datasets.uploadDataset({
         userId: 'user-1',
         name: 'COCO sample',
+        taskType: 'detection',
         files: [image],
     })
 
@@ -189,7 +190,30 @@ test('dataset upload keeps multipart headers browser-managed', async () => {
     assert.ok(call.options.body instanceof FormData)
     assert.equal(call.options.body.get('user_id'), 'user-1')
     assert.equal(call.options.body.get('name'), 'COCO sample')
+    assert.equal(call.options.body.get('task_type'), 'detection')
     assert.equal(call.options.body.get('files').name, 'sample.png')
+})
+
+
+test('dataset metadata update uses the dataset PATCH contract', async () => {
+    client.setStoredToken('session-token')
+    const calls = captureFetch(() =>
+        jsonResponse({ id: 'dataset-1', name: 'Renamed', task_type: 'classification' }),
+    )
+
+    await datasets.updateDataset({
+        datasetId: 'dataset-1',
+        name: 'Renamed',
+        taskType: 'classification',
+    })
+
+    const call = calls[0]
+    assert.equal(call.url, 'http://127.0.0.1:8000/datasets/dataset-1')
+    assert.equal(call.options.method, 'PATCH')
+    assert.deepEqual(requestBody(call), {
+        name: 'Renamed',
+        task_type: 'classification',
+    })
 })
 
 test('attack catalog is retrieved from the backend source of truth', async () => {

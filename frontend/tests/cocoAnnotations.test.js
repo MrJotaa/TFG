@@ -53,9 +53,9 @@ test('coverage summary renders counts and category distribution', () => {
     )
 
     assert.match(html, /66.67%/)
-    assert.match(html, /Imágenes revisadas/)
-    assert.match(html, /Revisadas sin objetos/)
-    assert.match(html, /Revisadas con objetos/)
+    assert.match(html, /Revisadas/)
+    assert.match(html, /revisadas sin objetos/)
+    assert.match(html, /con objetos/)
     assert.match(html, /cat/)
     assert.match(html, />3</)
 })

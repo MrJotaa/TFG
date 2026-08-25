@@ -8,7 +8,9 @@ from schemas.datasets import (
     DatasetImage,
     DatasetImageLabelUpdate,
     DatasetLabelResolutionResponse,
+    DatasetMetadataUpdate,
     DatasetResponse,
+    DatasetTaskType,
 )
 from schemas.users import UserResponse
 from services.classification_label_service import (
@@ -27,6 +29,7 @@ from services.dataset_service import (
     get_image_file_response,
     list_datasets,
     list_images_in_dataset,
+    update_dataset_metadata,
     update_image_label,
 )
 
@@ -37,9 +40,10 @@ router = APIRouter()
 async def upload_dataset(
     user_id: str = Form(...),
     name: str = Form(...),
+    task_type: DatasetTaskType | None = Form(None),
     files: list[UploadFile] = File(...),
 ) -> DatasetResponse:
-    return await create_dataset_from_images(user_id, name, files)
+    return await create_dataset_from_images(user_id, name, files, task_type)
 
 
 @router.get("/datasets", response_model=list[DatasetResponse])
@@ -50,6 +54,14 @@ async def get_datasets() -> list[DatasetResponse]:
 @router.get("/datasets/{dataset_id}", response_model=DatasetResponse)
 async def get_dataset_by_id(dataset_id: str) -> DatasetResponse:
     return await get_dataset(dataset_id)
+
+
+@router.patch("/datasets/{dataset_id}", response_model=DatasetResponse)
+async def update_dataset_by_id(
+    dataset_id: str,
+    metadata: DatasetMetadataUpdate,
+) -> DatasetResponse:
+    return await update_dataset_metadata(dataset_id, metadata)
 
 
 @router.get(

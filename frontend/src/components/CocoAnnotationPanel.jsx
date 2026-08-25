@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
     getDatasetAnnotationCoverage,
     importDatasetCocoAnnotations,
@@ -9,52 +9,45 @@ import {
     getCoverageAfterCocoImport,
     shouldConfirmCocoReplacement,
 } from '../utils/cocoAnnotations'
+import DatasetDialog from './DatasetDialog'
 
-function CoverageMetric({ label, value }) {
+function CoverageMetric({ label, value, emphasis = false }) {
     return (
-        <article className="metric-card">
+        <div className={`annotation-summary-item${emphasis ? ' emphasis' : ''}`}>
             <span>{label}</span>
             <strong>{value}</strong>
-        </article>
+        </div>
     )
 }
 
 export function CoverageSummary({ coverage }) {
     return (
-        <>
-            <div className="metric-grid annotation-coverage-grid">
+        <div className="annotation-coverage-modern">
+            <div className="annotation-summary-strip">
                 <CoverageMetric
                     label="Cobertura"
                     value={`${coverage.coverage_percentage}%`}
+                    emphasis
                 />
                 <CoverageMetric
-                    label="Imágenes revisadas"
-                    value={coverage.reviewed_images}
-                />
-                <CoverageMetric
-                    label="Sin revisar"
-                    value={coverage.unreviewed_images}
-                />
-                <CoverageMetric
-                    label="Revisadas sin objetos"
-                    value={coverage.reviewed_empty_images}
-                />
-                <CoverageMetric
-                    label="Revisadas con objetos"
-                    value={coverage.reviewed_with_objects_images}
+                    label="Revisadas"
+                    value={`${coverage.reviewed_images} / ${coverage.total_images}`}
                 />
                 <CoverageMetric label="Objetos" value={coverage.total_objects} />
-                <CoverageMetric
-                    label="Categorías"
-                    value={coverage.total_categories}
-                />
+                <CoverageMetric label="Categorías" value={coverage.total_categories} />
             </div>
 
-            <div className="annotation-category-distribution">
-                <h5>Objetos por categoría</h5>
+            <div className="annotation-review-breakdown">
+                <span>{coverage.unreviewed_images} sin revisar</span>
+                <span>{coverage.reviewed_empty_images} revisadas sin objetos</span>
+                <span>{coverage.reviewed_with_objects_images} con objetos</span>
+            </div>
+
+            <div className="annotation-category-distribution modern">
+                <h4>Categorías</h4>
                 {coverage.objects_by_category.length === 0 ? (
                     <p className="muted-text">
-                        Las anotaciones no contienen categorías.
+                        Todavía no hay categorías disponibles en las anotaciones.
                     </p>
                 ) : (
                     <ul>
@@ -67,14 +60,16 @@ export function CoverageSummary({ coverage }) {
                     </ul>
                 )}
             </div>
-        </>
+        </div>
     )
 }
 
 function CocoAnnotationPanel({ selectedDataset, onAnnotationsImported }) {
+    const formRef = useRef(null)
     const [coverage, setCoverage] = useState(null)
     const [selectedFile, setSelectedFile] = useState(null)
     const [importing, setImporting] = useState(false)
+    const [confirmReplacement, setConfirmReplacement] = useState(false)
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
 
@@ -100,25 +95,12 @@ function CocoAnnotationPanel({ selectedDataset, onAnnotationsImported }) {
     const visibleCoverage =
         coverage?.dataset_id === selectedDataset.id ? coverage : null
 
-    async function handleImport(event) {
-        event.preventDefault()
-        const form = event.currentTarget
-
-        if (!canSubmitCocoImport({ file: selectedFile, importing })) {
-            return
-        }
-
-        if (
-            shouldConfirmCocoReplacement(visibleCoverage)
-            && !window.confirm(
-                'Esta importación reemplazará por completo las anotaciones actuales. ¿Quieres continuar?',
-            )
-        ) {
-            return
-        }
+    async function performImport() {
+        if (!canSubmitCocoImport({ file: selectedFile, importing })) return
 
         try {
             setImporting(true)
+            setConfirmReplacement(false)
             setError('')
             setSuccess('')
 
@@ -129,7 +111,7 @@ function CocoAnnotationPanel({ selectedDataset, onAnnotationsImported }) {
 
             setCoverage(getCoverageAfterCocoImport(result))
             setSelectedFile(null)
-            form.reset()
+            formRef.current?.reset()
             setSuccess(
                 result.replaced_existing_snapshot
                     ? 'Anotaciones COCO reemplazadas correctamente.'
@@ -143,19 +125,42 @@ function CocoAnnotationPanel({ selectedDataset, onAnnotationsImported }) {
         }
     }
 
+    function handleImport(event) {
+        event.preventDefault()
+        if (!canSubmitCocoImport({ file: selectedFile, importing })) return
+
+        if (shouldConfirmCocoReplacement(visibleCoverage)) {
+            setConfirmReplacement(true)
+            return
+        }
+
+        performImport()
+    }
+
     return (
-        <section className="coco-annotation-panel">
-            <div>
-                <h4>Anotaciones de detección</h4>
-                <p>
-                    Importa un archivo COCO JSON. Cada importación reemplaza por completo
-                    las anotaciones anteriores; no se mezclan anotaciones.
-                </p>
+        <section className="coco-annotation-panel modern">
+            <div className="coco-annotation-heading">
+                <div>
+                    <span className="dashboard-section-eyebrow">Anotaciones COCO</span>
+                    <h3>Detección y cobertura</h3>
+                    <p>
+                        Importa un JSON COCO para asociar categorías y cajas a las imágenes del conjunto.
+                    </p>
+                </div>
+                {visibleCoverage?.has_annotation_snapshot && (
+                    <span className="dataset-status-badge success">COCO activo</span>
+                )}
             </div>
 
-            <form className="coco-import-form" onSubmit={handleImport}>
+            {!visibleCoverage ? (
+                <p className="muted-text">Cargando cobertura de anotaciones...</p>
+            ) : (
+                <CoverageSummary coverage={visibleCoverage} />
+            )}
+
+            <form ref={formRef} className="coco-import-form modern" onSubmit={handleImport}>
                 <label>
-                    Archivo COCO JSON
+                    <span>Archivo de anotaciones</span>
                     <input
                         type="file"
                         accept=".json,application/json"
@@ -171,28 +176,54 @@ function CocoAnnotationPanel({ selectedDataset, onAnnotationsImported }) {
                 <button
                     type="submit"
                     className="primary-action"
-                    disabled={
-                        !canSubmitCocoImport({
-                            file: selectedFile,
-                            importing,
-                        })
-                    }
+                    disabled={!canSubmitCocoImport({ file: selectedFile, importing })}
                 >
                     {importing
-                        ? 'Importando anotaciones...'
+                        ? 'Importando...'
                         : visibleCoverage?.has_annotation_snapshot
-                          ? 'Reemplazar anotaciones COCO'
-                          : 'Importar anotaciones COCO'}
+                          ? 'Reemplazar anotaciones'
+                          : 'Importar anotaciones'}
                 </button>
             </form>
 
-            {error && <p className="error">{error}</p>}
-            {success && <p className="success-message">{success}</p>}
+            <p className="coco-import-note">
+                Cada importación sustituye el snapshot anterior de forma atómica; las anotaciones no se mezclan.
+            </p>
+            {error && <p className="error dataset-inline-feedback">{error}</p>}
+            {success && <p className="success-message dataset-inline-feedback">{success}</p>}
 
-            {!visibleCoverage ? (
-                <p className="muted-text">Cargando cobertura de anotaciones...</p>
-            ) : (
-                <CoverageSummary coverage={visibleCoverage} />
+            {confirmReplacement && (
+                <DatasetDialog
+                    title="Reemplazar anotaciones COCO"
+                    eyebrow="Confirmación"
+                    onClose={() => setConfirmReplacement(false)}
+                    busy={importing}
+                    danger
+                >
+                    <div className="dataset-dialog-body">
+                        <p>
+                            Este conjunto ya tiene un snapshot de anotaciones. La nueva importación lo sustituirá por completo.
+                        </p>
+                    </div>
+                    <div className="dataset-dialog-actions">
+                        <button
+                            type="button"
+                            className="secondary-action"
+                            onClick={() => setConfirmReplacement(false)}
+                            disabled={importing}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            className="danger-action"
+                            onClick={performImport}
+                            disabled={importing}
+                        >
+                            {importing ? 'Reemplazando...' : 'Reemplazar anotaciones'}
+                        </button>
+                    </div>
+                </DatasetDialog>
             )}
         </section>
     )
