@@ -31,7 +31,7 @@ function LoginPage() {
     return (
         <main className="auth-page">
             <section className="auth-card">
-                <h1>Adversarial AI App</h1>
+                <h1>Analizador de ataques adversarios</h1>
                 <h2>Iniciar sesión</h2>
 
                 <p>Introduce tus credenciales para acceder al panel principal.</p>

@@ -15,7 +15,7 @@ import {
 test('traduce los motivos tipados de indisponibilidad supervisada', () => {
     assert.match(
         getDetectionUnavailableMessage('no_annotation_snapshot'),
-        /snapshot de anotaciones/,
+        /anotaciones de detección/,
     )
     assert.match(getDetectionUnavailableMessage('unknown'), /no están disponibles/)
 })

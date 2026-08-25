@@ -42,6 +42,6 @@ def select_model(model_id: str) -> ModelInfo:
     try:
         selected_model = _model_registry.select_model(model_id)
     except ModelNotRegisteredError as error:
-        raise NotFoundError("Model not found") from error
+        raise NotFoundError("Modelo no encontrado") from error
 
     return _to_model_info(selected_model)

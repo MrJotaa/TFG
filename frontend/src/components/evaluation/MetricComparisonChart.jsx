@@ -9,7 +9,7 @@ import {
     YAxis,
 } from 'recharts'
 
-const SERIES_ORDER = ['Original', 'Adversarial']
+const SERIES_ORDER = ['Original', 'Tras el ataque']
 
 function ComparisonTooltip({ active, label, payload }) {
     if (!active || !payload?.length) {
@@ -37,7 +37,7 @@ function ComparisonLegend() {
     return (
         <div className="evaluation-chart-legend" aria-label="Leyenda del gráfico">
             <span className="original">Original</span>
-            <span className="adversarial">Adversarial</span>
+            <span className="adversarial">Tras el ataque</span>
         </div>
     )
 }
@@ -47,22 +47,22 @@ function MetricComparisonChart({ aggregate }) {
         {
             metric: 'Exactitud',
             Original: aggregate.original.accuracy * 100,
-            Adversarial: aggregate.adversarial.accuracy * 100,
+            'Tras el ataque': aggregate.adversarial.accuracy * 100,
         },
         {
             metric: 'F1 macro',
             Original: aggregate.original.f1_macro * 100,
-            Adversarial: aggregate.adversarial.f1_macro * 100,
+            'Tras el ataque': aggregate.adversarial.f1_macro * 100,
         },
         {
             metric: 'F1 ponderado',
             Original: aggregate.original.f1_weighted * 100,
-            Adversarial: aggregate.adversarial.f1_weighted * 100,
+            'Tras el ataque': aggregate.adversarial.f1_weighted * 100,
         },
         {
             metric: 'Recall macro',
             Original: aggregate.original.recall_macro * 100,
-            Adversarial: aggregate.adversarial.recall_macro * 100,
+            'Tras el ataque': aggregate.adversarial.recall_macro * 100,
         },
     ]
 
@@ -85,7 +85,7 @@ function MetricComparisonChart({ aggregate }) {
                     <Legend content={<ComparisonLegend />} />
                     <Bar dataKey="Original" fill="var(--evaluation-original)" radius={[8, 8, 0, 0]} />
                     <Bar
-                        dataKey="Adversarial"
+                        dataKey="Tras el ataque"
                         fill="var(--evaluation-adversarial)"
                         radius={[8, 8, 0, 0]}
                     />

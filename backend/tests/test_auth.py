@@ -57,7 +57,7 @@ def test_login_with_invalid_password_returns_401(client, test_user_payload):
     )
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid email or password"
+    assert response.json()["detail"] == "Correo electrónico o contraseña no válidos"
 
 
 def test_auth_me_returns_current_user(client, registered_user, auth_headers):
@@ -103,7 +103,7 @@ def test_delete_current_user_with_wrong_password_returns_400(
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Invalid password"
+    assert response.json()["detail"] == "Contraseña no válida"
 
 
 def test_delete_current_user_with_valid_password_deletes_account(
@@ -128,4 +128,4 @@ def test_delete_current_user_with_valid_password_deletes_account(
     me_response = client.get("/auth/me", headers=auth_headers)
 
     assert me_response.status_code == 401
-    assert me_response.json()["detail"] == "User not found"
+    assert me_response.json()["detail"] == "Usuario no encontrado"

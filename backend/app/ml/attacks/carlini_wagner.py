@@ -8,7 +8,7 @@ class CarliniWagnerAttack(BaseARTClassificationAttack):
     id = "carlini_wagner"
     name = "Carlini & Wagner"
     description = (
-        "Ataque white-box de optimización C&W para clasificación; "
+        "Ataque de caja blanca basado en optimización C&W para clasificación; "
         "coste computacional alto"
     )
     knowledge_type = "white_box"
@@ -18,7 +18,7 @@ class CarliniWagnerAttack(BaseARTClassificationAttack):
         AttackParameterSpec(
             key="norm",
             label="Norma",
-            summary_label="norm",
+            summary_label="norma",
             description="Norma que minimiza la variante de Carlini & Wagner",
             value_type="string",
             default="l2",
@@ -30,7 +30,7 @@ class CarliniWagnerAttack(BaseARTClassificationAttack):
         ),
         AttackParameterSpec(
             key="confidence",
-            label="Confidence",
+            label="Confianza (κ)",
             summary_label="κ",
             description=(
                 "Margen de confianza exigido al ejemplo adversario; valores mayores "
@@ -44,8 +44,8 @@ class CarliniWagnerAttack(BaseARTClassificationAttack):
         ),
         AttackParameterSpec(
             key="learning_rate",
-            label="Learning rate",
-            summary_label="lr",
+            label="Tasa de aprendizaje",
+            summary_label="tasa",
             description="Tasa de aprendizaje de la optimización C&W",
             value_type="float",
             default=0.01,
@@ -56,7 +56,7 @@ class CarliniWagnerAttack(BaseARTClassificationAttack):
         AttackParameterSpec(
             key="binary_search_steps",
             label="Búsquedas binarias (L2)",
-            summary_label="bss",
+            summary_label="búsq.",
             description=(
                 "Número de ajustes del equilibrio distancia/confianza en C&W L2. "
                 "Es el principal multiplicador de coste; no se usa en L∞."

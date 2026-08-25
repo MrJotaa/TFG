@@ -268,7 +268,7 @@ async def _evaluate_dataset(
     profile.add("dataset_load", dataset_load_seconds)
 
     if not dataset.images:
-        raise BadRequestError("Dataset must contain at least one image")
+        raise BadRequestError("El conjunto de datos debe contener al menos una imagen")
 
     setup_started = perf_counter()
 
@@ -446,7 +446,9 @@ async def _evaluate_dataset(
             if unresolved_label is not None:
                 label_resolution_reason = unresolved_label.reason
             else:
-                label_resolution_reason = "Image has no ground-truth label"
+                label_resolution_reason = (
+                    "La imagen no tiene una etiqueta de referencia"
+                )
 
         diagnostics = build_evaluation_image_diagnostics(
             ground_truth=ground_truth,

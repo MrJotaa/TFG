@@ -11,7 +11,7 @@ function DatasetUploader({ selectedUser, onDatasetUploaded }) {
         event.preventDefault()
 
         if (!selectedUser) {
-            setError('Debes seleccionar un usuario antes de subir un dataset.')
+            setError('Debes seleccionar un usuario antes de subir un conjunto de datos.')
             return
         }
 
@@ -43,10 +43,10 @@ function DatasetUploader({ selectedUser, onDatasetUploaded }) {
 
     return (
         <div>
-            <h2>Subir dataset</h2>
+            <h2>Subir conjunto de datos</h2>
 
             {!selectedUser && (
-                <p>Selecciona un usuario antes de subir un dataset.</p>
+                <p>Selecciona un usuario antes de subir un conjunto de datos.</p>
             )}
 
             {error && <p className="error">{error}</p>}
@@ -54,7 +54,7 @@ function DatasetUploader({ selectedUser, onDatasetUploaded }) {
             <form onSubmit={handleSubmit}>
                 <input
                     type="text"
-                    placeholder="Nombre del dataset"
+                    placeholder="Nombre del conjunto de datos"
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     required
@@ -70,7 +70,7 @@ function DatasetUploader({ selectedUser, onDatasetUploaded }) {
                 />
 
                 <button type="submit" disabled={!selectedUser || loading}>
-                    {loading ? 'Subiendo...' : 'Subir dataset'}
+                    {loading ? 'Subiendo...' : 'Subir conjunto de datos'}
                 </button>
             </form>
         </div>

@@ -24,7 +24,7 @@ _AVAILABLE_ATTACKS = {
 
 def get_attack(attack_type: AttackType):
     if attack_type not in _AVAILABLE_ATTACKS:
-        raise ValueError(f"Attack '{attack_type}' is not supported")
+        raise ValueError(f"El ataque '{attack_type}' no es compatible")
 
     return _AVAILABLE_ATTACKS[attack_type]
 

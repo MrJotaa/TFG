@@ -12,5 +12,5 @@ def get_annotation_importer(format_name: str) -> AnnotationImporter:
         return _IMPORTERS[format_name]
     except KeyError as error:
         raise BadRequestError(
-            f"Unsupported annotation format: {format_name}"
+            f"Formato de anotaciones no compatible: {format_name}"
         ) from error

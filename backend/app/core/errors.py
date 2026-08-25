@@ -7,7 +7,7 @@ class ApplicationError(Exception):
     """
 
     status_code = 500
-    default_detail = "Application error"
+    default_detail = "Error de la aplicación"
 
     def __init__(self, detail: str | dict | None = None):
         self.detail = detail if detail is not None else self.default_detail
@@ -22,7 +22,7 @@ class BadRequestError(ApplicationError):
     """
 
     status_code = 400
-    default_detail = "Bad request"
+    default_detail = "Solicitud no válida"
 
 
 class UnauthorizedError(ApplicationError):
@@ -31,21 +31,21 @@ class UnauthorizedError(ApplicationError):
     """
 
     status_code = 401
-    default_detail = "Unauthorized"
+    default_detail = "No autorizado"
 
 
 class ForbiddenError(ApplicationError):
     """El usuario autenticado no puede acceder al recurso solicitado."""
 
     status_code = 403
-    default_detail = "Forbidden"
+    default_detail = "Acceso denegado"
 
 
 class ConflictError(ApplicationError):
     """El estado del recurso cambió durante una operación concurrente."""
 
     status_code = 409
-    default_detail = "Conflict"
+    default_detail = "Conflicto"
 
 
 class NotFoundError(ApplicationError):
@@ -54,18 +54,18 @@ class NotFoundError(ApplicationError):
     """
 
     status_code = 404
-    default_detail = "Resource not found"
+    default_detail = "Recurso no encontrado"
 
 
 class GoneError(ApplicationError):
     """El recurso existió, pero sus artefactos temporales ya no están disponibles."""
 
     status_code = 410
-    default_detail = "Resource is no longer available"
+    default_detail = "El recurso ya no está disponible"
 
 
 class ClientDisconnectedError(ApplicationError):
     """El cliente canceló una operación que todavía estaba en ejecución."""
 
     status_code = 499
-    default_detail = "Operation cancelled by client"
+    default_detail = "Operación cancelada por el cliente"

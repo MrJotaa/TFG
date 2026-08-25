@@ -10,7 +10,7 @@ function DatasetImageUploader({ selectedDataset, onImagesUploaded }) {
         event.preventDefault()
 
         if (!selectedDataset) {
-            setError('Debes seleccionar un dataset antes de añadir imágenes.')
+            setError('Debes seleccionar un conjunto de datos antes de añadir imágenes.')
             return
         }
 
@@ -41,15 +41,15 @@ function DatasetImageUploader({ selectedDataset, onImagesUploaded }) {
 
     return (
         <div>
-            <h2>Añadir imágenes al dataset</h2>
+            <h2>Añadir imágenes al conjunto de datos</h2>
 
             {!selectedDataset && (
-                <p>Selecciona un dataset para poder añadir imágenes.</p>
+                <p>Selecciona un conjunto de datos para poder añadir imágenes.</p>
             )}
 
             {selectedDataset && (
                 <p>
-                    Dataset seleccionado: <strong>{selectedDataset.name}</strong>
+                    Conjunto de datos seleccionado: <strong>{selectedDataset.name}</strong>
                 </p>
             )}
 

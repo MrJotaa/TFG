@@ -107,7 +107,7 @@ function EvaluationPanel({
         if (!selectedDataset) {
             setErrorState({
                 contextKey,
-                message: 'Debes seleccionar un dataset.',
+                message: 'Debes seleccionar un conjunto de datos.',
             })
             return
         }
@@ -207,7 +207,7 @@ function EvaluationPanel({
                     imageId,
                 )
             ) {
-                throw new Error('Invalid Grad-CAM response')
+                throw new Error('Respuesta de Grad-CAM no válida')
             }
 
             if (requestRun !== gradCamRun.current) {
@@ -242,9 +242,9 @@ function EvaluationPanel({
         return (
             <div className="evaluation-empty-panel">
                 <span className="evaluation-eyebrow">Configuración incompleta</span>
-                <h3>No hay dataset seleccionado</h3>
+                <h3>No hay conjunto de datos seleccionado</h3>
                 <p>
-                    Vuelve al dashboard y selecciona un dataset antes de ejecutar la
+                    Vuelve al panel principal y selecciona un conjunto de datos antes de ejecutar la
                     evaluación.
                 </p>
             </div>
@@ -257,9 +257,9 @@ function EvaluationPanel({
                 <section className="evaluation-run-card modern">
                     <div>
                         <span className="evaluation-eyebrow">Evaluación de robustez</span>
-                        <h3>Analiza el dataset completo con {attackName}</h3>
+                        <h3>Analiza el conjunto de datos completo con {attackName}</h3>
                         <p>
-                            Se compararán las predicciones originales y adversariales de{' '}
+                            Se compararán las predicciones originales y las obtenidas tras el ataque de{' '}
                             <strong>{selectedDataset.image_count}</strong> imágenes.
                         </p>
                     </div>
@@ -295,7 +295,7 @@ function EvaluationPanel({
                 <EvaluationProgress
                     progress={progress}
                     title="Evaluando imágenes y calculando métricas"
-                    pendingMessage="Preparando la evaluación del dataset..."
+                    pendingMessage="Preparando la evaluación del conjunto de datos..."
                     onCancel={handleCancelEvaluation}
                 />
             )}
@@ -303,7 +303,7 @@ function EvaluationPanel({
             {evaluation && !loading && (
                 <section className="evaluation-results-shell" aria-label="Resultados de evaluación">
                     <p className="evaluation-sr-only" role="status" aria-live="polite">
-                        Evaluación completada. Se muestran los resultados del dataset.
+                        Evaluación completada. Se muestran los resultados del conjunto de datos.
                     </p>
                     <EvaluationTabs
                         tabs={tabs}
@@ -351,7 +351,7 @@ function EvaluationPanel({
                         <div>
                             <strong>¿Necesitas actualizar los resultados?</strong>
                             <span>
-                                Ejecuta de nuevo la misma configuración de dataset,
+                                Ejecuta de nuevo la misma configuración de conjunto de datos,
                                 modelo y ataque.
                             </span>
                         </div>

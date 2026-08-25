@@ -37,19 +37,19 @@ class AttackParameterSpec:
 
         if self.minimum is not None and value < self.minimum:
             raise ValueError(
-                f"Parameter '{self.key}' must be greater than or equal to "
+                f"El parámetro '{self.key}' debe ser mayor o igual que "
                 f"{self.minimum}"
             )
         if self.maximum is not None and value > self.maximum:
             raise ValueError(
-                f"Parameter '{self.key}' must be less than or equal to {self.maximum}"
+                f"El parámetro '{self.key}' debe ser menor o igual que {self.maximum}"
             )
 
         if self.choices:
             allowed_values = {choice.value for choice in self.choices}
             if value not in allowed_values:
                 raise ValueError(
-                    f"Parameter '{self.key}' must be one of "
+                    f"El parámetro '{self.key}' debe ser uno de "
                     f"{sorted(allowed_values, key=str)}"
                 )
 
@@ -58,36 +58,40 @@ class AttackParameterSpec:
     def _coerce(self, raw_value: Any) -> str | int | float | bool:
         if self.value_type == "float":
             if isinstance(raw_value, bool):
-                raise ValueError(f"Parameter '{self.key}' must be numeric")
+                raise ValueError(f"El parámetro '{self.key}' debe ser numérico")
             try:
                 return float(raw_value)
             except (TypeError, ValueError) as error:
-                raise ValueError(f"Parameter '{self.key}' must be numeric") from error
+                raise ValueError(
+                    f"El parámetro '{self.key}' debe ser numérico"
+                ) from error
 
         if self.value_type == "integer":
             if isinstance(raw_value, bool):
-                raise ValueError(f"Parameter '{self.key}' must be an integer")
+                raise ValueError(f"El parámetro '{self.key}' debe ser un entero")
             try:
                 numeric_value = float(raw_value)
             except (TypeError, ValueError) as error:
                 raise ValueError(
-                    f"Parameter '{self.key}' must be an integer"
+                    f"El parámetro '{self.key}' debe ser un entero"
                 ) from error
             if not numeric_value.is_integer():
-                raise ValueError(f"Parameter '{self.key}' must be an integer")
+                raise ValueError(f"El parámetro '{self.key}' debe ser un entero")
             return int(numeric_value)
 
         if self.value_type == "boolean":
             if not isinstance(raw_value, bool):
-                raise ValueError(f"Parameter '{self.key}' must be a boolean")
+                raise ValueError(f"El parámetro '{self.key}' debe ser booleano")
             return raw_value
 
         if self.value_type == "string":
             if not isinstance(raw_value, str):
-                raise ValueError(f"Parameter '{self.key}' must be a string")
+                raise ValueError(
+                    f"El parámetro '{self.key}' debe ser una cadena de texto"
+                )
             return raw_value
 
-        raise ValueError(f"Unsupported parameter type '{self.value_type}'")
+        raise ValueError(f"Tipo de parámetro no compatible: '{self.value_type}'")
 
     def as_catalog_dict(self) -> dict[str, Any]:
         return {
@@ -168,7 +172,9 @@ class BaseAdversarialAttack(ABC):
         unsupported_keys = supplied_keys - supported_keys - legacy_keys
         if unsupported_keys:
             joined = ", ".join(sorted(unsupported_keys))
-            raise ValueError(f"Unsupported parameters for attack '{self.id}': {joined}")
+            raise ValueError(
+                f"Parámetros no compatibles con el ataque '{self.id}': {joined}"
+            )
 
         resolved = {}
         for spec in self.parameter_specs:

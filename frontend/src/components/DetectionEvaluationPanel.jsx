@@ -136,7 +136,7 @@ function DetectionEvaluationPanel({
 
     async function handleEvaluate() {
         if (!selectedDataset) {
-            setErrorState({ contextKey, message: 'Debes seleccionar un dataset.' })
+            setErrorState({ contextKey, message: 'Debes seleccionar un conjunto de datos.' })
             return
         }
         if (!isSupportedAttack) {
@@ -236,7 +236,7 @@ function DetectionEvaluationPanel({
                 imageId,
             )
             if (!isDetectionEigenCamResponse(response, evaluationId, imageId)) {
-                throw new Error('Invalid EigenCAM response')
+                throw new Error('Respuesta de Eigen-CAM no válida')
             }
             if (requestRun !== eigenCamRun.current) {
                 return
@@ -266,8 +266,8 @@ function DetectionEvaluationPanel({
         return (
             <div className="evaluation-empty-panel">
                 <span className="evaluation-eyebrow">Configuración incompleta</span>
-                <h3>No hay dataset seleccionado</h3>
-                <p>Vuelve al dashboard y selecciona un dataset antes de ejecutar la evaluación.</p>
+                <h3>No hay conjunto de datos seleccionado</h3>
+                <p>Vuelve al panel principal y selecciona un conjunto de datos antes de ejecutar la evaluación.</p>
             </div>
         )
     }
@@ -280,7 +280,7 @@ function DetectionEvaluationPanel({
                         <span className="evaluation-eyebrow">Evaluación de robustez COCO</span>
                         <h3>Analiza el detector con {attackName}</h3>
                         <p>
-                            Se compararán predicciones originales y adversariales en{' '}
+                            Se compararán predicciones originales y las obtenidas tras el ataque en{' '}
                             <strong>{selectedDataset.image_count}</strong> imágenes. Si las anotaciones son evaluables, se calcularán métricas COCO, diagnóstico TIDE y transiciones por objeto.
                         </p>
                         {!isSupportedAttack && (
@@ -374,7 +374,7 @@ function DetectionEvaluationPanel({
                 <EvaluationProgress
                     progress={progress}
                     title="Evaluando detecciones y calculando COCO y TIDE"
-                    pendingMessage="Preparando la evaluación del dataset..."
+                    pendingMessage="Preparando la evaluación del conjunto de datos..."
                     onCancel={handleCancelEvaluation}
                 />
             )}

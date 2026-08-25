@@ -156,7 +156,7 @@ def test_detection_explainability_returns_response(
         return {
             "result_id": "detection-explain-result-1",
             "model_id": "yolo26n",
-            "model_name": "YOLO26n pretrained",
+            "model_name": "YOLO26n · preentrenado en COCO",
             "explanation_type": "eigencam",
             "explanation_image_url": (
                 "/results/detection-explain-result-1/detection_explanation.png"
@@ -187,7 +187,7 @@ def test_detection_explainability_returns_response(
 
     assert data["result_id"] == "detection-explain-result-1"
     assert data["model_id"] == "yolo26n"
-    assert data["model_name"] == "YOLO26n pretrained"
+    assert data["model_name"] == "YOLO26n · preentrenado en COCO"
     assert data["explanation_type"] == "eigencam"
     assert data["explanation_image_url"] == (
         "/results/detection-explain-result-1/detection_explanation.png"

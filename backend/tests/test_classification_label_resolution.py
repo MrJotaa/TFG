@@ -132,7 +132,7 @@ def test_resolver_rejects_unknown_label():
     match = resolver.resolve("unknown vehicle")
 
     assert match.resolved is False
-    assert match.reason == ("Label does not match any model class")
+    assert match.reason == ("La etiqueta no coincide con ninguna clase del modelo")
     assert match.candidate_classes == ()
 
 
@@ -147,7 +147,7 @@ def test_resolver_rejects_ambiguous_label():
     match = resolver.resolve("crane")
 
     assert match.resolved is False
-    assert match.reason == ("Label matches multiple model classes")
+    assert match.reason == ("La etiqueta coincide con varias clases del modelo")
 
     assert match.candidate_classes == (
         ClassReference(
@@ -238,7 +238,7 @@ def test_dataset_label_resolution_reports_coverage():
 
     assert unresolved.image_id == "image-3"
     assert unresolved.provided_label == ("unknown vehicle")
-    assert unresolved.reason == ("Label does not match any model class")
+    assert unresolved.reason == ("La etiqueta no coincide con ninguna clase del modelo")
 
 
 def test_unlabeled_images_do_not_count_as_unresolved():
@@ -288,7 +288,7 @@ def test_active_class_catalog_endpoint(
     def fake_get_active_model_class_catalog():
         return ModelClassCatalog(
             model_id="resnet18",
-            model_name="ResNet18 pretrained",
+            model_name="ResNet-18 · preentrenado en ImageNet-1K",
             total_classes=2,
             classes=[
                 ModelClassInfo(
@@ -338,7 +338,7 @@ def test_dataset_label_resolution_endpoint(
         return DatasetLabelResolutionResponse(
             dataset_id=dataset_id,
             model_id="resnet18",
-            model_name="ResNet18 pretrained",
+            model_name="ResNet-18 · preentrenado en ImageNet-1K",
             summary=LabelResolutionSummary(
                 labeled_images=2,
                 resolved_labels=1,
@@ -349,7 +349,7 @@ def test_dataset_label_resolution_endpoint(
                         "image_id": "image-2",
                         "filename": "unknown.png",
                         "provided_label": "unknown",
-                        "reason": ("Label does not match any model class"),
+                        "reason": ("La etiqueta no coincide con ninguna clase del modelo"),
                     }
                 ],
             ),

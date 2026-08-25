@@ -12,12 +12,12 @@ export const CLASSIFICATION_METRIC_GUIDES = {
             {
                 term: 'Caída y ASR condicional',
                 definition:
-                    'La caída es original menos adversarial, en puntos porcentuales. El ASR condicional mide qué proporción de las predicciones originalmente correctas pasa a ser incorrecta.',
+                    'La caída es original menos tras el ataque, en puntos porcentuales. El ASR condicional mide qué proporción de las predicciones originalmente correctas pasa a ser incorrecta.',
             },
             {
-                term: 'Precision, recall y F1',
+                term: 'Precisión, recall y F1',
                 definition:
-                    'Precision penaliza falsos positivos, recall penaliza casos reales no recuperados y F1 equilibra ambas. “Macro” da el mismo peso a cada clase; “ponderado” usa su número de muestras.',
+                    'La precisión penaliza falsos positivos, el recall penaliza casos reales no recuperados y F1 equilibra ambas. “Macro” da el mismo peso a cada clase; “ponderado” usa su número de muestras.',
             },
             {
                 term: 'Probabilidad y perturbación',
@@ -25,7 +25,7 @@ export const CLASSIFICATION_METRIC_GUIDES = {
                     'La caída de probabilidad usa la clase real. L∞ es el mayor cambio en un píxel y L2 resume la magnitud total de la perturbación.',
             },
         ],
-        note: 'Salvo que se indique lo contrario, los deltas se calculan como original − adversarial: un valor positivo representa degradación.',
+        note: 'Salvo que se indique lo contrario, los deltas se calculan como original − tras el ataque: un valor positivo representa degradación.',
     },
     classes: {
         title: 'Cómo leer las métricas por clase',
@@ -38,19 +38,19 @@ export const CLASSIFICATION_METRIC_GUIDES = {
                     'Número de muestras reales de la clase. Con soporte bajo, una sola imagen puede cambiar mucho el resultado.',
             },
             {
-                term: 'Precision, recall y F1',
+                term: 'Precisión, recall y F1',
                 definition:
-                    'Se calculan considerando una clase frente al resto. F1 solo es alto cuando precision y recall son altas.',
+                    'Se calculan considerando una clase frente al resto. F1 solo es alto cuando la precisión y el recall son altos.',
             },
             {
-                term: 'ROC-AUC y Average Precision',
+                term: 'ROC-AUC y AP (Average Precision)',
                 definition:
-                    'ROC-AUC mide la capacidad de ordenar positivos por encima de negativos. Average Precision resume la curva Precision-Recall y suele ser más informativa con clases poco frecuentes.',
+                    'ROC-AUC mide la capacidad de ordenar positivos por encima de negativos. AP (Average Precision) resume la curva Precision–Recall y suele ser más informativa con clases poco frecuentes.',
             },
             {
                 term: 'Degradación',
                 definition:
-                    'Es el valor original menos el adversarial, expresado en puntos porcentuales. Un valor negativo indica una mejora en esa ejecución, no mayor degradación.',
+                    'Es el valor original menos el obtenido tras el ataque, expresado en puntos porcentuales. Un valor negativo indica una mejora en esa ejecución, no mayor degradación.',
             },
         ],
         note: 'Una métrica puede no estar definida cuando la clase no contiene suficientes positivos o negativos para calcularla.',
@@ -81,7 +81,7 @@ export const CLASSIFICATION_METRIC_GUIDES = {
                     'La compacta oculta filas sin muestras reales, pero conserva las columnas de clases que el modelo sí predijo. La completa muestra todo el catálogo.',
             },
         ],
-        note: 'Compara las matrices original y adversarial: un desplazamiento de masa desde la diagonal hacia otras columnas revela nuevas confusiones.',
+        note: 'Compara las matrices original y tras el ataque: un desplazamiento de masa desde la diagonal hacia otras columnas revela nuevas confusiones.',
     },
     curves: {
         title: 'Cómo leer las curvas de clasificación',
@@ -104,9 +104,9 @@ export const CLASSIFICATION_METRIC_GUIDES = {
                     'ROC enfrenta verdaderos positivos con falsos positivos. El área bajo la curva va de 0 a 1; cuanto mayor, mejor separación.',
             },
             {
-                term: 'Precision-Recall y AP',
+                term: 'Precision–Recall (PR) y AP',
                 definition:
-                    'La curva enfrenta precision con recall. Average Precision resume su área: cuanto mayor, mejor equilibrio a través de los umbrales.',
+                    'La curva enfrenta precisión con recall. AP (Average Precision) resume su comportamiento: cuanto mayor, mejor equilibrio a través de los umbrales.',
             },
             {
                 term: 'Promedio macro',
@@ -114,7 +114,7 @@ export const CLASSIFICATION_METRIC_GUIDES = {
                     'Es el promedio no ponderado de la puntuación de cada clase disponible. Todas las clases aportan el mismo peso.',
             },
         ],
-        note: 'La degradación es la puntuación original menos la adversarial. Las curvas pueden no estar definidas si faltan positivos o negativos.',
+        note: 'La degradación es la puntuación original menos la obtenida tras el ataque. Las curvas pueden no estar definidas si faltan positivos o negativos.',
     },
     images: {
         title: 'Cómo leer los resultados por imagen',
@@ -153,19 +153,19 @@ export const DETECTION_METRIC_GUIDES = {
             'Resume la calidad COCO, el punto de operación y las transiciones de los objetos anotados.',
         items: [
             {
-                term: 'mAP original y adversarial',
+                term: 'mAP original y tras el ataque',
                 definition:
-                    'Promedio de Average Precision entre clases y umbrales IoU de 0,50 a 0,95. Mide calidad global antes y después del ataque; un valor mayor es mejor.',
+                    'mAP (mean Average Precision) promedia AP entre clases y umbrales IoU de 0,50 a 0,95. Mide la calidad global antes y después del ataque; un valor mayor es mejor.',
             },
             {
                 term: 'Degradación de mAP',
                 definition:
-                    'Es mAP original menos mAP adversarial, en puntos porcentuales. Positivo indica pérdida; negativo, una mejora en esa ejecución.',
+                    'Es mAP original menos mAP tras el ataque, en puntos porcentuales. Positivo indica pérdida; negativo, una mejora en esa ejecución.',
             },
             {
                 term: 'F1 a punto de operación',
                 definition:
-                    'Equilibra precision y recall usando exactamente los umbrales de confianza e IoU elegidos. No es el mismo cálculo que el mAP COCO.',
+                    'Equilibra precisión y recall usando exactamente los umbrales de confianza e IoU elegidos. No es el mismo cálculo que el mAP COCO.',
             },
             {
                 term: 'Supresión y otras transiciones',
@@ -173,12 +173,12 @@ export const DETECTION_METRIC_GUIDES = {
                     'Suprimido significa detectado originalmente y omitido tras el ataque. Preservado, recuperado y no detectado en ambas completan el universo de objetos evaluables.',
             },
             {
-                term: 'Indicadores heurísticos legacy',
+                term: 'Indicadores heurísticos históricos',
                 definition:
                     'Describen conteos y confianza de las predicciones publicadas. Son orientativos y no sustituyen las métricas supervisadas COCO.',
             },
         ],
-        note: 'Original y adversarial se calculan sobre las mismas imágenes y anotaciones. Revisa la cobertura antes de generalizar el resultado.',
+        note: 'Original y tras el ataque se calculan sobre las mismas imágenes y anotaciones. Revisa la cobertura antes de generalizar el resultado.',
     },
     coco: {
         title: 'Cómo leer las métricas COCO',
@@ -186,34 +186,34 @@ export const DETECTION_METRIC_GUIDES = {
             'Compara precisión y recuperación con el protocolo estándar de detección de objetos.',
         items: [
             {
-                term: 'mAP@[0,50:0,95]',
+                term: 'mAP@[0.50:0.95]',
                 definition:
                     'Promedia AP entre clases y diez umbrales IoU de 0,50 a 0,95. Exige tanto clasificar como localizar correctamente.',
             },
             {
-                term: 'AP@0,50 y AP@0,75',
+                term: 'AP@0.50 y AP@0.75',
                 definition:
-                    'AP@0,50 acepta una coincidencia espacial más flexible; AP@0,75 exige cajas más ajustadas. AP resume la curva Precision-Recall.',
+                    'AP@0.50 acepta una coincidencia espacial más flexible; AP@0.75 exige cajas más ajustadas. AP resume la curva Precision–Recall.',
             },
             {
                 term: 'AP/AR por tamaño',
                 definition:
-                    'Small, medium y large siguen los rangos de área COCO. Permiten detectar si el ataque afecta de forma distinta según el tamaño del objeto.',
+                    'Pequeño, mediano y grande siguen los rangos de área COCO. Permiten detectar si el ataque afecta de forma distinta según el tamaño del objeto.',
             },
             {
                 term: 'AR@1, AR@10 y AR@100',
                 definition:
-                    'Average Recall indica qué fracción del ground truth puede recuperarse permitiendo como máximo 1, 10 o 100 detecciones por imagen.',
+                    'AR (Average Recall) indica qué fracción de los objetos de referencia puede recuperarse permitiendo como máximo 1, 10 o 100 detecciones por imagen.',
             },
             {
                 term: 'Delta absoluto y relativo',
                 definition:
-                    'El absoluto es original − adversarial en puntos porcentuales. El relativo expresa esa pérdida respecto al valor original; no son la misma unidad.',
+                    'El absoluto es original − tras el ataque en puntos porcentuales. El relativo expresa esa pérdida respecto al valor original; no son la misma unidad.',
             },
             {
                 term: 'Punto de operación',
                 definition:
-                    'TP, FP, FN, precision, recall y F1 usan los umbrales concretos configurados. COCO AP/AR, en cambio, integra múltiples scores e IoU.',
+                    'TP, FP, FN, precisión, recall y F1 usan los umbrales concretos configurados. COCO AP/AR, en cambio, integra múltiples puntuaciones de confianza e IoU.',
             },
         ],
         note: 'Un valor alto de detecciones no implica mejor calidad: puede incluir falsos positivos. Para interpretar calidad usa AP, AR y el punto de operación.',
@@ -226,17 +226,17 @@ export const DETECTION_METRIC_GUIDES = {
             {
                 term: 'Soporte',
                 definition:
-                    'Número de objetos ground truth evaluables de la clase. Con pocos objetos, AP y AR pueden variar mucho ante un solo caso.',
+                    'Número de objetos de referencia evaluables de la clase. Con pocos objetos, AP y AR pueden variar mucho ante un solo caso.',
             },
             {
                 term: 'AP y AR por clase',
                 definition:
-                    'AP resume precision-recall y AR resume la recuperación de objetos para esa categoría a través de los umbrales COCO.',
+                    'AP resume la curva Precision–Recall y AR resume la recuperación de objetos para esa categoría a través de los umbrales COCO.',
             },
             {
                 term: 'Δ AP',
                 definition:
-                    'Es AP original menos AP adversarial, en puntos porcentuales. Un valor positivo señala degradación de esa clase.',
+                    'Es AP original menos AP tras el ataque, en puntos porcentuales. Un valor positivo señala degradación de esa clase.',
             },
             {
                 term: 'TP / FP / FN',
@@ -246,35 +246,35 @@ export const DETECTION_METRIC_GUIDES = {
             {
                 term: 'Transiciones',
                 definition:
-                    'Preservados, suprimidos y recuperados siguen cada objeto anotado entre la evaluación original y la adversarial.',
+                    'Preservados, suprimidos y recuperados siguen cada objeto anotado entre la evaluación original y la obtenida tras el ataque.',
             },
         ],
         note: 'Ordenar por degradación ayuda a priorizar clases, pero conviene contrastar siempre el delta con su soporte.',
     },
     curves: {
-        title: 'Cómo leer las curvas Precision-Recall de detección',
+        title: 'Cómo leer las curvas Precision–Recall de detección',
         summary:
-            'Muestra cómo cambia el equilibrio entre detecciones correctas y objetos recuperados al variar el score.',
+            'Muestra cómo cambia el equilibrio entre detecciones correctas y objetos recuperados al variar la puntuación de confianza.',
         items: [
             {
                 term: 'Eje de recall',
                 definition:
-                    'Fracción del ground truth recuperada. Avanzar hacia la derecha significa detectar una mayor proporción de objetos reales.',
+                    'Fracción de los objetos de referencia recuperada. Avanzar hacia la derecha significa detectar una mayor proporción de objetos reales.',
             },
             {
-                term: 'Eje de precision',
+                term: 'Eje de precisión',
                 definition:
                     'Proporción de detecciones publicadas que son correctas. Una curva más alta mantiene menos falsos positivos para el mismo recall.',
             },
             {
                 term: 'Promedio COCO global',
                 definition:
-                    'Promedia la precision interpolada en 101 niveles de recall, todas las clases evaluables y los IoU de 0,50 a 0,95.',
+                    'Promedia la precisión interpolada en 101 niveles de recall, todas las clases evaluables y los IoU de 0,50 a 0,95.',
             },
             {
                 term: 'Curva de una clase',
                 definition:
-                    'Aísla una categoría y conserva el promedio sobre los IoU COCO. “n” indica su número de objetos ground truth.',
+                    'Aísla una categoría y conserva el promedio sobre los IoU COCO. “n” indica su número de objetos de referencia.',
             },
             {
                 term: 'Área resumida como AP',
@@ -282,32 +282,32 @@ export const DETECTION_METRIC_GUIDES = {
                     'La media de los puntos de la curva produce AP para una clase y mAP para el promedio global. Una curva superior suele implicar mayor AP.',
             },
         ],
-        note: 'Las series original y adversarial usan la misma rejilla COCO de recall, por lo que pueden compararse punto a punto.',
+        note: 'Las series original y tras el ataque usan la misma rejilla COCO de recall, por lo que pueden compararse punto a punto.',
     },
     objects: {
         title: 'Cómo leer el análisis por objeto',
         summary:
-            'Sigue cada objeto ground truth entre la inferencia original y la adversarial a un punto de operación fijo.',
+            'Sigue cada objeto de referencia entre la inferencia original y la obtenida tras el ataque a un punto de operación fijo.',
         items: [
             {
                 term: 'Objeto evaluable',
                 definition:
-                    'Es una anotación ground truth con clase resuelta. Cada objeto aparece una sola vez y se empareja con detecciones de su misma categoría mediante COCOeval.',
+                    'Es una anotación de referencia con clase resuelta. Cada objeto aparece una sola vez y se empareja con detecciones de su misma categoría mediante COCOeval.',
             },
             {
                 term: 'Preservado, suprimido y recuperado',
                 definition:
-                    'Preservado se detecta en ambas versiones; suprimido solo en la original; recuperado solo en la adversarial. “No detectado en ambas” no aparece en ninguna.',
+                    'Preservado se detecta en ambas versiones; suprimido solo en la original; recuperado solo tras el ataque. “No detectado en ambas” no aparece en ninguna.',
             },
             {
                 term: 'Confianza e IoU',
                 definition:
-                    'Confianza es el score de la detección emparejada. IoU mide el solapamiento con la caja real, de 0 a 1. Un valor mayor representa mejor coincidencia.',
+                    'La confianza es la puntuación de la detección emparejada. IoU mide el solapamiento con la caja de referencia, de 0 a 1. Un valor mayor representa mejor coincidencia.',
             },
             {
                 term: 'Δ confianza y Δ IoU',
                 definition:
-                    'Se calculan como original − adversarial y solo existen para objetos preservados. Un delta positivo indica caída tras el ataque.',
+                    'Se calculan como original − tras el ataque y solo existen para objetos preservados. Un delta positivo indica caída tras el ataque.',
             },
             {
                 term: 'Filtros, ordenación y páginas',
@@ -325,7 +325,7 @@ export const DETECTION_METRIC_GUIDES = {
             {
                 term: 'AP50 TIDE',
                 definition:
-                    'Average Precision calculada por TIDE con IoU 0,50. Está en escala 0–100 y no sustituye el mAP COCO de 0,50 a 0,95.',
+                    'AP (Average Precision) calculada por TIDE con IoU 0,50. Está en escala 0–100 y no sustituye el mAP COCO de 0,50 a 0,95.',
             },
             {
                 term: 'dAP',
@@ -340,7 +340,7 @@ export const DETECTION_METRIC_GUIDES = {
             {
                 term: 'Cambio de impacto',
                 definition:
-                    'Es dAP adversarial menos dAP original. Positivo significa que ese tipo de error pesa más después del ataque.',
+                    'Es dAP tras el ataque menos dAP original. Positivo significa que ese tipo de error pesa más después del ataque.',
             },
             {
                 term: 'Oráculos globales FP y FN',
@@ -353,12 +353,12 @@ export const DETECTION_METRIC_GUIDES = {
     images: {
         title: 'Cómo leer los resultados por imagen',
         summary:
-            'Contrasta las cajas originales y adversariales y genera explicaciones solo para los casos relevantes.',
+            'Contrasta las cajas originales y las obtenidas tras el ataque y genera explicaciones solo para los casos relevantes.',
         items: [
             {
                 term: 'Cajas y confianza',
                 definition:
-                    'Cada caja muestra una clase predicha y su score. Las vistas original y adversarial conservan la geometría real de cada imagen.',
+                    'Cada caja muestra una clase predicha y su puntuación de confianza. Las vistas original y tras el ataque conservan la geometría real de cada imagen.',
             },
             {
                 term: 'Cambios de conteo',
@@ -366,14 +366,14 @@ export const DETECTION_METRIC_GUIDES = {
                     'Una reducción puede deberse a objetos suprimidos, pero un aumento puede introducir falsos positivos. El conteo aislado no mide calidad.',
             },
             {
-                term: 'Éxito heurístico legacy',
+                term: 'Indicador heurístico de éxito',
                 definition:
-                    'Marca una reducción de conteo o confianza media. Es descriptivo y no equivale al éxito supervisado medido con ground truth.',
+                    'Marca una reducción del número de detecciones o de la confianza media. Es descriptivo y no equivale al éxito supervisado medido con anotaciones de referencia.',
             },
             {
-                term: 'EigenCAM',
+                term: 'Eigen-CAM',
                 definition:
-                    'Visualiza regiones de activación del detector para la imagen original y adversarial. Ayuda a interpretar el modelo, pero no es una métrica de rendimiento.',
+                    'Visualiza regiones de activación del detector para la imagen original y la obtenida tras el ataque. Ayuda a interpretar el modelo, pero no es una métrica de rendimiento.',
             },
         ],
         note: 'Las cajas mostradas usan el filtro público de confianza > 0,25, que puede diferir del umbral elegido para el punto de operación supervisado.',

@@ -10,7 +10,7 @@ class HopSkipJumpAttack(BaseARTClassificationAttack):
     id = "hop_skip_jump"
     name = "HopSkipJump"
     description = (
-        "Ataque black-box basado en decisiones que aproxima la frontera de "
+        "Ataque de caja negra basado en decisiones que aproxima la frontera de "
         "clasificación usando únicamente predicciones finales del modelo"
     )
     knowledge_type = "black_box"
@@ -20,7 +20,7 @@ class HopSkipJumpAttack(BaseARTClassificationAttack):
         AttackParameterSpec(
             key="norm",
             label="Norma",
-            summary_label="norm",
+            summary_label="norma",
             description="Norma usada para minimizar la perturbación adversaria",
             value_type="string",
             default="l2",
@@ -47,7 +47,7 @@ class HopSkipJumpAttack(BaseARTClassificationAttack):
         AttackParameterSpec(
             key="max_eval",
             label="Evaluaciones máximas por iteración",
-            summary_label="max eval",
+            summary_label="eval. máx.",
             description=(
                 "Límite de consultas usadas para estimar la dirección de ataque en "
                 "una iteración"
@@ -62,7 +62,7 @@ class HopSkipJumpAttack(BaseARTClassificationAttack):
         AttackParameterSpec(
             key="init_eval",
             label="Evaluaciones iniciales",
-            summary_label="init eval",
+            summary_label="eval. inic.",
             description=(
                 "Consultas usadas al inicio para estimar la dirección; el número "
                 "crece con las iteraciones hasta max_eval"
@@ -77,7 +77,7 @@ class HopSkipJumpAttack(BaseARTClassificationAttack):
         AttackParameterSpec(
             key="init_size",
             label="Intentos de inicialización",
-            summary_label="init",
+            summary_label="intentos",
             description=(
                 "Número máximo de muestras aleatorias probadas para encontrar un "
                 "ejemplo adversario inicial"
@@ -95,7 +95,7 @@ class HopSkipJumpAttack(BaseARTClassificationAttack):
         resolved = super().resolve_parameters(parameters)
         if resolved.init_eval > resolved.max_eval:
             raise ValueError(
-                "Parameter 'init_eval' must be less than or equal to 'max_eval'"
+                "El parámetro 'init_eval' debe ser menor o igual que 'max_eval'"
             )
         return resolved
 

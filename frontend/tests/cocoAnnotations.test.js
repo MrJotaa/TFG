@@ -107,7 +107,7 @@ test('structured validation errors expose actionable context and rollback', () =
     const message = formatCocoImportError({
         message: 'fallback',
         details: {
-            message: 'Bounding box is outside authoritative image bounds',
+            message: 'La caja delimitadora está fuera de los límites de la imagen de referencia',
             section: 'annotations',
             field: 'bbox',
             coco_id: 42,
@@ -116,7 +116,7 @@ test('structured validation errors expose actionable context and rollback', () =
         },
     })
 
-    assert.match(message, /Bounding box/)
+    assert.match(message, /caja delimitadora/i)
     assert.match(message, /sección: annotations/)
     assert.match(message, /campo: bbox/)
     assert.match(message, /ID COCO: 42/)

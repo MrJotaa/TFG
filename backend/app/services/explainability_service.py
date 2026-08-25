@@ -116,7 +116,7 @@ async def generate_detection_explainability(
     detections = detection_result.detections
 
     if not detections:
-        raise BadRequestError("No detections found in the selected image.")
+        raise BadRequestError("No se encontraron detecciones en la imagen seleccionada.")
 
     heatmap_image = await asyncio.to_thread(generate_detection_eigencam, model, image)
     if cancellation_token is not None:

@@ -37,9 +37,9 @@ def test_deepfool_parameter_contract_accepts_custom_values():
 @pytest.mark.parametrize(
     ("parameters", "message"),
     [
-        ({"max_iter": 0}, "greater than or equal"),
-        ({"overshoot": -0.01}, "greater than or equal"),
-        ({"nb_grads": 0}, "greater than or equal"),
+        ({"max_iter": 0}, "mayor o igual"),
+        ({"overshoot": -0.01}, "mayor o igual"),
+        ({"nb_grads": 0}, "mayor o igual"),
     ],
 )
 def test_deepfool_parameter_contract_rejects_invalid_values(parameters, message):

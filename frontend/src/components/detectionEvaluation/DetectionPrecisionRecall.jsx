@@ -65,7 +65,7 @@ function DetectionPrecisionRecall({ evaluation }) {
     if (!supervised?.available) {
         return (
             <div className="evaluation-empty-panel">
-                <span className="evaluation-eyebrow">Curvas Precision-Recall</span>
+                <span className="evaluation-eyebrow">Curvas Precision–Recall</span>
                 <h3>Las curvas no están disponibles</h3>
                 <p>{getDetectionUnavailableMessage(supervised?.reason)}</p>
             </div>
@@ -79,8 +79,8 @@ function DetectionPrecisionRecall({ evaluation }) {
             <section className="evaluation-surface detection-curve-header">
                 <div>
                     <span className="evaluation-eyebrow">101 puntos de recall COCO</span>
-                    <h3>Curvas Precision-Recall</h3>
-                    <p>Compara la envolvente interpolada original y adversarial para el promedio COCO global o una clase concreta.</p>
+                    <h3>Curvas Precision–Recall</h3>
+                    <p>Compara la envolvente interpolada original y tras el ataque para el promedio COCO global o una clase concreta.</p>
                 </div>
                 <label>
                     <span>Ámbito de la curva</span>
@@ -97,11 +97,11 @@ function DetectionPrecisionRecall({ evaluation }) {
 
             <section className="detection-curve-score-grid">
                 <article className="curve-score-card original"><span>AP original</span><strong>{formatRatio(selected.originalScore)}</strong><small>{selected.label}</small></article>
-                <article className="curve-score-card adversarial"><span>AP adversarial</span><strong>{formatRatio(selected.adversarialScore)}</strong><small>{selected.label}</small></article>
+                <article className="curve-score-card adversarial"><span>AP tras el ataque</span><strong>{formatRatio(selected.adversarialScore)}</strong><small>{selected.label}</small></article>
             </section>
 
             {data.length ? (
-                <section className="evaluation-surface detection-pr-chart" role="img" aria-label={`Curva Precision-Recall para ${selected.label}`}>
+                <section className="evaluation-surface detection-pr-chart" role="img" aria-label={`Curva Precision–Recall para ${selected.label}`}>
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={data} margin={{ top: 16, right: 24, bottom: 22, left: 16 }}>
                             <CartesianGrid stroke="#e7edf5" strokeDasharray="4 4" />
@@ -109,7 +109,7 @@ function DetectionPrecisionRecall({ evaluation }) {
                             <YAxis type="number" domain={[0, 1]} ticks={TICKS} tickFormatter={(value) => Number(value).toFixed(2)} label={{ value: 'Precisión', angle: -90, position: 'insideLeft' }} />
                             <Tooltip content={<CurveTooltip />} />
                             <Line dataKey="original" name="Original" stroke="var(--evaluation-original)" strokeWidth={3} dot={false} isAnimationActive={false} />
-                            <Line dataKey="adversarial" name="Adversarial" stroke="var(--evaluation-adversarial)" strokeWidth={3} dot={false} isAnimationActive={false} />
+                            <Line dataKey="adversarial" name="Tras el ataque" stroke="var(--evaluation-adversarial)" strokeWidth={3} dot={false} isAnimationActive={false} />
                         </LineChart>
                     </ResponsiveContainer>
                 </section>

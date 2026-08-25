@@ -50,7 +50,7 @@ async def unexpected_error_handler(
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "detail": "Internal server error",
+            "detail": "Error interno del servidor",
         },
     )
 

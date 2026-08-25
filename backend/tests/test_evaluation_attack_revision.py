@@ -17,7 +17,7 @@ class FakeDatasetsCollection:
 
 class FakeModel:
     id = "yolo26n"
-    name = "YOLO26n pretrained"
+    name = "YOLO26n · preentrenado en COCO"
 
 
 def _dataset(owner_id: str) -> dict:

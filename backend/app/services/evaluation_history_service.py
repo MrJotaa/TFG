@@ -112,7 +112,7 @@ async def begin_evaluation_execution(
             raise ConflictError(
                 {
                     "code": "evaluation_in_progress",
-                    "message": "An identical evaluation is already in progress",
+                    "message": "Ya hay una evaluación idéntica en curso",
                     "result_id": compatible["_id"],
                 }
             )
@@ -120,7 +120,7 @@ async def begin_evaluation_execution(
             raise ConflictError(
                 {
                     "code": "compatible_evaluation_exists",
-                    "message": "A compatible evaluation is already available",
+                    "message": "Ya hay una evaluación compatible disponible",
                     "result_id": compatible["_id"],
                     "expires_at": _utc_datetime(
                         compatible.get("expires_at"), "expires_at"
@@ -178,7 +178,7 @@ async def begin_evaluation_execution(
         raise ConflictError(
             {
                 "code": "evaluation_in_progress",
-                "message": "An identical evaluation is already in progress",
+                "message": "Ya hay una evaluación idéntica en curso",
             }
         ) from error
     return execution
@@ -229,7 +229,7 @@ async def complete_evaluation_execution(
     )
     if result.matched_count == 0:
         await asyncio.to_thread(_remove_evaluation_artifacts, execution.result_id)
-        raise ConflictError("Evaluation execution is no longer active")
+        raise ConflictError("La ejecución de la evaluación ya no está activa")
     return expires_at
 
 
@@ -287,7 +287,7 @@ async def get_stored_evaluation(
     task_type = _document_task_type(document)
     artifact_path = _artifact_path(evaluation_id, task_type)
     if not artifact_path.is_file():
-        raise GoneError("Evaluation artifact is no longer available")
+        raise GoneError("El artefacto de la evaluación ya no está disponible")
     try:
         payload = await asyncio.to_thread(_read_json, artifact_path)
         if task_type == "classification":
@@ -295,9 +295,9 @@ async def get_stored_evaluation(
         else:
             evaluation = DetectionEvaluationResponse.model_validate(payload)
     except (OSError, UnicodeError, ValueError, ValidationError) as error:
-        raise BadRequestError("Evaluation artifact is invalid") from error
+        raise BadRequestError("El artefacto de la evaluación no es válido") from error
     if evaluation.result_id != evaluation_id:
-        raise BadRequestError("Evaluation artifact identity is invalid")
+        raise BadRequestError("La identidad del artefacto de la evaluación no es válida")
     return StoredEvaluationResponse(task_type=task_type, evaluation=evaluation)
 
 
@@ -382,12 +382,12 @@ async def _build_identity(
     *, request, owner_id: str, task_type: EvaluationTaskType
 ) -> dict:
     if not ObjectId.is_valid(request.dataset_id):
-        raise BadRequestError("Invalid dataset id")
+        raise BadRequestError("Identificador de conjunto de datos no válido")
     dataset = await datasets_collection.find_one({"_id": ObjectId(request.dataset_id)})
     if dataset is None:
-        raise NotFoundError("Dataset not found")
+        raise NotFoundError("Conjunto de datos no encontrado")
     if str(dataset.get("owner_id")) != owner_id:
-        raise ForbiddenError("Dataset belongs to another user")
+        raise ForbiddenError("El conjunto de datos pertenece a otro usuario")
 
     model = get_active_model()
 
@@ -505,17 +505,17 @@ async def _find_compatible_document(*, owner_id: str, signature: str) -> dict | 
 
 async def _get_accessible_document(evaluation_id: str, owner_id: str) -> dict:
     if not _valid_result_id(evaluation_id):
-        raise NotFoundError("Evaluation not found")
+        raise NotFoundError("Evaluación no encontrada")
     document = await evaluations_collection.find_one({"_id": evaluation_id})
     if document is None:
-        raise NotFoundError("Evaluation not found")
+        raise NotFoundError("Evaluación no encontrada")
     if document.get("owner_id") != owner_id:
-        raise ForbiddenError("Evaluation belongs to another user")
+        raise ForbiddenError("La evaluación pertenece a otro usuario")
     if document.get("status") != "completed":
-        raise BadRequestError("Evaluation is not complete")
+        raise BadRequestError("La evaluación no está completada")
     expires_at = _utc_datetime(document.get("expires_at"), "expires_at")
     if expires_at <= datetime.now(timezone.utc):
-        raise GoneError("Evaluation has expired")
+        raise GoneError("La evaluación ha caducado")
     return document
 
 
@@ -564,7 +564,7 @@ def _history_item(document: dict) -> EvaluationHistoryItem:
             exact_reuse_available=exact_reuse_available,
         )
     except (KeyError, TypeError, ValueError, ValidationError) as error:
-        raise BadRequestError("Evaluation history index is invalid") from error
+        raise BadRequestError("El índice del historial de evaluaciones no es válido") from error
 
 
 def _document_task_type(document: dict) -> EvaluationTaskType:
@@ -575,7 +575,7 @@ def _document_task_type(document: dict) -> EvaluationTaskType:
         return "detection"
     if document.get("result_type") in {"evaluation", "classification_evaluation"}:
         return "classification"
-    raise BadRequestError("Evaluation history index is invalid")
+    raise BadRequestError("El índice del historial de evaluaciones no es válido")
 
 
 def _new_result_id(task_type: EvaluationTaskType) -> str:

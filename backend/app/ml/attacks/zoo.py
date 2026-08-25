@@ -8,7 +8,7 @@ class ZerothOrderOptimizationAttack(BaseARTClassificationAttack):
     id = "zoo"
     name = "Zeroth-Order Optimization (ZOO)"
     description = (
-        "Ataque black-box basado en puntuaciones que aproxima gradientes mediante "
+        "Ataque de caja negra basado en puntuaciones que aproxima gradientes mediante "
         "diferencias finitas y optimización coordinada ADAM"
     )
     knowledge_type = "black_box"
@@ -17,7 +17,7 @@ class ZerothOrderOptimizationAttack(BaseARTClassificationAttack):
     parameter_specs = (
         AttackParameterSpec(
             key="confidence",
-            label="Confidence",
+            label="Confianza (κ)",
             summary_label="κ",
             description=(
                 "Margen de confianza exigido al ejemplo adversario; valores mayores "
@@ -31,8 +31,8 @@ class ZerothOrderOptimizationAttack(BaseARTClassificationAttack):
         ),
         AttackParameterSpec(
             key="learning_rate",
-            label="Learning rate",
-            summary_label="lr",
+            label="Tasa de aprendizaje",
+            summary_label="tasa",
             description="Tasa de aprendizaje de la optimización coordinada ADAM",
             value_type="float",
             default=0.01,
@@ -55,7 +55,7 @@ class ZerothOrderOptimizationAttack(BaseARTClassificationAttack):
         AttackParameterSpec(
             key="binary_search_steps",
             label="Búsquedas binarias",
-            summary_label="bss",
+            summary_label="búsq.",
             description=(
                 "Número de ajustes del equilibrio entre distancia y éxito; multiplica "
                 "el coste de la optimización"
@@ -84,7 +84,7 @@ class ZerothOrderOptimizationAttack(BaseARTClassificationAttack):
         AttackParameterSpec(
             key="nb_parallel",
             label="Coordenadas paralelas",
-            summary_label="coords",
+            summary_label="coord.",
             description=(
                 "Número de coordenadas actualizadas por iteración; cada coordenada "
                 "requiere dos evaluaciones para estimar su derivada"
@@ -98,7 +98,7 @@ class ZerothOrderOptimizationAttack(BaseARTClassificationAttack):
         AttackParameterSpec(
             key="use_resize",
             label="Usar reducción dimensional",
-            summary_label="resize",
+            summary_label="redim.",
             description=(
                 "Optimiza primero en baja resolución siguiendo la estrategia jerárquica "
                 "de ZOO para reducir el coste en imágenes grandes"

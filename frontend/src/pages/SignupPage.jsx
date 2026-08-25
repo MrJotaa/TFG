@@ -32,10 +32,10 @@ function SignupPage() {
     return (
         <main className="auth-page">
             <section className="auth-card">
-                <h1>Adversarial AI App</h1>
+                <h1>Analizador de ataques adversarios</h1>
                 <h2>Crear usuario</h2>
 
-                <p>Crea una cuenta para gestionar datasets y experimentos.</p>
+                <p>Crea una cuenta para gestionar conjuntos de datos y experimentos.</p>
 
                 {error && <p className="error">{error}</p>}
 

@@ -45,9 +45,9 @@ function DetectionCocoMetrics({ evaluation }) {
         <div className="evaluation-tab-content">
             <section className="evaluation-kpi-grid">
                 <MetricCard label="AP@0.50 original" value={formatRatio(supervised.original.aggregate.ap_50)} helper="IoU 0.50" tone="original" />
-                <MetricCard label="AP@0.50 adversarial" value={formatRatio(supervised.adversarial.aggregate.ap_50)} helper="IoU 0.50" tone="adversarial" />
+                <MetricCard label="AP@0.50 tras el ataque" value={formatRatio(supervised.adversarial.aggregate.ap_50)} helper="IoU 0.50" tone="adversarial" />
                 <MetricCard label="AR@100 original" value={formatRatio(supervised.original.aggregate.ar_100)} helper="Hasta 100 detecciones" tone="original" />
-                <MetricCard label="AR@100 adversarial" value={formatRatio(supervised.adversarial.aggregate.ar_100)} helper="Hasta 100 detecciones" tone="adversarial" />
+                <MetricCard label="AR@100 tras el ataque" value={formatRatio(supervised.adversarial.aggregate.ar_100)} helper="Hasta 100 detecciones" tone="adversarial" />
             </section>
 
             <section className="evaluation-surface">
@@ -58,7 +58,7 @@ function DetectionCocoMetrics({ evaluation }) {
                     </div>
                     <div className="evaluation-legend-pills">
                         <span className="original">Original</span>
-                        <span className="adversarial">Adversarial</span>
+                        <span className="adversarial">Tras el ataque</span>
                     </div>
                 </div>
 
@@ -68,7 +68,7 @@ function DetectionCocoMetrics({ evaluation }) {
                             <tr>
                                 <th>Métrica</th>
                                 <th>Original</th>
-                                <th>Adversarial</th>
+                                <th>Tras el ataque</th>
                                 <th>Δ absoluto</th>
                                 <th>Δ relativo</th>
                             </tr>
@@ -98,7 +98,7 @@ function DetectionCocoMetrics({ evaluation }) {
 
             <section className="detection-operating-grid">
                 <OperatingPoint title="Punto de operación original" metrics={supervised.original.operating_point} tone="original" />
-                <OperatingPoint title="Punto de operación adversarial" metrics={supervised.adversarial.operating_point} tone="adversarial" />
+                <OperatingPoint title="Punto de operación tras el ataque" metrics={supervised.adversarial.operating_point} tone="adversarial" />
             </section>
 
             <section className="evaluation-surface detection-method-card">
@@ -107,8 +107,8 @@ function DetectionCocoMetrics({ evaluation }) {
                 <dl>
                     <div><dt>Confianza mínima evaluada</dt><dd>{supervised.configuration.score_floor}</dd></div>
                     <div><dt>Confianza</dt><dd>≥ {supervised.configuration.confidence_threshold}</dd></div>
-                    <div><dt>IoU de matching</dt><dd>≥ {supervised.configuration.iou_threshold}</dd></div>
-                    <div><dt>Inferencia</dt><dd>{usesEndToEndInference ? 'End-to-end (sin NMS)' : 'NMS tradicional'}</dd></div>
+                    <div><dt>IoU de emparejamiento</dt><dd>≥ {supervised.configuration.iou_threshold}</dd></div>
+                    <div><dt>Inferencia</dt><dd>{usesEndToEndInference ? 'De extremo a extremo (sin NMS)' : 'NMS tradicional'}</dd></div>
                     <div><dt>NMS</dt><dd>{usesEndToEndInference ? 'No se aplica' : `IoU ${supervised.configuration.nms_iou_threshold}`}</dd></div>
                     <div><dt>Máx. detecciones</dt><dd>{supervised.configuration.max_detections_per_image}</dd></div>
                     <div><dt>Recall COCO</dt><dd>{supervised.configuration.coco_recall_threshold_count} puntos</dd></div>

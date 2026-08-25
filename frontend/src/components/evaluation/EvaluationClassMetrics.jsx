@@ -9,12 +9,12 @@ const METRIC_OPTIONS = [
     { id: 'recall', label: 'Recall' },
     { id: 'precision', label: 'Precision' },
     { id: 'roc_auc', label: 'ROC-AUC' },
-    { id: 'average_precision', label: 'Average Precision (AP)' },
+    { id: 'average_precision', label: 'AP (Average Precision)' },
 ]
 
 const SORT_OPTIONS = [
     { id: 'degradation', label: 'Mayor degradación' },
-    { id: 'adversarial', label: 'Peor resultado adversarial' },
+    { id: 'adversarial', label: 'Peor resultado tras el ataque' },
     { id: 'support', label: 'Mayor soporte' },
     { id: 'name', label: 'Nombre de clase' },
 ]
@@ -258,9 +258,9 @@ function EvaluationClassMetrics({ evaluation }) {
                     <span className="evaluation-eyebrow">Diagnóstico por clase</span>
                     <h3>Localiza qué categorías son más vulnerables</h3>
                     <p>
-                        Compara el rendimiento original y adversarial. Los deltas positivos
+                        Compara el rendimiento original y tras el ataque. Los deltas positivos
                         representan degradación porque se calculan como original menos
-                        adversarial.
+                        tras el ataque.
                     </p>
                 </div>
 
@@ -327,7 +327,7 @@ function EvaluationClassMetrics({ evaluation }) {
                         className="class-metric-series-dot tone-adversarial"
                         aria-hidden="true"
                     />
-                    Adversarial
+                    Tras el ataque
                 </span>
                 <small>La longitud representa el valor de la métrica seleccionada.</small>
             </div>
@@ -385,7 +385,7 @@ function EvaluationClassMetrics({ evaluation }) {
                                         />
 
                                         <MetricBar
-                                            label="Adversarial"
+                                            label="Tras el ataque"
                                             metric={adversarial}
                                             tone="tone-adversarial"
                                         />
@@ -394,7 +394,7 @@ function EvaluationClassMetrics({ evaluation }) {
                                     <div className={`class-metric-delta ${getDeltaTone(delta)}`}>
                                         <span>{getDeltaLabel(delta)}</span>
                                         <strong>{formatDeltaMagnitude(delta)}</strong>
-                                        <small>original − adversarial</small>
+                                        <small>original − tras el ataque</small>
                                     </div>
                                 </div>
 

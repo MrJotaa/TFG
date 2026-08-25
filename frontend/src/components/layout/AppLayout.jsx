@@ -43,7 +43,7 @@ function AppLayout() {
             <Outlet />
 
             <footer className="app-footer">
-                © 2026 Adversarial AI App. All rights reserved.
+                © 2026 Analizador de ataques adversarios. Todos los derechos reservados.
             </footer>
         </main>
     )

@@ -27,7 +27,7 @@ const CURVE_TYPES = {
             'Muestra la relación entre sensibilidad y falsos positivos al variar el umbral.',
     },
     precision_recall: {
-        label: 'Precision-Recall',
+        label: 'Precision–Recall',
         xLabel: 'Recall',
         yLabel: 'Precisión',
         tooltipXLabel: 'Recall',
@@ -174,7 +174,7 @@ function CurveChart({ curveType, original, adversarial, scopeLabel, expanded = f
         <div
             className={`curve-chart-wrap${expanded ? ' expanded' : ''}`}
             role="img"
-            aria-label={`${config.label} original y adversarial para ${scopeLabel}`}
+            aria-label={`${config.label} original y tras el ataque para ${scopeLabel}`}
         >
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart margin={{ top: 12, right: 18, bottom: 8, left: 12 }}>
@@ -255,7 +255,7 @@ function CurveChart({ curveType, original, adversarial, scopeLabel, expanded = f
                         <Line
                             data={adversarialPoints}
                             dataKey="y"
-                            name="Adversarial"
+                            name="Tras el ataque"
                             type="linear"
                             stroke="var(--evaluation-adversarial)"
                             strokeWidth={3}
@@ -352,9 +352,9 @@ function EvaluationCurves({ evaluation }) {
             <section className="evaluation-surface curve-header-card">
                 <div>
                     <span className="evaluation-eyebrow">Análisis por umbral</span>
-                    <h3>Curvas ROC y Precision-Recall</h3>
+                    <h3>Curvas ROC y Precision–Recall</h3>
                     <p>
-                        Superpone el comportamiento original y adversarial y explora el
+                        Superpone el comportamiento original y tras el ataque y explora el
                         el ámbito micro global o una clase concreta.
                     </p>
                 </div>
@@ -405,17 +405,17 @@ function EvaluationCurves({ evaluation }) {
                     tone="original"
                 />
                 <CurveScoreCard
-                    label={`${config.scoreLabel} adversarial`}
+                    label={`${config.scoreLabel} tras el ataque`}
                     series={adversarial}
                     tone="adversarial"
                 />
                 <article className={`curve-score-card ${getDeltaTone(delta)}`}>
                     <span>Degradación</span>
                     <strong>{formatSignedPoints(delta)}</strong>
-                    <small>Original menos adversarial</small>
+                    <small>Original menos tras el ataque</small>
                 </article>
                 <article className="curve-score-card neutral">
-                    <span>Macro original / adversarial</span>
+                    <span>Macro original / tras el ataque</span>
                     <strong>
                         {formatAvailableMetric(analysis?.macro_original)} /{' '}
                         {formatAvailableMetric(analysis?.macro_adversarial)}
@@ -435,7 +435,7 @@ function EvaluationCurves({ evaluation }) {
                     <div className="curve-chart-actions">
                         <div className="evaluation-legend-pills" aria-label="Leyenda">
                             <span className="original">Original</span>
-                            <span className="adversarial">Adversarial</span>
+                            <span className="adversarial">Tras el ataque</span>
                             {curveType === 'roc' && (
                                 <span className="reference">Azar</span>
                             )}
@@ -504,7 +504,7 @@ function EvaluationCurves({ evaluation }) {
                                     aria-label="Leyenda"
                                 >
                                     <span className="original">Original</span>
-                                    <span className="adversarial">Adversarial</span>
+                                    <span className="adversarial">Tras el ataque</span>
                                     {curveType === 'roc' && (
                                         <span className="reference">Azar</span>
                                     )}

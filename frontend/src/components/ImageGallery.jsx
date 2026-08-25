@@ -101,9 +101,9 @@ function ImageGallery({
             {error && <p className="error">{error}</p>}
 
             {!selectedDataset ? (
-                <p>Selecciona un dataset para ver sus imágenes.</p>
+                <p>Selecciona un conjunto de datos para ver sus imágenes.</p>
             ) : images.length === 0 ? (
-                <p>Este dataset no tiene imágenes.</p>
+                <p>Este conjunto de datos no tiene imágenes.</p>
             ) : (
                 <div className="image-grid">
                     {images.map((image) => (

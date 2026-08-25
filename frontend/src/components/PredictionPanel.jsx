@@ -17,7 +17,7 @@ function PredictionPanel({ selectedDataset, selectedImage }) {
 
     async function handlePredict() {
         if (!selectedDataset || !selectedImage) {
-            setError('Debes seleccionar un dataset y una imagen.')
+            setError('Debes seleccionar un conjunto de datos y una imagen.')
             return
         }
 
@@ -41,7 +41,7 @@ function PredictionPanel({ selectedDataset, selectedImage }) {
 
     async function handleGenerateGradCam() {
         if (!selectedDataset || !selectedImage) {
-            setError('Debes seleccionar un dataset y una imagen.')
+            setError('Debes seleccionar un conjunto de datos y una imagen.')
             return
         }
 

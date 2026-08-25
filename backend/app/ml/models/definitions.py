@@ -8,7 +8,7 @@ from ml.models.ultralytics.model import UltralyticsDetectionModel
 
 _YOLO26N_CONFIG = UltralyticsDetectionModelConfig(
     id="yolo26n",
-    name="YOLO26n pretrained",
+    name="YOLO26n · preentrenado en COCO",
     revision="ultralytics-yolo26n-coco-8.4.121",
     weights="yolo26n.pt",
     image_size=640,
@@ -20,7 +20,7 @@ _YOLO26N_CONFIG = UltralyticsDetectionModelConfig(
 
 _RF_DETR_NANO_CONFIG = RfDetrDetectionModelConfig(
     id="rf_detr_nano",
-    name="RF-DETR Nano pretrained",
+    name="RF-DETR Nano · preentrenado en COCO",
     revision="transformers-5.15.1-rf-detr-nano-coco-9f201577",
     checkpoint="Roboflow/rf-detr-nano",
     checkpoint_revision="9f201577d9415f0378084748d27e68586e6b3600",

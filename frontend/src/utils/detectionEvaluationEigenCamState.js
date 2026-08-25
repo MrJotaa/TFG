@@ -62,16 +62,16 @@ export function isDetectionEigenCamResponse(response, evaluationId, imageId) {
 
 export function getDetectionEigenCamErrorMessage(error) {
     const messages = {
-        400: 'No se puede generar EigenCAM: los datos no son válidos o el modelo activo no coincide con la evaluación.',
-        401: 'La sesión ha caducado. Inicia sesión de nuevo para generar EigenCAM.',
+        400: 'No se puede generar Eigen-CAM: los datos no son válidos o el modelo activo no coincide con la evaluación.',
+        401: 'La sesión ha caducado. Inicia sesión de nuevo para generar Eigen-CAM.',
         403: 'No tienes permiso para acceder a esta evaluación.',
         404: 'La evaluación o la imagen solicitada ya no existe.',
-        410: 'La imagen adversaria temporal ya no está disponible. Repite la evaluación para generar EigenCAM.',
-        500: 'No se pudo generar o guardar EigenCAM. Puedes intentarlo de nuevo.',
+        410: 'La imagen temporal tras el ataque ya no está disponible. Repite la evaluación para generar Eigen-CAM.',
+        500: 'No se pudo generar o guardar Eigen-CAM. Puedes intentarlo de nuevo.',
     }
 
     return (
         messages[error?.status]
-        ?? 'No se pudo conectar con el servidor para generar EigenCAM. Comprueba la conexión e inténtalo de nuevo.'
+        ?? 'No se pudo conectar con el servidor para generar Eigen-CAM. Comprueba la conexión e inténtalo de nuevo.'
     )
 }

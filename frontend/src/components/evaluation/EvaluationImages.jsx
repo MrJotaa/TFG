@@ -157,9 +157,9 @@ function EvaluationImageCard({
                         variant="original"
                     />
                     <ImagePreview
-                        label="Adversarial"
+                        label="Tras el ataque"
                         path={result.adversarial_image_url}
-                        alt={`Imagen adversarial ${result.filename}`}
+                        alt={`Imagen tras el ataque ${result.filename}`}
                         variant="adversarial"
                     />
                     <ImagePreview
@@ -173,7 +173,7 @@ function EvaluationImageCard({
                 <div className="evaluation-image-summary">
                     <dl>
                         <div>
-                            <dt>Ground truth</dt>
+                            <dt>Clase de referencia</dt>
                             <dd>{result.ground_truth_label ?? 'Sin etiqueta'}</dd>
                         </div>
                         <div>
@@ -181,7 +181,7 @@ function EvaluationImageCard({
                             <dd>{formatRatio(result.original_confidence)}</dd>
                         </div>
                         <div>
-                            <dt>Confianza adversarial</dt>
+                            <dt>Confianza tras el ataque</dt>
                             <dd>{formatRatio(result.adversarial_confidence)}</dd>
                         </div>
                         <div>
@@ -242,7 +242,7 @@ function EvaluationImageCard({
                         role="status"
                         aria-live="polite"
                     >
-                        Generando Grad-CAM original y adversarial para esta imagen.
+                        Generando Grad-CAM original y tras el ataque para esta imagen.
                     </p>
                 )}
 
@@ -268,12 +268,12 @@ function EvaluationImageCard({
                             variant="gradcam-original"
                         />
                         <ImagePreview
-                            label="Grad-CAM adversarial"
+                            label="Grad-CAM tras el ataque"
                             path={
                                 gradCamEntry.data
                                     .adversarial_gradcam_image_url
                             }
-                            alt={`Grad-CAM adversarial de ${result.filename}`}
+                            alt={`Grad-CAM tras el ataque de ${result.filename}`}
                             variant="gradcam-adversarial"
                         />
                     </div>
@@ -292,7 +292,7 @@ function EvaluationImageCard({
                         </strong>
                     </div>
                     <div>
-                        <span>Prob. clase real adversarial</span>
+                        <span>Prob. clase real tras el ataque</span>
                         <strong>
                             {formatRatio(diagnostics.adversarial_true_class_probability)}
                         </strong>
@@ -302,7 +302,7 @@ function EvaluationImageCard({
                         <strong>{formatDecimal(diagnostics.original_prediction_margin)}</strong>
                     </div>
                     <div>
-                        <span>Margen adversarial</span>
+                        <span>Margen tras el ataque</span>
                         <strong>
                             {formatDecimal(diagnostics.adversarial_prediction_margin)}
                         </strong>
@@ -318,7 +318,7 @@ function EvaluationImageCard({
                         </strong>
                     </div>
                     <div>
-                        <span>Top-5 adversarial</span>
+                        <span>Top-5 tras el ataque</span>
                         <strong>
                             <BooleanValue value={diagnostics.adversarial_top_5_correct} />
                         </strong>
@@ -407,7 +407,7 @@ function EvaluationImages({
                     <span className="evaluation-eyebrow">Exploración visual</span>
                     <h3>Resultados por imagen</h3>
                     <p>
-                        Compara original, adversarial y perturbación, y filtra los casos que
+                        Compara original, resultado tras el ataque y perturbación, y filtra los casos que
                         explican la degradación global.
                     </p>
                 </div>

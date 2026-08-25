@@ -9,7 +9,7 @@ class SwinV2TinyModel(TorchvisionImageClassificationModel):
     """Swin Transformer V2 Tiny pretrained on ImageNet-1K."""
 
     id = "swin_v2_t"
-    name = "Swin Transformer V2 Tiny pretrained"
+    name = "Swin Transformer V2 Tiny · preentrenado en ImageNet-1K"
     revision = "torchvision-swin-v2-t-imagenet1k-v1"
     task_type = "classification"
     evaluation_attack_micro_batch_size = 2

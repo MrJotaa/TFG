@@ -6,7 +6,7 @@ from ml.models.torchvision_classification import TorchvisionImageClassificationM
 
 class ResNet18Model(TorchvisionImageClassificationModel):
     id = "resnet18"
-    name = "ResNet18 pretrained"
+    name = "ResNet-18 · preentrenado en ImageNet-1K"
     revision = "torchvision-default-v1"
     task_type = "classification"
     evaluation_attack_micro_batch_size = 4

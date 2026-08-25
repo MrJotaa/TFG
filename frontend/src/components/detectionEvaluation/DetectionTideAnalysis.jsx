@@ -75,7 +75,7 @@ function DetectionTideAnalysis({ evaluation }) {
                     tone="original"
                 />
                 <MetricCard
-                    label="AP50 TIDE adversarial"
+                    label="AP50 TIDE tras el ataque"
                     value={`${tide.adversarial.ap_50.toFixed(1)} %`}
                     helper="Misma configuración después del ataque"
                     tone="adversarial"
@@ -84,7 +84,7 @@ function DetectionTideAnalysis({ evaluation }) {
                     label="Error dominante"
                     value={dominant?.label ?? 'Sin impacto aislado'}
                     helper={dominant
-                        ? 'Mayor dAP adversarial; no necesariamente el más frecuente'
+                        ? 'Mayor dAP tras el ataque; no necesariamente el más frecuente'
                         : 'Ningún oráculo individual recupera AP50 en esta evaluación'}
                     tone="danger"
                 />
@@ -104,7 +104,7 @@ function DetectionTideAnalysis({ evaluation }) {
                     </div>
                     <div className="evaluation-legend-pills">
                         <span className="original">Original</span>
-                        <span className="adversarial">Adversarial</span>
+                        <span className="adversarial">Tras el ataque</span>
                     </div>
                 </div>
                 <div className="tide-chart" role="img" aria-label="Comparación del impacto dAP de los errores TIDE">
@@ -115,7 +115,7 @@ function DetectionTideAnalysis({ evaluation }) {
                             <YAxis tickFormatter={(value) => `${value}`} label={{ value: 'dAP (pp)', angle: -90, position: 'insideLeft' }} />
                             <Tooltip content={<TideTooltip />} />
                             <Bar dataKey="originalImpact" name="Original" fill="var(--evaluation-original)" radius={[5, 5, 0, 0]} />
-                            <Bar dataKey="adversarialImpact" name="Adversarial" fill="var(--evaluation-adversarial)" radius={[5, 5, 0, 0]} />
+                            <Bar dataKey="adversarialImpact" name="Tras el ataque" fill="var(--evaluation-adversarial)" radius={[5, 5, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
@@ -172,7 +172,7 @@ function DetectionTideAnalysis({ evaluation }) {
                         <p>{definition.description}</p>
                         <dl>
                             <div><dt>Original</dt><dd>{formatTidePoints(original.delta_ap)} · {formatInteger(original.count)} casos</dd></div>
-                            <div><dt>Adversarial</dt><dd>{formatTidePoints(adversarial.delta_ap)} · {formatInteger(adversarial.count)} casos</dd></div>
+                            <div><dt>Tras el ataque</dt><dd>{formatTidePoints(adversarial.delta_ap)} · {formatInteger(adversarial.count)} casos</dd></div>
                         </dl>
                     </article>
                 ))}

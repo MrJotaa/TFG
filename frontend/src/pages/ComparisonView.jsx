@@ -39,7 +39,7 @@ function DetectionList({ detections, title }) {
                             <tr>
                                 <th>Clase</th>
                                 <th>Confianza</th>
-                                <th>Bounding box</th>
+                                <th>Caja delimitadora</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -74,7 +74,7 @@ function ClassificationResults({ result }) {
                     value={result.original_prediction.prediction}
                 />
                 <Metric
-                    label="Predicción adversaria"
+                    label="Predicción tras el ataque"
                     value={result.adversarial_prediction.prediction}
                     tone={comparison.prediction_changed ? 'tone-danger' : ''}
                 />
@@ -83,7 +83,7 @@ function ClassificationResults({ result }) {
                     value={comparison.original_confidence}
                 />
                 <Metric
-                    label="Confianza adversaria"
+                    label="Confianza tras el ataque"
                     value={comparison.adversarial_confidence}
                 />
                 <Metric
@@ -100,7 +100,7 @@ function ClassificationResults({ result }) {
             <div className="adversarial-topk-grid">
                 {[
                     ['Top-K original', result.original_prediction.top_k],
-                    ['Top-K adversarial', result.adversarial_prediction.top_k],
+                    ['Top-K tras el ataque', result.adversarial_prediction.top_k],
                 ].map(([title, predictions]) => (
                     <section key={title} className="analysis-card">
                         <h4>{title}</h4>
@@ -131,7 +131,7 @@ function CleanPredictionResult({ prediction, selectedImage }) {
             </div>
 
             <div className="clean-prediction-summary">
-                <span className="evaluation-eyebrow">Predicción limpia</span>
+                <span className="evaluation-eyebrow">Predicción original</span>
                 <h3>{prediction.prediction}</h3>
                 <p className="clean-prediction-confidence">
                     Confianza <strong>{prediction.confidence}</strong>
@@ -148,7 +148,7 @@ function CleanPredictionResult({ prediction, selectedImage }) {
 
                 <p className="muted-text">
                     Aplica el ataque para comparar esta referencia con el resultado
-                    adversario sin abandonar el análisis individual.
+                    del ataque sin abandonar el análisis individual.
                 </p>
             </div>
         </section>
@@ -159,7 +159,7 @@ function CleanDetectionResult({ detection, selectedImage }) {
     return (
         <section className="clean-detection-result" aria-live="polite">
             <div className="clean-detection-image">
-                <span className="evaluation-eyebrow">Detección limpia</span>
+                <span className="evaluation-eyebrow">Detección original</span>
                 <img
                     src={resolveApiUrl(
                         detection.annotated_image_url ?? selectedImage.url,
@@ -173,7 +173,7 @@ function CleanDetectionResult({ detection, selectedImage }) {
                 <h3>{detection.detections?.length ?? 0}</h3>
                 <p className="muted-text">
                     La imagen conserva su geometría original y las cajas corresponden
-                    a la inferencia limpia del modelo.
+                    a la inferencia original del modelo.
                 </p>
                 <DetectionList
                     title="Detalle de detecciones"
@@ -191,13 +191,13 @@ function DetectionExplainabilityResult({ result }) {
                 <span className="evaluation-eyebrow">Explicabilidad visual</span>
                 <img
                     src={resolveApiUrl(result.explanation_image_url)}
-                    alt="Mapa EigenCAM con detecciones"
+                    alt="Mapa Eigen-CAM con detecciones"
                 />
             </div>
 
             <div className="clean-detection-summary">
                 <span className="evaluation-eyebrow">Método</span>
-                <h3>{result.explanation_type || 'EigenCAM'}</h3>
+                <h3>{result.explanation_type || 'Eigen-CAM'}</h3>
                 <p className="muted-text">
                     El mapa señala las regiones con mayor influencia sobre las
                     detecciones de esta imagen.
@@ -248,7 +248,7 @@ function DetectionResults({ result }) {
                     value={comparison.original_detection_count}
                 />
                 <Metric
-                    label="Detecciones adversarias"
+                    label="Detecciones tras el ataque"
                     value={comparison.adversarial_detection_count}
                 />
                 <Metric
@@ -260,7 +260,7 @@ function DetectionResults({ result }) {
                     value={comparison.average_original_confidence}
                 />
                 <Metric
-                    label="Confianza media adversaria"
+                    label="Confianza media tras el ataque"
                     value={comparison.average_adversarial_confidence}
                 />
                 <Metric
@@ -271,7 +271,7 @@ function DetectionResults({ result }) {
 
             <p className="muted-text">
                 Estas métricas son descriptivas para una imagen. Sin matching contra
-                ground truth no equivalen a AP, recall ni supresión científica.
+                anotaciones de referencia no equivalen a AP, recall ni supresión científica.
             </p>
 
             <div className="adversarial-detection-lists">
@@ -280,7 +280,7 @@ function DetectionResults({ result }) {
                     detections={result.original_detections}
                 />
                 <DetectionList
-                    title="Detecciones adversarias"
+                    title="Detecciones tras el ataque"
                     detections={result.adversarial_detections}
                 />
             </div>
@@ -398,7 +398,7 @@ function ComparisonView() {
 
     async function handlePredict() {
         if (!selectedDataset || !selectedImage || !activeModel) {
-            setCurrentError('Debes seleccionar dataset, imagen y modelo.')
+            setCurrentError('Debes seleccionar un conjunto de datos, una imagen y un modelo.')
             return
         }
 
@@ -429,7 +429,7 @@ function ComparisonView() {
 
     async function handleRunAttack() {
         if (!selectedDataset || !selectedImage || !activeModel) {
-            setCurrentError('Debes seleccionar dataset, imagen y modelo.')
+            setCurrentError('Debes seleccionar un conjunto de datos, una imagen y un modelo.')
             return
         }
 
@@ -470,7 +470,7 @@ function ComparisonView() {
 
     async function handleGenerateExplainability() {
         if (!selectedDataset || !selectedImage || !activeModel) {
-            setCurrentError('Debes seleccionar dataset, imagen y modelo.')
+            setCurrentError('Debes seleccionar un conjunto de datos, una imagen y un modelo.')
             return
         }
 
@@ -520,13 +520,13 @@ function ComparisonView() {
                     <span className="evaluation-eyebrow">Análisis individual</span>
                     <h2>
                         {isDetection
-                            ? 'Detección y exploración adversaria'
-                            : 'Predicción y exploración adversaria'}
+                            ? 'Detección y exploración tras el ataque'
+                            : 'Predicción y exploración tras el ataque'}
                     </h2>
                     <p>
                         {isDetection
                             ? 'Compara visualmente las detecciones antes y después del ataque.'
-                            : 'Obtén la predicción limpia y compara el efecto del ataque sin cambiar de pantalla.'}
+                            : 'Obtén la predicción original y compara el efecto del ataque sin cambiar de pantalla.'}
                     </p>
                 </div>
                 <button
@@ -534,13 +534,13 @@ function ComparisonView() {
                     className="secondary-action"
                     onClick={() => navigate('/dashboard')}
                 >
-                    Volver al Dashboard
+                    Volver al panel principal
                 </button>
             </div>
 
             <div className="context-summary adversarial-context-summary">
                 <div className="context-grid">
-                    <p><strong>Dataset:</strong> {selectedDataset?.name || 'Sin dataset'}</p>
+                    <p><strong>Conjunto de datos:</strong> {selectedDataset?.name || 'Sin seleccionar'}</p>
                     <p><strong>Imagen:</strong> {selectedImage?.filename || 'Sin imagen'}</p>
                     <p><strong>Modelo:</strong> {activeModel?.name || 'Sin modelo'}</p>
                     <p><strong>Ataque:</strong> {getAttackName(selectedAttack, attackCatalog)}</p>
@@ -559,7 +559,7 @@ function ComparisonView() {
             {!selectedDataset || !selectedImage || !activeModel ? (
                 <div className="empty-state">
                     <h3>Falta contexto para explorar</h3>
-                    <p>Selecciona un dataset, una imagen y un modelo en el Dashboard.</p>
+                    <p>Selecciona un conjunto de datos, una imagen y un modelo en el panel principal.</p>
                     <button
                         type="button"
                         className="secondary-action"
@@ -573,7 +573,7 @@ function ComparisonView() {
                     {!isAttackSupported && (
                         <div className="evaluation-warning-banner">
                             El ataque seleccionado no es compatible con este modelo.
-                            Cambia el ataque desde el Dashboard.
+                            Cambia el ataque desde el panel principal.
                         </div>
                     )}
 
@@ -650,10 +650,10 @@ function ComparisonView() {
                                     disabled={busy}
                                 >
                                     {loadingExplainability
-                                        ? 'Generando EigenCAM…'
+                                        ? 'Generando Eigen-CAM…'
                                         : explainabilityResult
-                                          ? 'Regenerar EigenCAM'
-                                          : 'Generar EigenCAM'}
+                                          ? 'Regenerar Eigen-CAM'
+                                          : 'Generar Eigen-CAM'}
                                 </button>
                             )}
 
@@ -679,8 +679,8 @@ function ComparisonView() {
                                         : loadingExplainability
                                           ? 'Generando explicabilidad visual'
                                           : isDetection
-                                            ? 'Ejecutando detección limpia'
-                                            : 'Calculando predicción limpia'}
+                                            ? 'Ejecutando detección original'
+                                            : 'Calculando predicción original'}
                                 </strong>
                                 <p>
                                     {loading
@@ -722,7 +722,7 @@ function ComparisonView() {
                         <div className="individual-analysis-empty">
                             <strong>Elige el nivel de análisis</strong>
                             <p>
-                                Puedes predecir primero la imagen limpia o ejecutar
+                                Puedes predecir primero la imagen original o ejecutar
                                 directamente el ataque, que también calcula la
                                 referencia original.
                             </p>
@@ -734,8 +734,8 @@ function ComparisonView() {
                             <div className="individual-analysis-empty">
                                 <strong>Elige el resultado que quieres generar</strong>
                                 <p>
-                                    Ejecuta la detección limpia, aplica el ataque o
-                                    genera EigenCAM. Cada resultado se mostrará en su
+                                    Ejecuta la detección original, aplica el ataque o
+                                    genera Eigen-CAM. Cada resultado se mostrará en su
                                     propia pestaña sin alargar la página.
                                 </p>
                             </div>

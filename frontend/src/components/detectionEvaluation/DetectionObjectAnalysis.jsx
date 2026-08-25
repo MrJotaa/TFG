@@ -20,17 +20,17 @@ const OUTCOME_LABELS = {
 }
 
 const SIZE_LABELS = {
-    small: 'Small (< 32²)',
-    medium: 'Medium (32²–96²)',
-    large: 'Large (≥ 96²)',
+    small: 'Pequeño (< 32²)',
+    medium: 'Mediano (32²–96²)',
+    large: 'Grande (≥ 96²)',
 }
 
 const SORT_OPTIONS = [
     { value: 'canonical', label: 'Imagen y objeto' },
     { value: 'confidence_drop', label: 'Mayor caída de confianza' },
     { value: 'iou_drop', label: 'Mayor caída de IoU' },
-    { value: 'adversarial_confidence', label: 'Menor confianza adversarial' },
-    { value: 'adversarial_iou', label: 'Menor IoU adversarial' },
+    { value: 'adversarial_confidence', label: 'Menor confianza tras el ataque' },
+    { value: 'adversarial_iou', label: 'Menor IoU tras el ataque' },
     { value: 'class', label: 'Nombre de clase' },
 ]
 
@@ -162,8 +162,8 @@ function DetectionObjectAnalysis({ evaluation }) {
             <section className="evaluation-surface detection-method-card">
                 <div className="evaluation-section-heading">
                     <div>
-                        <span className="evaluation-eyebrow">Método category-aware</span>
-                        <h3>Transiciones de cada ground truth</h3>
+                        <span className="evaluation-eyebrow">Emparejamiento por categoría</span>
+                        <h3>Transiciones de cada objeto de referencia</h3>
                     </div>
                     <span className="detection-methodology-badge">{analysis.methodology_version}</span>
                 </div>
@@ -255,7 +255,7 @@ function DetectionObjectAnalysis({ evaluation }) {
                                                 <th>Clase</th>
                                                 <th>Transición</th>
                                                 <th>Observación original</th>
-                                                <th>Observación adversarial</th>
+                                                <th>Observación tras el ataque</th>
                                                 <th>Detalle</th>
                                             </tr>
                                         </thead>
@@ -287,10 +287,10 @@ function DetectionObjectAnalysis({ evaluation }) {
                                                                 <td colSpan="7">
                                                                     <dl>
                                                                         <div><dt>Tamaño COCO</dt><dd>{SIZE_LABELS[object.size_bucket]}</dd></div>
-                                                                        <div><dt>Área ground truth</dt><dd>{formatDecimal(object.area, 1)} px²</dd></div>
-                                                                        <div><dt>Caja ground truth (xyxy)</dt><dd>{formatBoundingBox(object.ground_truth_box)}</dd></div>
+                                                                        <div><dt>Área del objeto de referencia</dt><dd>{formatDecimal(object.area, 1)} px²</dd></div>
+                                                                        <div><dt>Caja de referencia (xyxy)</dt><dd>{formatBoundingBox(object.ground_truth_box)}</dd></div>
                                                                         <div><dt>Caja original (xyxy)</dt><dd>{formatBoundingBox(object.original_observation?.detection_box)}</dd></div>
-                                                                        <div><dt>Caja adversarial (xyxy)</dt><dd>{formatBoundingBox(object.adversarial_observation?.detection_box)}</dd></div>
+                                                                        <div><dt>Caja tras el ataque (xyxy)</dt><dd>{formatBoundingBox(object.adversarial_observation?.detection_box)}</dd></div>
                                                                         <div><dt>Δ confianza</dt><dd>{formatDecimal(object.confidence_drop)}</dd></div>
                                                                         <div><dt>Δ IoU</dt><dd>{formatDecimal(object.iou_drop)}</dd></div>
                                                                     </dl>

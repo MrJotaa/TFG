@@ -8,7 +8,7 @@ class DeepFoolAttack(BaseARTClassificationAttack):
     id = "deepfool"
     name = "DeepFool"
     description = (
-        "Ataque white-box que aproxima iterativamente la frontera de decisión "
+        "Ataque de caja blanca que aproxima iterativamente la frontera de decisión "
         "para encontrar perturbaciones pequeñas en clasificación"
     )
     knowledge_type = "white_box"
@@ -32,8 +32,8 @@ class DeepFoolAttack(BaseARTClassificationAttack):
         ),
         AttackParameterSpec(
             key="overshoot",
-            label="Overshoot",
-            summary_label="overshoot",
+            label="Factor de sobrepaso (overshoot)",
+            summary_label="sobrepaso",
             description=(
                 "Factor adicional aplicado a la perturbación encontrada para "
                 "sobrepasar la frontera de decisión"
@@ -47,7 +47,7 @@ class DeepFoolAttack(BaseARTClassificationAttack):
         AttackParameterSpec(
             key="nb_grads",
             label="Gradientes de clase",
-            summary_label="grads",
+            summary_label="grad.",
             description=(
                 "Número de clases con mayor puntuación cuyos gradientes se "
                 "consideran; valores menores reducen el coste por iteración"

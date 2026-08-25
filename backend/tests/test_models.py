@@ -248,7 +248,7 @@ def test_select_unknown_model_returns_404(client):
     response = client.post("/models/unknown-model/select")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Model not found"
+    assert response.json()["detail"] == "Modelo no encontrado"
 
 
 def test_select_already_active_model_loads_it(client):

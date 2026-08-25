@@ -24,7 +24,7 @@ function DetectionOverlayImage({ imagePath, result, variant }) {
     const detections = isOriginal
         ? result.original_detections
         : result.adversarial_detections
-    const title = isOriginal ? 'Original' : 'Adversaria'
+    const title = isOriginal ? 'Original' : 'Tras el ataque'
     const imageUrl = resolveApiUrl(imagePath)
     const fontSize = dimensions
         ? Math.max(12, Math.min(dimensions.width, dimensions.height) * 0.026)
@@ -62,7 +62,7 @@ function DetectionOverlayImage({ imagePath, result, variant }) {
                             <svg
                                 className="detection-box-overlay"
                                 viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
-                                aria-label={`${detections.length} detecciones ${isOriginal ? 'originales' : 'adversariales'}`}
+                                aria-label={`${detections.length} detecciones ${isOriginal ? 'originales' : 'tras el ataque'}`}
                                 role="img"
                             >
                                 {detections.map((detection, index) => {
@@ -149,7 +149,7 @@ function DetectionImageCard({
                     <small>{result.image_id}</small>
                 </div>
                 <span className={`detection-legacy-badge ${result.attack_success ? 'success' : 'neutral'}`}>
-                    {result.attack_success ? 'Éxito legacy' : 'Sin éxito legacy'}
+                    {result.attack_success ? 'Indicador heurístico positivo' : 'Indicador heurístico negativo'}
                 </span>
             </header>
 
@@ -167,25 +167,25 @@ function DetectionImageCard({
             </div>
 
             <p className="detection-preview-note">
-                Las dos vistas conservan la geometría fuente. La imagen adversaria
-                es el resultado real del ataque, no una proyección sobre la original.
+                Las dos vistas conservan la geometría fuente. La segunda imagen es el resultado real del ataque, no una proyección
+                sobre la original.
             </p>
 
             <dl className="detection-image-result-metrics">
                 <div><dt>Detecciones originales</dt><dd>{formatInteger(result.original_detection_count)}</dd></div>
-                <div><dt>Detecciones adversarias</dt><dd>{formatInteger(result.adversarial_detection_count)}</dd></div>
+                <div><dt>Detecciones tras el ataque</dt><dd>{formatInteger(result.adversarial_detection_count)}</dd></div>
                 <div><dt>Δ detecciones</dt><dd>{formatInteger(result.detections_difference)}</dd></div>
                 <div><dt>Conf. original</dt><dd>{formatDecimal(result.average_original_confidence)}</dd></div>
-                <div><dt>Conf. adversaria</dt><dd>{formatDecimal(result.average_adversarial_confidence)}</dd></div>
+                <div><dt>Conf. tras el ataque</dt><dd>{formatDecimal(result.average_adversarial_confidence)}</dd></div>
                 <div><dt>Δ confianza</dt><dd>{formatDecimal(result.average_confidence_difference)}</dd></div>
             </dl>
 
             <section className="detection-eigencam-section">
                 <div className="detection-eigencam-action">
                     <div>
-                        <strong>Explicabilidad EigenCAM</strong>
+                        <strong>Explicabilidad Eigen-CAM</strong>
                         <span>
-                            Genera los mapas original y adversario solo para esta imagen.
+                            Genera los mapas original y tras el ataque solo para esta imagen.
                         </span>
                     </div>
                     <button
@@ -198,18 +198,18 @@ function DetectionImageCard({
                         )}
                     >
                         {eigenCamLoading
-                            ? 'Generando EigenCAM…'
+                            ? 'Generando Eigen-CAM…'
                             : eigenCamReady
-                              ? 'EigenCAM generado'
+                              ? 'Eigen-CAM generado'
                               : eigenCamError
-                                ? 'Reintentar EigenCAM'
-                                : 'Generar EigenCAM'}
+                                ? 'Reintentar Eigen-CAM'
+                                : 'Generar Eigen-CAM'}
                     </button>
                 </div>
 
                 {eigenCamLoading && (
                     <p className="evaluation-gradcam-status" role="status">
-                        Calculando EigenCAM sin repetir el ataque ni las detecciones.
+                        Calculando Eigen-CAM sin repetir el ataque ni las detecciones.
                     </p>
                 )}
 
@@ -222,12 +222,12 @@ function DetectionImageCard({
                 {eigenCamReady && (
                     <div className="detection-eigencam-grid">
                         <EigenCamPreview
-                            label="EigenCAM original"
+                            label="Eigen-CAM original"
                             path={eigenCamEntry.data.original_eigencam_image_url}
                             filename={result.filename}
                         />
                         <EigenCamPreview
-                            label="EigenCAM adversario"
+                            label="Eigen-CAM tras el ataque"
                             path={eigenCamEntry.data.adversarial_eigencam_image_url}
                             filename={result.filename}
                         />
@@ -239,7 +239,7 @@ function DetectionImageCard({
                 <summary>Ver predicciones en texto</summary>
                 <dl>
                     <div><dt>Originales</dt><dd>{formatDetections(result.original_detections)}</dd></div>
-                    <div><dt>Adversariales</dt><dd>{formatDetections(result.adversarial_detections)}</dd></div>
+                    <div><dt>Tras el ataque</dt><dd>{formatDetections(result.adversarial_detections)}</dd></div>
                 </dl>
             </details>
         </article>
@@ -271,9 +271,9 @@ function DetectionImageResults({
                         <span className="evaluation-eyebrow">Exploración visual</span>
                         <h3>Predicciones por imagen</h3>
                         <p>
-                            Compara los píxeles y cajas originales y adversariales, y
-                            solicita EigenCAM únicamente para los casos relevantes. Las
-                            cajas mantienen el filtro público legacy de confianza &gt; 0.25.
+                            Compara los píxeles y cajas originales y tras el ataque, y
+                            solicita Eigen-CAM únicamente para los casos relevantes. Las
+                            cajas usan el filtro público histórico de confianza &gt; 0.25.
                         </p>
                     </div>
                     <strong>{formatInteger(evaluation.results.length)} imágenes</strong>

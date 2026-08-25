@@ -19,9 +19,9 @@ from services.dataset_service import (
 )
 from utils.security import hash_password, verify_password
 
-INVALID_USER_ID_MESSAGE = "Invalid user id"
-USER_NOT_FOUND_MESSAGE = "User not found"
-USER_ALREADY_EXISTS_MESSAGE = "User with this email already exists"
+INVALID_USER_ID_MESSAGE = "Identificador de usuario no válido"
+USER_NOT_FOUND_MESSAGE = "Usuario no encontrado"
+USER_ALREADY_EXISTS_MESSAGE = "Ya existe un usuario con este correo electrónico"
 
 
 def user_to_response(user: dict) -> UserResponse:
@@ -210,9 +210,9 @@ async def delete_user_with_password(
     hashed_password = user.get("password")
 
     if not hashed_password:
-        raise BadRequestError("Invalid password")
+        raise BadRequestError("Contraseña no válida")
 
     if not verify_password(password, hashed_password):
-        raise BadRequestError("Invalid password")
+        raise BadRequestError("Contraseña no válida")
 
     await delete_user(user_id)

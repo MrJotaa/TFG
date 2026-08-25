@@ -23,7 +23,7 @@ from utils.result_files import RESULTS_TTL_SECONDS
 
 DETECTION_EVALUATION_RESULT_PREFIX = "detection_evaluation_"
 DETECTION_EVALUATION_ARTIFACT_FILENAME = "evaluation.json"
-DETECTION_EVALUATION_NOT_FOUND = "Detection evaluation not found"
+DETECTION_EVALUATION_NOT_FOUND = "Evaluación de detección no encontrada"
 DETECTION_EVALUATION_STORAGE_SCHEMA_VERSION = 1
 SUPPORTED_DETECTION_EVALUATION_STORAGE_SCHEMA_VERSIONS = {1, 2}
 DETECTION_EVALUATIONS_BASE_PATH = os.getenv(
@@ -133,33 +133,33 @@ async def get_detection_evaluation(
     if document is None or document.get("result_type") != "detection_evaluation":
         raise NotFoundError(DETECTION_EVALUATION_NOT_FOUND)
     if document.get("owner_id") != owner_id:
-        raise ForbiddenError("Detection evaluation belongs to another user")
+        raise ForbiddenError("La evaluación de detección pertenece a otro usuario")
     if document.get("status") != "completed":
-        raise BadRequestError("Detection evaluation is not complete")
+        raise BadRequestError("La evaluación de detección no está completada")
     if document.get("storage_schema_version") not in (
         SUPPORTED_DETECTION_EVALUATION_STORAGE_SCHEMA_VERSIONS
     ):
-        raise BadRequestError("Detection evaluation storage version is unsupported")
+        raise BadRequestError("La versión de almacenamiento de la evaluación de detección no es compatible")
 
     expires_at = _utc_datetime(document.get("expires_at"), "expires_at")
     if expires_at <= datetime.now(timezone.utc):
-        raise GoneError("Detection evaluation has expired")
+        raise GoneError("La evaluación de detección ha caducado")
 
     result_path = _result_path(evaluation_id)
     artifact_filename = document.get("artifact_filename")
     if artifact_filename != DETECTION_EVALUATION_ARTIFACT_FILENAME:
-        raise BadRequestError("Detection evaluation index is invalid")
+        raise BadRequestError("El índice de la evaluación de detección no es válido")
     artifact_path = result_path / artifact_filename
     if not artifact_path.is_file():
-        raise GoneError("Detection evaluation artifact is no longer available")
+        raise GoneError("El artefacto de la evaluación de detección ya no está disponible")
 
     try:
         payload = await asyncio.to_thread(_read_json, artifact_path)
         response = DetectionEvaluationResponse.model_validate(payload)
     except (OSError, UnicodeError, ValueError, ValidationError) as error:
-        raise BadRequestError("Detection evaluation artifact is invalid") from error
+        raise BadRequestError("El artefacto de la evaluación de detección no es válido") from error
     if response.result_id != evaluation_id:
-        raise BadRequestError("Detection evaluation artifact identity is invalid")
+        raise BadRequestError("La identidad del artefacto de la evaluación de detección no es válida")
     return response
 
 
@@ -188,7 +188,7 @@ def _history_item(document: dict) -> DetectionEvaluationHistoryItem:
             expires_at=_utc_datetime(document.get("expires_at"), "expires_at"),
         )
     except (KeyError, TypeError, ValueError, ValidationError) as error:
-        raise BadRequestError("Detection evaluation index is invalid") from error
+        raise BadRequestError("El índice de la evaluación de detección no es válido") from error
 
 
 def _validate_result_id(result_id: str) -> None:
