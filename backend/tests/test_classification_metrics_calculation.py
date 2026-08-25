@@ -252,7 +252,7 @@ def test_reports_undefined_class_precision():
     assert class_metrics.original.precision.available
     assert class_metrics.adversarial.precision.available is False
 
-    assert "no samples were predicted" in class_metrics.adversarial.precision.reason
+    assert "ninguna muestra fue predicha" in class_metrics.adversarial.precision.reason
 
 
 def test_no_resolved_labels_disables_supervised_metrics():

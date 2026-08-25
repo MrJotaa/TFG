@@ -16,19 +16,19 @@ UNKNOWN_OBJECT_ID = "507f1f77bcf86cd799439011"
             "GET",
             f"/users/{INVALID_OBJECT_ID}",
             None,
-            "Invalid user id",
+            "Identificador de usuario no válido",
         ),
         (
             "GET",
             f"/users/{INVALID_OBJECT_ID}/datasets",
             None,
-            "Invalid user id",
+            "Identificador de usuario no válido",
         ),
         (
             "GET",
             f"/datasets/{INVALID_OBJECT_ID}",
             None,
-            "Invalid dataset id",
+            "Identificador de conjunto de datos no válido",
         ),
     ],
 )
@@ -194,7 +194,7 @@ def test_dataset_endpoints_return_400_for_invalid_dataset_id(
 
     assert response.status_code == 400
     assert response.json() == {
-        "detail": "Invalid dataset id",
+        "detail": "Identificador de conjunto de datos no válido",
     }
 
 
@@ -309,5 +309,5 @@ def test_invalid_token_returns_standardized_401(client):
 
     assert response.status_code == 401
     assert response.json() == {
-        "detail": "Invalid or expired token",
+        "detail": "Token no válido o caducado",
     }

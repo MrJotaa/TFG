@@ -184,7 +184,7 @@ async def test_detection_evaluation_detail_enforces_ownership(
         owner_id="user-1",
     )
 
-    with pytest.raises(ForbiddenError, match="another user"):
+    with pytest.raises(ForbiddenError, match="otro usuario"):
         await persistence.get_detection_evaluation(
             evaluation_id=result_id,
             owner_id="user-2",
@@ -205,7 +205,7 @@ async def test_detection_evaluation_expiration_and_missing_artifact_are_typed(
     document = persistence_environment.documents[result_id]
     document["expires_at"] = datetime.now(timezone.utc) - timedelta(seconds=1)
 
-    with pytest.raises(GoneError, match="expired"):
+    with pytest.raises(GoneError, match="ha caducado"):
         await persistence.get_detection_evaluation(
             evaluation_id=result_id,
             owner_id="user-1",
@@ -224,7 +224,7 @@ async def test_detection_evaluation_expiration_and_missing_artifact_are_typed(
         tmp_path / result_id / persistence.DETECTION_EVALUATION_ARTIFACT_FILENAME
     )
     artifact_path.unlink()
-    with pytest.raises(GoneError, match="no longer available"):
+    with pytest.raises(GoneError, match="ya no está disponible"):
         await persistence.get_detection_evaluation(
             evaluation_id=result_id,
             owner_id="user-1",
@@ -236,7 +236,7 @@ async def test_detection_evaluation_rejects_invalid_identity_and_artifact(
     tmp_path,
     persistence_environment,
 ):
-    with pytest.raises(NotFoundError, match="not found"):
+    with pytest.raises(NotFoundError, match="no encontrada"):
         await persistence.get_detection_evaluation(
             evaluation_id="../evaluation.json",
             owner_id="user-1",
@@ -253,7 +253,7 @@ async def test_detection_evaluation_rejects_invalid_identity_and_artifact(
     )
     artifact_path.write_text("{}", encoding="utf-8")
 
-    with pytest.raises(BadRequestError, match="artifact is invalid"):
+    with pytest.raises(BadRequestError, match="artefacto de la evaluación de detección no es válido"):
         await persistence.get_detection_evaluation(
             evaluation_id=result_id,
             owner_id="user-1",

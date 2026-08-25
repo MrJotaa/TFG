@@ -25,7 +25,7 @@ def test_create_user_with_existing_email_returns_400(client, test_user_payload):
     second_response = client.post("/users", json=test_user_payload)
 
     assert second_response.status_code == 400
-    assert "already exists" in second_response.json()["detail"].lower()
+    assert "ya existe" in second_response.json()["detail"].lower()
 
 
 def test_create_user_with_invalid_email_returns_422(client):
@@ -100,7 +100,7 @@ def test_get_user_with_unknown_id_returns_404(client):
     response = client.get("/users/507f1f77bcf86cd799439011")
 
     assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
+    assert "no encontrado" in response.json()["detail"].lower()
 
 
 def test_update_user_name_returns_updated_user(client, registered_user):
@@ -239,7 +239,7 @@ def test_update_unknown_user_returns_404(client):
     )
 
     assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
+    assert "no encontrado" in response.json()["detail"].lower()
 
 
 def test_delete_user_removes_user(client, registered_user):
@@ -266,7 +266,7 @@ def test_delete_unknown_user_returns_404(client):
     response = client.delete("/users/507f1f77bcf86cd799439011")
 
     assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
+    assert "no encontrado" in response.json()["detail"].lower()
 
 
 def test_get_user_datasets_returns_empty_list_for_user_without_datasets(

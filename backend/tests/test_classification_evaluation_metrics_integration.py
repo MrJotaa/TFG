@@ -887,13 +887,13 @@ async def test_evaluation_excludes_only_unresolved_labels_from_supervised_metric
     assert supervised.aggregate.adversarial.accuracy == 0.0
 
     assert supervised.roc.micro.original.available is False
-    assert "negative sample" in supervised.roc.micro.original.reason
+    assert "muestra negativa" in supervised.roc.micro.original.reason
     assert supervised.precision_recall.micro.original.available is True
 
     class_curve = supervised.precision_recall.per_class[0]
 
     assert class_curve.support == 1
-    assert "fewer than 2 positive samples" in class_curve.curves.original.warning
+    assert "menos de 2 muestras positivas" in class_curve.curves.original.warning
 
     unresolved_diagnostics = response.results[1].diagnostics
     unlabeled_diagnostics = response.results[2].diagnostics

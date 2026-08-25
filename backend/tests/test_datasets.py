@@ -93,7 +93,7 @@ def test_create_dataset_with_invalid_file_extension_returns_400(
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == ("Invalid image file: notes.txt")
+    assert response.json()["detail"] == ("Archivo de imagen no válido: notes.txt")
 
 
 def test_list_datasets_returns_created_dataset(
@@ -299,7 +299,7 @@ def test_delete_dataset_image_removes_image(
     response = client.delete(f"/datasets/{dataset_id}/images/{image_id}")
 
     assert response.status_code == 200
-    assert response.json() == {"message": "Image deleted successfully"}
+    assert response.json() == {"message": "Imagen eliminada correctamente"}
 
     images_response = client.get(f"/datasets/{dataset_id}/images")
 
@@ -333,7 +333,7 @@ def test_delete_dataset_removes_dataset(
     response = client.delete(f"/datasets/{dataset_id}")
 
     assert response.status_code == 200
-    assert response.json() == {"message": "Dataset deleted successfully"}
+    assert response.json() == {"message": "Conjunto de datos eliminado correctamente"}
 
     get_response = client.get(f"/datasets/{dataset_id}")
 

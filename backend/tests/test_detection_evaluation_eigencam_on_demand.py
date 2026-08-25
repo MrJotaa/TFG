@@ -166,7 +166,7 @@ async def test_detection_eigencam_requires_persisted_adversarial_source(
         fake_get_evaluation,
     )
 
-    with pytest.raises(GoneError, match="repeat the evaluation"):
+    with pytest.raises(GoneError, match="repite la evaluación"):
         await eigencam_service.generate_detection_evaluation_image_eigencam(
             evaluation_id=EVALUATION_ID,
             image_id=IMAGE_ID,
@@ -205,7 +205,7 @@ async def test_detection_eigencam_requires_the_evaluation_model(
         lambda: SimpleNamespace(id="detector-2", task_type="detection"),
     )
 
-    with pytest.raises(BadRequestError, match="not active"):
+    with pytest.raises(BadRequestError, match="no está activo"):
         await eigencam_service.generate_detection_evaluation_image_eigencam(
             evaluation_id=EVALUATION_ID,
             image_id=IMAGE_ID,

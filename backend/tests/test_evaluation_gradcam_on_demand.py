@@ -472,13 +472,13 @@ async def test_random_noise_gradcam_never_recalculates_attack_and_caches(
 @pytest.mark.parametrize(
     ("scenario", "exception", "message"),
     [
-        ("foreign", ForbiddenError, "another user"),
-        ("missing_evaluation", NotFoundError, "Evaluation not found"),
-        ("missing_image", NotFoundError, "Evaluation image not found"),
-        ("processing", BadRequestError, "not complete"),
-        ("missing_tensor", GoneError, "scientific artifact"),
-        ("missing_visual", GoneError, "visual artifact"),
-        ("wrong_model", BadRequestError, "not active"),
+        ("foreign", ForbiddenError, "otro usuario"),
+        ("missing_evaluation", NotFoundError, "Evaluación no encontrada"),
+        ("missing_image", NotFoundError, "Imagen de la evaluación no encontrada"),
+        ("processing", BadRequestError, "no está completada"),
+        ("missing_tensor", GoneError, "artefacto científico"),
+        ("missing_visual", GoneError, "artefacto visual"),
+        ("wrong_model", BadRequestError, "no está activo"),
     ],
 )
 @pytest.mark.asyncio
@@ -570,7 +570,7 @@ async def test_on_demand_gradcam_rejects_corrupt_scientific_artifacts(
         lambda artifact_path: artifact,
     )
 
-    with pytest.raises(BadRequestError, match="scientific artifact is invalid"):
+    with pytest.raises(BadRequestError, match="artefacto científico de la evaluación no es válido"):
         await gradcam_service.generate_evaluation_image_gradcam(
             evaluation_id=evaluation_id,
             image_id=image_id,

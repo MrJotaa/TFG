@@ -639,7 +639,7 @@ async def test_annotation_coverage_read_stops_after_retry_limit(monkeypatch):
 
     with pytest.raises(
         dataset_annotation_service.ConflictError,
-        match="changed repeatedly",
+        match="cambió repetidamente",
     ):
         await dataset_annotation_service.get_annotation_coverage(
             str(dataset_id),
