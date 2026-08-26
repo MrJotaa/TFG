@@ -6046,9 +6046,10 @@ button {
 
 .adversarial-split-control {
     display: grid;
-    grid-template-columns: auto minmax(160px, 1fr) 105px;
+    grid-template-columns: 1fr auto;
     align-items: center;
-    gap: 12px;
+    gap: 6px 12px;
+    width: 100%;
     margin-top: 12px;
     color: #4a5870;
     font-size: 0.85rem;
@@ -6056,7 +6057,9 @@ button {
 }
 
 .adversarial-split-control input {
+    grid-column: 1 / -1;
     width: 100%;
+    margin: 0;
     accent-color: #be2b3b;
 }
 
@@ -6443,11 +6446,6 @@ button {
 
     .adversarial-split-control {
         grid-template-columns: 1fr auto;
-    }
-
-    .adversarial-split-control input {
-        grid-column: 1 / -1;
-        grid-row: 2;
     }
 
     .adversarial-perturbation-panel img {
