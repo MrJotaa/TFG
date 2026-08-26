@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import AttackSelector from '../components/AttackSelector'
 import DashboardHistory from '../components/DashboardHistory'
 import DatasetList from '../components/DatasetList'
@@ -41,6 +41,7 @@ function SettingsIcon() {
 
 function Dashboard() {
     const navigate = useNavigate()
+    const location = useLocation()
     const {
         datasets,
         setDatasets,
@@ -64,7 +65,9 @@ function Dashboard() {
     const [datasetsError, setDatasetsError] = useState('')
     const [imagesRefreshKey] = useState(0)
     const [leftWidth, setLeftWidth] = useState(320)
-    const [workspaceTab, setWorkspaceTab] = useState('data')
+    const [workspaceTab, setWorkspaceTab] = useState(() =>
+        location.state?.workspaceTab === 'history' ? 'history' : 'data',
+    )
 
     useEffect(() => {
         async function loadUserDatasets() {
@@ -251,6 +254,13 @@ function Dashboard() {
                             openRecoveredEvaluation={openRecoveredEvaluation}
                             onNavigateToEvaluation={() => navigate('/evaluation')}
                             onNavigateToProfile={() => navigate('/profile')}
+                            onNavigateToComparison={(left, right) => {
+                                const search = new URLSearchParams({
+                                    a: left.result_id,
+                                    b: right.result_id,
+                                })
+                                navigate(`/evaluations/compare?${search.toString()}`)
+                            }}
                         />
                     )}
                 </div>

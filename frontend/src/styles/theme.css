@@ -8298,3 +8298,807 @@ html[data-theme='dark'] .detection-evaluation-panel :is(
         padding-left: 0;
         border-top: 1px solid var(--border-subtle);
         border-left: 0;
+    }
+}
+
+/* --------------------------------------------------------------------------
+ * Historical evaluation comparison
+ * -------------------------------------------------------------------------- */
+:root {
+    --comparison-a: #6d5bd0;
+    --comparison-a-soft: #f2efff;
+    --comparison-a-border: #cbc3f2;
+    --comparison-b: #0f766e;
+    --comparison-b-soft: #ecfdf8;
+    --comparison-b-border: #99e3d4;
+}
+
+html[data-theme='dark'] {
+    --comparison-a: #b4a6ff;
+    --comparison-a-soft: #262242;
+    --comparison-a-border: #514a7b;
+    --comparison-b: #5eead4;
+    --comparison-b-soft: #11362f;
+    --comparison-b-border: #28685c;
+}
+
+.dashboard-history-compare {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 34px;
+    padding: 0.35rem 0.5rem;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-soft);
+    font-size: 0.72rem;
+    font-weight: 750;
+}
+
+.dashboard-history-compare:hover:not(:disabled) {
+    background: var(--surface-hover);
+    color: var(--primary);
+}
+
+.dashboard-history-compare:disabled {
+    color: var(--muted);
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.dashboard-history-compare svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.dashboard-history-compare.primary {
+    border: 1px solid var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.dashboard-history-compare.primary:hover:not(:disabled) {
+    border-color: var(--primary);
+    background: var(--primary-soft-strong);
+}
+
+.dashboard-comparison-picker {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+}
+
+.dashboard-comparison-picker-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 0 0 0.85rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.dashboard-comparison-picker-heading h2 {
+    margin: 0.15rem 0 0.25rem;
+    color: var(--text);
+    font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+}
+
+.dashboard-comparison-picker-heading p {
+    max-width: 720px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.77rem;
+    line-height: 1.5;
+}
+
+.dashboard-comparison-base {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin: 0.85rem 0 0.25rem;
+    padding: 0.7rem 0.8rem;
+    border-left: 3px solid var(--comparison-a);
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--comparison-a-soft) 70%, transparent),
+        transparent 72%
+    );
+}
+
+.dashboard-comparison-side {
+    flex: 0 0 auto;
+    display: inline-flex;
+    width: 30px;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-size: 0.72rem;
+    font-weight: 850;
+}
+
+.dashboard-comparison-side.side-a {
+    color: var(--comparison-a);
+}
+
+.dashboard-comparison-side.side-b {
+    color: var(--comparison-b);
+}
+
+.dashboard-comparison-base-copy {
+    min-width: 0;
+    display: grid;
+    gap: 0.14rem;
+}
+
+.dashboard-comparison-base-copy strong {
+    color: var(--text);
+    font-size: 0.84rem;
+}
+
+.dashboard-comparison-base-copy span,
+.dashboard-comparison-base-copy small {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.7rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-comparison-candidates {
+    min-height: 0;
+    margin-top: 0.45rem;
+}
+
+.dashboard-comparison-candidate {
+    display: grid;
+    grid-template-columns: auto minmax(180px, 1.15fr) minmax(150px, 1fr) minmax(170px, 1fr) auto;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.85rem 0.2rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.dashboard-comparison-candidate:hover {
+    background: linear-gradient(
+        90deg,
+        transparent,
+        color-mix(in srgb, var(--comparison-b-soft) 45%, transparent),
+        transparent
+    );
+}
+
+.dashboard-comparison-candidate-action {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.65rem;
+}
+
+.dashboard-comparison-kind {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0.18rem 0.5rem;
+    border: 1px solid var(--comparison-b-border);
+    border-radius: var(--radius-pill);
+    background: var(--comparison-b-soft);
+    color: var(--comparison-b);
+    font-size: 0.62rem;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.dashboard-comparison-empty {
+    flex: 1 1 auto;
+    margin-top: 1rem;
+}
+
+.dashboard-comparison-candidate-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding-top: 0.75rem;
+    color: var(--muted);
+    font-size: 0.68rem;
+}
+
+.dashboard-comparison-candidate-footer > div {
+    display: flex;
+    gap: 0.45rem;
+}
+
+.dashboard-comparison-candidate-footer button {
+    min-height: 30px;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-soft);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.dashboard-comparison-candidate-footer button:hover {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.app-shell > .evaluation-comparison-page {
+    flex: 1 1 auto;
+}
+
+.evaluation-comparison-page {
+    --comparison-page-max: 1480px;
+    width: 100%;
+    max-width: var(--comparison-page-max);
+    margin: 0 auto;
+    padding: clamp(0.4rem, 1vw, 0.9rem) clamp(0.35rem, 1.4vw, 1.25rem) 2rem;
+}
+
+.evaluation-comparison-hero {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 0.4rem 0 1rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.evaluation-comparison-hero h1 {
+    margin: 0.18rem 0 0.3rem;
+    color: var(--text);
+    font-size: clamp(1.6rem, 3vw, 2.35rem);
+    letter-spacing: -0.035em;
+}
+
+.evaluation-comparison-hero p {
+    max-width: 760px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.55;
+}
+
+.evaluation-comparison-hero .secondary-action {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 0;
+    padding-inline: 0.9rem;
+}
+
+.evaluation-comparison-scope {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.evaluation-comparison-scope > div {
+    min-width: 0;
+    flex: 1 1 0;
+    display: grid;
+    align-content: start;
+    gap: 0.13rem;
+    padding: 0.15rem 1rem;
+    border-left: 1px solid var(--border-subtle);
+}
+
+.evaluation-comparison-scope > div:first-child {
+    padding-left: 0;
+    border-left: 0;
+}
+
+.evaluation-comparison-scope span {
+    color: var(--muted);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.evaluation-comparison-scope strong {
+    overflow: hidden;
+    color: var(--text-soft);
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.evaluation-comparison-scope small {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.67rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.evaluation-comparison-identities {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: stretch;
+    gap: clamp(1rem, 3vw, 2.4rem);
+    padding: clamp(1.25rem, 3vw, 2.2rem) 0 1.35rem;
+}
+
+.evaluation-comparison-identity {
+    position: relative;
+    min-width: 0;
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.8rem 1rem 0.9rem;
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+    background: transparent;
+}
+
+.evaluation-comparison-identity::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    bottom: -1px;
+    left: 0;
+    width: 3px;
+}
+
+.evaluation-comparison-identity.side-a::before {
+    background: var(--comparison-a);
+}
+
+.evaluation-comparison-identity.side-b::before {
+    background: var(--comparison-b);
+}
+
+.evaluation-comparison-identity-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.evaluation-comparison-identity-heading > span {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-size: 0.72rem;
+    font-weight: 850;
+}
+
+.evaluation-comparison-identity.side-a .evaluation-comparison-identity-heading > span {
+    color: var(--comparison-a);
+}
+
+.evaluation-comparison-identity.side-b .evaluation-comparison-identity-heading > span {
+    color: var(--comparison-b);
+}
+
+.evaluation-comparison-identity-heading small {
+    color: var(--muted);
+    font-size: 0.67rem;
+}
+
+.evaluation-comparison-identity > strong {
+    overflow: hidden;
+    color: var(--text);
+    font-size: clamp(1.05rem, 2vw, 1.38rem);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.evaluation-comparison-attack {
+    display: grid;
+    gap: 0.16rem;
+}
+
+.evaluation-comparison-attack span {
+    color: var(--text-soft);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.evaluation-comparison-attack small {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.7rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.evaluation-comparison-versus {
+    align-self: center;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 850;
+    letter-spacing: 0.12em;
+}
+
+.evaluation-comparison-baseline {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    margin: 0 0 1.2rem;
+    padding: 0.55rem 0.75rem;
+    border-left: 2px solid var(--border-strong);
+    color: var(--muted);
+}
+
+.evaluation-comparison-baseline > span {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    margin-top: 0.3rem;
+    border-radius: 50%;
+    background: var(--border-strong);
+}
+
+.evaluation-comparison-baseline > div {
+    display: grid;
+    gap: 0.12rem;
+}
+
+.evaluation-comparison-baseline strong {
+    color: var(--text-soft);
+    font-size: 0.75rem;
+}
+
+.evaluation-comparison-baseline small {
+    font-size: 0.68rem;
+    line-height: 1.45;
+}
+
+.evaluation-comparison-baseline.consistent {
+    border-left-color: var(--success);
+}
+
+.evaluation-comparison-baseline.consistent > span {
+    background: var(--success);
+}
+
+.evaluation-comparison-baseline.warning {
+    border-left-color: var(--warning);
+}
+
+.evaluation-comparison-baseline.warning > span {
+    background: var(--warning);
+}
+
+.evaluation-comparison-summary {
+    padding-top: 0.35rem;
+}
+
+.evaluation-comparison-summary > header {
+    display: grid;
+    gap: 0.2rem;
+    margin-bottom: 0.75rem;
+}
+
+.evaluation-comparison-summary h2 {
+    margin: 0;
+    color: var(--text);
+    font-size: clamp(1.15rem, 2vw, 1.45rem);
+}
+
+.evaluation-comparison-summary > header p {
+    max-width: 860px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.evaluation-comparison-metrics {
+    border-top: 1px solid var(--border-subtle);
+}
+
+.evaluation-comparison-metric {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.7fr) minmax(90px, 0.55fr) minmax(90px, 0.55fr) minmax(110px, 0.65fr);
+    align-items: center;
+    gap: 1rem;
+    min-height: 74px;
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.evaluation-comparison-metric.header {
+    min-height: 38px;
+    padding-block: 0.35rem;
+    color: var(--muted);
+    font-size: 0.65rem;
+    font-weight: 750;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+}
+
+.evaluation-comparison-metric.header span:nth-child(2) {
+    color: var(--comparison-a);
+}
+
+.evaluation-comparison-metric.header span:nth-child(3) {
+    color: var(--comparison-b);
+}
+
+.evaluation-comparison-metric:not(.header):hover {
+    background: color-mix(in srgb, var(--surface-hover) 55%, transparent);
+}
+
+.evaluation-comparison-metric > span[role='cell'] {
+    color: var(--text-soft);
+    font-size: clamp(0.9rem, 1.7vw, 1.08rem);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+.evaluation-comparison-metric > span[role='cell']:nth-child(2) {
+    color: var(--comparison-a);
+}
+
+.evaluation-comparison-metric > span[role='cell']:nth-child(3) {
+    color: var(--comparison-b);
+}
+
+.evaluation-comparison-metric > span.best {
+    font-weight: 850;
+}
+
+.evaluation-comparison-metric-name {
+    min-width: 0;
+    display: grid;
+    gap: 0.42rem;
+}
+
+.evaluation-comparison-metric-name > div:first-child {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+}
+
+.evaluation-comparison-metric-name strong {
+    color: var(--text-soft);
+    font-size: 0.8rem;
+}
+
+.evaluation-comparison-metric-name small {
+    color: var(--muted);
+    font-size: 0.61rem;
+    font-weight: 600;
+}
+
+.evaluation-comparison-mini-bars {
+    display: grid;
+    gap: 0.22rem;
+}
+
+.evaluation-comparison-mini-bars > span {
+    position: relative;
+    display: block;
+    width: 100%;
+    max-width: 250px;
+    height: 4px;
+    overflow: hidden;
+    border-radius: var(--radius-pill);
+    background: var(--surface-muted);
+}
+
+.evaluation-comparison-mini-bars i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+}
+
+.evaluation-comparison-mini-bars .side-a i {
+    background: var(--comparison-a);
+}
+
+.evaluation-comparison-mini-bars .side-b i {
+    background: var(--comparison-b);
+}
+
+.evaluation-comparison-delta {
+    color: var(--muted) !important;
+}
+
+.evaluation-comparison-metric.advantage-left .evaluation-comparison-delta {
+    color: var(--comparison-a) !important;
+}
+
+.evaluation-comparison-metric.advantage-right .evaluation-comparison-delta {
+    color: var(--comparison-b) !important;
+}
+
+.evaluation-comparison-loading,
+.evaluation-comparison-error {
+    min-height: min(62vh, 560px);
+    display: flex;
+    max-width: 760px;
+    margin: 0 auto;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.45rem;
+    text-align: center;
+}
+
+.evaluation-comparison-loading strong,
+.evaluation-comparison-error h1 {
+    color: var(--text);
+}
+
+.evaluation-comparison-loading span,
+.evaluation-comparison-error p {
+    color: var(--muted);
+}
+
+.evaluation-comparison-error h1 {
+    margin: 0.15rem 0 0;
+    font-size: clamp(1.35rem, 2.5vw, 1.8rem);
+}
+
+.evaluation-comparison-error p {
+    margin: 0 0 0.8rem;
+}
+
+.evaluation-comparison-error .primary-action {
+    width: auto;
+    margin: 0;
+    padding-inline: 1rem;
+}
+
+@media (max-width: 1180px) {
+    .dashboard-comparison-candidate {
+        grid-template-columns: auto minmax(170px, 1fr) minmax(150px, 0.9fr) auto;
+    }
+
+    .dashboard-comparison-candidate .dashboard-history-result {
+        display: none;
+    }
+
+    .evaluation-comparison-scope {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .evaluation-comparison-scope > div,
+    .evaluation-comparison-scope > div:first-child {
+        padding: 0.55rem 0.8rem;
+        border-left: 0;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .evaluation-comparison-scope > div:nth-child(odd) {
+        padding-left: 0;
+        border-right: 1px solid var(--border-subtle);
+    }
+}
+
+@media (max-width: 780px) {
+    .dashboard-comparison-picker-heading,
+    .evaluation-comparison-hero {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .dashboard-comparison-candidate {
+        grid-template-columns: auto 1fr auto;
+    }
+
+    .dashboard-comparison-candidate .dashboard-history-config {
+        grid-column: 2 / -1;
+    }
+
+    .dashboard-comparison-candidate-action {
+        grid-column: 2 / -1;
+        justify-content: flex-start;
+    }
+
+    .evaluation-comparison-identities {
+        grid-template-columns: 1fr;
+        gap: 0.6rem;
+    }
+
+    .evaluation-comparison-versus {
+        justify-self: center;
+        padding: 0.1rem 0;
+    }
+
+    .evaluation-comparison-metric {
+        grid-template-columns: minmax(160px, 1.3fr) repeat(3, minmax(72px, 0.55fr));
+        gap: 0.55rem;
+    }
+}
+
+@media (max-width: 560px) {
+    .dashboard-history-actions {
+        flex-wrap: wrap;
+    }
+
+    .dashboard-history-compare,
+    .dashboard-history-open {
+        padding-inline: 0.35rem;
+    }
+
+    .dashboard-comparison-candidate {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .dashboard-comparison-candidate .dashboard-history-config,
+    .dashboard-comparison-candidate-action {
+        grid-column: 2;
+    }
+
+    .dashboard-comparison-candidate-action {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .evaluation-comparison-page {
+        padding-inline: 0.2rem;
+    }
+
+    .evaluation-comparison-scope {
+        grid-template-columns: 1fr;
+    }
+
+    .evaluation-comparison-scope > div,
+    .evaluation-comparison-scope > div:first-child,
+    .evaluation-comparison-scope > div:nth-child(odd) {
+        padding: 0.5rem 0;
+        border-right: 0;
+    }
+
+    .evaluation-comparison-metric.header {
+        display: none;
+    }
+
+    .evaluation-comparison-metric {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.45rem;
+        padding: 0.75rem 0.2rem;
+    }
+
+    .evaluation-comparison-metric-name {
+        grid-column: 1 / -1;
+    }
+
+    .evaluation-comparison-metric > span[role='cell'] {
+        font-size: 0.86rem;
+    }
+
+    .evaluation-comparison-metric > span[role='cell']::before {
+        display: block;
+        margin-bottom: 0.12rem;
+        color: var(--muted);
+        font-size: 0.58rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .evaluation-comparison-metric > span[role='cell']:nth-child(2)::before {
+        content: 'A';
+        color: var(--comparison-a);
+    }
+
+    .evaluation-comparison-metric > span[role='cell']:nth-child(3)::before {
+        content: 'B';
+        color: var(--comparison-b);
+    }
+
+    .evaluation-comparison-metric > span[role='cell']:nth-child(4)::before {
+        content: 'Δ B − A';
+    }
+}

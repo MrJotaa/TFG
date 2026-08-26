@@ -9,6 +9,7 @@ import SignupPage from './pages/SignupPage'
 import Dashboard from './pages/Dashboard'
 import DatasetManager from './pages/DatasetManager'
 import ComparisonView from './pages/ComparisonView'
+import EvaluationComparisonView from './pages/EvaluationComparisonView'
 import EvaluationView from './pages/EvaluationView'
 import ProfilePage from './pages/ProfilePage'
 
@@ -37,6 +38,10 @@ function App() {
                 />
                 <Route path="/comparison" element={<ComparisonView />} />
                 <Route path="/evaluation" element={<EvaluationView />} />
+                <Route
+                  path="/evaluations/compare"
+                  element={<EvaluationComparisonView />}
+                />
               </Route>
             </Route>
 

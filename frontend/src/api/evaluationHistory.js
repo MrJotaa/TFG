@@ -9,6 +9,22 @@ export function getEvaluationHistory({ limit = 10, offset = 0, taskType = '' } =
     return apiRequest(`/evaluations?${search.toString()}`)
 }
 
+export async function getAllEvaluationHistory({ taskType = '' } = {}) {
+    const limit = 50
+    let offset = 0
+    let total = 0
+    const items = []
+
+    do {
+        const page = await getEvaluationHistory({ limit, offset, taskType })
+        items.push(...(page.items ?? []))
+        total = page.total ?? items.length
+        offset += limit
+    } while (offset < total)
+
+    return items
+}
+
 export function getStoredEvaluation(evaluationId) {
     return apiRequest(`/evaluations/${encodeURIComponent(evaluationId)}`)
 }
