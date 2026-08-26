@@ -255,3 +255,155 @@ export function baselineConsistency(taskType, leftEvaluation, rightEvaluation) {
         difference,
     }
 }
+
+function comparisonMetricValue(metricValue) {
+    return finiteMetric(metricValue)
+}
+
+export function getClassificationClassComparison(leftEvaluation, rightEvaluation, metricId = 'f1') {
+    const leftRows = leftEvaluation?.advanced_metrics?.supervised?.per_class ?? []
+    const rightRows = rightEvaluation?.advanced_metrics?.supervised?.per_class ?? []
+    const rightByLabel = new Map(
+        rightRows.map((row) => [String(row.class_reference?.label ?? '').toLocaleLowerCase('es'), row]),
+    )
+
+    return leftRows.map((left) => {
+        const label = left.class_reference?.label ?? 'Clase sin nombre'
+        const right = rightByLabel.get(String(label).toLocaleLowerCase('es'))
+        const leftRobust = comparisonMetricValue(left.adversarial?.[metricId])
+        const rightRobust = comparisonMetricValue(right?.adversarial?.[metricId])
+        return {
+            key: `${left.class_reference?.index ?? label}`,
+            label,
+            support: Number(left.support ?? 0),
+            leftOriginal: comparisonMetricValue(left.original?.[metricId]),
+            leftRobust,
+            rightOriginal: comparisonMetricValue(right?.original?.[metricId]),
+            rightRobust,
+            delta: leftRobust != null && rightRobust != null ? rightRobust - leftRobust : null,
+        }
+    })
+}
+
+function detectionClassKey(row) {
+    return String(
+        row?.reference?.category_internal_id
+        ?? row?.reference?.category_name
+        ?? row?.reference?.model_class_name
+        ?? '',
+    )
+}
+
+export function getDetectionClassComparison(leftEvaluation, rightEvaluation) {
+    const leftSupervised = leftEvaluation?.supervised
+    const rightSupervised = rightEvaluation?.supervised
+    const rightOriginal = new Map(
+        (rightSupervised?.original?.per_class ?? []).map((row) => [detectionClassKey(row), row]),
+    )
+    const rightAdversarial = new Map(
+        (rightSupervised?.adversarial?.per_class ?? []).map((row) => [detectionClassKey(row), row]),
+    )
+    const leftAdversarial = new Map(
+        (leftSupervised?.adversarial?.per_class ?? []).map((row) => [detectionClassKey(row), row]),
+    )
+    const leftObjects = new Map(
+        (leftSupervised?.object_analysis?.by_class ?? []).map((row) => [
+            String(row.category?.category_internal_id ?? row.category?.category_name ?? ''),
+            row,
+        ]),
+    )
+    const rightObjects = new Map(
+        (rightSupervised?.object_analysis?.by_class ?? []).map((row) => [
+            String(row.category?.category_internal_id ?? row.category?.category_name ?? ''),
+            row,
+        ]),
+    )
+
+    return (leftSupervised?.original?.per_class ?? []).map((leftOriginalRow) => {
+        const key = detectionClassKey(leftOriginalRow)
+        const rightOriginalRow = rightOriginal.get(key)
+        const leftAdversarialRow = leftAdversarial.get(key)
+        const rightAdversarialRow = rightAdversarial.get(key)
+        const leftAp = comparisonMetricValue(leftAdversarialRow?.average_precision)
+        const rightAp = comparisonMetricValue(rightAdversarialRow?.average_precision)
+        return {
+            key,
+            label: leftOriginalRow.reference?.category_name ?? leftOriginalRow.reference?.model_class_name ?? 'Clase',
+            support: Number(leftOriginalRow.support ?? rightOriginalRow?.support ?? 0),
+            leftAp,
+            rightAp,
+            leftAr: comparisonMetricValue(leftAdversarialRow?.average_recall),
+            rightAr: comparisonMetricValue(rightAdversarialRow?.average_recall),
+            leftSuppressed: Number(leftObjects.get(key)?.suppressed_count ?? 0),
+            rightSuppressed: Number(rightObjects.get(key)?.suppressed_count ?? 0),
+            delta: leftAp != null && rightAp != null ? rightAp - leftAp : null,
+        }
+    })
+}
+
+export function getDetectionCocoComparisonRows(leftEvaluation, rightEvaluation) {
+    const fields = [
+        ['map_50_95', 'mAP@[0.50:0.95]'],
+        ['ap_50', 'AP@0.50'],
+        ['ap_75', 'AP@0.75'],
+        ['ar_1', 'AR@1'],
+        ['ar_10', 'AR@10'],
+        ['ar_100', 'AR@100'],
+        ['ap_small', 'AP pequeño'],
+        ['ap_medium', 'AP mediano'],
+        ['ap_large', 'AP grande'],
+        ['ar_small', 'AR pequeño'],
+        ['ar_medium', 'AR mediano'],
+        ['ar_large', 'AR grande'],
+    ]
+    const left = leftEvaluation?.supervised?.adversarial?.aggregate ?? {}
+    const right = rightEvaluation?.supervised?.adversarial?.aggregate ?? {}
+
+    return fields.map(([key, label]) => {
+        const leftValue = comparisonMetricValue(left[key])
+        const rightValue = comparisonMetricValue(right[key])
+        return {
+            key,
+            label,
+            left: leftValue,
+            right: rightValue,
+            delta: leftValue != null && rightValue != null ? rightValue - leftValue : null,
+        }
+    })
+}
+
+export function getDetectionTideComparisonRows(leftEvaluation, rightEvaluation) {
+    const left = leftEvaluation?.supervised?.tide_analysis
+    const right = rightEvaluation?.supervised?.tide_analysis
+    if (!left || !right) return []
+
+    const rightMain = new Map((right.adversarial?.main_errors ?? []).map((row) => [row.error_type, row]))
+    return (left.adversarial?.main_errors ?? []).map((leftRow) => {
+        const rightRow = rightMain.get(leftRow.error_type)
+        return {
+            key: leftRow.error_type,
+            leftImpact: Number(leftRow.delta_ap ?? 0),
+            rightImpact: rightRow ? Number(rightRow.delta_ap ?? 0) : null,
+            leftCount: Number(leftRow.count ?? 0),
+            rightCount: rightRow ? Number(rightRow.count ?? 0) : null,
+        }
+    })
+}
+
+export function getComparisonImagePairs(leftEvaluation, rightEvaluation) {
+    const leftResults = leftEvaluation?.results ?? []
+    const rightById = new Map((rightEvaluation?.results ?? []).map((result) => [String(result.image_id), result]))
+    return leftResults
+        .map((left) => ({ left, right: rightById.get(String(left.image_id)) }))
+        .filter((pair) => pair.right)
+}
+
+export function getDetectionObjectComparisonPairs(leftEvaluation, rightEvaluation) {
+    const left = leftEvaluation?.supervised?.object_analysis?.objects ?? []
+    const rightById = new Map(
+        (rightEvaluation?.supervised?.object_analysis?.objects ?? []).map((object) => [String(object.object_id), object]),
+    )
+    return left
+        .map((leftObject) => ({ left: leftObject, right: rightById.get(String(leftObject.object_id)) }))
+        .filter((pair) => pair.right)
+}

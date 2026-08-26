@@ -12,7 +12,7 @@ export function getEvaluationHistory({ limit = 10, offset = 0, taskType = '' } =
 export async function getAllEvaluationHistory({ taskType = '' } = {}) {
     const limit = 50
     let offset = 0
-    let total = 0
+    let total
     const items = []
 
     do {

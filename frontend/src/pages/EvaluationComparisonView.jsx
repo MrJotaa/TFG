@@ -15,6 +15,7 @@ import {
     pairComparisonMetrics,
 } from '../utils/evaluationComparison'
 import { formatCreatedAgo } from '../utils/evaluationHistory'
+import EvaluationComparisonDetails from '../components/evaluationComparison/EvaluationComparisonDetails'
 
 function formatMetric(value, format) {
     if (value == null || !Number.isFinite(value)) return '—'
@@ -286,55 +287,42 @@ function EvaluationComparisonView() {
                 </div>
             )}
 
-            <section className="evaluation-comparison-summary">
-                <header>
-                    <span className="evaluation-eyebrow">Resumen comparativo</span>
-                    <h2>Qué cambia entre A y B</h2>
-                    <p>El delta se calcula como B − A. El resaltado indica qué lado conserva mejor el rendimiento para cada métrica.</p>
-                </header>
+            <EvaluationComparisonDetails
+                taskType={leftItem.task_type}
+                leftItem={leftItem}
+                rightItem={rightItem}
+                leftEvaluation={leftEvaluation}
+                rightEvaluation={rightEvaluation}
+                summary={(
+                    <section className="evaluation-comparison-summary">
+                        <header>
+                            <span className="evaluation-eyebrow">Resumen comparativo</span>
+                            <h2>Qué cambia entre A y B</h2>
+                            <p>El delta se calcula como B − A. El resaltado indica qué lado conserva mejor el rendimiento para cada métrica.</p>
+                        </header>
 
-                <div className="evaluation-comparison-metrics" role="table" aria-label="Comparación de métricas">
-                    <div className="evaluation-comparison-metric header" role="row">
-                        <span role="columnheader">Métrica</span>
-                        <span role="columnheader">A</span>
-                        <span role="columnheader">B</span>
-                        <span role="columnheader">Δ B − A</span>
-                    </div>
-                    {metrics.map((entry) => (
-                        <div
-                            key={entry.key}
-                            className={`evaluation-comparison-metric advantage-${entry.advantage}`}
-                            role="row"
-                        >
-                            <div role="cell" className="evaluation-comparison-metric-name">
-                                <div>
-                                    <strong>{entry.label}</strong>
-                                    <small>
-                                        {entry.higherIsBetter ? 'Mayor es mejor' : 'Menor es mejor'}
-                                    </small>
-                                </div>
-                                <div className="evaluation-comparison-mini-bars" aria-hidden="true">
-                                    <span className="side-a">
-                                        <i style={{ width: metricBarWidth(entry.left) }} />
-                                    </span>
-                                    <span className="side-b">
-                                        <i style={{ width: metricBarWidth(entry.right) }} />
-                                    </span>
-                                </div>
+                        <div className="evaluation-comparison-metrics" role="table" aria-label="Comparación de métricas">
+                            <div className="evaluation-comparison-metric header" role="row">
+                                <span role="columnheader">Métrica</span>
+                                <span role="columnheader">A</span>
+                                <span role="columnheader">B</span>
+                                <span role="columnheader">Δ B − A</span>
                             </div>
-                            <span role="cell" className={entry.advantage === 'left' ? 'best' : ''}>
-                                {formatMetric(entry.left, entry.format)}
-                            </span>
-                            <span role="cell" className={entry.advantage === 'right' ? 'best' : ''}>
-                                {formatMetric(entry.right, entry.format)}
-                            </span>
-                            <span role="cell" className="evaluation-comparison-delta">
-                                {formatDelta(entry.delta)}
-                            </span>
+                            {metrics.map((entry) => (
+                                <div key={entry.key} className={`evaluation-comparison-metric advantage-${entry.advantage}`} role="row">
+                                    <div role="cell" className="evaluation-comparison-metric-name">
+                                        <div><strong>{entry.label}</strong><small>{entry.higherIsBetter ? 'Mayor es mejor' : 'Menor es mejor'}</small></div>
+                                        <div className="evaluation-comparison-mini-bars" aria-hidden="true"><span className="side-a"><i style={{ width: metricBarWidth(entry.left) }} /></span><span className="side-b"><i style={{ width: metricBarWidth(entry.right) }} /></span></div>
+                                    </div>
+                                    <span role="cell" className={entry.advantage === 'left' ? 'best' : ''}>{formatMetric(entry.left, entry.format)}</span>
+                                    <span role="cell" className={entry.advantage === 'right' ? 'best' : ''}>{formatMetric(entry.right, entry.format)}</span>
+                                    <span role="cell" className="evaluation-comparison-delta">{formatDelta(entry.delta)}</span>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
-            </section>
+                    </section>
+                )}
+            />
         </section>
     )
 }

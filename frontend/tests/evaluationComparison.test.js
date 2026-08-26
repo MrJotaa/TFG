@@ -5,6 +5,12 @@ import {
     baselineConsistency,
     classifyEvaluationComparison,
     getCompatibleEvaluationCandidates,
+    getClassificationClassComparison,
+    getComparisonImagePairs,
+    getDetectionClassComparison,
+    getDetectionCocoComparisonRows,
+    getDetectionObjectComparisonPairs,
+    getDetectionTideComparisonRows,
     pairComparisonMetrics,
     stableComparisonKey,
 } from '../src/utils/evaluationComparison.js'
@@ -227,4 +233,128 @@ test('baseline consistency compares the original reference for same-model analys
     assert.equal(mismatch.available, true)
     assert.equal(mismatch.consistent, false)
     assert.ok(mismatch.difference > 0)
+})
+
+
+test('classification detailed comparison aligns classes by label', () => {
+    const left = {
+        advanced_metrics: {
+            supervised: {
+                per_class: [{
+                    class_reference: { index: 0, label: 'tench' },
+                    support: 10,
+                    original: { f1: available(0.9) },
+                    adversarial: { f1: available(0.2) },
+                }],
+            },
+        },
+    }
+    const right = {
+        advanced_metrics: {
+            supervised: {
+                per_class: [{
+                    class_reference: { index: 44, label: 'tench' },
+                    support: 10,
+                    original: { f1: available(0.88) },
+                    adversarial: { f1: available(0.5) },
+                }],
+            },
+        },
+    }
+
+    const [row] = getClassificationClassComparison(left, right, 'f1')
+    assert.equal(row.label, 'tench')
+    assert.equal(row.leftRobust, 0.2)
+    assert.equal(row.rightRobust, 0.5)
+    assert.ok(Math.abs(row.delta - 0.3) < 1e-12)
+})
+
+test('detection COCO detailed comparison exposes all robust metric rows', () => {
+    const aggregate = {
+        map_50_95: 0.3,
+        ap_50: 0.5,
+        ap_75: 0.25,
+        ar_1: 0.1,
+        ar_10: 0.2,
+        ar_100: 0.4,
+        ap_small: 0.11,
+        ap_medium: 0.22,
+        ap_large: 0.33,
+        ar_small: 0.12,
+        ar_medium: 0.23,
+        ar_large: 0.34,
+    }
+    const left = { supervised: { adversarial: { aggregate } } }
+    const right = { supervised: { adversarial: { aggregate: { ...aggregate, map_50_95: 0.4 } } } }
+    const rows = getDetectionCocoComparisonRows(left, right)
+
+    assert.equal(rows.length, 12)
+    assert.equal(rows[0].key, 'map_50_95')
+    assert.ok(Math.abs(rows[0].delta - 0.1) < 1e-12)
+})
+
+test('detection detailed class comparison aligns categories independently of model class ids', () => {
+    const makeEvaluation = (modelClassId, ap, suppressed) => ({
+        supervised: {
+            original: {
+                per_class: [{
+                    reference: { category_internal_id: 'coco:1', category_name: 'person', model_class_id: modelClassId },
+                    support: 20,
+                }],
+            },
+            adversarial: {
+                per_class: [{
+                    reference: { category_internal_id: 'coco:1', category_name: 'person', model_class_id: modelClassId },
+                    average_precision: ap,
+                    average_recall: ap + 0.1,
+                }],
+            },
+            object_analysis: {
+                by_class: [{
+                    category: { category_internal_id: 'coco:1', category_name: 'person' },
+                    suppressed_count: suppressed,
+                }],
+            },
+        },
+    })
+
+    const [row] = getDetectionClassComparison(
+        makeEvaluation(0, 0.2, 8),
+        makeEvaluation(1, 0.35, 5),
+    )
+    assert.equal(row.label, 'person')
+    assert.equal(row.leftSuppressed, 8)
+    assert.equal(row.rightSuppressed, 5)
+    assert.ok(Math.abs(row.delta - 0.15) < 1e-12)
+})
+
+test('image and object comparisons only keep entities present in both evaluations', () => {
+    const imagePairs = getComparisonImagePairs(
+        { results: [{ image_id: '1' }, { image_id: '2' }] },
+        { results: [{ image_id: '2' }, { image_id: '3' }] },
+    )
+    assert.deepEqual(imagePairs.map(({ left }) => left.image_id), ['2'])
+
+    const objectPairs = getDetectionObjectComparisonPairs(
+        { supervised: { object_analysis: { objects: [{ object_id: 'a' }, { object_id: 'b' }] } } },
+        { supervised: { object_analysis: { objects: [{ object_id: 'b' }] } } },
+    )
+    assert.deepEqual(objectPairs.map(({ left }) => left.object_id), ['b'])
+})
+
+test('TIDE comparison pairs adversarial error impact and counts by error type', () => {
+    const makeEvaluation = (deltaAp, count) => ({
+        supervised: {
+            tide_analysis: {
+                adversarial: { main_errors: [{ error_type: 'missed', delta_ap: deltaAp, count }] },
+            },
+        },
+    })
+    const [row] = getDetectionTideComparisonRows(
+        makeEvaluation(12.5, 20),
+        makeEvaluation(18.0, 30),
+    )
+    assert.equal(row.key, 'missed')
+    assert.equal(row.leftImpact, 12.5)
+    assert.equal(row.rightCount, 30)
 })
