@@ -1,7 +1,9 @@
+import { useEffect, useRef, useState } from 'react'
 import {
     getAttackDefinition,
     isAttackSupportedForTask,
 } from '../utils/attackCatalog'
+import { resolveScrollOverflow } from '../utils/dashboard'
 
 function parseParameterValue(parameter, event) {
     if (parameter.value_type === 'boolean') {
@@ -100,6 +102,42 @@ function AttackSelector({
 }) {
     const activeTaskType = activeModel?.task_type || 'classification'
     const selectedDefinition = getAttackDefinition(attackCatalog, selectedAttack)
+    const attackListRef = useRef(null)
+    const [scrollOverflow, setScrollOverflow] = useState({
+        canScrollUp: false,
+        canScrollDown: false,
+    })
+
+    useEffect(() => {
+        const element = attackListRef.current
+        if (!element) return undefined
+
+        function updateOverflow() {
+            setScrollOverflow(resolveScrollOverflow(element))
+        }
+
+        const frame = window.requestAnimationFrame(updateOverflow)
+        const observer = typeof ResizeObserver === 'function'
+            ? new ResizeObserver(updateOverflow)
+            : null
+        observer?.observe(element)
+
+        return () => {
+            window.cancelAnimationFrame(frame)
+            observer?.disconnect()
+        }
+    }, [attackCatalog.length, activeTaskType])
+
+    function handleAttackListScroll(event) {
+        setScrollOverflow(resolveScrollOverflow(event.currentTarget))
+    }
+
+    function scrollAttackList(direction) {
+        attackListRef.current?.scrollBy({
+            top: direction * 120,
+            behavior: 'smooth',
+        })
+    }
 
     function handleParameterChange(name, value) {
         onChangeAttackParameters({
@@ -121,39 +159,70 @@ function AttackSelector({
             {loading && <p className="muted-text">Cargando catálogo de ataques…</p>}
             {error && <p className="error">No se pudo cargar el catálogo: {error}</p>}
 
-            <div className="sidebar-list attack-list" aria-label="Ataques disponibles">
-                {attackCatalog.map((attack) => {
-                    const isSupported = isAttackSupportedForTask(
-                        attackCatalog,
-                        attack.id,
-                        activeTaskType,
-                    )
-                    const isSelected = selectedAttack === attack.id
+            <div className={`attack-list-shell ${scrollOverflow.canScrollUp ? 'has-up' : ''} ${scrollOverflow.canScrollDown ? 'has-down' : ''}`}>
+                {scrollOverflow.canScrollUp && (
+                    <button
+                        type="button"
+                        className="attack-scroll-hint up"
+                        onClick={() => scrollAttackList(-1)}
+                        aria-label="Ver ataques anteriores"
+                        title="Hay más ataques arriba"
+                    >
+                        <span aria-hidden="true">⌃</span>
+                    </button>
+                )}
 
-                    return (
-                        <button
-                            key={attack.id}
-                            type="button"
-                            className={isSelected ? 'sidebar-list-item active' : 'sidebar-list-item'}
-                            onClick={() => {
-                                if (isSupported) onSelectAttack(attack.id)
-                            }}
-                            disabled={!isSupported}
-                            title={
-                                isSupported
-                                    ? attack.description
-                                    : `No compatible con ${activeTaskType === 'classification' ? 'clasificación' : 'detección'}`
-                            }
-                            aria-pressed={isSupported ? isSelected : undefined}
-                        >
-                            <span>{attack.name}</span>
+                <div
+                    ref={attackListRef}
+                    className="sidebar-list attack-list"
+                    aria-label="Ataques disponibles"
+                    onScroll={handleAttackListScroll}
+                >
+                    {attackCatalog.map((attack) => {
+                        const isSupported = isAttackSupportedForTask(
+                            attackCatalog,
+                            attack.id,
+                            activeTaskType,
+                        )
+                        const isSelected = selectedAttack === attack.id
 
-                            {!isSupported && (
-                                <small className="attack-unavailable">No disponible</small>
-                            )}
-                        </button>
-                    )
-                })}
+                        return (
+                            <button
+                                key={attack.id}
+                                type="button"
+                                className={isSelected ? 'sidebar-list-item active' : 'sidebar-list-item'}
+                                onClick={() => {
+                                    if (isSupported) onSelectAttack(attack.id)
+                                }}
+                                disabled={!isSupported}
+                                title={
+                                    isSupported
+                                        ? attack.description
+                                        : `No compatible con ${activeTaskType === 'classification' ? 'clasificación' : 'detección'}`
+                                }
+                                aria-pressed={isSupported ? isSelected : undefined}
+                            >
+                                <span>{attack.name}</span>
+
+                                {!isSupported && (
+                                    <small className="attack-unavailable">No disponible</small>
+                                )}
+                            </button>
+                        )
+                    })}
+                </div>
+
+                {scrollOverflow.canScrollDown && (
+                    <button
+                        type="button"
+                        className="attack-scroll-hint down"
+                        onClick={() => scrollAttackList(1)}
+                        aria-label="Ver más ataques"
+                        title="Hay más ataques abajo"
+                    >
+                        <span aria-hidden="true">⌄</span>
+                    </button>
+                )}
             </div>
 
             {selectedDefinition && (

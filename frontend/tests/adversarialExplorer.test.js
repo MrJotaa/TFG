@@ -110,6 +110,17 @@ test('detection sources switch boxes without replacing adversarial pixels', () =
             adversarial: '/results/2/adversarial.png',
         },
     )
+    assert.deepEqual(
+        resolveExplorerPair({
+            sources,
+            layer: 'explanation',
+            showAnnotations: true,
+        }),
+        {
+            original: '/results/2/original-cam.png',
+            adversarial: '/results/2/adversarial-cam.png',
+        },
+    )
 })
 
 test('missing attack result does not create partial explorer sources', () => {

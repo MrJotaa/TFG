@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { getExperimentReadiness } from '../src/utils/dashboard.js'
+import { getExperimentReadiness, resolveScrollOverflow } from '../src/utils/dashboard.js'
 
 test('dashboard requires an active model before enabling experiment actions', () => {
     const readiness = getExperimentReadiness({
@@ -52,4 +52,20 @@ test('dashboard enables both actions when model, attack, dataset and image are r
     assert.equal(readiness.canEvaluate, true)
     assert.equal(readiness.canAnalyze, true)
     assert.equal(readiness.tone, 'ready')
+})
+
+
+test('scroll overflow exposes only the directions that still contain attacks', () => {
+    assert.deepEqual(
+        resolveScrollOverflow({ scrollTop: 0, scrollHeight: 500, clientHeight: 200 }),
+        { canScrollUp: false, canScrollDown: true },
+    )
+    assert.deepEqual(
+        resolveScrollOverflow({ scrollTop: 150, scrollHeight: 500, clientHeight: 200 }),
+        { canScrollUp: true, canScrollDown: true },
+    )
+    assert.deepEqual(
+        resolveScrollOverflow({ scrollTop: 300, scrollHeight: 500, clientHeight: 200 }),
+        { canScrollUp: true, canScrollDown: false },
+    )
 })

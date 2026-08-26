@@ -4,8 +4,18 @@ export const CLASSIFICATION_ANALYSIS_PANELS = Object.freeze([
     'explanation',
 ])
 
+export const DETECTION_ANALYSIS_PANELS = Object.freeze([
+    'clean',
+    'attack',
+    'explanation',
+])
+
 export function normalizeClassificationPanel(panel) {
     return CLASSIFICATION_ANALYSIS_PANELS.includes(panel) ? panel : 'clean'
+}
+
+export function normalizeDetectionPanel(panel) {
+    return DETECTION_ANALYSIS_PANELS.includes(panel) ? panel : 'clean'
 }
 
 export function formatAnalysisProbability(value, digits = 2) {
@@ -28,6 +38,53 @@ export function formatSignedPercentagePoints(value, digits = 2) {
     const percentagePoints = numericValue * 100
     const sign = percentagePoints > 0 ? '+' : ''
     return `${sign}${percentagePoints.toFixed(digits)} pp`
+}
+
+
+export function formatSignedInteger(value) {
+    const numericValue = Number(value)
+
+    if (!Number.isFinite(numericValue)) {
+        return '—'
+    }
+
+    const rounded = Math.trunc(numericValue)
+    return `${rounded > 0 ? '+' : ''}${rounded}`
+}
+
+export function resolveDetectionExplanation({
+    attackResult,
+    explainabilityResult,
+}) {
+    if (
+        attackResult?.original_explanation_image_url &&
+        attackResult?.adversarial_explanation_image_url
+    ) {
+        return {
+            mode: 'comparison',
+            original: {
+                imageUrl: attackResult.original_explanation_image_url,
+                detections: attackResult.original_detections ?? [],
+            },
+            adversarial: {
+                imageUrl: attackResult.adversarial_explanation_image_url,
+                detections: attackResult.adversarial_detections ?? [],
+            },
+        }
+    }
+
+    if (explainabilityResult?.explanation_image_url) {
+        return {
+            mode: 'single',
+            original: {
+                imageUrl: explainabilityResult.explanation_image_url,
+                detections: explainabilityResult.detections ?? [],
+            },
+            adversarial: null,
+        }
+    }
+
+    return null
 }
 
 export function resolveClassificationExplanation({

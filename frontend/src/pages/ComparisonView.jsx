@@ -20,54 +20,41 @@ import {
 import {
     analysisImagePosition,
     formatAnalysisProbability,
+    formatSignedInteger,
     formatSignedPercentagePoints,
     normalizeClassificationPanel,
+    normalizeDetectionPanel,
     resolveClassificationExplanation,
+    resolveDetectionExplanation,
 } from '../utils/individualAnalysis'
 
-function Metric({ label, value, tone = '' }) {
+function DetectionList({ detections = [], title }) {
     return (
-        <article className={`metric-card ${tone}`}>
-            <span>{label}</span>
-            <strong>{value ?? '—'}</strong>
-        </article>
-    )
-}
-
-function DetectionList({ detections, title }) {
-    return (
-        <details className="adversarial-detection-list">
-            <summary>
-                {title} <span>{detections?.length ?? 0}</span>
-            </summary>
-            {detections?.length ? (
-                <div className="evaluation-table-wrapper">
-                    <table className="evaluation-table">
-                        <thead>
-                            <tr>
-                                <th>Clase</th>
-                                <th>Confianza</th>
-                                <th>Caja delimitadora</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {detections.map((detection, index) => (
-                                <tr key={`${detection.label}-${index}`}>
-                                    <td>{detection.label}</td>
-                                    <td>{detection.confidence}</td>
-                                    <td>
-                                        {detection.bbox.x1}, {detection.bbox.y1} →{' '}
-                                        {detection.bbox.x2}, {detection.bbox.y2}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            ) : (
-                <p>No hay detecciones en esta condición.</p>
-            )}
-        </details>
+        <section className="detection-result-list">
+            <header>
+                <h4>{title}</h4>
+                <span>{detections.length}</span>
+            </header>
+            <div className="detection-result-rows">
+                {detections.length ? detections.map((detection, index) => (
+                    <div
+                        key={`${detection.label}-${index}`}
+                        className="detection-result-row"
+                    >
+                        <div>
+                            <strong>{detection.label}</strong>
+                            <small>
+                                {detection.bbox.x1}, {detection.bbox.y1} →{' '}
+                                {detection.bbox.x2}, {detection.bbox.y2}
+                            </small>
+                        </div>
+                        <span>{formatAnalysisProbability(detection.confidence)}</span>
+                    </div>
+                )) : (
+                    <p className="detection-result-empty">No hay detecciones en esta condición.</p>
+                )}
+            </div>
+        </section>
     )
 }
 
@@ -278,81 +265,103 @@ function AnalysisPrompt({ eyebrow, title, description, actionLabel, onAction, di
 }
 
 function CleanDetectionResult({ detection, selectedImage }) {
+    const detections = detection.detections ?? []
+
     return (
-        <section className="clean-detection-result" aria-live="polite">
-            <div className="clean-detection-image">
-                <span className="evaluation-eyebrow">Detección original</span>
+        <section className="detection-clean-result" aria-live="polite">
+            <figure className="detection-clean-figure">
                 <img
                     src={resolveApiUrl(
                         detection.annotated_image_url ?? selectedImage.url,
                     )}
                     alt={`Detecciones sobre ${selectedImage.filename}`}
                 />
-            </div>
+                <figcaption>{selectedImage.filename}</figcaption>
+            </figure>
 
-            <div className="clean-detection-summary">
-                <span className="evaluation-eyebrow">Objetos detectados</span>
-                <h3>{detection.detections?.length ?? 0}</h3>
-                <p className="muted-text">
-                    La imagen conserva su geometría original y las cajas corresponden
-                    a la inferencia original del modelo.
+            <div className="detection-clean-summary">
+                <span className="evaluation-eyebrow">Detección original</span>
+                <h3>
+                    {detections.length}
+                    <span>{detections.length === 1 ? 'objeto detectado' : 'objetos detectados'}</span>
+                </h3>
+                <p>
+                    Las cajas corresponden a la inferencia original y conservan la
+                    geometría de la imagen seleccionada.
                 </p>
                 <DetectionList
-                    title="Detalle de detecciones"
-                    detections={detection.detections}
+                    title="Detecciones"
+                    detections={detections}
                 />
             </div>
         </section>
     )
 }
 
-function DetectionExplainabilityResult({ result }) {
+function DetectionExplainabilityResult({ explanation, selectedImage }) {
+    if (!explanation) return null
+
+    const items = explanation.mode === 'comparison'
+        ? [
+            ['Original', explanation.original],
+            ['Tras el ataque', explanation.adversarial],
+        ]
+        : [['Eigen-CAM original', explanation.original]]
+
     return (
-        <section className="detection-explainability-result" aria-live="polite">
-            <div className="clean-detection-image">
-                <span className="evaluation-eyebrow">Explicabilidad visual</span>
-                <img
-                    src={resolveApiUrl(result.explanation_image_url)}
-                    alt="Mapa Eigen-CAM con detecciones"
-                />
+        <section className={`detection-explainability-result ${explanation.mode}`} aria-live="polite">
+            <div className="detection-explanation-grid">
+                {items.map(([title, item]) => (
+                    <figure key={title} className="detection-explanation-figure">
+                        <figcaption>
+                            <span>{title}</span>
+                            <small>{item?.detections?.length ?? 0} detecciones</small>
+                        </figcaption>
+                        <img
+                            src={resolveApiUrl(item?.imageUrl)}
+                            alt={`${title} de ${selectedImage.filename}`}
+                        />
+                    </figure>
+                ))}
             </div>
 
-            <div className="clean-detection-summary">
-                <span className="evaluation-eyebrow">Método</span>
-                <h3>{result.explanation_type || 'Eigen-CAM'}</h3>
-                <p className="muted-text">
-                    El mapa señala las regiones con mayor influencia sobre las
-                    detecciones de esta imagen.
-                </p>
-                <DetectionList
-                    title="Detecciones explicadas"
-                    detections={result.detections}
-                />
+            <div className={`detection-explanation-lists ${explanation.mode}`}>
+                {items.map(([title, item]) => (
+                    <DetectionList
+                        key={`${title}-detections`}
+                        title={title === 'Original' ? 'Detecciones originales' : title === 'Tras el ataque' ? 'Detecciones tras el ataque' : 'Detecciones explicadas'}
+                        detections={item?.detections ?? []}
+                    />
+                ))}
             </div>
+
+            <p className="detection-explanation-note">
+                {explanation.mode === 'comparison'
+                    ? 'Compara las regiones de mayor influencia antes y después del ataque. Eigen-CAM también permanece disponible dentro del visor adversario.'
+                    : 'Eigen-CAM resalta las regiones con mayor influencia sobre las detecciones de la imagen original.'}
+            </p>
         </section>
     )
 }
 
-function DetectionWorkspaceTabs({ activePanel, availability, onSelect }) {
+function DetectionWorkspaceTabs({ activePanel, onSelect }) {
     const tabs = [
-        ['clean', 'Detección', availability.clean],
-        ['attack', 'Comparación', availability.attack],
-        ['explanation', 'Explicabilidad', availability.explanation],
+        ['clean', 'Detección'],
+        ['attack', 'Comparación'],
+        ['explanation', 'Explicabilidad'],
     ]
 
     return (
-        <nav className="individual-analysis-tabs" aria-label="Resultados del análisis">
-            {tabs.map(([panel, label, available]) => (
+        <nav className="classification-analysis-tabs" aria-label="Modos del análisis individual de detección">
+            {tabs.map(([panel, label]) => (
                 <button
                     key={panel}
                     type="button"
                     className={activePanel === panel ? 'active' : ''}
                     aria-current={activePanel === panel ? 'page' : undefined}
                     onClick={() => onSelect(panel)}
-                    disabled={!available}
                 >
                     {label}
-                    <span aria-hidden="true">{available ? '●' : '○'}</span>
                 </button>
             ))}
         </nav>
@@ -361,42 +370,56 @@ function DetectionWorkspaceTabs({ activePanel, availability, onSelect }) {
 
 function DetectionResults({ result }) {
     const comparison = result.comparison
+    const countDelta = comparison.adversarial_detection_count - comparison.original_detection_count
+    const confidenceDelta = comparison.average_adversarial_confidence - comparison.average_original_confidence
 
     return (
-        <>
-            <div className="metric-grid">
-                <Metric
-                    label="Detecciones originales"
-                    value={comparison.original_detection_count}
-                />
-                <Metric
-                    label="Detecciones tras el ataque"
-                    value={comparison.adversarial_detection_count}
-                />
-                <Metric
-                    label="Caída de detecciones"
-                    value={comparison.detections_difference}
-                />
-                <Metric
-                    label="Confianza media original"
-                    value={comparison.average_original_confidence}
-                />
-                <Metric
-                    label="Confianza media tras el ataque"
-                    value={comparison.average_adversarial_confidence}
-                />
-                <Metric
-                    label="Caída de confianza"
-                    value={comparison.average_confidence_difference}
-                />
+        <section className="detection-impact-section" aria-labelledby="detection-impact-title">
+            <header className="classification-section-heading">
+                <div>
+                    <span className="evaluation-eyebrow">Resultado</span>
+                    <h3 id="detection-impact-title">Impacto en las detecciones</h3>
+                </div>
+                <span
+                    className={`classification-attack-status ${comparison.attack_success ? 'danger' : 'success'}`}
+                >
+                    <span aria-hidden="true">●</span>
+                    {comparison.attack_success ? 'Ataque exitoso' : 'Detección preservada'}
+                </span>
+            </header>
+
+            <div className="detection-impact-flow">
+                <div className="detection-impact-state">
+                    <span>Original</span>
+                    <strong>{comparison.original_detection_count}</strong>
+                    <small>detecciones</small>
+                </div>
+                <div className="detection-impact-delta">
+                    <span aria-hidden="true">→</span>
+                    <strong>{formatSignedInteger(countDelta)}</strong>
+                    <small>cambio de detecciones</small>
+                </div>
+                <div className={`detection-impact-state ${comparison.attack_success ? 'changed' : ''}`}>
+                    <span>Tras el ataque</span>
+                    <strong>{comparison.adversarial_detection_count}</strong>
+                    <small>detecciones</small>
+                </div>
             </div>
 
-            <p className="muted-text">
-                Estas métricas son descriptivas para una imagen. Sin matching contra
-                anotaciones de referencia no equivalen a AP, recall ni supresión científica.
+            <div className="detection-confidence-flow">
+                <span>Confianza media</span>
+                <strong>{formatAnalysisProbability(comparison.average_original_confidence)}</strong>
+                <span aria-hidden="true">→</span>
+                <strong>{formatAnalysisProbability(comparison.average_adversarial_confidence)}</strong>
+                <em>{formatSignedPercentagePoints(confidenceDelta)}</em>
+            </div>
+
+            <p className="detection-impact-note">
+                El recuento y la confianza son descriptivos para esta imagen. Sin
+                matching contra anotaciones de referencia no equivalen a AP ni recall.
             </p>
 
-            <div className="adversarial-detection-lists">
+            <div className="detection-result-comparison">
                 <DetectionList
                     title="Detecciones originales"
                     detections={result.original_detections}
@@ -406,7 +429,7 @@ function DetectionResults({ result }) {
                     detections={result.adversarial_detections}
                 />
             </div>
-        </>
+        </section>
     )
 }
 
@@ -482,19 +505,15 @@ function ComparisonView() {
         : 'clean'
     const activePanel = !isDetection
         ? normalizeClassificationPanel(requestedPanel)
-        : requestedPanel === 'attack' && attackResult
-            ? 'attack'
-            : requestedPanel === 'explanation' && explainabilityResult
-                ? 'explanation'
-                : cleanDetection
-                    ? 'clean'
-                    : attackResult
-                        ? 'attack'
-                        : explainabilityResult
-                            ? 'explanation'
-                            : 'clean'
+        : normalizeDetectionPanel(requestedPanel)
     const classificationExplanation = !isDetection
         ? resolveClassificationExplanation({
+            attackResult,
+            explainabilityResult,
+        })
+        : null
+    const detectionExplanation = isDetection
+        ? resolveDetectionExplanation({
             attackResult,
             explainabilityResult,
         })
@@ -595,16 +614,11 @@ function ComparisonView() {
             setLoading(true)
             setCurrentError('')
             setAttackResultState(null)
-            if (!isDetection) {
-                setActivePanelState({ contextKey: imageContextKey, panel: 'attack' })
-            }
+            setActivePanelState({ contextKey: imageContextKey, panel: 'attack' })
             const result = isDetection
                 ? await attackDetectionImage(request)
                 : await applyAttack(request)
             setAttackResultState({ contextKey: attackContextKey, data: result })
-            if (isDetection) {
-                setActivePanelState({ contextKey: imageContextKey, panel: 'attack' })
-            }
         } catch (err) {
             if (!isRequestCancelled(err)) {
                 setCurrentError(err.message)
@@ -962,56 +976,29 @@ function ComparisonView() {
         )
     }
 
+    const hasDetectionContext = Boolean(selectedDataset && selectedImage && activeModel)
+
     return (
-        <section className="comparison-page">
-            <div className="comparison-header">
-                <div>
-                    <span className="evaluation-eyebrow">Análisis individual</span>
-                    <h2>
-                        {isDetection
-                            ? 'Detección y exploración tras el ataque'
-                            : 'Predicción y exploración tras el ataque'}
-                    </h2>
-                    <p>
-                        {isDetection
-                            ? 'Compara visualmente las detecciones antes y después del ataque.'
-                            : 'Obtén la predicción original y compara el efecto del ataque sin cambiar de pantalla.'}
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    className="secondary-action"
-                    onClick={navigateToDashboard}
-                >
-                    Volver al panel principal
-                </button>
-            </div>
+        <section className="comparison-page classification-analysis-page detection-analysis-page">
+            <header className="classification-analysis-header">
+                <span className="evaluation-eyebrow">Análisis individual · Detección</span>
+                <h2>Detección, robustez y atención del modelo</h2>
+                <p>
+                    Explora las detecciones originales, compara el efecto del ataque y
+                    analiza Eigen-CAM sin abandonar la misma imagen.
+                </p>
+            </header>
 
-            <div className="context-summary adversarial-context-summary">
-                <div className="context-grid">
-                    <p><strong>Conjunto de datos:</strong> {selectedDataset?.name || 'Sin seleccionar'}</p>
-                    <p><strong>Imagen:</strong> {selectedImage?.filename || 'Sin imagen'}</p>
-                    <p><strong>Modelo:</strong> {activeModel?.name || 'Sin modelo'}</p>
-                    <p><strong>Ataque:</strong> {getAttackName(selectedAttack, attackCatalog)}</p>
+            {!hasDetectionContext ? (
+                <div className="classification-analysis-missing">
+                    <span className="evaluation-eyebrow">Contexto incompleto</span>
+                    <h3>Selecciona el experimento antes de analizar</h3>
                     <p>
-                        <strong>Parámetros:</strong>{' '}
-                        {formatAttackParameters(selectedAttack, attackParameters, attackCatalog)}
+                        Necesitas un conjunto de datos, una imagen y un detector activo.
                     </p>
-                    <p>
-                        <strong>Geometría:</strong> {imageDimensions || 'No disponible'}
-                    </p>
-                </div>
-            </div>
-
-            {error && <p className="error" role="alert">{error}</p>}
-
-            {!selectedDataset || !selectedImage || !activeModel ? (
-                <div className="empty-state">
-                    <h3>Falta contexto para explorar</h3>
-                    <p>Selecciona un conjunto de datos, una imagen y un modelo en el panel principal.</p>
                     <button
                         type="button"
-                        className="secondary-action"
+                        className="primary-action"
                         onClick={navigateToDashboard}
                     >
                         Configurar experimento
@@ -1019,225 +1006,263 @@ function ComparisonView() {
                 </div>
             ) : (
                 <>
+                    <section className="classification-context-shell">
+                        <div className="classification-context-strip">
+                            <div className="classification-context-summary">
+                                <strong title={activeModel.name}>{activeModel.name}</strong>
+                                <span aria-hidden="true">/</span>
+                                <span>{attackName} {attackParameterSummary}</span>
+                                <span aria-hidden="true">/</span>
+                                <span>{selectedDataset.name}</span>
+                            </div>
+
+                            <div className="classification-context-actions">
+                                <div className="classification-image-nav" aria-label="Navegación entre imágenes">
+                                    <button
+                                        type="button"
+                                        onClick={() => selectRelativeImage(-1)}
+                                        disabled={selectedIndex <= 0 || busy}
+                                        aria-label="Imagen anterior"
+                                        title="Imagen anterior"
+                                    >
+                                        ‹
+                                    </button>
+                                    <span title={selectedImage.filename}>
+                                        {analysisImagePosition(selectedIndex, datasetImages.length)}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => selectRelativeImage(1)}
+                                        disabled={
+                                            selectedIndex < 0 ||
+                                            selectedIndex >= datasetImages.length - 1 ||
+                                            busy
+                                        }
+                                        aria-label="Imagen siguiente"
+                                        title="Imagen siguiente"
+                                    >
+                                        ›
+                                    </button>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="classification-context-toggle"
+                                    aria-expanded={contextOpen}
+                                    onClick={() => setContextOpen((current) => !current)}
+                                >
+                                    Contexto
+                                    <span aria-hidden="true">{contextOpen ? '▴' : '▾'}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {contextOpen && (
+                            <dl className="classification-context-details">
+                                <div>
+                                    <dt>Imagen</dt>
+                                    <dd>{selectedImage.filename}</dd>
+                                </div>
+                                <div>
+                                    <dt>Geometría</dt>
+                                    <dd>{imageDimensions || 'No disponible'}</dd>
+                                </div>
+                                <div>
+                                    <dt>Modelo</dt>
+                                    <dd>{activeModel.name}</dd>
+                                </div>
+                                <div>
+                                    <dt>Ataque</dt>
+                                    <dd>{attackName}</dd>
+                                </div>
+                                <div>
+                                    <dt>Parámetros</dt>
+                                    <dd>{attackParameterSummary || 'Sin parámetros'}</dd>
+                                </div>
+                                <div>
+                                    <dt>Dataset</dt>
+                                    <dd>{selectedDataset.name}</dd>
+                                </div>
+                                {(attackResult?.result_id || explainabilityResult?.result_id) && (
+                                    <div>
+                                        <dt>Resultado temporal</dt>
+                                        <dd>{attackResult?.result_id || explainabilityResult?.result_id}</dd>
+                                    </div>
+                                )}
+                            </dl>
+                        )}
+                    </section>
+
+                    {error && (
+                        <p className="error classification-analysis-error" role="alert">
+                            {error}
+                        </p>
+                    )}
+
                     {!isAttackSupported && (
                         <div className="evaluation-warning-banner">
-                            El ataque seleccionado no es compatible con este modelo.
+                            El ataque seleccionado no es compatible con este detector.
                             Cambia el ataque desde el panel principal.
                         </div>
                     )}
 
-                    <div className="individual-analysis-toolbar">
-                        <div className="adversarial-image-navigation">
-                            <button
-                                type="button"
-                                className="secondary-action"
-                                disabled={
-                                    selectedIndex <= 0 ||
-                                    busy
-                                }
-                                onClick={() => selectRelativeImage(-1)}
-                            >
-                                ← Imagen anterior
-                            </button>
-                            <span>
-                                {selectedIndex >= 0
-                                    ? `${selectedIndex + 1} de ${datasetImages.length}`
-                                    : 'Imagen seleccionada'}
-                            </span>
-                            <button
-                                type="button"
-                                className="secondary-action"
-                                disabled={
-                                    selectedIndex < 0 ||
-                                    selectedIndex >= datasetImages.length - 1 ||
-                                    busy
-                                }
-                                onClick={() => selectRelativeImage(1)}
-                            >
-                                Imagen siguiente →
-                            </button>
-                        </div>
+                    <DetectionWorkspaceTabs
+                        activePanel={activePanel}
+                        onSelect={(panel) => setActivePanelState({
+                            contextKey: imageContextKey,
+                            panel,
+                        })}
+                    />
 
-                        <div className="individual-analysis-actions">
-                            <button
-                                type="button"
-                                className="secondary-action"
-                                onClick={handlePredict}
-                                disabled={busy}
-                            >
-                                {loadingPrediction
-                                    ? isDetection
-                                        ? 'Detectando…'
-                                        : 'Prediciendo…'
-                                    : predictionResult
-                                      ? isDetection
-                                          ? 'Repetir detección'
-                                          : 'Repetir predicción'
-                                      : isDetection
-                                        ? 'Ejecutar detección'
-                                        : 'Predecir imagen'}
-                            </button>
+                    <div className="classification-analysis-workspace">
+                        {activePanel === 'clean' && (
+                            <section className="classification-analysis-mode">
+                                <header className="classification-mode-heading">
+                                    <div>
+                                        <span className="evaluation-eyebrow">Inferencia original</span>
+                                        <h3>Detecciones de la imagen</h3>
+                                        <p>
+                                            Inspecciona las cajas, clases y confianzas del detector antes de aplicar perturbaciones.
+                                        </p>
+                                    </div>
+                                    {cleanDetection && !loadingPrediction && (
+                                        <button
+                                            type="button"
+                                            className="secondary-action"
+                                            onClick={handlePredict}
+                                            disabled={busy}
+                                        >
+                                            Repetir detección
+                                        </button>
+                                    )}
+                                </header>
 
-                            <button
-                                type="button"
-                                className="primary-action"
-                                onClick={handleRunAttack}
-                                disabled={busy || !isAttackSupported}
-                            >
-                                {loading
-                                    ? 'Generando resultado…'
-                                    : attackResult
-                                      ? 'Repetir ataque'
-                                    : 'Aplicar ataque y comparar'}
-                            </button>
-
-                            {isDetection && (
-                                <button
-                                    type="button"
-                                    className="secondary-action"
-                                    onClick={handleGenerateExplainability}
-                                    disabled={busy}
-                                >
-                                    {loadingExplainability
-                                        ? 'Generando Eigen-CAM…'
-                                        : explainabilityResult
-                                          ? 'Regenerar Eigen-CAM'
-                                          : 'Generar Eigen-CAM'}
-                                </button>
-                            )}
-
-                            {busy && (
-                                <button
-                                    type="button"
-                                    className="secondary-action"
-                                    onClick={handleCancelOperation}
-                                >
-                                    Cancelar
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {busy && (
-                        <div className="adversarial-explorer-loading" role="status">
-                            <span className="evaluation-loading-spinner" aria-hidden="true" />
-                            <div>
-                                <strong>
-                                    {loading
-                                        ? 'Generando artefactos visuales'
-                                        : loadingExplainability
-                                          ? 'Generando explicabilidad visual'
-                                          : isDetection
-                                            ? 'Ejecutando detección original'
-                                            : 'Calculando predicción original'}
-                                </strong>
-                                <p>
-                                    {loading
-                                        ? 'Ampliar y desplazar después no realiza nuevas peticiones.'
-                                        : loadingExplainability
-                                          ? 'El mapa aparecerá en la pestaña de explicabilidad.'
-                                          : 'El resultado aparecerá en este mismo espacio de análisis.'}
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-                    {isDetection && !busy && (
-                        <DetectionWorkspaceTabs
-                            activePanel={activePanel}
-                            availability={{
-                                clean: Boolean(cleanDetection),
-                                attack: Boolean(attackResult),
-                                explanation: Boolean(explainabilityResult),
-                            }}
-                            onSelect={(panel) => setActivePanelState({
-                                contextKey: imageContextKey,
-                                panel,
-                            })}
-                        />
-                    )}
-
-                    {!isDetection && cleanPrediction && !attackResult && !busy && (
-                        <CleanPredictionResult
-                            prediction={cleanPrediction}
-                            selectedImage={selectedImage}
-                        />
-                    )}
-
-                    {!isDetection &&
-                        !cleanPrediction &&
-                        !attackResult &&
-                        !busy && (
-                        <div className="individual-analysis-empty">
-                            <strong>Elige el nivel de análisis</strong>
-                            <p>
-                                Puedes predecir primero la imagen original o ejecutar
-                                directamente el ataque, que también calcula la
-                                referencia original.
-                            </p>
-                        </div>
-                    )}
-
-                    {isDetection && !busy && !cleanDetection && !attackResult &&
-                        !explainabilityResult && (
-                            <div className="individual-analysis-empty">
-                                <strong>Elige el resultado que quieres generar</strong>
-                                <p>
-                                    Ejecuta la detección original, aplica el ataque o
-                                    genera Eigen-CAM. Cada resultado se mostrará en su
-                                    propia pestaña sin alargar la página.
-                                </p>
-                            </div>
-                        )}
-
-                    {isDetection && !busy && activePanel === 'clean' &&
-                        cleanDetection && (
-                            <CleanDetectionResult
-                                detection={cleanDetection}
-                                selectedImage={selectedImage}
-                            />
-                        )}
-
-                    {isDetection && !busy && activePanel === 'explanation' &&
-                        explainabilityResult && (
-                            <DetectionExplainabilityResult
-                                result={explainabilityResult}
-                            />
-                        )}
-
-                    {attackResult && (!isDetection || activePanel === 'attack') && !busy && (
-                        <>
-                            <AdversarialImageExplorer
-                                key={attackResult.result_id}
-                                taskType={taskType}
-                                selectedImage={selectedImage}
-                                attackResult={attackResult}
-                                filename={selectedImage.filename}
-                                imageDimensions={imageDimensions}
-                            />
-
-                            <section className="comparison-detail-card">
-                                <h3>Impacto sobre la predicción</h3>
-                                {isDetection ? (
-                                    <DetectionResults result={attackResult} />
+                                {loadingPrediction ? (
+                                    <ClassificationLoadingState
+                                        title="Ejecutando detección original"
+                                        description="Las cajas y confianzas aparecerán en este mismo espacio de análisis."
+                                        onCancel={handleCancelOperation}
+                                    />
+                                ) : cleanDetection ? (
+                                    <CleanDetectionResult
+                                        detection={cleanDetection}
+                                        selectedImage={selectedImage}
+                                    />
                                 ) : (
-                                    <ClassificationResults result={attackResult} />
+                                    <AnalysisPrompt
+                                        eyebrow="Detección original"
+                                        title="Detecta los objetos de esta imagen"
+                                        description="Obtén las cajas, clases y confianzas sin modificar la imagen seleccionada."
+                                        actionLabel="Ejecutar detección"
+                                        onAction={handlePredict}
+                                    />
                                 )}
                             </section>
+                        )}
 
-                            <section className="comparison-detail-card">
-                                <h3>Magnitud del ataque</h3>
-                                <div className="details-grid">
-                                    <p><strong>L∞:</strong> {attackResult.comparison.perturbation_linf}</p>
-                                    <p><strong>L2:</strong> {attackResult.comparison.perturbation_l2}</p>
-                                    <p>
-                                        <strong>Resultado temporal:</strong>{' '}
-                                        {attackResult.result_id}
-                                    </p>
-                                </div>
+                        {activePanel === 'attack' && (
+                            <section className="classification-analysis-mode">
+                                <header className="classification-mode-heading">
+                                    <div>
+                                        <span className="evaluation-eyebrow">Comparación adversaria</span>
+                                        <h3>Detecciones antes y después del ataque</h3>
+                                        <p>
+                                            Conserva el visor sincronizado, la superposición, las cajas y Eigen-CAM para comparar ambas condiciones.
+                                        </p>
+                                    </div>
+                                    {attackResult && !loading && (
+                                        <button
+                                            type="button"
+                                            className="secondary-action"
+                                            onClick={handleRunAttack}
+                                            disabled={busy || !isAttackSupported}
+                                        >
+                                            Repetir ataque
+                                        </button>
+                                    )}
+                                </header>
+
+                                {loading ? (
+                                    <ClassificationLoadingState
+                                        title={`Aplicando ${attackName}`}
+                                        description="Se calculan la referencia original, la imagen adversaria, las detecciones y, cuando el detector lo permite, Eigen-CAM."
+                                        onCancel={handleCancelOperation}
+                                    />
+                                ) : attackResult ? (
+                                    <>
+                                        <AdversarialImageExplorer
+                                            key={attackResult.result_id}
+                                            taskType={taskType}
+                                            selectedImage={selectedImage}
+                                            attackResult={attackResult}
+                                            filename={selectedImage.filename}
+                                            imageDimensions={imageDimensions}
+                                            perturbationMetrics={{
+                                                linf: attackResult.comparison.perturbation_linf,
+                                                l2: attackResult.comparison.perturbation_l2,
+                                            }}
+                                        />
+                                        <DetectionResults result={attackResult} />
+                                    </>
+                                ) : (
+                                    <AnalysisPrompt
+                                        eyebrow="Robustez adversaria"
+                                        title="Compara las detecciones frente al ataque"
+                                        description={`El ataque ${attackName} calculará también la detección original y los artefactos visuales disponibles para este modelo.`}
+                                        actionLabel={`Aplicar ${attackName} y comparar`}
+                                        onAction={handleRunAttack}
+                                        disabled={!isAttackSupported}
+                                    />
+                                )}
                             </section>
-                        </>
-                    )}
+                        )}
+
+                        {activePanel === 'explanation' && (
+                            <section className="classification-analysis-mode">
+                                <header className="classification-mode-heading">
+                                    <div>
+                                        <span className="evaluation-eyebrow">Explicabilidad</span>
+                                        <h3>Dónde se fija el detector</h3>
+                                        <p>
+                                            Analiza Eigen-CAM como resultado independiente o compara la atención original y adversaria cuando el ataque ya la ha generado.
+                                        </p>
+                                    </div>
+                                    {detectionExplanation?.mode === 'single' &&
+                                        !loadingExplainability && (
+                                        <button
+                                            type="button"
+                                            className="secondary-action"
+                                            onClick={handleGenerateExplainability}
+                                            disabled={busy}
+                                        >
+                                            Regenerar Eigen-CAM
+                                        </button>
+                                    )}
+                                </header>
+
+                                {loadingExplainability ? (
+                                    <ClassificationLoadingState
+                                        title="Generando Eigen-CAM"
+                                        description="El mapa resaltará las regiones con mayor influencia sobre las detecciones originales."
+                                        onCancel={handleCancelOperation}
+                                    />
+                                ) : detectionExplanation ? (
+                                    <DetectionExplainabilityResult
+                                        explanation={detectionExplanation}
+                                        selectedImage={selectedImage}
+                                    />
+                                ) : (
+                                    <AnalysisPrompt
+                                        eyebrow="Atención visual"
+                                        title="Genera Eigen-CAM para esta imagen"
+                                        description="Obtén una explicación visual de las detecciones sin necesidad de ejecutar un ataque."
+                                        actionLabel="Generar Eigen-CAM"
+                                        onAction={handleGenerateExplainability}
+                                    />
+                                )}
+                            </section>
+                        )}
+                    </div>
                 </>
             )}
         </section>

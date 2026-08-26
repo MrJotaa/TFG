@@ -3,9 +3,12 @@ import test from 'node:test'
 import {
     analysisImagePosition,
     formatAnalysisProbability,
+    formatSignedInteger,
     formatSignedPercentagePoints,
     normalizeClassificationPanel,
+    normalizeDetectionPanel,
     resolveClassificationExplanation,
+    resolveDetectionExplanation,
 } from '../src/utils/individualAnalysis.js'
 
 test('classification analysis only accepts known panels', () => {
@@ -71,4 +74,58 @@ test('standalone Grad-CAM is used when no attack comparison exists', () => {
 test('image position is compact and safe for missing selections', () => {
     assert.equal(analysisImagePosition(47, 100), '48 / 100')
     assert.equal(analysisImagePosition(-1, 100), '— / —')
+})
+
+
+test('detection analysis keeps the same three workspace panels', () => {
+    assert.equal(normalizeDetectionPanel('clean'), 'clean')
+    assert.equal(normalizeDetectionPanel('attack'), 'attack')
+    assert.equal(normalizeDetectionPanel('explanation'), 'explanation')
+    assert.equal(normalizeDetectionPanel('unknown'), 'clean')
+})
+
+test('signed integer deltas describe detection count changes', () => {
+    assert.equal(formatSignedInteger(-5), '-5')
+    assert.equal(formatSignedInteger(2), '+2')
+    assert.equal(formatSignedInteger(0), '0')
+    assert.equal(formatSignedInteger(undefined), '—')
+})
+
+test('attack Eigen-CAM pair takes precedence in detection explainability', () => {
+    const explanation = resolveDetectionExplanation({
+        attackResult: {
+            original_explanation_image_url: '/original-eigencam.png',
+            adversarial_explanation_image_url: '/adversarial-eigencam.png',
+            original_detections: [{ label: 'person', confidence: 0.91 }],
+            adversarial_detections: [{ label: 'person', confidence: 0.61 }],
+        },
+        explainabilityResult: {
+            explanation_image_url: '/standalone-eigencam.png',
+            detections: [],
+        },
+    })
+
+    assert.equal(explanation.mode, 'comparison')
+    assert.equal(explanation.original.imageUrl, '/original-eigencam.png')
+    assert.equal(explanation.adversarial.detections[0].confidence, 0.61)
+})
+
+test('standalone Eigen-CAM is available without an attack result', () => {
+    assert.deepEqual(
+        resolveDetectionExplanation({
+            attackResult: null,
+            explainabilityResult: {
+                explanation_image_url: '/eigencam.png',
+                detections: [{ label: 'car', confidence: 0.87 }],
+            },
+        }),
+        {
+            mode: 'single',
+            original: {
+                imageUrl: '/eigencam.png',
+                detections: [{ label: 'car', confidence: 0.87 }],
+            },
+            adversarial: null,
+        },
+    )
 })

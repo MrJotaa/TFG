@@ -50,3 +50,21 @@ export function getExperimentReadiness({
         message: 'Configuración lista para ejecutar.',
     }
 }
+
+
+export function resolveScrollOverflow({
+    scrollTop,
+    scrollHeight,
+    clientHeight,
+    tolerance = 1,
+}) {
+    const top = Math.max(0, Number(scrollTop) || 0)
+    const height = Math.max(0, Number(scrollHeight) || 0)
+    const viewport = Math.max(0, Number(clientHeight) || 0)
+    const maxScrollTop = Math.max(0, height - viewport)
+
+    return {
+        canScrollUp: top > tolerance,
+        canScrollDown: maxScrollTop - top > tolerance,
+    }
+}
