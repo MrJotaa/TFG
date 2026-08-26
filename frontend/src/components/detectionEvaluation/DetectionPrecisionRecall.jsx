@@ -104,7 +104,7 @@ function DetectionPrecisionRecall({ evaluation }) {
                 <section className="evaluation-surface detection-pr-chart" role="img" aria-label={`Curva Precision–Recall para ${selected.label}`}>
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={data} margin={{ top: 16, right: 24, bottom: 22, left: 16 }}>
-                            <CartesianGrid stroke="#e7edf5" strokeDasharray="4 4" />
+                            <CartesianGrid stroke="var(--border)" strokeDasharray="4 4" />
                             <XAxis type="number" dataKey="recall" domain={[0, 1]} ticks={TICKS} tickFormatter={(value) => Number(value).toFixed(2)} label={{ value: 'Recall', position: 'insideBottom', offset: -12 }} />
                             <YAxis type="number" domain={[0, 1]} ticks={TICKS} tickFormatter={(value) => Number(value).toFixed(2)} label={{ value: 'Precisión', angle: -90, position: 'insideLeft' }} />
                             <Tooltip content={<CurveTooltip />} />

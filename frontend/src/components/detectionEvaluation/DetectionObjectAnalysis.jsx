@@ -6,8 +6,10 @@ import {
     getObjectOutcomeItems,
 } from '../../utils/detectionMetrics'
 import {
+    DETECTION_IMAGE_AGGREGATE_BATCH_SIZE,
     DETECTION_OBJECT_PAGE_SIZES,
     filterAndSortDetectionObjects,
+    getDetectionImageAggregateView,
     getDetectionObjectFilterOptions,
     paginateDetectionObjects,
 } from '../../utils/detectionObjectExplorer'
@@ -95,6 +97,9 @@ function DetectionObjectAnalysis({ evaluation }) {
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(DETECTION_OBJECT_PAGE_SIZES[0])
     const [expandedObjectId, setExpandedObjectId] = useState(null)
+    const [visibleImageRows, setVisibleImageRows] = useState(
+        DETECTION_IMAGE_AGGREGATE_BATCH_SIZE,
+    )
     const supervised = evaluation.supervised
     const analysis = supervised?.object_analysis
     const objects = useMemo(() => analysis?.objects ?? [], [analysis?.objects])
@@ -146,6 +151,10 @@ function DetectionObjectAnalysis({ evaluation }) {
         key: row.image_id,
         label: row.image_id,
     }))
+    const imageAggregateView = getDetectionImageAggregateView(
+        imageRows,
+        visibleImageRows,
+    )
 
     return (
         <div className="evaluation-tab-content">
@@ -179,9 +188,44 @@ function DetectionObjectAnalysis({ evaluation }) {
 
             {analysis.details_included ? (
                 <>
-                    <section className="evaluation-surface detection-table-surface">
-                        <div className="evaluation-section-heading"><div><span className="evaluation-eyebrow">Detalle solicitado</span><h3>Resultados por imagen</h3></div></div>
-                        <ObjectAggregateTable rows={imageRows} dimension="ID de imagen" />
+                    <section className="evaluation-surface detection-table-surface detection-image-aggregate-section">
+                        <div className="evaluation-section-heading">
+                            <div>
+                                <span className="evaluation-eyebrow">Detalle solicitado</span>
+                                <h3>Resultados por imagen</h3>
+                                <p>
+                                    Se muestran en bloques de diez para mantener visible el resto del análisis por objeto.
+                                </p>
+                            </div>
+                            <strong>
+                                {formatInteger(imageAggregateView.visibleCount)} / {formatInteger(imageAggregateView.totalCount)}
+                            </strong>
+                        </div>
+                        <ObjectAggregateTable
+                            rows={imageAggregateView.items}
+                            dimension="ID de imagen"
+                        />
+                        {imageAggregateView.totalCount > DETECTION_IMAGE_AGGREGATE_BATCH_SIZE && (
+                            <div className="detection-image-aggregate-actions">
+                                {imageAggregateView.hasMore ? (
+                                    <button
+                                        type="button"
+                                        className="secondary-action"
+                                        onClick={() => setVisibleImageRows(imageAggregateView.nextVisibleCount)}
+                                    >
+                                        Ver 10 más
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="text-action"
+                                        onClick={() => setVisibleImageRows(DETECTION_IMAGE_AGGREGATE_BATCH_SIZE)}
+                                    >
+                                        Mostrar menos
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </section>
 
                     <section className="evaluation-surface detection-table-surface">

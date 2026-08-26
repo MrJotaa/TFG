@@ -7403,3 +7403,898 @@ html[data-theme='dark'] .classification-evaluation-panel .evaluation-gradcam-act
     background: transparent !important;
     box-shadow: none !important;
 }
+
+/* Detection evaluation: final workspace and dark-mode refinement. */
+.detection-evaluation-panel .evaluation-results-shell,
+.detection-evaluation-panel .evaluation-tab-panel,
+.detection-evaluation-panel .evaluation-tab-content,
+.detection-evaluation-panel .evaluation-surface,
+.detection-evaluation-panel .evaluation-metric-card,
+.detection-evaluation-panel .detection-image-result-card,
+.detection-evaluation-panel .detection-eigencam-section {
+    background: transparent;
+    box-shadow: none;
+}
+
+.detection-evaluation-panel .evaluation-results-shell,
+.detection-evaluation-panel .evaluation-surface,
+.detection-evaluation-panel .detection-image-result-card,
+.detection-evaluation-panel .detection-eigencam-section {
+    border-color: var(--border-subtle);
+}
+
+.detection-evaluation-panel .evaluation-tabs {
+    position: static;
+    top: auto;
+    z-index: auto;
+    gap: 1rem;
+    padding: 0.55rem 0.25rem 0;
+    background: transparent;
+    backdrop-filter: none;
+}
+
+.detection-evaluation-panel .evaluation-tab {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.detection-evaluation-panel .evaluation-tab:hover,
+.detection-evaluation-panel .evaluation-tab.active,
+.detection-evaluation-panel .evaluation-tab small,
+.detection-evaluation-panel .evaluation-tab.active small {
+    background: transparent;
+    box-shadow: none;
+}
+
+html[data-theme='dark'] .detection-evaluation-page .evaluation-context-strip,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-results-shell,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab-panel,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-surface,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-metric-card,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tabs,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab:hover,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab.active,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab small,
+html[data-theme='dark'] .detection-evaluation-panel .detection-image-result-card,
+html[data-theme='dark'] .detection-evaluation-panel .detection-eigencam-section,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-empty-panel,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-empty-panel.compact {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab:hover,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab.active,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab small,
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab.active small {
+    border-color: transparent !important;
+}
+
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab {
+    color: var(--muted);
+}
+
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab:hover {
+    color: var(--text);
+}
+
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-tab.active {
+    color: var(--primary);
+}
+
+/* The pre-run supervised configuration is a control group, not another card. */
+.detection-evaluation-panel .detection-run-card {
+    align-items: center;
+}
+
+.detection-evaluation-panel .detection-run-controls {
+    padding: 0 0 0 1rem;
+    border: 0;
+    border-left: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+}
+
+.detection-evaluation-panel .detection-run-controls label > span {
+    color: var(--muted-strong);
+}
+
+.detection-evaluation-panel .detection-run-controls .evaluation-label-with-info {
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.detection-evaluation-panel .detection-details-toggle {
+    color: var(--muted-strong);
+}
+
+.detection-evaluation-panel .detection-run-controls .evaluation-run-button {
+    border-radius: var(--radius-sm);
+}
+
+/* Detection summary: keep the analytical hierarchy while removing nested surfaces. */
+.detection-evaluation-panel .evaluation-overview-grid {
+    gap: 1.25rem;
+    padding-block: 0.25rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.detection-evaluation-panel .detection-outcomes-card,
+.detection-evaluation-panel .detection-operating-card,
+.detection-evaluation-panel .detection-coverage-grid {
+    padding: 0;
+}
+
+.detection-evaluation-panel .detection-operating-card {
+    padding-left: 1.15rem;
+    border-left: 1px solid var(--border-subtle);
+}
+
+.detection-evaluation-panel .detection-outcome-list {
+    gap: 0;
+}
+
+.detection-evaluation-panel .detection-outcome-list div {
+    padding: 0.55rem 0.25rem;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+}
+
+.detection-evaluation-panel .detection-outcome-list div:nth-last-child(-n + 2) {
+    border-bottom: 0;
+}
+
+.detection-evaluation-panel .detection-operating-comparison {
+    border-width: 1px 0;
+    border-radius: 0;
+}
+
+.detection-evaluation-panel .detection-operating-comparison div + div {
+    background: transparent;
+}
+
+.detection-evaluation-panel .detection-coverage-grid {
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+/* COCO tables use one visual plane; blue/red belong to analytical series. */
+.detection-evaluation-panel .detection-table-surface {
+    padding: 0;
+}
+
+.detection-evaluation-panel .detection-table-surface > .evaluation-section-heading,
+.detection-evaluation-panel .detection-curve-header {
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.detection-evaluation-panel .detection-metrics-table th[scope='row'],
+.detection-evaluation-panel .detection-class-table th[scope='row'],
+.detection-evaluation-panel .detection-object-aggregate-table th[scope='row'] {
+    background: transparent;
+}
+
+html[data-theme='dark'] .detection-evaluation-panel :is(
+    .detection-metrics-table th[scope='row'],
+    .detection-class-table th[scope='row'],
+    .detection-object-aggregate-table th[scope='row']
+) {
+    background: transparent !important;
+}
+
+.detection-evaluation-panel .detection-metrics-table .detection-original-column {
+    color: var(--evaluation-original);
+}
+
+.detection-evaluation-panel .detection-metrics-table .detection-adversarial-column {
+    color: var(--evaluation-adversarial);
+}
+
+.detection-evaluation-panel .evaluation-table th,
+.detection-evaluation-panel .evaluation-table td {
+    border-color: var(--border-subtle);
+}
+
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-table thead th {
+    background: var(--surface-soft);
+    color: var(--text-soft);
+}
+
+/* Let the effective configuration wrap naturally; the final row no longer leaves a fake empty cell. */
+.detection-evaluation-panel .detection-method-card {
+    padding: 1rem 0 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.detection-evaluation-panel .detection-method-card dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    overflow: visible;
+    margin-top: 0.9rem;
+    border: 0;
+    border-radius: 0;
+}
+
+.detection-evaluation-panel .detection-method-card dl div,
+.detection-evaluation-panel .detection-method-card dl div:nth-child(3n),
+.detection-evaluation-panel .detection-method-card dl div:nth-child(n + 4) {
+    flex: 1 1 220px;
+    min-width: 180px;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--border-subtle);
+    margin: -1px 0 0 -1px;
+    background: transparent;
+}
+
+/* Object analysis keeps the long tables discoverable without hiding the explorer below them. */
+.detection-evaluation-panel .detection-object-explorer-toolbar {
+    margin-bottom: 0.9rem;
+    padding: 0 0 0.9rem;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+}
+
+.detection-image-aggregate-actions {
+    display: flex;
+    justify-content: center;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.detection-image-aggregate-actions .secondary-action,
+.detection-image-aggregate-actions .text-action {
+    margin: 0;
+}
+
+/* TIDE hover should explain a bar, not paint an unrelated rectangular cursor behind it. */
+.detection-evaluation-panel .tide-chart-card,
+.detection-evaluation-panel .tide-special-card {
+    padding-inline: 0;
+}
+
+.detection-evaluation-panel .tide-special-grid {
+    gap: 0;
+    border-block: 1px solid var(--border-subtle);
+}
+
+.detection-evaluation-panel .tide-special-card {
+    padding: 0.9rem 1rem;
+    border: 0;
+    border-right: 1px solid var(--border-subtle);
+    border-radius: 0;
+}
+
+.detection-evaluation-panel .tide-special-card:last-child {
+    border-right: 0;
+}
+
+/* Per-image detection results reuse the final classification lightbox behaviour. */
+.detection-evaluation-panel .detection-images-section {
+    padding: 0;
+}
+
+.detection-evaluation-panel .detection-images-heading {
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.detection-evaluation-panel .detection-image-result-card {
+    padding: 1.1rem 0;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+}
+
+.detection-evaluation-panel .detection-image-result-card:last-child {
+    border-bottom: 0;
+}
+
+.detection-evaluation-panel .detection-preview-grid,
+.detection-evaluation-panel .detection-eigencam-grid {
+    width: min(100%, 1480px);
+    margin-inline: auto;
+}
+
+.detection-evaluation-panel .detection-preview-frame,
+.detection-evaluation-panel .detection-eigencam-visual {
+    position: relative;
+}
+
+.detection-evaluation-panel .detection-image-result-metrics {
+    gap: 0;
+    border-block: 1px solid var(--border-subtle);
+}
+
+.detection-evaluation-panel .detection-image-result-metrics div {
+    padding: 0.65rem 0.75rem;
+    border-right: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+}
+
+.detection-evaluation-panel .detection-image-result-metrics div:last-child {
+    border-right: 0;
+}
+
+html[data-theme='dark'] .detection-evaluation-panel .detection-image-result-metrics div {
+    background: transparent !important;
+}
+
+.detection-evaluation-panel .detection-eigencam-section {
+    margin-top: 1rem;
+    padding: 0.9rem 0 0;
+    border-width: 1px 0 0;
+    border-radius: 0;
+}
+
+html[data-theme='dark'] .detection-evaluation-panel .detection-eigencam-section,
+html[data-theme='dark'] .detection-evaluation-panel .detection-eigencam-action {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.detection-evaluation-panel .detection-eigencam-preview img {
+    width: auto;
+    max-width: 100%;
+    max-height: 430px;
+    margin-inline: auto;
+    object-fit: contain;
+}
+
+.detection-evaluation-panel .detection-eigencam-visual {
+    display: flex;
+    min-height: 240px;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #07101d;
+}
+
+.detection-evaluation-panel .detection-eigencam-preview img {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.detection-image-expand {
+    z-index: 4;
+}
+
+/* Detection preview modal keeps bounding boxes aligned while zooming and panning. */
+.detection-evaluation-image-lightbox {
+    width: min(1240px, calc(100vw - 3rem));
+    height: min(88vh, 860px);
+    max-height: 88vh;
+}
+
+.detection-image-lightbox-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+}
+
+.detection-image-lightbox-canvas {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    max-height: 100%;
+    line-height: 0;
+    transform-origin: center center;
+    transition: transform 120ms ease;
+    will-change: transform;
+}
+
+.detection-image-lightbox-content.is-dragging .detection-image-lightbox-canvas {
+    transition: none;
+}
+
+.detection-image-lightbox-canvas > img {
+    display: block;
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 68vh !important;
+    object-fit: contain;
+}
+
+.detection-image-lightbox-canvas .detection-box-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.detection-image-lightbox-canvas.tone-original .detection-overlay-box {
+    stroke: var(--evaluation-original);
+}
+
+.detection-image-lightbox-canvas.tone-original .detection-overlay-label-bg {
+    fill: #0369a1;
+}
+
+.detection-image-lightbox-canvas.tone-adversarial .detection-overlay-box {
+    stroke: var(--evaluation-adversarial);
+}
+
+.detection-image-lightbox-canvas.tone-adversarial .detection-overlay-label-bg {
+    fill: #be123c;
+}
+
+/* Final action is deliberately placed after all analytical content. */
+.detection-evaluation-rerun-footer {
+    margin-top: 0.9rem;
+}
+
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-empty-panel {
+    border-color: var(--border-subtle);
+    color: var(--text);
+}
+
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-empty-panel h3 {
+    color: var(--text-soft);
+}
+
+html[data-theme='dark'] .detection-evaluation-panel .evaluation-empty-panel p {
+    color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .detection-image-lightbox-canvas {
+        transition: none;
+    }
+}
+
+@media (max-width: 1000px) {
+    .detection-evaluation-panel .detection-run-controls {
+        padding: 0.9rem 0 0;
+        border-top: 1px solid var(--border-subtle);
+        border-left: 0;
+    }
+
+    .detection-evaluation-panel .detection-operating-card {
+        padding-top: 1rem;
+        padding-left: 0;
+        border-top: 1px solid var(--border-subtle);
+        border-left: 0;
+    }
+}
+
+@media (max-width: 700px) {
+    .detection-evaluation-image-lightbox {
+        width: calc(100vw - 1rem);
+        height: calc(100vh - 1rem);
+        max-height: calc(100vh - 1rem);
+    }
+
+    .detection-evaluation-panel .detection-image-result-metrics div {
+        border-right: 0;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .detection-evaluation-panel .detection-image-result-metrics div:last-child {
+        border-bottom: 0;
+    }
+}
+
+.detection-evaluation-panel .detection-run-field {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.detection-evaluation-panel .detection-run-field-label,
+.detection-evaluation-panel .detection-details-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.detection-evaluation-panel .detection-run-field-label label {
+    color: var(--muted-strong);
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.detection-evaluation-panel .detection-details-toggle-row {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+}
+
+.detection-evaluation-panel .detection-details-toggle-row .detection-details-toggle {
+    grid-column: auto;
+    padding-right: 0;
+}
+
+@media (max-width: 760px) {
+    .detection-evaluation-panel .detection-details-toggle-row {
+        grid-column: auto;
+    }
+}
+
+.detection-evaluation-page .evaluation-context-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+    .detection-evaluation-page .evaluation-context-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .detection-evaluation-page .evaluation-context-strip {
+        grid-template-columns: 1fr;
+    }
+}
+
+.detection-preview-frame:hover .evaluation-image-expand,
+.detection-eigencam-visual:hover .evaluation-image-expand,
+.detection-image-expand:focus-visible {
+    opacity: 1;
+}
+
+/* Detection evaluation: final table and methodology cleanup. */
+.detection-evaluation-panel :is(.detection-metrics-table, .tide-errors-table) {
+    border-collapse: collapse;
+    background: transparent;
+}
+
+.detection-evaluation-panel :is(.detection-metrics-table, .tide-errors-table) thead th,
+.detection-evaluation-panel :is(.detection-metrics-table, .tide-errors-table) tbody th,
+.detection-evaluation-panel :is(.detection-metrics-table, .tide-errors-table) tbody td {
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    background: transparent;
+    box-shadow: none;
+}
+
+.detection-evaluation-panel :is(.detection-metrics-table, .tide-errors-table) thead th {
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+    color: var(--muted-strong);
+    font-size: 0.72rem;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+}
+
+.detection-evaluation-panel :is(.detection-metrics-table, .tide-errors-table) tbody tr:last-child > * {
+    border-bottom: 0;
+}
+
+.detection-evaluation-panel :is(.detection-metrics-table, .tide-errors-table) tbody th[scope='row'] {
+    color: var(--text);
+}
+
+html[data-theme='dark'] .detection-evaluation-panel :is(.detection-metrics-table, .tide-errors-table) thead th,
+html[data-theme='dark'] .detection-evaluation-panel :is(.detection-metrics-table, .tide-errors-table) tbody th,
+html[data-theme='dark'] .detection-evaluation-panel :is(.detection-metrics-table, .tide-errors-table) tbody td {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.detection-evaluation-panel .detection-metrics-table thead th:nth-child(2),
+.detection-evaluation-panel .tide-errors-table thead th:nth-child(2),
+.detection-evaluation-panel .tide-errors-table thead th:nth-child(5) {
+    color: var(--evaluation-original);
+}
+
+.detection-evaluation-panel .detection-metrics-table thead th:nth-child(3),
+.detection-evaluation-panel .tide-errors-table thead th:nth-child(3),
+.detection-evaluation-panel .tide-errors-table thead th:nth-child(6) {
+    color: var(--evaluation-adversarial);
+}
+
+.detection-evaluation-panel .detection-explained-metric small,
+.detection-evaluation-panel .tide-errors-table th[scope='row'] small {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--muted);
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+/* Effective COCO configuration is metadata, not another boxed table. */
+.detection-evaluation-panel .detection-method-card dl {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem 2rem;
+    margin-top: 1rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.detection-evaluation-panel .detection-method-card dl div,
+.detection-evaluation-panel .detection-method-card dl div:nth-child(3n),
+.detection-evaluation-panel .detection-method-card dl div:nth-child(n + 4) {
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+}
+
+.detection-evaluation-panel .detection-method-card dt {
+    margin-bottom: 0.28rem;
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 720;
+}
+
+.detection-evaluation-panel .detection-method-card dd {
+    color: var(--text);
+    font-size: 0.92rem;
+    font-weight: 780;
+    line-height: 1.35;
+}
+
+@media (max-width: 1100px) {
+    .detection-evaluation-panel .detection-method-card dl {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 620px) {
+    .detection-evaluation-panel .detection-method-card dl {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+    }
+}
+
+/* Detection evaluation: structural flattening for guides and analytical tables. */
+.detection-evaluation-panel .detection-table-section,
+.detection-evaluation-panel .detection-method-section {
+    margin-top: 1rem;
+    padding: 1rem 0 0;
+    border: 0;
+    border-top: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.detection-evaluation-panel .detection-table-section > .evaluation-section-heading {
+    padding: 0 0 0.9rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.detection-data-grid-scroll {
+    overflow-x: auto;
+}
+
+.detection-data-grid {
+    min-width: 820px;
+    color: var(--text-soft);
+}
+
+.detection-data-grid-header,
+.detection-data-grid-row {
+    display: grid;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.detection-coco-grid .detection-data-grid-header,
+.detection-coco-grid .detection-data-grid-row {
+    grid-template-columns: minmax(290px, 1.55fr) repeat(4, minmax(120px, 0.72fr));
+}
+
+.detection-tide-grid {
+    min-width: 1080px;
+}
+
+.detection-tide-grid .detection-data-grid-header,
+.detection-tide-grid .detection-data-grid-row {
+    grid-template-columns: minmax(280px, 1.55fr) repeat(6, minmax(112px, 0.72fr));
+}
+
+.detection-data-grid-header {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 760;
+    letter-spacing: 0.025em;
+}
+
+.detection-data-grid-header > *,
+.detection-data-grid-row > * {
+    min-width: 0;
+    padding: 0.72rem 0.8rem;
+    background: transparent;
+}
+
+.detection-data-grid-header > *:first-child,
+.detection-data-grid-row > *:first-child {
+    padding-left: 0;
+}
+
+.detection-data-grid-header > *:last-child,
+.detection-data-grid-row > *:last-child {
+    padding-right: 0;
+}
+
+.detection-data-grid-header .tone-original {
+    color: var(--evaluation-original);
+}
+
+.detection-data-grid-header .tone-adversarial {
+    color: var(--evaluation-adversarial);
+}
+
+.detection-data-grid-row:last-child {
+    border-bottom: 0;
+}
+
+.detection-data-grid-label strong,
+.detection-data-grid-label small {
+    display: block;
+}
+
+.detection-data-grid-label strong {
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.detection-data-grid-label small {
+    margin-top: 0.18rem;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+.detection-method-section h3 {
+    margin-bottom: 0;
+}
+
+.detection-method-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0 1.5rem;
+    margin: 0.8rem 0 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.detection-method-grid > div {
+    min-width: 0;
+    padding: 0.72rem 0;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    background: transparent;
+    text-align: left;
+}
+
+.detection-method-grid dt,
+.detection-method-grid dd {
+    display: block;
+    margin: 0;
+}
+
+.detection-method-grid dt {
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 720;
+}
+
+.detection-method-grid dd {
+    margin-top: 0.24rem;
+    color: var(--text);
+    font-size: 0.92rem;
+    font-weight: 780;
+    line-height: 1.35;
+}
+
+/* Detection guides stay collapsible, but their content no longer looks like a table. */
+.detection-evaluation-panel .evaluation-metric-guide.detection-guide .evaluation-metric-guide-intro {
+    margin: 0 0.9rem;
+    padding: 0.72rem 0;
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.detection-evaluation-panel .evaluation-metric-guide.detection-guide .evaluation-metric-guide-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    gap: 0 2rem;
+    margin: 0;
+    padding: 0.35rem 0.9rem 0.15rem;
+}
+
+.detection-evaluation-panel .evaluation-metric-guide.detection-guide .evaluation-metric-guide-grid > div,
+.detection-evaluation-panel .evaluation-metric-guide.detection-guide .evaluation-metric-guide-grid > div:nth-child(odd),
+.detection-evaluation-panel .evaluation-metric-guide.detection-guide .evaluation-metric-guide-grid > div:nth-child(1),
+.detection-evaluation-panel .evaluation-metric-guide.detection-guide .evaluation-metric-guide-grid > div:nth-child(2),
+.detection-evaluation-panel .evaluation-metric-guide.detection-guide .evaluation-metric-guide-grid > div:nth-child(3) {
+    grid-column: auto;
+    grid-row: auto;
+    padding: 0.68rem 0;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    background: transparent;
+}
+
+.detection-evaluation-panel .evaluation-metric-guide.detection-guide .evaluation-metric-guide-grid dt {
+    color: var(--text-soft);
+}
+
+.detection-evaluation-panel .evaluation-metric-guide.detection-guide .evaluation-metric-guide-note {
+    margin: 0.2rem 0.9rem 0.9rem;
+    background: transparent;
+}
+
+html[data-theme='dark'] .detection-evaluation-panel :is(
+    .detection-table-section,
+    .detection-method-section,
+    .detection-data-grid,
+    .detection-data-grid-header,
+    .detection-data-grid-row,
+    .detection-data-grid-label,
+    .detection-method-grid,
+    .detection-method-grid > div,
+    .evaluation-metric-guide.detection-guide .evaluation-metric-guide-grid > div
+) {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+@media (max-width: 1050px) {
+    .detection-method-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .detection-evaluation-panel .evaluation-metric-guide.detection-guide .evaluation-metric-guide-grid,
+    .detection-method-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* COCO operating points: keep the comparison, remove the last boxed surface. */
+.detection-evaluation-panel .detection-coco-operating-grid {
+    gap: clamp(1.5rem, 3vw, 3rem);
+    padding: 1rem 0;
+    border-block: 1px solid var(--border-subtle);
+}
+
+.detection-evaluation-panel .detection-coco-operating-grid > * {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.detection-evaluation-panel .detection-coco-operating-grid > * + * {
+    padding-left: clamp(1.5rem, 3vw, 3rem);
+    border-left: 1px solid var(--border-subtle);
+}
+
+.detection-evaluation-panel .detection-coco-operating-grid > * :is(div, dl, ul) {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+@media (max-width: 760px) {
+    .detection-evaluation-panel .detection-coco-operating-grid > * + * {
+        padding-top: 1rem;
+        padding-left: 0;
+        border-top: 1px solid var(--border-subtle);
+        border-left: 0;

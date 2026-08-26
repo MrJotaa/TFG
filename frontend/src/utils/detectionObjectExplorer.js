@@ -138,3 +138,27 @@ export function paginateDetectionObjects(objects = [], page = 1, pageSize = 25) 
         totalItems: objects.length,
     }
 }
+
+export const DETECTION_IMAGE_AGGREGATE_BATCH_SIZE = 10
+
+export function getDetectionImageAggregateView(
+    rows = [],
+    visibleCount = DETECTION_IMAGE_AGGREGATE_BATCH_SIZE,
+) {
+    const safeVisibleCount = Math.max(
+        DETECTION_IMAGE_AGGREGATE_BATCH_SIZE,
+        Number(visibleCount) || DETECTION_IMAGE_AGGREGATE_BATCH_SIZE,
+    )
+    const end = Math.min(safeVisibleCount, rows.length)
+
+    return {
+        items: rows.slice(0, end),
+        visibleCount: end,
+        totalCount: rows.length,
+        hasMore: end < rows.length,
+        nextVisibleCount: Math.min(
+            rows.length,
+            end + DETECTION_IMAGE_AGGREGATE_BATCH_SIZE,
+        ),
+    }
+}

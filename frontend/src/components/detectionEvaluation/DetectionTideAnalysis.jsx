@@ -110,10 +110,10 @@ function DetectionTideAnalysis({ evaluation }) {
                 <div className="tide-chart" role="img" aria-label="Comparación del impacto dAP de los errores TIDE">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData} margin={{ top: 12, right: 20, bottom: 18, left: 8 }}>
-                            <CartesianGrid stroke="#e7edf5" strokeDasharray="4 4" vertical={false} />
+                            <CartesianGrid stroke="var(--border)" strokeDasharray="4 4" vertical={false} />
                             <XAxis dataKey="shortLabel" interval={0} tick={{ fontSize: 12 }} />
                             <YAxis tickFormatter={(value) => `${value}`} label={{ value: 'dAP (pp)', angle: -90, position: 'insideLeft' }} />
-                            <Tooltip content={<TideTooltip />} />
+                            <Tooltip cursor={false} content={<TideTooltip />} />
                             <Bar dataKey="originalImpact" name="Original" fill="var(--evaluation-original)" radius={[5, 5, 0, 0]} />
                             <Bar dataKey="adversarialImpact" name="Tras el ataque" fill="var(--evaluation-adversarial)" radius={[5, 5, 0, 0]} />
                         </BarChart>
@@ -121,7 +121,7 @@ function DetectionTideAnalysis({ evaluation }) {
                 </div>
             </section>
 
-            <section className="evaluation-surface detection-table-surface">
+            <section className="detection-table-section detection-tide-comparison">
                 <div className="evaluation-section-heading">
                     <div>
                         <span className="evaluation-eyebrow">Impacto y frecuencia</span>
@@ -129,38 +129,34 @@ function DetectionTideAnalysis({ evaluation }) {
                         <p>El conteo indica frecuencia; dAP indica cuánto afecta ese error al AP50.</p>
                     </div>
                 </div>
-                <div className="evaluation-table-wrapper">
-                    <table className="evaluation-table tide-errors-table">
-                        <thead>
-                            <tr>
-                                <th>Error</th>
-                                <th>dAP orig.</th>
-                                <th>dAP adv.</th>
-                                <th>Cambio de impacto</th>
-                                <th>Casos orig.</th>
-                                <th>Casos adv.</th>
-                                <th>Cambio de casos</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {rows.map((row) => (
-                                <tr key={row.errorType}>
-                                    <th scope="row">
-                                        <strong>{row.label}</strong>
-                                        <small>{row.description}</small>
-                                    </th>
-                                    <td>{formatTidePoints(row.original.delta_ap)}</td>
-                                    <td>{formatTidePoints(row.adversarial.delta_ap)}</td>
-                                    <td className={`tone-${getDeltaTone(row.change.impact_change)}`}>
-                                        {formatTidePoints(row.change.impact_change, 1, true)}
-                                    </td>
-                                    <td>{formatInteger(row.original.count)}</td>
-                                    <td>{formatInteger(row.adversarial.count)}</td>
-                                    <td>{row.change.count_change > 0 ? '+' : ''}{formatInteger(row.change.count_change)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="detection-data-grid-scroll">
+                    <div className="detection-data-grid detection-tide-grid" role="table" aria-label="Impacto y frecuencia de errores TIDE">
+                        <div className="detection-data-grid-header" role="row">
+                            <span role="columnheader">Error</span>
+                            <span role="columnheader" className="tone-original">dAP orig.</span>
+                            <span role="columnheader" className="tone-adversarial">dAP adv.</span>
+                            <span role="columnheader">Cambio de impacto</span>
+                            <span role="columnheader" className="tone-original">Casos orig.</span>
+                            <span role="columnheader" className="tone-adversarial">Casos adv.</span>
+                            <span role="columnheader">Cambio de casos</span>
+                        </div>
+                        {rows.map((row) => (
+                            <div className="detection-data-grid-row" role="row" key={row.errorType}>
+                                <div className="detection-data-grid-label" role="cell">
+                                    <strong>{row.label}</strong>
+                                    <small>{row.description}</small>
+                                </div>
+                                <span role="cell">{formatTidePoints(row.original.delta_ap)}</span>
+                                <span role="cell">{formatTidePoints(row.adversarial.delta_ap)}</span>
+                                <span role="cell" className={`tone-${getDeltaTone(row.change.impact_change)}`}>
+                                    {formatTidePoints(row.change.impact_change, 1, true)}
+                                </span>
+                                <span role="cell">{formatInteger(row.original.count)}</span>
+                                <span role="cell">{formatInteger(row.adversarial.count)}</span>
+                                <span role="cell">{row.change.count_change > 0 ? '+' : ''}{formatInteger(row.change.count_change)}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </section>
 

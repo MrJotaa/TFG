@@ -1,10 +1,10 @@
-function EvaluationMetricGuide({ guide }) {
+function EvaluationMetricGuide({ guide, variant = null }) {
     if (!guide) {
         return null
     }
 
     return (
-        <details className="evaluation-metric-guide">
+        <details className={`evaluation-metric-guide${variant ? ` ${variant}-guide` : ''}`}>
             <summary>
                 <span className="evaluation-info-icon" aria-hidden="true">i</span>
                 <span>

@@ -19,6 +19,7 @@ function ContextItem({ label, value }) {
 
 function EvaluationView() {
     const [isContextOpen, setIsContextOpen] = useState(false)
+    const [detectionResultContext, setDetectionResultContext] = useState(null)
 
     const {
         selectedDataset,
@@ -39,6 +40,15 @@ function EvaluationView() {
     const modelName = recoveredEvaluation?.historyItem?.model_name || activeModel?.name || 'Sin modelo activo'
     const datasetName = selectedDataset?.name || 'Sin conjunto de datos'
     const contextPanelId = 'evaluation-context-panel'
+    const recoveredDetectionResultContext = isDetection && recoveredEvaluation?.data
+        ? {
+            resultId: recoveredEvaluation.data.result_id,
+            datasetRevision: recoveredEvaluation.data.dataset_revision,
+        }
+        : null
+    const activeDetectionResultContext = (
+        detectionResultContext ?? recoveredDetectionResultContext
+    )
 
     return (
         <section
@@ -111,6 +121,12 @@ function EvaluationView() {
                                 attackCatalog,
                             )}
                         />
+                        {isDetection && activeDetectionResultContext?.resultId && (
+                            <ContextItem
+                                label="Resultado"
+                                value={`${activeDetectionResultContext.resultId} · revisión ${activeDetectionResultContext.datasetRevision ?? '—'}`}
+                            />
+                        )}
                     </section>
                 </div>
             </div>
@@ -123,6 +139,7 @@ function EvaluationView() {
                     attackCatalog={attackCatalog}
                     recoveredEvaluation={recoveredEvaluation}
                     onStartNewEvaluation={() => setRecoveredEvaluation(null)}
+                    onResultContextChange={setDetectionResultContext}
                 />
             ) : (
                 <EvaluationPanel
