@@ -32,7 +32,7 @@ function getCellStyle(value, maximum, mode, variant) {
 
     return {
         backgroundColor: `rgba(${rgb}, ${alpha})`,
-        color: intensity > 0.62 ? '#ffffff' : '#0f172a',
+        color: intensity > 0.62 ? 'var(--evaluation-matrix-strong-text)' : numericValue > 0 ? 'var(--evaluation-matrix-text)' : 'var(--evaluation-matrix-zero)',
         opacity: mode === 'normalized' && numericValue === 0 ? 0.68 : 1,
     }
 }

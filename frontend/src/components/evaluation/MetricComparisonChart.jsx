@@ -11,6 +11,10 @@ import {
 
 const SERIES_ORDER = ['Original', 'Tras el ataque']
 
+function getSeriesTone(series) {
+    return series === 'Original' ? 'original' : 'adversarial'
+}
+
 function ComparisonTooltip({ active, label, payload }) {
     if (!active || !payload?.length) {
         return null
@@ -24,7 +28,7 @@ function ComparisonTooltip({ active, label, payload }) {
         <div className="evaluation-chart-tooltip">
             <strong>{label}</strong>
             {SERIES_ORDER.map((series) => (
-                <div key={series} className={series.toLowerCase()}>
+                <div key={series} className={getSeriesTone(series)}>
                     <span>{series}</span>
                     <strong>{Number(valuesBySeries[series] ?? 0).toFixed(1)} %</strong>
                 </div>

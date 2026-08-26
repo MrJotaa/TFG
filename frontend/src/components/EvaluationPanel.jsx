@@ -264,7 +264,7 @@ function EvaluationPanel({
     }
 
     return (
-        <div className="evaluation-panel evaluation-dashboard">
+        <div className="evaluation-panel evaluation-dashboard classification-evaluation-panel">
             {!evaluation && !loading && (
                 <section className="evaluation-run-card modern">
                     <div>
@@ -361,10 +361,9 @@ function EvaluationPanel({
 
                     <footer className="evaluation-rerun-footer">
                         <div>
-                            <strong>¿Necesitas actualizar los resultados?</strong>
+                            <strong>Resultado disponible</strong>
                             <span>
-                                Ejecuta de nuevo la misma configuración de conjunto de datos,
-                                modelo y ataque.
+                                Puedes repetir la evaluación con la misma configuración si necesitas resultados nuevos.
                             </span>
                         </div>
 
