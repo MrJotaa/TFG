@@ -15,6 +15,7 @@ import {
     getComparisonInsights,
     getClassificationComparisonCaseSummary,
     getDetectionObjectCaseSummary,
+    getDetectionImageCaseSummary,
     matchesDetectionObjectCaseFilter,
     matchesComparisonImageFilter,
     pairComparisonMetrics,
@@ -441,6 +442,9 @@ test('classification case summary creates an A/B disagreement matrix', () => {
         right_better: 1,
         both_fail: 1,
         both_correct: 1,
+        discordant: 2,
+        disagreement_rate: 0.5,
+        mcnemar_exact_p: 1,
     })
 })
 
@@ -474,5 +478,65 @@ test('detection object case summary counts behavioral agreement and disagreement
         both_preserved: 1,
         both_suppressed: 1,
         different: 2,
+        preservation_disagreements: 2,
+        preservation_disagreement_rate: 0.5,
+        preservation_balance: 0,
     })
+})
+
+test('McNemar exact statistic uses only discordant classification cases', () => {
+    const left = { results: [
+        { image_id: '1', ground_truth_label: 'cat', adversarial_label: 'cat' },
+        { image_id: '2', ground_truth_label: 'cat', adversarial_label: 'cat' },
+        { image_id: '3', ground_truth_label: 'cat', adversarial_label: 'cat' },
+        { image_id: '4', ground_truth_label: 'cat', adversarial_label: 'cat' },
+    ] }
+    const right = { results: [
+        { image_id: '1', ground_truth_label: 'cat', adversarial_label: 'dog' },
+        { image_id: '2', ground_truth_label: 'cat', adversarial_label: 'dog' },
+        { image_id: '3', ground_truth_label: 'cat', adversarial_label: 'dog' },
+        { image_id: '4', ground_truth_label: 'cat', adversarial_label: 'dog' },
+    ] }
+    const summary = getClassificationComparisonCaseSummary(left, right)
+    assert.equal(summary.discordant, 4)
+    assert.equal(summary.disagreement_rate, 1)
+    assert.equal(summary.mcnemar_exact_p, 0.125)
+})
+
+test('detection image case summary supports the same counted filters shown in the UI', () => {
+    const left = { results: [
+        { image_id: '1', adversarial_detection_count: 5 },
+        { image_id: '2', adversarial_detection_count: 1 },
+        { image_id: '3', adversarial_detection_count: 2 },
+    ] }
+    const right = { results: [
+        { image_id: '1', adversarial_detection_count: 2 },
+        { image_id: '2', adversarial_detection_count: 4 },
+        { image_id: '3', adversarial_detection_count: 2 },
+    ] }
+    assert.deepEqual(getDetectionImageCaseSummary(left, right), {
+        total: 3,
+        left_more: 1,
+        right_more: 1,
+        different: 2,
+        equal: 1,
+    })
+})
+
+test('detection preservation balance reports exclusive preserved objects without inventing independence', () => {
+    const makeEvaluation = (objects) => ({ supervised: { object_analysis: { objects } } })
+    const left = makeEvaluation([
+        { object_id: '1', outcome: 'preserved' },
+        { object_id: '2', outcome: 'suppressed' },
+        { object_id: '3', outcome: 'suppressed' },
+    ])
+    const right = makeEvaluation([
+        { object_id: '1', outcome: 'suppressed' },
+        { object_id: '2', outcome: 'preserved' },
+        { object_id: '3', outcome: 'preserved' },
+    ])
+    const summary = getDetectionObjectCaseSummary(left, right)
+    assert.equal(summary.preservation_disagreements, 3)
+    assert.equal(summary.preservation_disagreement_rate, 1)
+    assert.equal(summary.preservation_balance, 1)
 })

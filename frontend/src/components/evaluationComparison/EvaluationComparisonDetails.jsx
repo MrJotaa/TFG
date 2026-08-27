@@ -23,6 +23,7 @@ import {
     getDetectionObjectComparisonPairs,
     getDetectionTideComparisonRows,
     getDetectionObjectCaseSummary,
+    getDetectionImageCaseSummary,
     matchesComparisonImageFilter,
     matchesDetectionObjectCaseFilter,
 } from '../../utils/evaluationComparison'
@@ -161,15 +162,37 @@ function ComparisonDataTable({ columns, rows, getKey = (row) => row.key }) {
     )
 }
 
-function ComparisonCurveTooltip({ active, payload, xLabel = 'X' }) {
+function interpolateCurveValue(points, x) {
+    if (!points?.length || !Number.isFinite(x)) return null
+    if (x <= points[0].x) return points[0].y
+    if (x >= points[points.length - 1].x) return points[points.length - 1].y
+
+    for (let index = 1; index < points.length; index += 1) {
+        const right = points[index]
+        const left = points[index - 1]
+        if (x > right.x) continue
+        if (Math.abs(right.x - left.x) < 1e-12) return right.y
+        const weight = (x - left.x) / (right.x - left.x)
+        return left.y + ((right.y - left.y) * weight)
+    }
+    return null
+}
+
+function ComparisonCurveTooltip({ active, payload, series, xLabel = 'X' }) {
     if (!active || !payload?.length) return null
-    const point = payload[0]?.payload
+    const guide = payload.find((entry) => entry.dataKey === 'guide')?.payload ?? payload[0]?.payload
+    const x = Number(guide?.x)
+    if (!Number.isFinite(x)) return null
+    const values = series
+        .map((entry) => ({ ...entry, value: interpolateCurveValue(entry.points, x) }))
+        .filter((entry) => Number.isFinite(entry.value))
+    if (!values.length) return null
     return (
-        <div className="evaluation-chart-tooltip comparison-chart-tooltip">
-            <strong>{xLabel}: {formatPercent(point?.x ?? point?.recall, 1)}</strong>
-            {payload.map((entry) => (
-                <div key={`${entry.name}-${entry.dataKey}`}>
-                    <span style={{ '--series-color': entry.color }}>{entry.name}</span>
+        <div className="evaluation-chart-tooltip comparison-chart-tooltip comparison-curve-tooltip">
+            <strong>{xLabel} ≈ {formatPercent(x, 1)}</strong>
+            {values.map((entry) => (
+                <div key={entry.key}>
+                    <span style={{ '--series-color': entry.color }}>{entry.label}</span>
                     <strong>{formatPercent(entry.value, 1)}</strong>
                 </div>
             ))}
@@ -188,7 +211,11 @@ function normalizeComparisonCurve(points, xKey = 'x') {
         .sort((left, right) => left.x - right.x)
 }
 
-function ComparisonCurveChart({ series, yLabel = 'Valor', xLabel = 'Umbral', domain = [0, 1] }) {
+function formatCurveScore(value) {
+    return Number.isFinite(Number(value)) ? Number(value).toFixed(3) : '—'
+}
+
+function ComparisonCurveChart({ series, yLabel = 'Valor', xLabel = 'Umbral', domain = [0, 1], scoreLabel = 'Área' }) {
     const normalizedSeries = series
         .map((entry) => ({ ...entry, points: normalizeComparisonCurve(entry.points, entry.xKey ?? 'x') }))
         .filter((entry) => entry.points.length > 0)
@@ -197,77 +224,172 @@ function ComparisonCurveChart({ series, yLabel = 'Valor', xLabel = 'Umbral', dom
         return <EmptyComparison title="Curva no disponible">Las evaluaciones no contienen una curva representable para este ámbito.</EmptyComparison>
     }
 
+    const guidePoints = Array.from({ length: 101 }, (_, index) => ({ x: index / 100, guide: 0 }))
+
     return (
-        <div className="evaluation-comparison-chart" role="img" aria-label="Comparación de curvas A y B">
-            <ResponsiveContainer width="100%" height="100%">
-                <LineChart margin={{ top: 12, right: 20, bottom: 18, left: 10 }}>
-                    <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="4 4" />
-                    <XAxis
-                        dataKey="x"
-                        type="number"
-                        domain={domain}
-                        tickFormatter={(value) => Number(value).toFixed(2)}
-                        tick={{ fill: 'var(--muted)', fontSize: 11 }}
-                        label={{ value: xLabel, position: 'insideBottom', offset: -10, fill: 'var(--muted)' }}
-                    />
-                    <YAxis
-                        type="number"
-                        domain={domain}
-                        tickFormatter={(value) => Number(value).toFixed(2)}
-                        tick={{ fill: 'var(--muted)', fontSize: 11 }}
-                        label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: 'var(--muted)' }}
-                    />
-                    <Tooltip content={<ComparisonCurveTooltip xLabel={xLabel} />} />
-                    {normalizedSeries.map((entry) => (
-                        <Line
-                            key={entry.key}
-                            data={entry.points}
-                            dataKey="y"
-                            name={entry.label}
-                            stroke={entry.color}
-                            strokeWidth={entry.reference ? 2 : 3}
-                            strokeDasharray={entry.reference ? '7 5' : undefined}
-                            dot={false}
-                            activeDot={{ r: 4 }}
-                            isAnimationActive={false}
+        <>
+            <div className="evaluation-comparison-curve-legend" aria-label="Leyenda de curvas">
+                {normalizedSeries.map((entry) => (
+                    <span key={entry.key} className={entry.reference ? 'reference' : ''}>
+                        <i style={{ '--series-color': entry.color }} />
+                        <strong>{entry.label}</strong>
+                        {entry.score != null && <small>{scoreLabel} {formatCurveScore(entry.score)}</small>}
+                    </span>
+                ))}
+            </div>
+            <div className="evaluation-comparison-chart" role="img" aria-label="Comparación de curvas A y B">
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart margin={{ top: 12, right: 28, bottom: 28, left: 18 }}>
+                        <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="4 4" />
+                        <XAxis
+                            dataKey="x"
+                            type="number"
+                            domain={domain}
+                            tickFormatter={(value) => Number(value).toFixed(2)}
+                            tick={{ fill: 'var(--muted)', fontSize: 11 }}
+                            label={{ value: xLabel, position: 'insideBottom', offset: -16, fill: 'var(--muted)' }}
                         />
-                    ))}
-                </LineChart>
-            </ResponsiveContainer>
-        </div>
+                        <YAxis
+                            type="number"
+                            domain={domain}
+                            tickFormatter={(value) => Number(value).toFixed(2)}
+                            tick={{ fill: 'var(--muted)', fontSize: 11 }}
+                            label={{ value: yLabel, angle: -90, position: 'insideLeft', offset: 6, fill: 'var(--muted)' }}
+                        />
+                        <Tooltip
+                            cursor={{ stroke: 'var(--comparison-reference)', strokeDasharray: '4 4' }}
+                            wrapperStyle={{ zIndex: 50, pointerEvents: 'none' }}
+                            content={<ComparisonCurveTooltip series={normalizedSeries} xLabel={xLabel} />}
+                        />
+                        <Line data={guidePoints} dataKey="guide" name="guide" stroke="transparent" dot={false} activeDot={false} isAnimationActive={false} />
+                        {normalizedSeries.map((entry) => (
+                            <Line
+                                key={entry.key}
+                                data={entry.points}
+                                dataKey="y"
+                                name={entry.label}
+                                stroke={entry.color}
+                                strokeWidth={entry.reference ? 2 : 3}
+                                strokeDasharray={entry.reference ? '7 5' : undefined}
+                                dot={false}
+                                activeDot={false}
+                                isAnimationActive={false}
+                            />
+                        ))}
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
+        </>
     )
 }
 
+function ClassDifferenceDivergingBars({ rows, leftKey, rightKey, label = 'Clase', limit = 12 }) {
+    const data = [...(rows ?? [])]
+        .filter((row) => Number.isFinite(row[leftKey]) && Number.isFinite(row[rightKey]))
+        .map((row) => ({ ...row, comparisonDelta: row[rightKey] - row[leftKey] }))
+        .sort((left, right) => Math.abs(right.comparisonDelta) - Math.abs(left.comparisonDelta))
+        .slice(0, limit)
+    if (!data.length) return null
+    const maxDelta = Math.max(...data.map((row) => Math.abs(row.comparisonDelta)), 1e-9)
+    return (
+        <figure className="evaluation-comparison-diverging">
+            <figcaption>
+                <div><strong>Mayores diferencias</strong><span>Las categorías se ordenan por |B − A| para localizar primero dónde se separan más.</span></div>
+                <div className="evaluation-comparison-diverging-axis"><span className="side-a">A tiene mayor valor</span><b>0</b><span className="side-b">B tiene mayor valor</span></div>
+            </figcaption>
+            <div className="evaluation-comparison-diverging-list">
+                {data.map((row) => {
+                    const delta = row.comparisonDelta
+                    const width = `${Math.max(2, Math.abs(delta) / maxDelta * 100)}%`
+                    return (
+                        <div key={row.key} className="evaluation-comparison-diverging-row">
+                            <strong title={row.label}>{row.label}</strong>
+                            <div className="evaluation-comparison-diverging-track">
+                                <span className="left">{delta < 0 && <i className="side-a" style={{ width }} />}</span>
+                                <b aria-hidden="true" />
+                                <span className="right">{delta > 0 && <i className="side-b" style={{ width }} />}</span>
+                            </div>
+                            <span className={delta < 0 ? 'side-a' : delta > 0 ? 'side-b' : ''}>{formatPoints(delta)}</span>
+                        </div>
+                    )
+                })}
+            </div>
+            <small>Top {data.length} de {(rows ?? []).length} {label.toLowerCase()}s con valores comparables.</small>
+        </figure>
+    )
+}
+
+function splitCirclePath(cx, cy, r, side) {
+    if (side === 'left') return `M ${cx} ${cy - r} A ${r} ${r} 0 0 0 ${cx} ${cy + r} Z`
+    return `M ${cx} ${cy - r} A ${r} ${r} 0 0 1 ${cx} ${cy + r} Z`
+}
+
 function ClassDifferenceScatter({ rows, leftKey, rightKey, label = 'Clase' }) {
-    const points = (rows ?? []).filter((row) => Number.isFinite(row[leftKey]) && Number.isFinite(row[rightKey]))
-    if (!points.length) return null
-    const width = 640
-    const height = 360
-    const padding = 42
-    const scaleX = (value) => padding + Math.max(0, Math.min(1, value)) * (width - padding * 2)
-    const scaleY = (value) => height - padding - Math.max(0, Math.min(1, value)) * (height - padding * 2)
+    const [scaleMode, setScaleMode] = useState('full')
+    const rawPoints = (rows ?? []).filter((row) => Number.isFinite(row[leftKey]) && Number.isFinite(row[rightKey]))
+    if (!rawPoints.length) return null
+    const groups = Array.from(rawPoints.reduce((map, row) => {
+        const left = Number(row[leftKey])
+        const right = Number(row[rightKey])
+        const key = `${left.toFixed(8)}:${right.toFixed(8)}`
+        const current = map.get(key) ?? { key, left, right, rows: [], support: 0 }
+        current.rows.push(row)
+        current.support += Number(row.support ?? 0)
+        map.set(key, current)
+        return map
+    }, new Map()).values())
+    const dataMax = Math.max(...groups.flatMap((group) => [group.left, group.right]), 0)
+    const domainMax = scaleMode === 'fit' ? Math.min(1, Math.max(0.1, dataMax * 1.12)) : 1
+    const ticks = Array.from({ length: 5 }, (_, index) => domainMax * index / 4)
+    const width = 680
+    const height = 380
+    const padding = { left: 66, right: 34, top: 28, bottom: 58 }
+    const innerWidth = width - padding.left - padding.right
+    const innerHeight = height - padding.top - padding.bottom
+    const scaleX = (value) => padding.left + Math.max(0, Math.min(domainMax, value)) / domainMax * innerWidth
+    const scaleY = (value) => height - padding.bottom - Math.max(0, Math.min(domainMax, value)) / domainMax * innerHeight
     return (
         <figure className="evaluation-comparison-scatter">
-            <figcaption><strong>Mapa de diferencias</strong><span>Cada punto representa una {label.toLowerCase()}; cuanto más lejos de la diagonal, mayor es la divergencia.</span></figcaption>
+            <figcaption>
+                <div><strong>Mapa A frente a B</strong><span>La diagonal representa igualdad. Las coordenadas idénticas se agrupan para no ocultar clases superpuestas.</span></div>
+                <div className="evaluation-comparison-scatter-scale" role="group" aria-label="Escala del mapa de diferencias">
+                    <button type="button" className={scaleMode === 'full' ? 'active' : ''} onClick={() => setScaleMode('full')}>Completa</button>
+                    <button type="button" className={scaleMode === 'fit' ? 'active' : ''} onClick={() => setScaleMode('fit')}>Ajustar a datos</button>
+                </div>
+            </figcaption>
             <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Dispersión A frente a B por ${label.toLowerCase()}`}>
-                {[0, 0.25, 0.5, 0.75, 1].map((tick) => (
+                {ticks.map((tick) => (
                     <g key={tick}>
-                        <line x1={scaleX(tick)} x2={scaleX(tick)} y1={padding} y2={height - padding} className="grid" />
-                        <line x1={padding} x2={width - padding} y1={scaleY(tick)} y2={scaleY(tick)} className="grid" />
-                        <text x={scaleX(tick)} y={height - 14} textAnchor="middle">{Math.round(tick * 100)}%</text>
-                        <text x={18} y={scaleY(tick) + 4} textAnchor="middle">{Math.round(tick * 100)}%</text>
+                        <line x1={scaleX(tick)} x2={scaleX(tick)} y1={padding.top} y2={height - padding.bottom} className="grid" />
+                        <line x1={padding.left} x2={width - padding.right} y1={scaleY(tick)} y2={scaleY(tick)} className="grid" />
+                        <text x={scaleX(tick)} y={height - padding.bottom + 22} textAnchor="middle">{Math.round(tick * 100)}%</text>
+                        <text x={padding.left - 12} y={scaleY(tick) + 4} textAnchor="end">{Math.round(tick * 100)}%</text>
                     </g>
                 ))}
-                <line x1={padding} y1={height - padding} x2={width - padding} y2={padding} className="diagonal" />
-                {points.map((row) => (
-                    <circle key={row.key} cx={scaleX(row[leftKey])} cy={scaleY(row[rightKey])} r={Math.max(4, Math.min(8, 3 + Math.sqrt(Math.max(1, row.support ?? 1)) * 0.35))} className={(row[rightKey] ?? 0) >= (row[leftKey] ?? 0) ? 'side-b' : 'side-a'}>
-                        <title>{`${row.label}: A ${formatPercent(row[leftKey])} · B ${formatPercent(row[rightKey])} · Δ ${formatPoints((row[rightKey] ?? 0) - (row[leftKey] ?? 0))}`}</title>
-                    </circle>
-                ))}
-                <text x={width / 2} y={height - 1} textAnchor="middle" className="axis-label">Evaluación A</text>
-                <text x="12" y={height / 2} textAnchor="middle" transform={`rotate(-90 12 ${height / 2})`} className="axis-label">Evaluación B</text>
+                <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={padding.top} className="diagonal" />
+                {groups.map((group) => {
+                    const cx = scaleX(group.left)
+                    const cy = scaleY(group.right)
+                    const r = Math.max(5, Math.min(9, 4 + Math.sqrt(Math.max(1, group.support)) * 0.28))
+                    const equal = Math.abs(group.left - group.right) < 1e-10
+                    const names = group.rows.slice(0, 6).map((row) => row.label).join(', ')
+                    const more = group.rows.length > 6 ? ` y ${group.rows.length - 6} más` : ''
+                    const title = `${group.rows.length > 1 ? `${group.rows.length} ${label.toLowerCase()}s` : group.rows[0].label}: A ${formatPercent(group.left)} · B ${formatPercent(group.right)}${group.rows.length > 1 ? ` · ${names}${more}` : ''}`
+                    return (
+                        <g key={group.key} className="evaluation-comparison-scatter-point">
+                            <title>{title}</title>
+                            {equal ? <>
+                                <path d={splitCirclePath(cx, cy, r, 'left')} className="side-a equal-half" />
+                                <path d={splitCirclePath(cx, cy, r, 'right')} className="side-b equal-half" />
+                            </> : <circle cx={cx} cy={cy} r={r} className={group.right > group.left ? 'side-b' : 'side-a'} />}
+                            {group.rows.length > 1 && <text x={cx + r + 4} y={cy - r - 2} className="cluster-count">×{group.rows.length}</text>}
+                        </g>
+                    )
+                })}
+                <text x={padding.left + innerWidth / 2} y={height - 8} textAnchor="middle" className="axis-label">Evaluación A</text>
+                <text x="15" y={padding.top + innerHeight / 2} textAnchor="middle" transform={`rotate(-90 15 ${padding.top + innerHeight / 2})`} className="axis-label">Evaluación B</text>
             </svg>
-            <div className="evaluation-comparison-scatter-legend"><span className="side-a">Por debajo: A obtiene mayor valor</span><span className="side-b">Por encima: B obtiene mayor valor</span></div>
+            <div className="evaluation-comparison-scatter-legend"><span className="side-a">Por debajo: A tiene mayor valor</span><span>◐ igualdad A/B · ×n clases coincidentes</span><span className="side-b">Por encima: B tiene mayor valor</span></div>
         </figure>
     )
 }
@@ -312,6 +434,7 @@ function ClassificationClassComparison({ leftEvaluation, rightEvaluation }) {
                 <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar clase" />
                 <span>{rows.length} clases</span>
             </div>
+            <ClassDifferenceDivergingBars rows={rows} leftKey="leftRobust" rightKey="rightRobust" label="Clase" />
             <ClassDifferenceScatter rows={rows} leftKey="leftRobust" rightKey="rightRobust" label="Clase" />
             <div className="evaluation-comparison-class-list">
                 {rows.map((row) => (
@@ -337,11 +460,11 @@ function ClassificationCurveComparison({ leftEvaluation, rightEvaluation, sameMo
     const left = getClassificationCurve(leftEvaluation, curveType)
     const right = getClassificationCurve(rightEvaluation, curveType)
     const series = [
-        ...(sameModel && left?.original?.available ? [{ key: 'reference', label: 'Referencia original común', color: 'var(--comparison-reference)', reference: true, points: left.original.points }] : []),
-        ...(!sameModel && left?.original?.available ? [{ key: 'a-original', label: 'A · original', color: 'var(--comparison-a)', reference: true, points: left.original.points }] : []),
-        ...(!sameModel && right?.original?.available ? [{ key: 'b-original', label: 'B · original', color: 'var(--comparison-b)', reference: true, points: right.original.points }] : []),
-        ...(left?.adversarial?.available ? [{ key: 'a', label: 'A · robusta', color: 'var(--comparison-a)', points: left.adversarial.points }] : []),
-        ...(right?.adversarial?.available ? [{ key: 'b', label: 'B · robusta', color: 'var(--comparison-b)', points: right.adversarial.points }] : []),
+        ...(sameModel && left?.original?.available ? [{ key: 'reference', label: 'Referencia original común', color: 'var(--comparison-reference)', reference: true, points: left.original.points, score: left.original.score }] : []),
+        ...(!sameModel && left?.original?.available ? [{ key: 'a-original', label: 'A · original', color: 'var(--comparison-a)', reference: true, points: left.original.points, score: left.original.score }] : []),
+        ...(!sameModel && right?.original?.available ? [{ key: 'b-original', label: 'B · original', color: 'var(--comparison-b)', reference: true, points: right.original.points, score: right.original.score }] : []),
+        ...(left?.adversarial?.available ? [{ key: 'a', label: 'A · robusta', color: 'var(--comparison-a)', points: left.adversarial.points, score: left.adversarial.score }] : []),
+        ...(right?.adversarial?.available ? [{ key: 'b', label: 'B · robusta', color: 'var(--comparison-b)', points: right.adversarial.points, score: right.adversarial.score }] : []),
     ]
 
     return (
@@ -357,9 +480,11 @@ function ClassificationCurveComparison({ leftEvaluation, rightEvaluation, sameMo
                 items={[
                     { title: curveType === 'roc' ? 'ROC' : 'Precision–Recall', text: curveType === 'roc' ? 'Una curva más próxima a la esquina superior izquierda discrimina mejor entre clases.' : 'Una curva más alta conserva más precisión para el mismo nivel de recall.' },
                     { title: sameModel ? 'Referencia común' : 'Dos referencias', text: sameModel ? 'Como el modelo y dataset son los mismos, se dibuja una sola referencia original.' : 'Al comparar modelos distintos cada evaluación conserva su propia referencia original.' },
+                    { title: 'Inspección comparable', text: 'El tooltip usa la misma posición del eje X para estimar A y B. Las curvas conservan sus puntos reales y no se suavizan.' },
                 ]}
+                note={curveType === 'precision_recall' ? 'Las irregularidades de la curva reflejan los puntos empíricos almacenados; no se alisan para mejorar artificialmente su aspecto.' : undefined}
             />
-            <ComparisonCurveChart series={series} xLabel={curveType === 'roc' ? 'Falsos positivos' : 'Recall'} yLabel={curveType === 'roc' ? 'Verdaderos positivos' : 'Precisión'} />
+            <ComparisonCurveChart series={series} xLabel={curveType === 'roc' ? 'Falsos positivos' : 'Recall'} yLabel={curveType === 'roc' ? 'Verdaderos positivos' : 'Precisión'} scoreLabel={curveType === 'roc' ? 'AUC' : 'AP'} />
         </section>
     )
 }
@@ -408,32 +533,61 @@ function DetectionCocoComparison({ leftEvaluation, rightEvaluation }) {
 function DetectionClassComparison({ leftEvaluation, rightEvaluation }) {
     const [query, setQuery] = useState('')
     const [sort, setSort] = useState('difference')
+    const [metric, setMetric] = useState('ap')
+    const metricConfig = {
+        ap: { label: 'AP', leftKey: 'leftAp', rightKey: 'rightAp' },
+        ar: { label: 'AR', leftKey: 'leftAr', rightKey: 'rightAr' },
+        preservation: { label: 'Preservación', leftKey: 'leftPreservationRate', rightKey: 'rightPreservationRate' },
+        suppression: { label: 'Supresión', leftKey: 'leftSuppressionRate', rightKey: 'rightSuppressionRate' },
+    }[metric]
     const rows = useMemo(() => {
         const normalized = query.trim().toLocaleLowerCase('es')
         return getDetectionClassComparison(leftEvaluation, rightEvaluation)
+            .map((row) => ({
+                ...row,
+                selectedDelta: Number.isFinite(row[metricConfig.leftKey]) && Number.isFinite(row[metricConfig.rightKey])
+                    ? row[metricConfig.rightKey] - row[metricConfig.leftKey]
+                    : null,
+            }))
             .filter((row) => !normalized || row.label.toLocaleLowerCase('es').includes(normalized))
             .sort((left, right) => sort === 'support'
                 ? right.support - left.support
                 : sort === 'name'
                     ? left.label.localeCompare(right.label, 'es')
-                    : Math.abs(right.delta ?? -Infinity) - Math.abs(left.delta ?? -Infinity))
-    }, [leftEvaluation, query, rightEvaluation, sort])
+                    : Math.abs(right.selectedDelta ?? -Infinity) - Math.abs(left.selectedDelta ?? -Infinity))
+    }, [leftEvaluation, metricConfig.leftKey, metricConfig.rightKey, query, rightEvaluation, sort])
 
     return (
         <section className="evaluation-comparison-detail-section">
-            <ComparisonSectionHeading eyebrow="Desglose por categoría" title="AP, AR y supresión por clase" description="Las barras hacen visible la diferencia de AP; debajo se conservan AR y objetos suprimidos como contexto numérico." controls={<label><span>Orden</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="difference">Mayor diferencia AP</option><option value="support">Mayor soporte</option><option value="name">Nombre</option></select></label>} />
-            <ComparisonGuide intro="Una diferencia grande de AP puede tener causas distintas. Contrástala con AR, supresión y soporte antes de interpretarla." items={[{ title: 'AP', text: 'Resume la calidad Precision–Recall de la categoría; cuanto mayor, mejor.' }, { title: 'Supresión', text: 'Cuenta objetos originalmente detectados que dejan de detectarse tras el ataque.' }]} />
+            <ComparisonSectionHeading
+                eyebrow="Desglose por categoría"
+                title={`${metricConfig.label} por clase: dónde difieren A y B`}
+                description="El gráfico divergente prioriza las categorías con mayor separación; el mapa A/B conserva la visión global y puede ajustar su escala a los datos."
+                controls={<>
+                    <label><span>Métrica</span><select value={metric} onChange={(event) => setMetric(event.target.value)}><option value="ap">AP</option><option value="ar">AR</option><option value="preservation">Preservación</option><option value="suppression">Supresión</option></select></label>
+                    <label><span>Orden</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="difference">Mayor diferencia</option><option value="support">Mayor soporte</option><option value="name">Nombre</option></select></label>
+                </>}
+            />
+            <ComparisonGuide
+                intro="Empieza por las mayores diferencias y utiliza el mapa A/B para comprobar si el patrón es general o se concentra en pocas categorías."
+                items={[
+                    { title: 'AP / AR', text: 'AP resume calidad Precision–Recall y AR la recuperación de objetos a través del protocolo COCO.' },
+                    { title: 'Preservación / supresión', text: 'Miden qué proporción de los objetos detectados originalmente se mantiene o desaparece tras el ataque.' },
+                ]}
+                note="Los colores identifican A y B. En supresión, un valor mayor significa más objetos perdidos; la vista no lo presenta como un ganador automático."
+            />
             <div className="evaluation-comparison-search-row"><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar categoría" /><span>{rows.length} clases</span></div>
-            <ClassDifferenceScatter rows={rows} leftKey="leftAp" rightKey="rightAp" label="Categoría" />
+            <ClassDifferenceDivergingBars rows={rows} leftKey={metricConfig.leftKey} rightKey={metricConfig.rightKey} label="Categoría" />
+            <ClassDifferenceScatter rows={rows} leftKey={metricConfig.leftKey} rightKey={metricConfig.rightKey} label="Categoría" />
             <div className="evaluation-comparison-class-list">
                 {rows.map((row) => (
                     <article key={row.key} className="evaluation-comparison-class-row detection">
-                        <header><div><strong>{row.label}</strong><small>{row.support} objetos</small></div><span>Δ AP {formatPoints(row.delta)}</span></header>
+                        <header><div><strong>{row.label}</strong><small>{row.support} objetos</small></div><span>Δ {metricConfig.label} {formatPoints(row.selectedDelta)}</span></header>
                         <div className="evaluation-comparison-class-bars">
-                            <div><span className="side-a">A</span><i><b className="side-a" style={{ width: `${Math.max(0, Math.min(1, row.leftAp ?? 0)) * 100}%` }} /></i><strong>{formatPercent(row.leftAp)}</strong></div>
-                            <div><span className="side-b">B</span><i><b className="side-b" style={{ width: `${Math.max(0, Math.min(1, row.rightAp ?? 0)) * 100}%` }} /></i><strong>{formatPercent(row.rightAp)}</strong></div>
+                            <div><span className="side-a">A</span><i><b className="side-a" style={{ width: `${Math.max(0, Math.min(1, row[metricConfig.leftKey] ?? 0)) * 100}%` }} /></i><strong>{formatPercent(row[metricConfig.leftKey])}</strong></div>
+                            <div><span className="side-b">B</span><i><b className="side-b" style={{ width: `${Math.max(0, Math.min(1, row[metricConfig.rightKey] ?? 0)) * 100}%` }} /></i><strong>{formatPercent(row[metricConfig.rightKey])}</strong></div>
                         </div>
-                        <dl className="evaluation-comparison-class-meta"><div><dt>AR A / B</dt><dd>{formatPercent(row.leftAr)} / {formatPercent(row.rightAr)}</dd></div><div><dt>Suprimidos A / B</dt><dd>{row.leftSuppressed} / {row.rightSuppressed}</dd></div></dl>
+                        <dl className="evaluation-comparison-class-meta"><div><dt>AP A / B</dt><dd>{formatPercent(row.leftAp)} / {formatPercent(row.rightAp)}</dd></div><div><dt>AR A / B</dt><dd>{formatPercent(row.leftAr)} / {formatPercent(row.rightAr)}</dd></div><div><dt>Preservación A / B</dt><dd>{formatPercent(row.leftPreservationRate)} / {formatPercent(row.rightPreservationRate)}</dd></div><div><dt>Suprimidos A / B</dt><dd>{row.leftSuppressed} / {row.rightSuppressed}</dd></div></dl>
                     </article>
                 ))}
             </div>
@@ -444,8 +598,14 @@ function DetectionClassComparison({ leftEvaluation, rightEvaluation }) {
 function getDetectionPrSeries(evaluation, scope) {
     const supervised = evaluation?.supervised
     if (!supervised?.available) return null
-    if (scope === 'global') return supervised.adversarial?.precision_recall_curve
-    return supervised.adversarial?.per_class?.find((entry) => String(entry.reference?.category_internal_id ?? entry.reference?.category_name) === scope)?.precision_recall_curve
+    if (scope === 'global') {
+        return {
+            curve: supervised.adversarial?.precision_recall_curve,
+            score: supervised.adversarial?.aggregate?.map_50_95,
+        }
+    }
+    const row = supervised.adversarial?.per_class?.find((entry) => String(entry.reference?.category_internal_id ?? entry.reference?.category_name) === scope)
+    return row ? { curve: row.precision_recall_curve, score: row.average_precision } : null
 }
 
 function DetectionCurveComparison({ leftEvaluation, rightEvaluation }) {
@@ -459,11 +619,12 @@ function DetectionCurveComparison({ leftEvaluation, rightEvaluation }) {
             <ComparisonGuide intro="Una curva más alta mantiene más precisión para el mismo recall. A y B usan colores de identidad, no de calidad." items={[{ title: 'Promedio global', text: 'Promedia el protocolo COCO sobre clases e IoU; una clase concreta permite localizar diferencias específicas.' }, { title: 'Área de la curva', text: 'Una curva superior suele corresponder a mayor AP.' }]} />
             <ComparisonCurveChart
                 series={[
-                    { key: 'a', label: 'Evaluación A', color: 'var(--comparison-a)', points: leftCurve?.points, xKey: 'recall' },
-                    { key: 'b', label: 'Evaluación B', color: 'var(--comparison-b)', points: rightCurve?.points, xKey: 'recall' },
+                    { key: 'a', label: 'Evaluación A', color: 'var(--comparison-a)', points: leftCurve?.curve?.points, xKey: 'recall', score: leftCurve?.score },
+                    { key: 'b', label: 'Evaluación B', color: 'var(--comparison-b)', points: rightCurve?.curve?.points, xKey: 'recall', score: rightCurve?.score },
                 ]}
                 xLabel="Recall"
                 yLabel="Precisión"
+                scoreLabel={scope === 'global' ? 'mAP' : 'AP'}
             />
         </section>
     )
@@ -502,7 +663,7 @@ function DetectionTideComparison({ leftEvaluation, rightEvaluation }) {
                         <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="4 4" horizontal={false} />
                         <XAxis type="number" tick={{ fill: 'var(--muted)', fontSize: 11 }} />
                         <YAxis type="category" dataKey="label" width={120} tick={{ fill: 'var(--text-soft)', fontSize: 11 }} />
-                        <Tooltip cursor={false} content={<ComparisonTideTooltip />} />
+                        <Tooltip cursor={false} wrapperStyle={{ zIndex: 50, pointerEvents: 'none' }} content={<ComparisonTideTooltip />} />
                         <Bar dataKey="a" name="Evaluación A" fill="var(--comparison-a)" radius={[0, 5, 5, 0]} />
                         <Bar dataKey="b" name="Evaluación B" fill="var(--comparison-b)" radius={[0, 5, 5, 0]} />
                     </BarChart>
@@ -575,6 +736,10 @@ function DetectionObjectCases({ leftEvaluation, rightEvaluation }) {
                 ]}
                 note="Los IDs y coordenadas siguen disponibles en los datos almacenados, pero la vista prioriza la evidencia visual porque es más interpretable."
             />
+            <div className="evaluation-comparison-paired-stats" aria-label="Resumen de preservación A/B">
+                <div><span>Desacuerdo de preservación</span><strong>{summary.preservation_disagreements} / {summary.total}</strong><small>{formatPercent(summary.preservation_disagreement_rate)} de los objetos comparables</small></div>
+                <div><span>Balance neto</span><strong className={summary.preservation_balance < 0 ? 'side-a' : summary.preservation_balance > 0 ? 'side-b' : ''}>{summary.preservation_balance > 0 ? '+' : ''}{summary.preservation_balance}</strong><small>{summary.preservation_balance === 0 ? 'Mismo número preservado en exclusiva' : `${Math.abs(summary.preservation_balance)} objetos hacia ${summary.preservation_balance > 0 ? 'B' : 'A'}`}</small></div>
+            </div>
             <div className="evaluation-comparison-case-summary" role="group" aria-label="Filtros de comportamiento por objeto">
                 {filters.map(([id, label, count]) => (
                     <button key={id} type="button" className={filter === id ? 'active' : ''} onClick={() => { setFilter(id); setVisible(8) }}>
@@ -744,6 +909,7 @@ function ComparisonImages({ taskType, leftItem, rightItem, leftEvaluation, right
     const shown = filteredPairs.slice(0, visible)
     const explanationLabel = taskType === 'detection' ? 'Eigen-CAM' : 'Grad-CAM'
     const classificationSummary = useMemo(() => taskType === 'classification' ? getClassificationComparisonCaseSummary(leftEvaluation, rightEvaluation) : null, [leftEvaluation, rightEvaluation, taskType])
+    const detectionImageSummary = useMemo(() => taskType === 'detection' ? getDetectionImageCaseSummary(leftEvaluation, rightEvaluation) : null, [leftEvaluation, rightEvaluation, taskType])
 
     async function requestExplanation(side, item, result) {
         const key = imageExplanationKey(side, result.image_id)
@@ -759,23 +925,48 @@ function ComparisonImages({ taskType, leftItem, rightItem, leftEvaluation, right
         }
     }
 
-    const filters = taskType === 'detection'
-        ? [['all', 'Todas'], ['left_more', 'Más detecciones en A'], ['right_more', 'Más detecciones en B'], ['different', 'Conteo diferente'], ['equal', 'Mismo conteo']]
-        : [['all', 'Todas'], ['left_better', 'A acierta / B falla'], ['right_better', 'B acierta / A falla'], ['both_fail', 'Ambas fallan'], ['both_correct', 'Ambas aciertan']]
+    const caseFilters = taskType === 'detection'
+        ? [
+            ['all', 'Todas', detectionImageSummary?.total ?? 0],
+            ['left_more', 'Más detecciones en A', detectionImageSummary?.left_more ?? 0],
+            ['right_more', 'Más detecciones en B', detectionImageSummary?.right_more ?? 0],
+            ['different', 'Conteo diferente', detectionImageSummary?.different ?? 0],
+            ['equal', 'Mismo conteo', detectionImageSummary?.equal ?? 0],
+        ]
+        : [
+            ['all', 'Todas', classificationSummary?.total ?? 0],
+            ['both_correct', 'Ambas aciertan', classificationSummary?.both_correct ?? 0],
+            ['left_better', 'Solo A acierta', classificationSummary?.left_better ?? 0],
+            ['right_better', 'Solo B acierta', classificationSummary?.right_better ?? 0],
+            ['both_fail', 'Ambas fallan', classificationSummary?.both_fail ?? 0],
+        ]
 
     return (
         <section className="evaluation-comparison-detail-section">
             <ComparisonSectionHeading eyebrow="Casos concretos" title="La misma imagen bajo A y B" description="Filtra casos divergentes y abre perturbaciones o explicabilidad solo cuando necesites profundizar." />
-            <ComparisonGuide intro="Las miniaturas permiten detectar diferencias de un vistazo. Amplía cualquier vista para inspeccionar detalle sin perder bounding boxes ni etiquetas." items={[{ title: 'Filtros comparativos', text: taskType === 'detection' ? 'Priorizan imágenes donde A y B publican distinto número de detecciones.' : 'Priorizan casos donde una evaluación conserva la clase correcta y la otra no.' }, { title: explanationLabel, text: sameModel ? `Puede solicitarse bajo demanda para cada evaluación sin repetir el ataque.` : `La generación bajo demanda se reserva a comparaciones con el mismo modelo para no cambiar el modelo activo global.` }]} />
+            <ComparisonGuide
+                intro="Las miniaturas permiten detectar diferencias de un vistazo. Amplía cualquier vista para inspeccionar detalle sin perder bounding boxes ni etiquetas."
+                items={[
+                    { title: 'Filtros comparativos', text: taskType === 'detection' ? 'Priorizan imágenes donde A y B publican distinto número de detecciones.' : 'Priorizan casos donde una evaluación conserva la clase correcta y la otra no.' },
+                    sameModel
+                        ? { title: explanationLabel, text: `Puede solicitarse bajo demanda para cada evaluación sin repetir el ataque.` }
+                        : { title: 'Explicabilidad entre modelos', text: `${explanationLabel} no se muestra al comparar modelos distintos porque su generación depende del modelo activo. Cambiarlo automáticamente alteraría el estado global de la aplicación.` },
+                ]}
+            />
             {classificationSummary && (
-                <div className="evaluation-comparison-disagreement-matrix" role="group" aria-label="Resumen de desacuerdos A/B">
-                    <button type="button" className={filter === 'both_correct' ? 'active' : ''} onClick={() => { setFilter('both_correct'); setVisible(8) }}><strong>{classificationSummary.both_correct}</strong><span>Ambas aciertan</span></button>
-                    <button type="button" className={filter === 'left_better' ? 'active side-a' : 'side-a'} onClick={() => { setFilter('left_better'); setVisible(8) }}><strong>{classificationSummary.left_better}</strong><span>Solo A acierta</span></button>
-                    <button type="button" className={filter === 'right_better' ? 'active side-b' : 'side-b'} onClick={() => { setFilter('right_better'); setVisible(8) }}><strong>{classificationSummary.right_better}</strong><span>Solo B acierta</span></button>
-                    <button type="button" className={filter === 'both_fail' ? 'active' : ''} onClick={() => { setFilter('both_fail'); setVisible(8) }}><strong>{classificationSummary.both_fail}</strong><span>Ambas fallan</span></button>
+                <div className="evaluation-comparison-paired-stats" aria-label="Desacuerdo estadístico A/B">
+                    <div><span>Tasa de desacuerdo</span><strong>{formatPercent(classificationSummary.disagreement_rate)}</strong><small>{classificationSummary.discordant} de {classificationSummary.total} imágenes tienen distinto resultado de acierto/fallo</small></div>
+                    <div><span>McNemar exacto</span><strong>{classificationSummary.mcnemar_exact_p < 0.001 ? '< 0.001' : classificationSummary.mcnemar_exact_p.toFixed(3)}</strong><small>Contrasta si los desacuerdos están sistemáticamente inclinados hacia A o B</small></div>
                 </div>
             )}
-            <div className="evaluation-comparison-image-filters">{filters.map(([id, label]) => <button key={id} type="button" className={filter === id ? 'active' : ''} onClick={() => { setFilter(id); setVisible(8) }}>{label}</button>)}<span>{filteredPairs.length} casos</span></div>
+            <div className="evaluation-comparison-case-summary image-cases" role="group" aria-label="Filtros de casos A/B">
+                {caseFilters.map(([id, label, count]) => (
+                    <button key={id} type="button" className={`${filter === id ? 'active ' : ''}${id === 'left_better' || id === 'left_more' ? 'side-a' : id === 'right_better' || id === 'right_more' ? 'side-b' : ''}`.trim()} onClick={() => { setFilter(id); setVisible(8) }}>
+                        <strong>{count}</strong><span>{label}</span>
+                    </button>
+                ))}
+            </div>
+            {classificationSummary && <p className="evaluation-comparison-stat-note"><strong>Cómo leer McNemar:</strong> un p pequeño aporta evidencia de que los desacuerdos favorecen sistemáticamente a una evaluación en estas mismas imágenes. No mide el tamaño ni la importancia práctica de la diferencia.</p>}
             {shown.map(({ left, right }) => {
                 const leftExplanation = explanations[imageExplanationKey('a', left.image_id)] ?? { status: 'idle' }
                 const rightExplanation = explanations[imageExplanationKey('b', right.image_id)] ?? { status: 'idle' }
@@ -802,20 +993,18 @@ function ComparisonImages({ taskType, leftItem, rightItem, leftEvaluation, right
                                 {taskType === 'detection' && <><div className="side-a"><strong>A</strong><span>L∞ {formatNumber(left.perturbation_linf, 4)}</span><span>L2 {formatNumber(left.perturbation_l2, 4)}</span></div><div className="side-b"><strong>B</strong><span>L∞ {formatNumber(right.perturbation_linf, 4)}</span><span>L2 {formatNumber(right.perturbation_l2, 4)}</span></div></>}
                             </div>
                         </details>
-                        <details className="evaluation-comparison-image-extra">
+                        {sameModel && <details className="evaluation-comparison-image-extra">
                             <summary>{explanationLabel} <span>explicabilidad bajo demanda</span></summary>
-                            {!sameModel ? <p className="evaluation-comparison-explain-note">Para comparar modelos distintos no cambiamos automáticamente el modelo activo. Así evitamos alterar el estado global de la aplicación durante una comparación histórica.</p> : <>
-                                <div className="evaluation-comparison-explain-actions">
-                                    <button type="button" disabled={leftExplanation.status === 'loading' || leftExplanation.status === 'success'} onClick={() => requestExplanation('a', leftItem, left)}>{leftExplanation.status === 'loading' ? `Generando ${explanationLabel} A…` : leftExplanation.status === 'success' ? `${explanationLabel} A generado` : `Generar ${explanationLabel} A`}</button>
-                                    <button type="button" disabled={rightExplanation.status === 'loading' || rightExplanation.status === 'success'} onClick={() => requestExplanation('b', rightItem, right)}>{rightExplanation.status === 'loading' ? `Generando ${explanationLabel} B…` : rightExplanation.status === 'success' ? `${explanationLabel} B generado` : `Generar ${explanationLabel} B`}</button>
-                                </div>
-                                {(leftExplanation.error || rightExplanation.error) && <div className="evaluation-comparison-explain-errors">{leftExplanation.error && <p><strong>A:</strong> {leftExplanation.error}</p>}{rightExplanation.error && <p><strong>B:</strong> {rightExplanation.error}</p>}</div>}
-                                <div className="evaluation-comparison-explain-grid">
-                                    {leftExplanation.status === 'success' && (taskType === 'detection' ? <><ComparisonImageFigure label={`${explanationLabel} A · original`} url={leftExplanation.data.original_eigencam_image_url} onExpand={setPreview} tone="side-a" /><ComparisonImageFigure label={`${explanationLabel} A · ataque`} url={leftExplanation.data.adversarial_eigencam_image_url} onExpand={setPreview} tone="side-a" /></> : <><ComparisonImageFigure label={`${explanationLabel} A · original`} url={leftExplanation.data.original_gradcam_image_url} onExpand={setPreview} tone="side-a" /><ComparisonImageFigure label={`${explanationLabel} A · ataque`} url={leftExplanation.data.adversarial_gradcam_image_url} onExpand={setPreview} tone="side-a" /></>)}
-                                    {rightExplanation.status === 'success' && (taskType === 'detection' ? <><ComparisonImageFigure label={`${explanationLabel} B · original`} url={rightExplanation.data.original_eigencam_image_url} onExpand={setPreview} tone="side-b" /><ComparisonImageFigure label={`${explanationLabel} B · ataque`} url={rightExplanation.data.adversarial_eigencam_image_url} onExpand={setPreview} tone="side-b" /></> : <><ComparisonImageFigure label={`${explanationLabel} B · original`} url={rightExplanation.data.original_gradcam_image_url} onExpand={setPreview} tone="side-b" /><ComparisonImageFigure label={`${explanationLabel} B · ataque`} url={rightExplanation.data.adversarial_gradcam_image_url} onExpand={setPreview} tone="side-b" /></>)}
-                                </div>
-                            </>}
-                        </details>
+                            <div className="evaluation-comparison-explain-actions">
+                                <button type="button" disabled={leftExplanation.status === 'loading' || leftExplanation.status === 'success'} onClick={() => requestExplanation('a', leftItem, left)}>{leftExplanation.status === 'loading' ? `Generando ${explanationLabel} A…` : leftExplanation.status === 'success' ? `${explanationLabel} A generado` : `Generar ${explanationLabel} A`}</button>
+                                <button type="button" disabled={rightExplanation.status === 'loading' || rightExplanation.status === 'success'} onClick={() => requestExplanation('b', rightItem, right)}>{rightExplanation.status === 'loading' ? `Generando ${explanationLabel} B…` : rightExplanation.status === 'success' ? `${explanationLabel} B generado` : `Generar ${explanationLabel} B`}</button>
+                            </div>
+                            {(leftExplanation.error || rightExplanation.error) && <div className="evaluation-comparison-explain-errors">{leftExplanation.error && <p><strong>A:</strong> {leftExplanation.error}</p>}{rightExplanation.error && <p><strong>B:</strong> {rightExplanation.error}</p>}</div>}
+                            <div className="evaluation-comparison-explain-grid">
+                                {leftExplanation.status === 'success' && (taskType === 'detection' ? <><ComparisonImageFigure label={`${explanationLabel} A · original`} url={leftExplanation.data.original_eigencam_image_url} onExpand={setPreview} tone="side-a" /><ComparisonImageFigure label={`${explanationLabel} A · ataque`} url={leftExplanation.data.adversarial_eigencam_image_url} onExpand={setPreview} tone="side-a" /></> : <><ComparisonImageFigure label={`${explanationLabel} A · original`} url={leftExplanation.data.original_gradcam_image_url} onExpand={setPreview} tone="side-a" /><ComparisonImageFigure label={`${explanationLabel} A · ataque`} url={leftExplanation.data.adversarial_gradcam_image_url} onExpand={setPreview} tone="side-a" /></>)}
+                                {rightExplanation.status === 'success' && (taskType === 'detection' ? <><ComparisonImageFigure label={`${explanationLabel} B · original`} url={rightExplanation.data.original_eigencam_image_url} onExpand={setPreview} tone="side-b" /><ComparisonImageFigure label={`${explanationLabel} B · ataque`} url={rightExplanation.data.adversarial_eigencam_image_url} onExpand={setPreview} tone="side-b" /></> : <><ComparisonImageFigure label={`${explanationLabel} B · original`} url={rightExplanation.data.original_gradcam_image_url} onExpand={setPreview} tone="side-b" /><ComparisonImageFigure label={`${explanationLabel} B · ataque`} url={rightExplanation.data.adversarial_gradcam_image_url} onExpand={setPreview} tone="side-b" /></>)}
+                            </div>
+                        </details>}
                     </article>
                 )
             })}

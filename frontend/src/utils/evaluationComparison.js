@@ -336,6 +336,10 @@ export function getDetectionClassComparison(leftEvaluation, rightEvaluation) {
             rightAr: comparisonMetricValue(rightAdversarialRow?.average_recall),
             leftSuppressed: Number(leftObjects.get(key)?.suppressed_count ?? 0),
             rightSuppressed: Number(rightObjects.get(key)?.suppressed_count ?? 0),
+            leftPreservationRate: comparisonMetricValue(leftObjects.get(key)?.preservation_rate),
+            rightPreservationRate: comparisonMetricValue(rightObjects.get(key)?.preservation_rate),
+            leftSuppressionRate: comparisonMetricValue(leftObjects.get(key)?.suppression_rate),
+            rightSuppressionRate: comparisonMetricValue(rightObjects.get(key)?.suppression_rate),
             delta: leftAp != null && rightAp != null ? rightAp - leftAp : null,
         }
     })
@@ -500,14 +504,45 @@ export function getComparisonInsights(taskType, metrics, classRows = []) {
     return insights.slice(0, 3)
 }
 
+function exactTwoSidedBinomialP(leftCount, rightCount) {
+    const total = leftCount + rightCount
+    if (total === 0) return 1
+
+    const tail = Math.min(leftCount, rightCount)
+    let probability = 2 ** (-total)
+    let cumulative = probability
+    for (let successes = 0; successes < tail; successes += 1) {
+        probability *= (total - successes) / (successes + 1)
+        cumulative += probability
+    }
+    return Math.min(1, cumulative * 2)
+}
+
 export function getClassificationComparisonCaseSummary(leftEvaluation, rightEvaluation) {
+    const pairs = getComparisonImagePairs(leftEvaluation, rightEvaluation)
+    const leftBetter = pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'left_better')).length
+    const rightBetter = pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'right_better')).length
+    const discordant = leftBetter + rightBetter
+    return {
+        total: pairs.length,
+        left_better: leftBetter,
+        right_better: rightBetter,
+        both_fail: pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'both_fail')).length,
+        both_correct: pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'both_correct')).length,
+        discordant,
+        disagreement_rate: pairs.length ? discordant / pairs.length : 0,
+        mcnemar_exact_p: exactTwoSidedBinomialP(leftBetter, rightBetter),
+    }
+}
+
+export function getDetectionImageCaseSummary(leftEvaluation, rightEvaluation) {
     const pairs = getComparisonImagePairs(leftEvaluation, rightEvaluation)
     return {
         total: pairs.length,
-        left_better: pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'left_better')).length,
-        right_better: pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'right_better')).length,
-        both_fail: pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'both_fail')).length,
-        both_correct: pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'both_correct')).length,
+        left_more: pairs.filter((pair) => matchesComparisonImageFilter('detection', pair, 'left_more')).length,
+        right_more: pairs.filter((pair) => matchesComparisonImageFilter('detection', pair, 'right_more')).length,
+        different: pairs.filter((pair) => matchesComparisonImageFilter('detection', pair, 'different')).length,
+        equal: pairs.filter((pair) => matchesComparisonImageFilter('detection', pair, 'equal')).length,
     }
 }
 
@@ -526,12 +561,18 @@ export function matchesDetectionObjectCaseFilter(pair, filter = 'all') {
 
 export function getDetectionObjectCaseSummary(leftEvaluation, rightEvaluation) {
     const pairs = getDetectionObjectComparisonPairs(leftEvaluation, rightEvaluation)
+    const onlyA = pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'only_a')).length
+    const onlyB = pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'only_b')).length
+    const preservationDisagreements = onlyA + onlyB
     return {
         total: pairs.length,
-        only_a: pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'only_a')).length,
-        only_b: pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'only_b')).length,
+        only_a: onlyA,
+        only_b: onlyB,
         both_preserved: pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'both_preserved')).length,
         both_suppressed: pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'both_suppressed')).length,
         different: pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'different')).length,
+        preservation_disagreements: preservationDisagreements,
+        preservation_disagreement_rate: pairs.length ? preservationDisagreements / pairs.length : 0,
+        preservation_balance: onlyB - onlyA,
     }
 }
