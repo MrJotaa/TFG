@@ -9,6 +9,7 @@ import {
 } from '../api/evaluationHistory'
 import {
     deleteIndividualAnalysis,
+    getAllIndividualAnalysisHistory,
     getIndividualAnalysisHistory,
     getStoredIndividualAnalysis,
 } from '../api/individualAnalysisHistory'
@@ -25,6 +26,7 @@ import {
     isNearExpiration,
 } from '../utils/evaluationHistory'
 import {
+    getCompatibleIndividualAnalysisCandidates,
     individualAnalysisOutcome,
     individualAnalysisSummary,
 } from '../utils/individualAnalysisHistory'
@@ -199,16 +201,32 @@ function IndividualAnalysisCopy({ item, datasets, attackCatalog }) {
     )
 }
 
-function HistoryMoreMenu({ children, label = 'Más acciones' }) {
+function HistoryMoreMenu({
+    children,
+    label = 'Más acciones',
+    menuId,
+    open,
+    onToggle,
+}) {
     return (
-        <details className="dashboard-history-more">
-            <summary aria-label={label} title={label}>
+        <div className="dashboard-history-more">
+            <button
+                type="button"
+                className="dashboard-history-more-trigger"
+                aria-label={label}
+                title={label}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                onClick={() => onToggle(menuId)}
+            >
                 <MoreIcon />
-            </summary>
-            <div className="dashboard-history-more-menu">
-                {children}
-            </div>
-        </details>
+            </button>
+            {open && (
+                <div className="dashboard-history-more-menu" role="menu">
+                    {children}
+                </div>
+            )}
+        </div>
     )
 }
 
@@ -281,6 +299,7 @@ function DashboardHistory({
     onNavigateToIndividualAnalysis,
     onNavigateToProfile,
     onNavigateToComparison,
+    onNavigateToIndividualComparison,
 }) {
     const [historyKind, setHistoryKind] = useState('evaluations')
     const [history, setHistory] = useState({ items: [], total: 0 })
@@ -292,12 +311,45 @@ function DashboardHistory({
     const [mutationResultId, setMutationResultId] = useState('')
     const [refreshKey, setRefreshKey] = useState(0)
     const [confirmation, setConfirmation] = useState(null)
+    const [openMenuId, setOpenMenuId] = useState(null)
     const [comparisonBase, setComparisonBase] = useState(null)
     const [comparisonCandidates, setComparisonCandidates] = useState([])
     const [comparisonLoading, setComparisonLoading] = useState(false)
     const [comparisonVisibleCount, setComparisonVisibleCount] = useState(
         COMPARISON_CANDIDATE_STEP,
     )
+
+    useEffect(() => {
+        if (!openMenuId) return undefined
+
+        function handlePointerDown(event) {
+            if (!event.target.closest('.dashboard-history-more')) {
+                setOpenMenuId(null)
+            }
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Escape') setOpenMenuId(null)
+        }
+
+        document.addEventListener('pointerdown', handlePointerDown)
+        document.addEventListener('keydown', handleKeyDown)
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown)
+            document.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [openMenuId])
+
+    useEffect(() => {
+        if (!confirmation || mutationResultId) return undefined
+
+        function handleKeyDown(event) {
+            if (event.key === 'Escape') setConfirmation(null)
+        }
+
+        document.addEventListener('keydown', handleKeyDown)
+        return () => document.removeEventListener('keydown', handleKeyDown)
+    }, [confirmation, mutationResultId])
 
     useEffect(() => {
         let cancelled = false
@@ -336,6 +388,7 @@ function DashboardHistory({
     }
 
     function handleHistoryKind(value) {
+        setOpenMenuId(null)
         closeComparisonPicker()
         setHistoryKind(value)
         setTaskType('')
@@ -344,6 +397,7 @@ function DashboardHistory({
     }
 
     function handleTaskFilter(value) {
+        setOpenMenuId(null)
         closeComparisonPicker()
         setTaskType(value)
         setOffset(0)
@@ -452,16 +506,25 @@ function DashboardHistory({
     }
 
     async function handleStartComparison(item) {
-        if (item.status !== 'completed') return
+        if (historyKind === 'evaluations' && item.status !== 'completed') return
 
         try {
+            setOpenMenuId(null)
             setComparisonBase(item)
             setComparisonCandidates([])
             setComparisonVisibleCount(COMPARISON_CANDIDATE_STEP)
             setComparisonLoading(true)
             setError('')
-            const items = await getAllEvaluationHistory({ taskType: item.task_type })
-            setComparisonCandidates(getCompatibleEvaluationCandidates(item, items))
+
+            if (historyKind === 'evaluations') {
+                const items = await getAllEvaluationHistory({ taskType: item.task_type })
+                setComparisonCandidates(getCompatibleEvaluationCandidates(item, items))
+            } else {
+                const items = await getAllIndividualAnalysisHistory({ taskType: item.task_type })
+                setComparisonCandidates(
+                    getCompatibleIndividualAnalysisCandidates(item, items),
+                )
+            }
         } catch (requestError) {
             setComparisonBase(null)
             setError(requestError.message)
@@ -470,9 +533,13 @@ function DashboardHistory({
         }
     }
 
+    function toggleMoreMenu(menuId) {
+        setOpenMenuId((current) => current === menuId ? null : menuId)
+    }
+
     const currentPage = Math.floor(offset / HISTORY_PAGE_SIZE) + 1
     const pageCount = Math.max(1, Math.ceil(history.total / HISTORY_PAGE_SIZE))
-    const comparisonMode = historyKind === 'evaluations' && Boolean(comparisonBase)
+    const comparisonMode = Boolean(comparisonBase)
     const isEvaluationHistory = historyKind === 'evaluations'
 
     return (
@@ -484,7 +551,7 @@ function DashboardHistory({
                     <p>
                         {isEvaluationHistory
                             ? 'Recupera evaluaciones anteriores, conserva resultados importantes o compara ejecuciones compatibles.'
-                            : 'Reabre los análisis de una sola imagen que hayas decidido guardar explícitamente.'}
+                            : 'Reabre o compara los análisis de una sola imagen que hayas decidido guardar explícitamente.'}
                     </p>
                 </div>
                 {isEvaluationHistory && (
@@ -551,7 +618,7 @@ function DashboardHistory({
                     <header className="dashboard-comparison-picker-heading">
                         <div>
                             <span className="dashboard-section-eyebrow">Comparación controlada</span>
-                            <h2>Selecciona la evaluación B</h2>
+                            <h2>Selecciona {isEvaluationHistory ? 'la evaluación' : 'el análisis'} B</h2>
                             <p>
                                 Solo mostramos resultados donde cambia una única variable:
                                 modelo, ataque o configuración del ataque.
@@ -566,7 +633,7 @@ function DashboardHistory({
                         </button>
                     </header>
 
-                    <article className="dashboard-comparison-base" aria-label="Evaluación A seleccionada">
+                    <article className="dashboard-comparison-base" aria-label={`${isEvaluationHistory ? 'Evaluación' : 'Análisis'} A seleccionado`}>
                         <span className="dashboard-comparison-side side-a">A</span>
                         <div className="dashboard-comparison-base-copy">
                             <strong>{comparisonBase.model_name}</strong>
@@ -581,6 +648,7 @@ function DashboardHistory({
                             <small>
                                 {comparisonBase.dataset_name} · revisión{' '}
                                 {comparisonBase.dataset_revision}
+                                {!isEvaluationHistory && ` · ${comparisonBase.image_filename}`}
                             </small>
                         </div>
                     </article>
@@ -592,10 +660,9 @@ function DashboardHistory({
                         </div>
                     ) : comparisonCandidates.length === 0 ? (
                         <div className="dashboard-empty-state dashboard-comparison-empty">
-                            <strong>No hay otra evaluación compatible</strong>
+                            <strong>No hay otro {isEvaluationHistory ? 'resultado' : 'análisis'} compatible</strong>
                             <span>
-                                Necesitas otra ejecución sobre la misma revisión del conjunto de
-                                datos donde cambie solo el modelo, el ataque o su configuración.
+                                Necesitas otro resultado sobre la misma revisión, y en análisis individuales también sobre la misma imagen, donde cambie solo el modelo, el ataque o su configuración.
                             </span>
                         </div>
                     ) : (
@@ -604,11 +671,19 @@ function DashboardHistory({
                                 .slice(0, comparisonVisibleCount)
                                 .map(({ item, comparison }) => (
                                     <article
-                                        key={item.result_id}
+                                        key={isEvaluationHistory ? item.result_id : item.analysis_id}
                                         className="dashboard-comparison-candidate"
                                     >
                                         <span className="dashboard-comparison-side side-b">B</span>
-                                        <EvaluationCopy item={item} attackCatalog={attackCatalog} />
+                                        {isEvaluationHistory ? (
+                                            <EvaluationCopy item={item} attackCatalog={attackCatalog} />
+                                        ) : (
+                                            <IndividualAnalysisCopy
+                                                item={item}
+                                                datasets={datasets}
+                                                attackCatalog={attackCatalog}
+                                            />
+                                        )}
                                         <div className="dashboard-comparison-candidate-action">
                                             <span className={`dashboard-comparison-kind kind-${comparison.kind}`}>
                                                 {comparison.label}
@@ -616,7 +691,13 @@ function DashboardHistory({
                                             <button
                                                 type="button"
                                                 className="dashboard-history-compare primary"
-                                                onClick={() => onNavigateToComparison(comparisonBase, item)}
+                                                onClick={() => {
+                                                    if (isEvaluationHistory) {
+                                                        onNavigateToComparison(comparisonBase, item)
+                                                    } else {
+                                                        onNavigateToIndividualComparison(comparisonBase, item)
+                                                    }
+                                                }}
                                             >
                                                 Comparar
                                                 <ArrowIcon />
@@ -717,12 +798,17 @@ function DashboardHistory({
                                     <ArrowIcon />
                                 </button>
                                 {item.status === 'completed' && (
-                                    <HistoryMoreMenu label={`Más acciones para ${item.dataset_name}`}>
+                                    <HistoryMoreMenu
+                                        label={`Más acciones para ${item.dataset_name}`}
+                                        menuId={`evaluation-${item.result_id}`}
+                                        open={openMenuId === `evaluation-${item.result_id}`}
+                                        onToggle={toggleMoreMenu}
+                                    >
                                         <button
                                             type="button"
                                             disabled={mutationResultId === item.result_id}
-                                            onClick={(event) => {
-                                                event.currentTarget.closest('details')?.removeAttribute('open')
+                                            onClick={() => {
+                                                setOpenMenuId(null)
                                                 if (item.preserved) {
                                                     setConfirmation({
                                                         type: 'unpreserve-evaluation',
@@ -744,8 +830,8 @@ function DashboardHistory({
                                             type="button"
                                             className="danger"
                                             disabled={mutationResultId === item.result_id}
-                                            onClick={(event) => {
-                                                event.currentTarget.closest('details')?.removeAttribute('open')
+                                            onClick={() => {
+                                                setOpenMenuId(null)
                                                 setConfirmation({ type: 'delete-evaluation', item })
                                             }}
                                         >
@@ -775,6 +861,15 @@ function DashboardHistory({
                                 <span className="dashboard-history-status preserved">Conservado</span>
                                 <button
                                     type="button"
+                                    className="dashboard-history-compare"
+                                    onClick={() => handleStartComparison(item)}
+                                    title="Seleccionar como análisis A"
+                                >
+                                    <CompareIcon />
+                                    <span>Comparar</span>
+                                </button>
+                                <button
+                                    type="button"
                                     className="dashboard-history-open"
                                     disabled={openingResultId === item.analysis_id}
                                     onClick={() => handleOpenIndividualAnalysis(item)}
@@ -784,13 +879,18 @@ function DashboardHistory({
                                     </span>
                                     <ArrowIcon />
                                 </button>
-                                <HistoryMoreMenu label={`Más acciones para ${item.image_filename}`}>
+                                <HistoryMoreMenu
+                                    label={`Más acciones para ${item.image_filename}`}
+                                    menuId={`individual-${item.analysis_id}`}
+                                    open={openMenuId === `individual-${item.analysis_id}`}
+                                    onToggle={toggleMoreMenu}
+                                >
                                     <button
                                         type="button"
                                         className="danger"
                                         disabled={mutationResultId === item.analysis_id}
-                                        onClick={(event) => {
-                                            event.currentTarget.closest('details')?.removeAttribute('open')
+                                        onClick={() => {
+                                            setOpenMenuId(null)
                                             setConfirmation({ type: 'delete-individual', item })
                                         }}
                                     >

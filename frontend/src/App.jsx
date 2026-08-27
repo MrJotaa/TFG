@@ -11,6 +11,7 @@ import DatasetManager from './pages/DatasetManager'
 import ComparisonView from './pages/ComparisonView'
 import EvaluationComparisonView from './pages/EvaluationComparisonView'
 import EvaluationView from './pages/EvaluationView'
+import IndividualAnalysisComparisonView from './pages/IndividualAnalysisComparisonView'
 import ProfilePage from './pages/ProfilePage'
 
 function App() {
@@ -41,6 +42,10 @@ function App() {
                 <Route
                   path="/evaluations/compare"
                   element={<EvaluationComparisonView />}
+                />
+                <Route
+                  path="/individual-analyses/compare"
+                  element={<IndividualAnalysisComparisonView />}
                 />
               </Route>
             </Route>

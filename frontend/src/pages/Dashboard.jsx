@@ -280,6 +280,13 @@ function Dashboard() {
                                 })
                                 navigate(`/evaluations/compare?${search.toString()}`)
                             }}
+                            onNavigateToIndividualComparison={(left, right) => {
+                                const search = new URLSearchParams({
+                                    a: left.analysis_id,
+                                    b: right.analysis_id,
+                                })
+                                navigate(`/individual-analyses/compare?${search.toString()}`)
+                            }}
                         />
                     )}
                 </div>
