@@ -29,6 +29,7 @@ from utils.result_files import (
     create_result_directory,
     save_result_image,
     save_result_metadata,
+    save_result_payload,
 )
 
 
@@ -47,7 +48,6 @@ async def apply_adversarial_attack(
         dataset_id=request.dataset_id,
         image_id=request.image_id,
     )
-
     model = get_active_model_instance()
 
     require_model_task_type(
@@ -199,21 +199,7 @@ async def apply_adversarial_attack(
         filename="adversarial_gradcam.png",
     )
 
-    save_result_metadata(
-        result_path=result_path,
-        metadata={
-            "result_id": result_id,
-            "result_type": "attack",
-            "dataset_id": request.dataset_id,
-            "image_id": request.image_id,
-            "model_id": model.id,
-            "attack_type": request.attack_type,
-            "parameters": request.parameters.model_dump(),
-            "expires_in_hours": 24,
-        },
-    )
-
-    return AttackResponse(
+    response = AttackResponse(
         result_id=result_id,
         attack_type=request.attack_type,
         parameters=request.parameters,
@@ -225,3 +211,27 @@ async def apply_adversarial_attack(
         adversarial_prediction=adversarial_prediction,
         comparison=comparison,
     )
+
+    save_result_metadata(
+        result_path=result_path,
+        metadata={
+            "result_id": result_id,
+            "result_type": "attack",
+            "task_type": "classification",
+            "dataset_id": request.dataset_id,
+            "image_id": request.image_id,
+            "model_id": model.id,
+            "model_name": getattr(model, "name", model.id),
+            "model_revision": getattr(model, "revision", model.id),
+            "attack_type": request.attack_type.value,
+            "attack_revision": getattr(attack, "revision", None),
+            "parameters": request.parameters.model_dump(mode="json"),
+            "pipeline_version": "classification-individual-analysis-v1",
+            "expires_in_hours": 24,
+        },
+    )
+    save_result_payload(
+        result_path=result_path,
+        payload=response.model_dump(mode="json"),
+    )
+    return response

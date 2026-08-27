@@ -50,3 +50,17 @@ export function findCompatibleEvaluation({
         }),
     })
 }
+
+export function setEvaluationPreserved(evaluationId, preserved) {
+    return apiRequest(`/evaluations/${encodeURIComponent(evaluationId)}/preservation`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preserved: Boolean(preserved) }),
+    })
+}
+
+export function deleteEvaluation(evaluationId) {
+    return apiRequest(`/evaluations/${encodeURIComponent(evaluationId)}`, {
+        method: 'DELETE',
+    })
+}

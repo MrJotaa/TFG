@@ -10,3 +10,5 @@ detection_evaluations_collection = db["detection_evaluations"]
 # The existing collection is kept so previously persisted detection results
 # remain recoverable. New classification and detection evaluations share it.
 evaluations_collection = detection_evaluations_collection
+
+individual_analyses_collection = db["individual_analyses"]

@@ -15,6 +15,7 @@ let explainability
 let evaluation
 let detectionEvaluation
 let evaluationHistory
+let individualAnalysisHistory
 let originalFetch
 let storage
 
@@ -53,6 +54,7 @@ before(async () => {
         evaluation,
         detectionEvaluation,
         evaluationHistory,
+        individualAnalysisHistory,
     ] = await Promise.all([
         viteServer.ssrLoadModule('/src/api/client.js'),
         viteServer.ssrLoadModule('/src/api/auth.js'),
@@ -66,6 +68,7 @@ before(async () => {
         viteServer.ssrLoadModule('/src/api/evaluation.js'),
         viteServer.ssrLoadModule('/src/api/detectionEvaluation.js'),
         viteServer.ssrLoadModule('/src/api/evaluationHistory.js'),
+        viteServer.ssrLoadModule('/src/api/individualAnalysisHistory.js'),
     ])
 })
 
@@ -396,4 +399,48 @@ test('evaluation compatibility and recovery preserve task-specific identity', as
         calls[1].url,
         'http://127.0.0.1:8000/evaluations/evaluation%2Fwith%20spaces',
     )
+})
+
+
+test('individual analysis persistence and duplicate lookup use stable history contracts', async () => {
+    const calls = captureFetch(() => jsonResponse({ match: null }))
+
+    await individualAnalysisHistory.findCompatibleIndividualAnalysis({
+        taskType: 'classification',
+        datasetId: 'dataset-1',
+        imageId: 'image-1',
+        attackType: 'fgsm',
+        parameters: { epsilon: 0.03 },
+    })
+    await individualAnalysisHistory.saveIndividualAnalysis({
+        taskType: 'classification',
+        resultId: 'attack-result-1',
+    })
+
+    assert.equal(calls[0].url, 'http://127.0.0.1:8000/individual-analyses/compatibility')
+    assert.deepEqual(requestBody(calls[0]), {
+        task_type: 'classification',
+        dataset_id: 'dataset-1',
+        image_id: 'image-1',
+        attack_type: 'fgsm',
+        parameters: { epsilon: 0.03 },
+    })
+    assert.equal(calls[1].url, 'http://127.0.0.1:8000/individual-analyses')
+    assert.deepEqual(requestBody(calls[1]), {
+        task_type: 'classification',
+        result_id: 'attack-result-1',
+    })
+})
+
+test('evaluation history exposes preserve and delete operations', async () => {
+    const calls = captureFetch(() => jsonResponse({ preserved: true }))
+
+    await evaluationHistory.setEvaluationPreserved('evaluation-1', true)
+    await evaluationHistory.deleteEvaluation('evaluation-1')
+
+    assert.equal(calls[0].url, 'http://127.0.0.1:8000/evaluations/evaluation-1/preservation')
+    assert.equal(calls[0].options.method, 'PATCH')
+    assert.deepEqual(requestBody(calls[0]), { preserved: true })
+    assert.equal(calls[1].url, 'http://127.0.0.1:8000/evaluations/evaluation-1')
+    assert.equal(calls[1].options.method, 'DELETE')
 })

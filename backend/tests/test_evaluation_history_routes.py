@@ -92,3 +92,48 @@ def test_retention_preference_is_validated_and_returned(client, auth_headers):
         json={"result_retention_seconds": 604801},
     )
     assert invalid.status_code == 422
+
+
+def test_preserve_evaluation_uses_authenticated_owner_and_user_retention(
+    client, auth_headers, registered_user, monkeypatch
+):
+    captured = {}
+
+    async def fake_update(**kwargs):
+        captured.update(kwargs)
+        item = _history_item()
+        item["preserved"] = True
+        item["expires_at"] = None
+        return item
+
+    monkeypatch.setattr(history_route, "update_evaluation_preservation", fake_update)
+    response = client.patch(
+        "/evaluations/evaluation_00000000-0000-4000-8000-000000000001/preservation",
+        headers=auth_headers,
+        json={"preserved": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["preserved"] is True
+    assert captured["owner_id"] == registered_user["user"]["id"]
+    assert captured["retention_seconds"] == (
+        registered_user["user"]["result_retention_seconds"]
+    )
+
+
+def test_delete_evaluation_uses_authenticated_owner(
+    client, auth_headers, registered_user, monkeypatch
+):
+    captured = {}
+
+    async def fake_delete(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(history_route, "delete_evaluation_result", fake_delete)
+    response = client.delete(
+        "/evaluations/evaluation_00000000-0000-4000-8000-000000000001",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 204
+    assert captured["owner_id"] == registered_user["user"]["id"]

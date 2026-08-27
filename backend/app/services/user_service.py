@@ -177,8 +177,12 @@ async def delete_user(user_id: str) -> None:
         )
 
     from services.evaluation_history_service import delete_evaluations_for_owner
+    from services.individual_analysis_history_service import (
+        delete_individual_analyses_for_owner,
+    )
 
     await delete_evaluations_for_owner(user_id)
+    await delete_individual_analyses_for_owner(user_id)
 
     result = await users_collection.delete_one({"_id": object_id})
 
