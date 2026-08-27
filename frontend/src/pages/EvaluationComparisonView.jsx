@@ -13,6 +13,9 @@ import {
     baselineConsistency,
     classifyEvaluationComparison,
     getComparisonRetention,
+    getComparisonInsights,
+    getClassificationClassComparison,
+    getDetectionClassComparison,
     pairComparisonMetrics,
 } from '../utils/evaluationComparison'
 import { formatCreatedAgo } from '../utils/evaluationHistory'
@@ -45,7 +48,7 @@ function formatSupervisedProtocol(configuration) {
 }
 
 
-function SummaryComparisonGuide({ taskType }) {
+function SummaryComparisonGuide({ taskType, comparisonKind }) {
     return (
         <details className="evaluation-comparison-guide summary-guide">
             <summary>
@@ -54,10 +57,10 @@ function SummaryComparisonGuide({ taskType }) {
                 <span className="evaluation-comparison-guide-chevron" aria-hidden="true">⌄</span>
             </summary>
             <div className="evaluation-comparison-guide-body">
-                <p>Empieza por el rendimiento robusto y después compáralo con la referencia original. Así distingues entre rendimiento absoluto y capacidad de conservarlo tras el ataque.</p>
+                <p>{comparisonKind === 'model' ? 'Compara el rendimiento robusto y su retención frente a la referencia de cada modelo. Un valor absoluto mayor y una menor pérdida responden a preguntas complementarias.' : comparisonKind === 'attack' ? 'Compara cuánto rendimiento conserva el mismo modelo frente a cada ataque. Las diferencias describen el impacto observado, pero no convierten automáticamente un ataque en «mejor» o «peor» porque sus intensidades pueden no ser equivalentes.' : 'Compara cómo cambia el impacto del mismo ataque al modificar su configuración. La referencia original permanece como ancla para interpretar la degradación.'}</p>
                 <div className="evaluation-comparison-guide-grid">
                     <div><strong>A y B son identidades</strong><span>Ámbar y cian solo distinguen evaluaciones; no significan mejor o peor.</span></div>
-                    <div><strong>{taskType === 'detection' ? 'Retención de mAP' : 'Retención de exactitud'}</strong><span>Relaciona el resultado robusto con el rendimiento original de la misma evaluación.</span></div>
+                    <div><strong>{taskType === 'detection' ? 'Retención de mAP' : 'Retención de exactitud'}</strong><span>Relaciona el resultado robusto con el rendimiento original de la misma evaluación y evita confundir un buen punto de partida con mayor resistencia.</span></div>
                 </div>
                 <p className="evaluation-comparison-guide-note"><strong>Clave de interpretación:</strong> no se declara un ganador global. Cada métrica responde a una pregunta distinta.</p>
             </div>
@@ -240,6 +243,10 @@ function EvaluationComparisonView() {
         : null
     const leftRetention = getComparisonRetention(leftItem.task_type, leftEvaluation)
     const rightRetention = getComparisonRetention(rightItem.task_type, rightEvaluation)
+    const comparisonClassRows = leftItem.task_type === 'detection'
+        ? getDetectionClassComparison(leftEvaluation, rightEvaluation)
+        : getClassificationClassComparison(leftEvaluation, rightEvaluation, 'f1')
+    const insights = getComparisonInsights(leftItem.task_type, metrics, comparisonClassRows)
 
     return (
         <section className="evaluation-comparison-page">
@@ -338,11 +345,18 @@ function EvaluationComparisonView() {
                             <h2>Qué cambia entre A y B</h2>
                             <p>La visualización permite percibir primero el patrón; los valores exactos y el delta B − A permanecen visibles para cuantificarlo.</p>
                         </header>
-                        <SummaryComparisonGuide taskType={leftItem.task_type} />
+                        <SummaryComparisonGuide taskType={leftItem.task_type} comparisonKind={comparison.kind} />
                         <section className="evaluation-comparison-retention" aria-label="Retención de rendimiento">
                             <div><span className="evaluation-eyebrow">Perfil de robustez</span><h3>{leftItem.task_type === 'detection' ? 'Conservación de mAP' : 'Conservación de exactitud'}</h3><p>Compara el nivel original y el robusto dentro de cada evaluación antes de mirar el resto de métricas.</p></div>
                             <div className="evaluation-comparison-retention-grid"><RetentionProfile side="A" taskType={leftItem.task_type} data={leftRetention} /><RetentionProfile side="B" taskType={leftItem.task_type} data={rightRetention} /></div>
                         </section>
+
+                        {insights.length > 0 && (
+                            <section className="evaluation-comparison-insights" aria-label="Observaciones destacadas">
+                                <div><span className="evaluation-eyebrow">Lectura rápida</span><h3>Qué merece la pena investigar</h3><p>Observaciones descriptivas calculadas directamente de A y B; no constituyen un ganador global.</p></div>
+                                <div>{insights.map((insight) => <article key={insight.key} className={`side-${insight.side}`}><span aria-hidden="true">{insight.side.toUpperCase()}</span><p>{insight.text}</p></article>)}</div>
+                            </section>
+                        )}
 
                         <div className="evaluation-comparison-metrics" role="table" aria-label="Comparación de métricas">
                             <div className="evaluation-comparison-metric header" role="row">
@@ -352,13 +366,13 @@ function EvaluationComparisonView() {
                                 <span role="columnheader">Δ B − A</span>
                             </div>
                             {metrics.map((entry) => (
-                                <div key={entry.key} className={`evaluation-comparison-metric advantage-${entry.advantage}`} role="row">
+                                <div key={entry.key} className="evaluation-comparison-metric" role="row">
                                     <div role="cell" className="evaluation-comparison-metric-name">
-                                        <div><strong>{entry.label}</strong><small>{entry.higherIsBetter ? 'Mayor es mejor' : 'Menor es mejor'}</small></div>
+                                        <div><strong>{entry.label}</strong></div>
                                         <div className="evaluation-comparison-mini-bars" aria-hidden="true"><span className="side-a"><i style={{ width: metricBarWidth(entry.left) }} /></span><span className="side-b"><i style={{ width: metricBarWidth(entry.right) }} /></span></div>
                                     </div>
-                                    <span role="cell" className={entry.advantage === 'left' ? 'best' : ''}>{formatMetric(entry.left, entry.format)}</span>
-                                    <span role="cell" className={entry.advantage === 'right' ? 'best' : ''}>{formatMetric(entry.right, entry.format)}</span>
+                                    <span role="cell">{formatMetric(entry.left, entry.format)}</span>
+                                    <span role="cell">{formatMetric(entry.right, entry.format)}</span>
                                     <span role="cell" className="evaluation-comparison-delta">{formatDelta(entry.delta)}</span>
                                 </div>
                             ))}

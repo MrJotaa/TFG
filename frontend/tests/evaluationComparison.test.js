@@ -12,6 +12,10 @@ import {
     getDetectionObjectComparisonPairs,
     getDetectionTideComparisonRows,
     getComparisonRetention,
+    getComparisonInsights,
+    getClassificationComparisonCaseSummary,
+    getDetectionObjectCaseSummary,
+    matchesDetectionObjectCaseFilter,
     matchesComparisonImageFilter,
     pairComparisonMetrics,
     stableComparisonKey,
@@ -399,4 +403,76 @@ test('detection image filters compare adversarial detection counts without infer
     assert.equal(matchesComparisonImageFilter('detection', pair, 'right_more'), false)
     assert.equal(matchesComparisonImageFilter('detection', pair, 'different'), true)
     assert.equal(matchesComparisonImageFilter('detection', pair, 'equal'), false)
+})
+
+
+test('comparison insights highlight robust difference, degradation and strongest class', () => {
+    const metrics = pairComparisonMetrics(
+        'classification',
+        classificationEvaluation({ robust: 0.2, drop: 0.6 }),
+        classificationEvaluation({ robust: 0.5, drop: 0.3 }),
+    )
+    const insights = getComparisonInsights('classification', metrics, [
+        { key: 'cat', label: 'cat', delta: 0.1 },
+        { key: 'dog', label: 'dog', delta: -0.4 },
+    ])
+    assert.equal(insights.length, 3)
+    assert.match(insights[0].text, /B conserva 30\.0 pp más/)
+    assert.match(insights[1].text, /B sufre 30\.0 pp menos/)
+    assert.match(insights[2].text, /dog/)
+})
+
+test('classification case summary creates an A/B disagreement matrix', () => {
+    const left = { results: [
+        { image_id: '1', ground_truth_label: 'cat', adversarial_label: 'cat' },
+        { image_id: '2', ground_truth_label: 'cat', adversarial_label: 'cat' },
+        { image_id: '3', ground_truth_label: 'cat', adversarial_label: 'dog' },
+        { image_id: '4', ground_truth_label: 'cat', adversarial_label: 'dog' },
+    ] }
+    const right = { results: [
+        { image_id: '1', ground_truth_label: 'cat', adversarial_label: 'cat' },
+        { image_id: '2', ground_truth_label: 'cat', adversarial_label: 'dog' },
+        { image_id: '3', ground_truth_label: 'cat', adversarial_label: 'cat' },
+        { image_id: '4', ground_truth_label: 'cat', adversarial_label: 'dog' },
+    ] }
+    assert.deepEqual(getClassificationComparisonCaseSummary(left, right), {
+        total: 4,
+        left_better: 1,
+        right_better: 1,
+        both_fail: 1,
+        both_correct: 1,
+    })
+})
+
+test('detection object case filters identify visually relevant disagreements', () => {
+    const preserved = { outcome: 'preserved' }
+    const suppressed = { outcome: 'suppressed' }
+    assert.equal(matchesDetectionObjectCaseFilter({ left: preserved, right: suppressed }, 'only_a'), true)
+    assert.equal(matchesDetectionObjectCaseFilter({ left: suppressed, right: preserved }, 'only_b'), true)
+    assert.equal(matchesDetectionObjectCaseFilter({ left: preserved, right: suppressed }, 'different'), true)
+    assert.equal(matchesDetectionObjectCaseFilter({ left: preserved, right: preserved }, 'both_preserved'), true)
+})
+
+test('detection object case summary counts behavioral agreement and disagreement', () => {
+    const makeEvaluation = (objects) => ({ supervised: { object_analysis: { objects } } })
+    const left = makeEvaluation([
+        { object_id: '1', outcome: 'preserved' },
+        { object_id: '2', outcome: 'suppressed' },
+        { object_id: '3', outcome: 'preserved' },
+        { object_id: '4', outcome: 'suppressed' },
+    ])
+    const right = makeEvaluation([
+        { object_id: '1', outcome: 'suppressed' },
+        { object_id: '2', outcome: 'preserved' },
+        { object_id: '3', outcome: 'preserved' },
+        { object_id: '4', outcome: 'suppressed' },
+    ])
+    assert.deepEqual(getDetectionObjectCaseSummary(left, right), {
+        total: 4,
+        only_a: 1,
+        only_b: 1,
+        both_preserved: 1,
+        both_suppressed: 1,
+        different: 2,
+    })
 })

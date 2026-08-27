@@ -16,12 +16,15 @@ import { generateEvaluationGradCam } from '../../api/evaluation'
 import { generateDetectionEvaluationEigenCam } from '../../api/detectionEvaluation'
 import {
     getClassificationClassComparison,
+    getClassificationComparisonCaseSummary,
     getComparisonImagePairs,
     getDetectionClassComparison,
     getDetectionCocoComparisonRows,
     getDetectionObjectComparisonPairs,
     getDetectionTideComparisonRows,
+    getDetectionObjectCaseSummary,
     matchesComparisonImageFilter,
+    matchesDetectionObjectCaseFilter,
 } from '../../utils/evaluationComparison'
 import {
     clampEvaluationPreviewPan,
@@ -235,6 +238,40 @@ function ComparisonCurveChart({ series, yLabel = 'Valor', xLabel = 'Umbral', dom
     )
 }
 
+function ClassDifferenceScatter({ rows, leftKey, rightKey, label = 'Clase' }) {
+    const points = (rows ?? []).filter((row) => Number.isFinite(row[leftKey]) && Number.isFinite(row[rightKey]))
+    if (!points.length) return null
+    const width = 640
+    const height = 360
+    const padding = 42
+    const scaleX = (value) => padding + Math.max(0, Math.min(1, value)) * (width - padding * 2)
+    const scaleY = (value) => height - padding - Math.max(0, Math.min(1, value)) * (height - padding * 2)
+    return (
+        <figure className="evaluation-comparison-scatter">
+            <figcaption><strong>Mapa de diferencias</strong><span>Cada punto representa una {label.toLowerCase()}; cuanto más lejos de la diagonal, mayor es la divergencia.</span></figcaption>
+            <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Dispersión A frente a B por ${label.toLowerCase()}`}>
+                {[0, 0.25, 0.5, 0.75, 1].map((tick) => (
+                    <g key={tick}>
+                        <line x1={scaleX(tick)} x2={scaleX(tick)} y1={padding} y2={height - padding} className="grid" />
+                        <line x1={padding} x2={width - padding} y1={scaleY(tick)} y2={scaleY(tick)} className="grid" />
+                        <text x={scaleX(tick)} y={height - 14} textAnchor="middle">{Math.round(tick * 100)}%</text>
+                        <text x={18} y={scaleY(tick) + 4} textAnchor="middle">{Math.round(tick * 100)}%</text>
+                    </g>
+                ))}
+                <line x1={padding} y1={height - padding} x2={width - padding} y2={padding} className="diagonal" />
+                {points.map((row) => (
+                    <circle key={row.key} cx={scaleX(row[leftKey])} cy={scaleY(row[rightKey])} r={Math.max(4, Math.min(8, 3 + Math.sqrt(Math.max(1, row.support ?? 1)) * 0.35))} className={(row[rightKey] ?? 0) >= (row[leftKey] ?? 0) ? 'side-b' : 'side-a'}>
+                        <title>{`${row.label}: A ${formatPercent(row[leftKey])} · B ${formatPercent(row[rightKey])} · Δ ${formatPoints((row[rightKey] ?? 0) - (row[leftKey] ?? 0))}`}</title>
+                    </circle>
+                ))}
+                <text x={width / 2} y={height - 1} textAnchor="middle" className="axis-label">Evaluación A</text>
+                <text x="12" y={height / 2} textAnchor="middle" transform={`rotate(-90 12 ${height / 2})`} className="axis-label">Evaluación B</text>
+            </svg>
+            <div className="evaluation-comparison-scatter-legend"><span className="side-a">Por debajo: A obtiene mayor valor</span><span className="side-b">Por encima: B obtiene mayor valor</span></div>
+        </figure>
+    )
+}
+
 function ClassificationClassComparison({ leftEvaluation, rightEvaluation }) {
     const [metric, setMetric] = useState('f1')
     const [query, setQuery] = useState('')
@@ -275,6 +312,7 @@ function ClassificationClassComparison({ leftEvaluation, rightEvaluation }) {
                 <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar clase" />
                 <span>{rows.length} clases</span>
             </div>
+            <ClassDifferenceScatter rows={rows} leftKey="leftRobust" rightKey="rightRobust" label="Clase" />
             <div className="evaluation-comparison-class-list">
                 {rows.map((row) => (
                     <article key={row.key} className="evaluation-comparison-class-row">
@@ -291,7 +329,7 @@ function ClassificationClassComparison({ leftEvaluation, rightEvaluation }) {
 }
 
 function getClassificationCurve(evaluation, curveType) {
-    return evaluation?.advanced_metrics?.supervised?.[curveType]?.micro?.curves
+    return evaluation?.advanced_metrics?.supervised?.[curveType]?.micro ?? null
 }
 
 function ClassificationCurveComparison({ leftEvaluation, rightEvaluation, sameModel }) {
@@ -328,26 +366,41 @@ function ClassificationCurveComparison({ leftEvaluation, rightEvaluation, sameMo
 
 function DetectionCocoComparison({ leftEvaluation, rightEvaluation }) {
     const rows = getDetectionCocoComparisonRows(leftEvaluation, rightEvaluation)
+    const highlights = rows.filter((row) => ['map_50_95', 'ap_50', 'ap_75', 'ar_100'].includes(row.key))
     return (
         <section className="evaluation-comparison-detail-section">
-            <ComparisonSectionHeading eyebrow="Protocolo COCO" title="Métricas robustas A frente a B" description="La comparación utiliza exactamente el mismo dataset y protocolo supervisado; el delta se calcula como B − A." />
+            <ComparisonSectionHeading eyebrow="Protocolo COCO" title="Métricas robustas A frente a B" description="Primero compara la longitud de las barras; la tabla conserva después los valores exactos del protocolo COCO." />
             <ComparisonGuide
-                intro="Usa la tabla para cuantificar diferencias exactas entre las dos evaluaciones bajo el mismo protocolo COCO."
+                intro="AP y AR miden calidad de detección, no intensidad del ataque. Una barra más larga significa mayor rendimiento robusto bajo esa evaluación concreta."
                 items={[
                     { title: 'AP', text: 'Resume precisión a lo largo de la curva Precision–Recall. AP@0.50 es más permisivo y AP@0.75 exige una localización más precisa.' },
                     { title: 'AR', text: 'Mide qué fracción de los objetos de referencia puede recuperarse permitiendo un máximo de detecciones por imagen.' },
                 ]}
-                note="El delta es B − A. En AP y AR un valor mayor representa mejor rendimiento."
+                note="A y B identifican evaluaciones. El delta B − A cuantifica la diferencia, pero no implica que los ataques tengan una intensidad equivalente."
             />
-            <ComparisonDataTable
-                columns={[
-                    { key: 'label', label: 'Métrica', width: '1.6fr', render: (row) => <strong>{row.label}</strong> },
-                    { key: 'left', label: 'A', className: 'side-a', render: (row) => formatPercent(row.left) },
-                    { key: 'right', label: 'B', className: 'side-b', render: (row) => formatPercent(row.right) },
-                    { key: 'delta', label: 'Δ B − A', render: (row) => <strong className={(row.delta ?? 0) > 0 ? 'tone-success' : (row.delta ?? 0) < 0 ? 'tone-danger' : ''}>{formatPoints(row.delta)}</strong> },
-                ]}
-                rows={rows}
-            />
+            <div className="evaluation-comparison-coco-visual" aria-label="Resumen visual de métricas COCO">
+                {highlights.map((row) => (
+                    <article key={row.key}>
+                        <header><strong>{row.label}</strong><span>{formatPoints(row.delta)}</span></header>
+                        <div className="evaluation-comparison-class-bars">
+                            <div><span className="side-a">A</span><i><b className="side-a" style={{ width: `${Math.max(0, Math.min(1, row.left ?? 0)) * 100}%` }} /></i><strong>{formatPercent(row.left)}</strong></div>
+                            <div><span className="side-b">B</span><i><b className="side-b" style={{ width: `${Math.max(0, Math.min(1, row.right ?? 0)) * 100}%` }} /></i><strong>{formatPercent(row.right)}</strong></div>
+                        </div>
+                    </article>
+                ))}
+            </div>
+            <details className="evaluation-comparison-technical-details">
+                <summary>Ver valores COCO detallados <span>{rows.length} métricas</span></summary>
+                <ComparisonDataTable
+                    columns={[
+                        { key: 'label', label: 'Métrica', width: '1.6fr', render: (row) => <strong>{row.label}</strong> },
+                        { key: 'left', label: 'A', className: 'side-a', render: (row) => formatPercent(row.left) },
+                        { key: 'right', label: 'B', className: 'side-b', render: (row) => formatPercent(row.right) },
+                        { key: 'delta', label: 'Δ B − A', render: (row) => formatPoints(row.delta) },
+                    ]}
+                    rows={rows}
+                />
+            </details>
         </section>
     )
 }
@@ -371,6 +424,7 @@ function DetectionClassComparison({ leftEvaluation, rightEvaluation }) {
             <ComparisonSectionHeading eyebrow="Desglose por categoría" title="AP, AR y supresión por clase" description="Las barras hacen visible la diferencia de AP; debajo se conservan AR y objetos suprimidos como contexto numérico." controls={<label><span>Orden</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="difference">Mayor diferencia AP</option><option value="support">Mayor soporte</option><option value="name">Nombre</option></select></label>} />
             <ComparisonGuide intro="Una diferencia grande de AP puede tener causas distintas. Contrástala con AR, supresión y soporte antes de interpretarla." items={[{ title: 'AP', text: 'Resume la calidad Precision–Recall de la categoría; cuanto mayor, mejor.' }, { title: 'Supresión', text: 'Cuenta objetos originalmente detectados que dejan de detectarse tras el ataque.' }]} />
             <div className="evaluation-comparison-search-row"><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar categoría" /><span>{rows.length} clases</span></div>
+            <ClassDifferenceScatter rows={rows} leftKey="leftAp" rightKey="rightAp" label="Categoría" />
             <div className="evaluation-comparison-class-list">
                 {rows.map((row) => (
                     <article key={row.key} className="evaluation-comparison-class-row detection">
@@ -464,60 +518,93 @@ function DetectionTideComparison({ leftEvaluation, rightEvaluation }) {
     )
 }
 
-function ObjectObservation({ object }) {
-    if (!object) return '—'
-    const observation = object.adversarial_observation
-    if (!observation) return 'No detectado'
-    return `${formatNumber(observation.confidence)} conf. · IoU ${formatNumber(observation.iou_with_ground_truth)}`
+const DETECTION_OUTCOME_LABELS = {
+    preserved: 'Preservado',
+    suppressed: 'Suprimido',
+    recovered: 'Recuperado',
+    missed_both: 'No detectado en ambas',
 }
 
-function formatBox(box) {
-    if (!box) return '—'
-    return `[${formatNumber(box.x1, 1)}, ${formatNumber(box.y1, 1)}, ${formatNumber(box.x2, 1)}, ${formatNumber(box.y2, 1)}]`
+function detectionObjectOverlay(object, phase, includeReference = true) {
+    if (!object) return []
+    const detections = []
+    if (includeReference && object.ground_truth_box) {
+        detections.push({ bbox: object.ground_truth_box, label: `Referencia · ${object.category?.category_name ?? 'objeto'}`, tone: 'reference' })
+    }
+    const observation = phase === 'original' ? object.original_observation : object.adversarial_observation
+    if (observation?.detection_box) {
+        detections.push({
+            bbox: observation.detection_box,
+            label: object.category?.category_name ?? 'objeto',
+            confidence: observation.confidence,
+            tone: phase === 'original' ? 'original' : 'adversarial',
+        })
+    }
+    return detections
 }
 
-function DetectionObjectComparison({ leftEvaluation, rightEvaluation }) {
+function DetectionObjectCases({ leftEvaluation, rightEvaluation }) {
     const pairs = useMemo(() => getDetectionObjectComparisonPairs(leftEvaluation, rightEvaluation), [leftEvaluation, rightEvaluation])
-    const [query, setQuery] = useState('')
-    const [page, setPage] = useState(1)
-    const [expandedId, setExpandedId] = useState(null)
-    const pageSize = 25
-    const normalizedQuery = query.trim().toLocaleLowerCase('es')
-    const filtered = pairs.filter(({ left }) => !normalizedQuery || [left.object_id, left.image_id, left.category?.category_name].some((value) => String(value ?? '').toLocaleLowerCase('es').includes(normalizedQuery)))
-    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-    const safePage = Math.min(page, totalPages)
-    const pageItems = filtered.slice((safePage - 1) * pageSize, safePage * pageSize)
+    const summary = useMemo(() => getDetectionObjectCaseSummary(leftEvaluation, rightEvaluation), [leftEvaluation, rightEvaluation])
+    const [filter, setFilter] = useState('different')
+    const [visible, setVisible] = useState(8)
+    const [preview, setPreview] = useState(null)
+    const leftResults = useMemo(() => new Map((leftEvaluation?.results ?? []).map((row) => [String(row.image_id), row])), [leftEvaluation])
+    const rightResults = useMemo(() => new Map((rightEvaluation?.results ?? []).map((row) => [String(row.image_id), row])), [rightEvaluation])
+    const filtered = useMemo(() => pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, filter)), [filter, pairs])
+    const shown = filtered.slice(0, visible)
+    const filters = [
+        ['different', 'A y B discrepan', summary.different],
+        ['only_a', 'Solo A preserva', summary.only_a],
+        ['only_b', 'Solo B preserva', summary.only_b],
+        ['both_preserved', 'Ambas preservan', summary.both_preserved],
+        ['both_suppressed', 'Ambas suprimen', summary.both_suppressed],
+        ['all', 'Todos', summary.total],
+    ]
 
-    if (!pairs.length) return <EmptyComparison title="Detalle por objeto no disponible">Las dos evaluaciones deben incluir el detalle materializado por objeto.</EmptyComparison>
+    if (!pairs.length) return <EmptyComparison title="Detalle por objeto no disponible">Las evaluaciones no contienen objetos materializados comunes.</EmptyComparison>
 
     return (
-        <section className="evaluation-comparison-detail-section">
-            <ComparisonSectionHeading eyebrow="Objetos evaluados" title="Transición de cada objeto en A y B" description="Abre cualquier fila para inspeccionar observaciones, cajas y deltas del mismo objeto anotado en las dos evaluaciones." />
-            <ComparisonGuide intro="La fila resume el desenlace. El detalle permite comprobar si la diferencia procede de confianza, solapamiento IoU o desaparición de la detección." items={[{ title: 'Preservado', text: 'El objeto se detecta antes y después del ataque.' }, { title: 'Suprimido / recuperado', text: 'Indica que el objeto aparece solo antes o solo después del ataque, respectivamente.' }]} />
-            <div className="evaluation-comparison-search-row"><input type="search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); setExpandedId(null) }} placeholder="Buscar objeto, imagen o clase" /><span>{filtered.length} objetos</span></div>
-            <div className="evaluation-comparison-object-list">
-                {pageItems.map((row) => {
-                    const expanded = expandedId === row.left.object_id
+        <section className="evaluation-comparison-detail-section evaluation-comparison-object-cases">
+            <ComparisonSectionHeading eyebrow="Casos clave" title="Objetos que explican la diferencia" description="En lugar de leer coordenadas, inspecciona la referencia y el resultado visual del mismo objeto bajo A y B." />
+            <ComparisonGuide
+                intro="Empieza por los objetos donde A y B discrepan. Cada caso conserva la caja de referencia y superpone la detección asociada cuando existe."
+                items={[
+                    { title: 'Solo A / solo B preserva', text: 'Aísla objetos que sobreviven al ataque únicamente en una de las evaluaciones.' },
+                    { title: 'Referencia', text: 'La caja de referencia procede de la anotación del dataset y sirve de ancla para interpretar IoU y desapariciones.' },
+                ]}
+                note="Los IDs y coordenadas siguen disponibles en los datos almacenados, pero la vista prioriza la evidencia visual porque es más interpretable."
+            />
+            <div className="evaluation-comparison-case-summary" role="group" aria-label="Filtros de comportamiento por objeto">
+                {filters.map(([id, label, count]) => (
+                    <button key={id} type="button" className={filter === id ? 'active' : ''} onClick={() => { setFilter(id); setVisible(8) }}>
+                        <strong>{count}</strong><span>{label}</span>
+                    </button>
+                ))}
+            </div>
+            <div className="evaluation-comparison-object-evidence-list">
+                {shown.map(({ left, right }) => {
+                    const leftResult = leftResults.get(String(left.image_id))
+                    const rightResult = rightResults.get(String(right.image_id))
+                    const originalUrl = `/datasets/${leftEvaluation.dataset_id}/images/${left.image_id}`
                     return (
-                        <article key={row.left.object_id} className={`evaluation-comparison-object-row${expanded ? ' expanded' : ''}`}>
-                            <button type="button" className="evaluation-comparison-object-summary" aria-expanded={expanded} onClick={() => setExpandedId(expanded ? null : row.left.object_id)}>
-                                <span><strong>{row.left.category?.category_name ?? 'Objeto'}</strong><small>{row.left.object_id} · imagen {row.left.image_id}</small></span>
-                                <span className="side-a"><small>A</small><strong>{row.left.outcome}</strong><em>{ObjectObservation({ object: row.left })}</em></span>
-                                <span className="side-b"><small>B</small><strong>{row.right.outcome}</strong><em>{ObjectObservation({ object: row.right })}</em></span>
-                                <span className="evaluation-comparison-object-chevron" aria-hidden="true">⌄</span>
-                            </button>
-                            {expanded && (
-                                <div className="evaluation-comparison-object-detail">
-                                    <dl><div><dt>Clase</dt><dd>{row.left.category?.category_name}</dd></div><div><dt>Tamaño COCO</dt><dd>{row.left.size_bucket}</dd></div><div><dt>Área</dt><dd>{formatNumber(row.left.area, 1)} px²</dd></div><div><dt>Caja de referencia</dt><dd>{formatBox(row.left.ground_truth_box)}</dd></div></dl>
-                                    <section className="side-a"><strong>Evaluación A</strong><dl><div><dt>Caja original</dt><dd>{formatBox(row.left.original_observation?.detection_box)}</dd></div><div><dt>Caja tras ataque</dt><dd>{formatBox(row.left.adversarial_observation?.detection_box)}</dd></div><div><dt>Δ confianza</dt><dd>{formatNumber(row.left.confidence_drop)}</dd></div><div><dt>Δ IoU</dt><dd>{formatNumber(row.left.iou_drop)}</dd></div></dl></section>
-                                    <section className="side-b"><strong>Evaluación B</strong><dl><div><dt>Caja original</dt><dd>{formatBox(row.right.original_observation?.detection_box)}</dd></div><div><dt>Caja tras ataque</dt><dd>{formatBox(row.right.adversarial_observation?.detection_box)}</dd></div><div><dt>Δ confianza</dt><dd>{formatNumber(row.right.confidence_drop)}</dd></div><div><dt>Δ IoU</dt><dd>{formatNumber(row.right.iou_drop)}</dd></div></dl></section>
-                                </div>
-                            )}
+                        <article key={left.object_id} className="evaluation-comparison-object-evidence">
+                            <header>
+                                <div><span className="evaluation-eyebrow">{left.category?.category_name ?? 'Objeto'}</span><strong>{leftResult?.filename ?? left.image_id}</strong><small>{left.object_id}</small></div>
+                                <div><span className="side-a">A · {DETECTION_OUTCOME_LABELS[left.outcome] ?? left.outcome}</span><span className="side-b">B · {DETECTION_OUTCOME_LABELS[right.outcome] ?? right.outcome}</span></div>
+                            </header>
+                            <div className="evaluation-comparison-object-visual-grid">
+                                <ComparisonImageFigure label="Referencia" url={originalUrl} caption={`${left.category?.category_name ?? 'objeto'} · ${left.size_bucket ?? 'tamaño n/d'}`} detections={detectionObjectOverlay(left, 'original', true).filter((item) => item.tone === 'reference')} onExpand={setPreview} tone="reference" />
+                                <ComparisonImageFigure label="A · Tras el ataque" url={leftResult?.adversarial_image_url ?? originalUrl} caption={`${DETECTION_OUTCOME_LABELS[left.outcome] ?? left.outcome} · conf. ${formatNumber(left.adversarial_observation?.confidence)} · IoU ${formatNumber(left.adversarial_observation?.iou_with_ground_truth)}`} detections={detectionObjectOverlay(left, 'adversarial')} onExpand={setPreview} tone="side-a" />
+                                <ComparisonImageFigure label="B · Tras el ataque" url={rightResult?.adversarial_image_url ?? originalUrl} caption={`${DETECTION_OUTCOME_LABELS[right.outcome] ?? right.outcome} · conf. ${formatNumber(right.adversarial_observation?.confidence)} · IoU ${formatNumber(right.adversarial_observation?.iou_with_ground_truth)}`} detections={detectionObjectOverlay(right, 'adversarial')} onExpand={setPreview} tone="side-b" />
+                            </div>
                         </article>
                     )
                 })}
             </div>
-            {totalPages > 1 && <div className="evaluation-comparison-pagination"><button type="button" disabled={safePage === 1} onClick={() => { setPage((current) => Math.max(1, current - 1)); setExpandedId(null) }}>Anterior</button><span>Página {safePage} de {totalPages}</span><button type="button" disabled={safePage === totalPages} onClick={() => { setPage((current) => Math.min(totalPages, current + 1)); setExpandedId(null) }}>Siguiente</button></div>}
+            {!shown.length && <EmptyComparison title="No hay objetos en este grupo">Selecciona otro patrón de comportamiento.</EmptyComparison>}
+            {filtered.length > 8 && <div className="evaluation-comparison-more"><span>{Math.min(visible, filtered.length)} / {filtered.length}</span>{visible < filtered.length ? <button type="button" onClick={() => setVisible((current) => Math.min(filtered.length, current + 8))}>Ver 8 más</button> : <button type="button" onClick={() => setVisible(8)}>Mostrar menos</button>}</div>}
+            {preview && <ComparisonImageLightbox preview={preview} onClose={() => setPreview(null)} />}
         </section>
     )
 }
@@ -539,14 +626,15 @@ function DetectionLabelsOverlay({ detections = [], dimensions }) {
             {detections.map((detection, index) => {
                 const box = detection.bbox
                 if (!box) return null
-                const label = `${detection.label ?? 'objeto'} · ${formatNumber(detection.confidence, 2)}`
+                const confidence = Number.isFinite(Number(detection.confidence)) ? ` · ${formatNumber(detection.confidence, 2)}` : ''
+                const label = `${detection.label ?? 'objeto'}${confidence}`
                 const labelWidth = Math.min(box.x2 - box.x1, Math.max(fontSize * 4.5, label.length * fontSize * 0.58))
                 const labelY = Math.max(0, box.y1 - fontSize * 1.45)
                 return (
                     <g key={`${detection.label ?? 'detection'}-${index}`}>
-                        <rect className="evaluation-comparison-detection-box" x={box.x1} y={box.y1} width={box.x2 - box.x1} height={box.y2 - box.y1} strokeWidth={strokeWidth} />
-                        <rect className="evaluation-comparison-detection-label-bg" x={box.x1} y={labelY} width={labelWidth} height={fontSize * 1.45} />
-                        <text className="evaluation-comparison-detection-label" x={box.x1 + fontSize * 0.25} y={labelY + fontSize} fontSize={fontSize}>{label}</text>
+                        <rect className={`evaluation-comparison-detection-box ${detection.tone ?? ''}`} x={box.x1} y={box.y1} width={box.x2 - box.x1} height={box.y2 - box.y1} strokeWidth={strokeWidth} />
+                        <rect className={`evaluation-comparison-detection-label-bg ${detection.tone ?? ''}`} x={box.x1} y={labelY} width={labelWidth} height={fontSize * 1.45} />
+                        <text className={`evaluation-comparison-detection-label ${detection.tone ?? ''}`} x={box.x1 + fontSize * 0.25} y={labelY + fontSize} fontSize={fontSize}>{label}</text>
                     </g>
                 )
             })}
@@ -655,6 +743,7 @@ function ComparisonImages({ taskType, leftItem, rightItem, leftEvaluation, right
     const filteredPairs = useMemo(() => pairs.filter((pair) => matchesComparisonImageFilter(taskType, pair, filter)), [filter, pairs, taskType])
     const shown = filteredPairs.slice(0, visible)
     const explanationLabel = taskType === 'detection' ? 'Eigen-CAM' : 'Grad-CAM'
+    const classificationSummary = useMemo(() => taskType === 'classification' ? getClassificationComparisonCaseSummary(leftEvaluation, rightEvaluation) : null, [leftEvaluation, rightEvaluation, taskType])
 
     async function requestExplanation(side, item, result) {
         const key = imageExplanationKey(side, result.image_id)
@@ -678,6 +767,14 @@ function ComparisonImages({ taskType, leftItem, rightItem, leftEvaluation, right
         <section className="evaluation-comparison-detail-section">
             <ComparisonSectionHeading eyebrow="Casos concretos" title="La misma imagen bajo A y B" description="Filtra casos divergentes y abre perturbaciones o explicabilidad solo cuando necesites profundizar." />
             <ComparisonGuide intro="Las miniaturas permiten detectar diferencias de un vistazo. Amplía cualquier vista para inspeccionar detalle sin perder bounding boxes ni etiquetas." items={[{ title: 'Filtros comparativos', text: taskType === 'detection' ? 'Priorizan imágenes donde A y B publican distinto número de detecciones.' : 'Priorizan casos donde una evaluación conserva la clase correcta y la otra no.' }, { title: explanationLabel, text: sameModel ? `Puede solicitarse bajo demanda para cada evaluación sin repetir el ataque.` : `La generación bajo demanda se reserva a comparaciones con el mismo modelo para no cambiar el modelo activo global.` }]} />
+            {classificationSummary && (
+                <div className="evaluation-comparison-disagreement-matrix" role="group" aria-label="Resumen de desacuerdos A/B">
+                    <button type="button" className={filter === 'both_correct' ? 'active' : ''} onClick={() => { setFilter('both_correct'); setVisible(8) }}><strong>{classificationSummary.both_correct}</strong><span>Ambas aciertan</span></button>
+                    <button type="button" className={filter === 'left_better' ? 'active side-a' : 'side-a'} onClick={() => { setFilter('left_better'); setVisible(8) }}><strong>{classificationSummary.left_better}</strong><span>Solo A acierta</span></button>
+                    <button type="button" className={filter === 'right_better' ? 'active side-b' : 'side-b'} onClick={() => { setFilter('right_better'); setVisible(8) }}><strong>{classificationSummary.right_better}</strong><span>Solo B acierta</span></button>
+                    <button type="button" className={filter === 'both_fail' ? 'active' : ''} onClick={() => { setFilter('both_fail'); setVisible(8) }}><strong>{classificationSummary.both_fail}</strong><span>Ambas fallan</span></button>
+                </div>
+            )}
             <div className="evaluation-comparison-image-filters">{filters.map(([id, label]) => <button key={id} type="button" className={filter === id ? 'active' : ''} onClick={() => { setFilter(id); setVisible(8) }}>{label}</button>)}<span>{filteredPairs.length} casos</span></div>
             {shown.map(({ left, right }) => {
                 const leftExplanation = explanations[imageExplanationKey('a', left.image_id)] ?? { status: 'idle' }
@@ -729,40 +826,60 @@ function ComparisonImages({ taskType, leftItem, rightItem, leftEvaluation, right
     )
 }
 
+function DetectionCases({ leftItem, rightItem, leftEvaluation, rightEvaluation }) {
+    const [mode, setMode] = useState('objects')
+    return (
+        <section className="evaluation-comparison-cases-shell">
+            <div className="evaluation-comparison-view-switcher" role="group" aria-label="Tipo de caso clave">
+                <button type="button" className={mode === 'objects' ? 'active' : ''} onClick={() => setMode('objects')}>Objetos anotados</button>
+                <button type="button" className={mode === 'images' ? 'active' : ''} onClick={() => setMode('images')}>Imágenes completas</button>
+            </div>
+            {mode === 'objects'
+                ? <DetectionObjectCases leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />
+                : <ComparisonImages taskType="detection" leftItem={leftItem} rightItem={rightItem} leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
+        </section>
+    )
+}
+
+function ComparisonDiagnostics({ taskType, leftEvaluation, rightEvaluation, sameModel }) {
+    const [mode, setMode] = useState(taskType === 'detection' ? 'coco' : 'curves')
+    if (taskType === 'classification') {
+        return <ClassificationCurveComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} sameModel={sameModel} />
+    }
+    return (
+        <section className="evaluation-comparison-diagnostics-shell">
+            <div className="evaluation-comparison-view-switcher" role="group" aria-label="Herramienta de diagnóstico">
+                <button type="button" className={mode === 'coco' ? 'active' : ''} onClick={() => setMode('coco')}>COCO</button>
+                <button type="button" className={mode === 'curves' ? 'active' : ''} onClick={() => setMode('curves')}>Precision–Recall</button>
+                <button type="button" className={mode === 'tide' ? 'active' : ''} onClick={() => setMode('tide')}>TIDE</button>
+            </div>
+            {mode === 'coco' && <DetectionCocoComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
+            {mode === 'curves' && <DetectionCurveComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
+            {mode === 'tide' && <DetectionTideComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
+        </section>
+    )
+}
+
 export function EvaluationComparisonDetails({ taskType, leftItem, rightItem, leftEvaluation, rightEvaluation, summary }) {
-    const tabs = taskType === 'detection'
-        ? [
-            { id: 'summary', label: 'Resumen' },
-            { id: 'coco', label: 'Métricas COCO' },
-            { id: 'classes', label: 'Por clase', badge: leftEvaluation?.supervised?.original?.per_class?.length },
-            { id: 'curves', label: 'Curvas PR' },
-            { id: 'objects', label: 'Por objeto', badge: leftEvaluation?.supervised?.object_analysis?.objects?.length },
-            { id: 'tide', label: 'TIDE' },
-            { id: 'images', label: 'Imágenes', badge: leftEvaluation?.results?.length },
-        ]
-        : [
-            { id: 'summary', label: 'Resumen' },
-            { id: 'classes', label: 'Por clase', badge: leftEvaluation?.advanced_metrics?.supervised?.per_class?.length },
-            { id: 'curves', label: 'Curvas' },
-            { id: 'images', label: 'Imágenes', badge: leftEvaluation?.results?.length },
-        ]
+    const tabs = [
+        { id: 'summary', label: 'Resumen' },
+        { id: 'differences', label: 'Diferencias' },
+        { id: 'cases', label: 'Casos clave' },
+        { id: 'diagnosis', label: 'Diagnóstico' },
+    ]
     const [activeTab, setActiveTab] = useState('summary')
     const sameModel = leftItem.model_id === rightItem.model_id
 
     return (
-        <div className="evaluation-comparison-details">
+        <div className="evaluation-comparison-details redesigned">
             <ComparisonTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
             <div className="evaluation-comparison-detail-content">
                 {activeTab === 'summary' && summary}
-                {taskType === 'classification' && activeTab === 'classes' && <ClassificationClassComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
-                {taskType === 'classification' && activeTab === 'curves' && <ClassificationCurveComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} sameModel={sameModel} />}
-                {taskType === 'classification' && activeTab === 'images' && <ComparisonImages taskType={taskType} leftItem={leftItem} rightItem={rightItem} leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
-                {taskType === 'detection' && activeTab === 'coco' && <DetectionCocoComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
-                {taskType === 'detection' && activeTab === 'classes' && <DetectionClassComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
-                {taskType === 'detection' && activeTab === 'curves' && <DetectionCurveComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
-                {taskType === 'detection' && activeTab === 'objects' && <DetectionObjectComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
-                {taskType === 'detection' && activeTab === 'tide' && <DetectionTideComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
-                {taskType === 'detection' && activeTab === 'images' && <ComparisonImages taskType={taskType} leftItem={leftItem} rightItem={rightItem} leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
+                {activeTab === 'differences' && taskType === 'classification' && <ClassificationClassComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
+                {activeTab === 'differences' && taskType === 'detection' && <DetectionClassComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
+                {activeTab === 'cases' && taskType === 'classification' && <ComparisonImages taskType="classification" leftItem={leftItem} rightItem={rightItem} leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
+                {activeTab === 'cases' && taskType === 'detection' && <DetectionCases leftItem={leftItem} rightItem={rightItem} leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
+                {activeTab === 'diagnosis' && <ComparisonDiagnostics taskType={taskType} leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} sameModel={sameModel} />}
             </div>
         </div>
     )

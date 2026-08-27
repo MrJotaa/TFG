@@ -455,3 +455,83 @@ export function getDetectionObjectComparisonPairs(leftEvaluation, rightEvaluatio
         .map((leftObject) => ({ left: leftObject, right: rightById.get(String(leftObject.object_id)) }))
         .filter((pair) => pair.right)
 }
+
+export function getComparisonInsights(taskType, metrics, classRows = []) {
+    const byKey = new Map((metrics ?? []).map((entry) => [entry.key, entry]))
+    const robustKey = taskType === 'detection' ? 'robust_map' : 'robust_accuracy'
+    const dropKey = taskType === 'detection' ? 'map_drop' : 'accuracy_drop'
+    const robust = byKey.get(robustKey)
+    const drop = byKey.get(dropKey)
+    const insights = []
+
+    if (robust?.delta != null && Math.abs(robust.delta) >= 1e-12) {
+        const favored = robust.delta > 0 ? 'B' : 'A'
+        insights.push({
+            key: 'robust',
+            side: favored.toLowerCase(),
+            value: Math.abs(robust.delta),
+            text: `${favored} conserva ${Math.abs(robust.delta * 100).toFixed(1)} pp más de ${taskType === 'detection' ? 'mAP' : 'exactitud'} tras el ataque.`,
+        })
+    }
+
+    if (drop?.delta != null && Math.abs(drop.delta) >= 1e-12) {
+        const lowerSide = drop.delta > 0 ? 'A' : 'B'
+        insights.push({
+            key: 'drop',
+            side: lowerSide.toLowerCase(),
+            value: Math.abs(drop.delta),
+            text: `${lowerSide} sufre ${Math.abs(drop.delta * 100).toFixed(1)} pp menos de degradación respecto a su referencia original.`,
+        })
+    }
+
+    const strongestClass = [...(classRows ?? [])]
+        .filter((row) => Number.isFinite(row.delta))
+        .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta))[0]
+    if (strongestClass && Math.abs(strongestClass.delta) >= 1e-12) {
+        const favored = strongestClass.delta > 0 ? 'B' : 'A'
+        insights.push({
+            key: 'class',
+            side: favored.toLowerCase(),
+            value: Math.abs(strongestClass.delta),
+            text: `La mayor separación por clase aparece en «${strongestClass.label}»: ${favored} queda ${Math.abs(strongestClass.delta * 100).toFixed(1)} pp por encima.`,
+        })
+    }
+
+    return insights.slice(0, 3)
+}
+
+export function getClassificationComparisonCaseSummary(leftEvaluation, rightEvaluation) {
+    const pairs = getComparisonImagePairs(leftEvaluation, rightEvaluation)
+    return {
+        total: pairs.length,
+        left_better: pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'left_better')).length,
+        right_better: pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'right_better')).length,
+        both_fail: pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'both_fail')).length,
+        both_correct: pairs.filter((pair) => matchesComparisonImageFilter('classification', pair, 'both_correct')).length,
+    }
+}
+
+export function matchesDetectionObjectCaseFilter(pair, filter = 'all') {
+    if (filter === 'all') return true
+    const leftOutcome = pair?.left?.outcome
+    const rightOutcome = pair?.right?.outcome
+    if (!leftOutcome || !rightOutcome) return false
+    if (filter === 'only_a') return leftOutcome === 'preserved' && rightOutcome !== 'preserved'
+    if (filter === 'only_b') return rightOutcome === 'preserved' && leftOutcome !== 'preserved'
+    if (filter === 'both_preserved') return leftOutcome === 'preserved' && rightOutcome === 'preserved'
+    if (filter === 'both_suppressed') return leftOutcome === 'suppressed' && rightOutcome === 'suppressed'
+    if (filter === 'different') return leftOutcome !== rightOutcome
+    return true
+}
+
+export function getDetectionObjectCaseSummary(leftEvaluation, rightEvaluation) {
+    const pairs = getDetectionObjectComparisonPairs(leftEvaluation, rightEvaluation)
+    return {
+        total: pairs.length,
+        only_a: pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'only_a')).length,
+        only_b: pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'only_b')).length,
+        both_preserved: pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'both_preserved')).length,
+        both_suppressed: pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'both_suppressed')).length,
+        different: pairs.filter((pair) => matchesDetectionObjectCaseFilter(pair, 'different')).length,
+    }
+}
