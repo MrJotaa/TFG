@@ -390,6 +390,54 @@ export function getDetectionTideComparisonRows(leftEvaluation, rightEvaluation) 
     })
 }
 
+
+export function getComparisonRetention(taskType, evaluation) {
+    const original = taskType === 'detection'
+        ? finiteMetric(evaluation?.supervised?.original?.aggregate?.map_50_95)
+        : finiteMetric(evaluation?.advanced_metrics?.robustness?.clean_accuracy ?? evaluation?.summary?.original_accuracy)
+    const robust = taskType === 'detection'
+        ? finiteMetric(evaluation?.supervised?.adversarial?.aggregate?.map_50_95)
+        : finiteMetric(evaluation?.advanced_metrics?.robustness?.robust_accuracy ?? evaluation?.summary?.adversarial_accuracy)
+
+    return {
+        original,
+        robust,
+        retention: original != null && original > 0 && robust != null ? robust / original : null,
+    }
+}
+
+function classificationCorrect(result) {
+    if (typeof result?.adversarial_correct === 'boolean') return result.adversarial_correct
+    if (result?.ground_truth_label == null || result?.adversarial_label == null) return null
+    return String(result.ground_truth_label) === String(result.adversarial_label)
+}
+
+export function matchesComparisonImageFilter(taskType, pair, filter = 'all') {
+    if (filter === 'all') return true
+    const left = pair?.left
+    const right = pair?.right
+    if (!left || !right) return false
+
+    if (taskType === 'detection') {
+        const leftCount = Number(left.adversarial_detection_count ?? 0)
+        const rightCount = Number(right.adversarial_detection_count ?? 0)
+        if (filter === 'left_more') return leftCount > rightCount
+        if (filter === 'right_more') return rightCount > leftCount
+        if (filter === 'different') return leftCount !== rightCount
+        if (filter === 'equal') return leftCount === rightCount
+        return true
+    }
+
+    const leftCorrect = classificationCorrect(left)
+    const rightCorrect = classificationCorrect(right)
+    if (leftCorrect == null || rightCorrect == null) return false
+    if (filter === 'left_better') return leftCorrect && !rightCorrect
+    if (filter === 'right_better') return rightCorrect && !leftCorrect
+    if (filter === 'both_fail') return !leftCorrect && !rightCorrect
+    if (filter === 'both_correct') return leftCorrect && rightCorrect
+    return true
+}
+
 export function getComparisonImagePairs(leftEvaluation, rightEvaluation) {
     const leftResults = leftEvaluation?.results ?? []
     const rightById = new Map((rightEvaluation?.results ?? []).map((result) => [String(result.image_id), result]))

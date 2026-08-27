@@ -11,6 +11,8 @@ import {
     getDetectionCocoComparisonRows,
     getDetectionObjectComparisonPairs,
     getDetectionTideComparisonRows,
+    getComparisonRetention,
+    matchesComparisonImageFilter,
     pairComparisonMetrics,
     stableComparisonKey,
 } from '../src/utils/evaluationComparison.js'
@@ -357,4 +359,44 @@ test('TIDE comparison pairs adversarial error impact and counts by error type', 
     assert.equal(row.key, 'missed')
     assert.equal(row.leftImpact, 12.5)
     assert.equal(row.rightCount, 30)
+})
+
+
+test('retention profile relates robust performance to each evaluation baseline', () => {
+    assert.deepEqual(
+        getComparisonRetention('classification', classificationEvaluation({ clean: 0.8, robust: 0.4 })),
+        { original: 0.8, robust: 0.4, retention: 0.5 },
+    )
+
+    const detection = {
+        supervised: {
+            original: { aggregate: { map_50_95: 0.4 } },
+            adversarial: { aggregate: { map_50_95: 0.1 } },
+        },
+    }
+    assert.deepEqual(
+        getComparisonRetention('detection', detection),
+        { original: 0.4, robust: 0.1, retention: 0.25 },
+    )
+})
+
+test('classification image filters distinguish which evaluation keeps the correct label', () => {
+    const pair = {
+        left: { ground_truth_label: 'tench', adversarial_label: 'tench', adversarial_correct: true },
+        right: { ground_truth_label: 'tench', adversarial_label: 'crab', adversarial_correct: false },
+    }
+    assert.equal(matchesComparisonImageFilter('classification', pair, 'left_better'), true)
+    assert.equal(matchesComparisonImageFilter('classification', pair, 'right_better'), false)
+    assert.equal(matchesComparisonImageFilter('classification', pair, 'both_fail'), false)
+})
+
+test('detection image filters compare adversarial detection counts without inferring quality', () => {
+    const pair = {
+        left: { adversarial_detection_count: 5 },
+        right: { adversarial_detection_count: 2 },
+    }
+    assert.equal(matchesComparisonImageFilter('detection', pair, 'left_more'), true)
+    assert.equal(matchesComparisonImageFilter('detection', pair, 'right_more'), false)
+    assert.equal(matchesComparisonImageFilter('detection', pair, 'different'), true)
+    assert.equal(matchesComparisonImageFilter('detection', pair, 'equal'), false)
 })

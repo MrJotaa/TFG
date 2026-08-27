@@ -12,6 +12,7 @@ import {
 import {
     baselineConsistency,
     classifyEvaluationComparison,
+    getComparisonRetention,
     pairComparisonMetrics,
 } from '../utils/evaluationComparison'
 import { formatCreatedAgo } from '../utils/evaluationHistory'
@@ -41,6 +42,41 @@ function formatSupervisedProtocol(configuration) {
     const iou = configuration.iou_threshold
     if (!Number.isFinite(confidence) || !Number.isFinite(iou)) return null
     return `Confianza ≥ ${Number(confidence).toFixed(2)} · IoU ≥ ${Number(iou).toFixed(2)}`
+}
+
+
+function SummaryComparisonGuide({ taskType }) {
+    return (
+        <details className="evaluation-comparison-guide summary-guide">
+            <summary>
+                <span className="evaluation-comparison-guide-icon" aria-hidden="true">i</span>
+                <span><strong>Guía de esta comparación</strong><small>Cómo leer el resumen A/B</small></span>
+                <span className="evaluation-comparison-guide-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div className="evaluation-comparison-guide-body">
+                <p>Empieza por el rendimiento robusto y después compáralo con la referencia original. Así distingues entre rendimiento absoluto y capacidad de conservarlo tras el ataque.</p>
+                <div className="evaluation-comparison-guide-grid">
+                    <div><strong>A y B son identidades</strong><span>Ámbar y cian solo distinguen evaluaciones; no significan mejor o peor.</span></div>
+                    <div><strong>{taskType === 'detection' ? 'Retención de mAP' : 'Retención de exactitud'}</strong><span>Relaciona el resultado robusto con el rendimiento original de la misma evaluación.</span></div>
+                </div>
+                <p className="evaluation-comparison-guide-note"><strong>Clave de interpretación:</strong> no se declara un ganador global. Cada métrica responde a una pregunta distinta.</p>
+            </div>
+        </details>
+    )
+}
+
+function RetentionProfile({ side, taskType, data }) {
+    const label = taskType === 'detection' ? 'mAP' : 'Exactitud'
+    const width = (value) => value == null ? '0%' : `${Math.max(0, Math.min(1, value)) * 100}%`
+    return (
+        <article className={`evaluation-comparison-retention-card side-${side.toLowerCase()}`}>
+            <header><span>{side}</span><strong>{label}</strong><small>{data.retention == null ? 'Retención no disponible' : `${(data.retention * 100).toFixed(1)} % retenido`}</small></header>
+            <div className="evaluation-comparison-retention-bars">
+                <div><span>Original</span><i><b style={{ width: width(data.original) }} /></i><strong>{formatMetric(data.original, 'ratio')}</strong></div>
+                <div><span>Robusto</span><i><b style={{ width: width(data.robust) }} /></i><strong>{formatMetric(data.robust, 'ratio')}</strong></div>
+            </div>
+        </article>
+    )
 }
 
 function EvaluationIdentity({ label, item, attackCatalog }) {
@@ -202,6 +238,8 @@ function EvaluationComparisonView() {
     const supervisedProtocol = leftItem.task_type === 'detection'
         ? formatSupervisedProtocol(leftItem.supervised_configuration)
         : null
+    const leftRetention = getComparisonRetention(leftItem.task_type, leftEvaluation)
+    const rightRetention = getComparisonRetention(rightItem.task_type, rightEvaluation)
 
     return (
         <section className="evaluation-comparison-page">
@@ -298,8 +336,13 @@ function EvaluationComparisonView() {
                         <header>
                             <span className="evaluation-eyebrow">Resumen comparativo</span>
                             <h2>Qué cambia entre A y B</h2>
-                            <p>El delta se calcula como B − A. El resaltado indica qué lado conserva mejor el rendimiento para cada métrica.</p>
+                            <p>La visualización permite percibir primero el patrón; los valores exactos y el delta B − A permanecen visibles para cuantificarlo.</p>
                         </header>
+                        <SummaryComparisonGuide taskType={leftItem.task_type} />
+                        <section className="evaluation-comparison-retention" aria-label="Retención de rendimiento">
+                            <div><span className="evaluation-eyebrow">Perfil de robustez</span><h3>{leftItem.task_type === 'detection' ? 'Conservación de mAP' : 'Conservación de exactitud'}</h3><p>Compara el nivel original y el robusto dentro de cada evaluación antes de mirar el resto de métricas.</p></div>
+                            <div className="evaluation-comparison-retention-grid"><RetentionProfile side="A" taskType={leftItem.task_type} data={leftRetention} /><RetentionProfile side="B" taskType={leftItem.task_type} data={rightRetention} /></div>
+                        </section>
 
                         <div className="evaluation-comparison-metrics" role="table" aria-label="Comparación de métricas">
                             <div className="evaluation-comparison-metric header" role="row">
