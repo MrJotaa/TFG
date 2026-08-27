@@ -40,6 +40,23 @@ export function getIndividualAnalysisHistory({ limit = 10, offset = 0, taskType 
     return apiRequest(`/individual-analyses?${search.toString()}`)
 }
 
+
+export async function getAllIndividualAnalysisHistory({ taskType = '' } = {}) {
+    const limit = 50
+    let offset = 0
+    let total
+    const items = []
+
+    do {
+        const page = await getIndividualAnalysisHistory({ limit, offset, taskType })
+        items.push(...(page.items ?? []))
+        total = page.total ?? items.length
+        offset += limit
+    } while (offset < total)
+
+    return items
+}
+
 export function getStoredIndividualAnalysis(analysisId) {
     return apiRequest(`/individual-analyses/${encodeURIComponent(analysisId)}`)
 }

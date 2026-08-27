@@ -175,10 +175,32 @@ async def test_saved_individual_analysis_is_permanent_and_idempotent(
     assert first.analysis_id == second.analysis_id
     assert first.image_filename == "tench.jpg"
     assert first.explanation_available is True
+    assert first.model_revision == 'resnet18-v1'
+    assert first.attack_revision == 'fgsm-v1'
+    assert first.pipeline_version == 'classification-individual-analysis-v1'
     assert first.summary["original_label"] == "tench"
     assert len(analyses.documents) == 1
     assert "expires_at" not in analyses.documents[0]
 
+
+
+
+@pytest.mark.asyncio
+async def test_saved_analysis_keeps_the_revision_used_when_it_was_computed(
+    analysis_environment,
+):
+    owner_id, result_id, _analyses = analysis_environment
+    history.datasets_collection.documents[0]["dataset_revision"] = 8
+
+    saved = await history.save_individual_analysis(
+        request=IndividualAnalysisSaveRequest(
+            task_type="classification",
+            result_id=result_id,
+        ),
+        owner_id=owner_id,
+    )
+
+    assert saved.dataset_revision == 7
 
 @pytest.mark.asyncio
 async def test_compatibility_returns_saved_identical_analysis(

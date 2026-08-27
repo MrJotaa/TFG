@@ -51,10 +51,14 @@ async def save_individual_analysis(
         image_id=metadata.get("image_id"),
         owner_id=owner_id,
     )
-    dataset_revision = int(dataset.get("dataset_revision", 0))
-    identity_metadata = {**metadata, "dataset_revision": dataset_revision}
+    try:
+        dataset_revision = int(metadata["dataset_revision"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise BadRequestError(
+            "El análisis temporal no contiene una revisión de dataset válida"
+        ) from error
     signature = _signature_from_metadata(
-        metadata=identity_metadata,
+        metadata=metadata,
         owner_id=owner_id,
     )
     existing = await individual_analyses_collection.find_one(
@@ -349,10 +353,13 @@ def _history_item(document: dict) -> IndividualAnalysisHistoryItem:
             image_filename=document.get("image_filename", document["image_id"]),
             model_id=document["model_id"],
             model_name=document.get("model_name", document["model_id"]),
+            model_revision=document.get("model_revision"),
             attack_type=document["attack_type"],
+            attack_revision=document.get("attack_revision"),
             parameters=document.get("parameters", {}),
             summary=document.get("summary", {}),
             explanation_available=bool(document.get("explanation_available")),
+            pipeline_version=document.get("pipeline_version"),
             created_at=_utc_datetime(document["created_at"]),
             saved_at=_utc_datetime(document["saved_at"]),
         )

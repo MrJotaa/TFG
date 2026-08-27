@@ -15,16 +15,16 @@ const ExperimentContext = createContext(null)
 export function ExperimentProvider({ children }) {
     const { isAuthenticated } = useAuth()
     const [datasets, setDatasets] = useState([])
-    const [selectedDataset, setSelectedDataset] = useState(null)
-    const [selectedImage, setSelectedImage] = useState(null)
-    const [activeModel, setActiveModel] = useState(null)
+    const [selectedDataset, setSelectedDatasetState] = useState(null)
+    const [selectedImage, setSelectedImageState] = useState(null)
+    const [activeModel, setActiveModelState] = useState(null)
     const [attackCatalog, setAttackCatalog] = useState([])
     const [attackCatalogError, setAttackCatalogError] = useState('')
     const [selectedAttack, setSelectedAttackState] = useState('fgsm')
     const selectedAttackRef = useRef(selectedAttack)
     const [attackParameters, setAttackParametersState] = useState({})
     const [recoveredEvaluation, setRecoveredEvaluation] = useState(null)
-
+    const [recoveredIndividualAnalysis, setRecoveredIndividualAnalysis] = useState(null)
 
     const attackCatalogLoading = Boolean(
         isAuthenticated && attackCatalog.length === 0 && !attackCatalogError,
@@ -67,33 +67,43 @@ export function ExperimentProvider({ children }) {
         }
     }, [isAuthenticated, attackCatalog.length])
 
-    const selectDataset = useCallback((dataset) => {
+    const clearRecoveredResults = useCallback(() => {
         setRecoveredEvaluation(null)
-        setSelectedDataset(dataset)
+        setRecoveredIndividualAnalysis(null)
     }, [])
 
+    const selectDataset = useCallback((dataset) => {
+        clearRecoveredResults()
+        setSelectedDatasetState(dataset)
+    }, [clearRecoveredResults])
+
+    const selectImage = useCallback((image) => {
+        clearRecoveredResults()
+        setSelectedImageState(image)
+    }, [clearRecoveredResults])
+
     const selectModel = useCallback((model) => {
-        setRecoveredEvaluation(null)
-        setActiveModel(model)
-    }, [])
+        clearRecoveredResults()
+        setActiveModelState(model)
+    }, [clearRecoveredResults])
 
     const selectAttack = useCallback((attackId) => {
         selectedAttackRef.current = attackId
-        setRecoveredEvaluation(null)
+        clearRecoveredResults()
         setSelectedAttackState(attackId)
         setAttackParametersState((current) =>
             buildAttackParameters(attackCatalog, attackId, current),
         )
-    }, [attackCatalog])
+    }, [attackCatalog, clearRecoveredResults])
 
     const updateAttackParameters = useCallback((parameters) => {
-        setRecoveredEvaluation(null)
+        clearRecoveredResults()
         setAttackParametersState(parameters)
-    }, [])
+    }, [clearRecoveredResults])
 
     function openRecoveredEvaluation({ historyItem, stored, dataset }) {
         selectedAttackRef.current = historyItem.attack_type
-        setSelectedDataset(dataset)
+        setSelectedDatasetState(dataset)
         setSelectedAttackState(historyItem.attack_type)
         setAttackParametersState(
             buildAttackParameters(
@@ -102,6 +112,7 @@ export function ExperimentProvider({ children }) {
                 historyItem.parameters,
             ),
         )
+        setRecoveredIndividualAnalysis(null)
         setRecoveredEvaluation({
             historyItem,
             taskType: stored.task_type,
@@ -109,15 +120,27 @@ export function ExperimentProvider({ children }) {
         })
     }
 
+    function openRecoveredIndividualAnalysis({ historyItem, stored, dataset, image }) {
+        setSelectedDatasetState(dataset)
+        setSelectedImageState(image)
+        setRecoveredEvaluation(null)
+        setRecoveredIndividualAnalysis({
+            historyItem,
+            taskType: historyItem.task_type,
+            data: stored.analysis,
+        })
+    }
+
     function resetExperiment() {
         selectedAttackRef.current = 'fgsm'
         setDatasets([])
-        setSelectedDataset(null)
-        setSelectedImage(null)
-        setActiveModel(null)
+        setSelectedDatasetState(null)
+        setSelectedImageState(null)
+        setActiveModelState(null)
         setSelectedAttackState('fgsm')
         setAttackParametersState(buildAttackParameters(attackCatalog, 'fgsm'))
         setRecoveredEvaluation(null)
+        setRecoveredIndividualAnalysis(null)
     }
 
     const value = {
@@ -126,7 +149,7 @@ export function ExperimentProvider({ children }) {
         selectedDataset,
         setSelectedDataset: selectDataset,
         selectedImage,
-        setSelectedImage,
+        setSelectedImage: selectImage,
         activeModel,
         setActiveModel: selectModel,
         attackCatalog,
@@ -138,7 +161,10 @@ export function ExperimentProvider({ children }) {
         setAttackParameters: updateAttackParameters,
         recoveredEvaluation,
         setRecoveredEvaluation,
+        recoveredIndividualAnalysis,
+        setRecoveredIndividualAnalysis,
         openRecoveredEvaluation,
+        openRecoveredIndividualAnalysis,
         resetExperiment,
     }
 

@@ -32,10 +32,13 @@ class IndividualAnalysisHistoryItem(BaseModel):
     image_filename: str
     model_id: str
     model_name: str
+    model_revision: str | None = None
     attack_type: AttackType
+    attack_revision: str | None = None
     parameters: AttackParameters
     summary: dict[str, Any]
     explanation_available: bool = False
+    pipeline_version: str | None = None
     created_at: datetime
     saved_at: datetime
 

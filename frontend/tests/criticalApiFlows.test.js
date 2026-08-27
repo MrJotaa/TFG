@@ -444,3 +444,37 @@ test('evaluation history exposes preserve and delete operations', async () => {
     assert.equal(calls[1].url, 'http://127.0.0.1:8000/evaluations/evaluation-1')
     assert.equal(calls[1].options.method, 'DELETE')
 })
+
+test('individual analysis history supports paged recovery and manual deletion', async () => {
+    const calls = captureFetch((_url, _options, index) => {
+        if (index === 0) {
+            return jsonResponse({ items: [], total: 0, limit: 8, offset: 0 })
+        }
+        if (index === 1) {
+            return jsonResponse({ item: { analysis_id: 'analysis-1' }, analysis: {} })
+        }
+        return new Response(null, { status: 204 })
+    })
+
+    await individualAnalysisHistory.getIndividualAnalysisHistory({
+        limit: 8,
+        offset: 0,
+        taskType: 'detection',
+    })
+    await individualAnalysisHistory.getStoredIndividualAnalysis('analysis/with spaces')
+    await individualAnalysisHistory.deleteIndividualAnalysis('analysis-1')
+
+    assert.equal(
+        calls[0].url,
+        'http://127.0.0.1:8000/individual-analyses?limit=8&offset=0&task_type=detection',
+    )
+    assert.equal(
+        calls[1].url,
+        'http://127.0.0.1:8000/individual-analyses/analysis%2Fwith%20spaces',
+    )
+    assert.equal(
+        calls[2].url,
+        'http://127.0.0.1:8000/individual-analyses/analysis-1',
+    )
+    assert.equal(calls[2].options.method, 'DELETE')
+})

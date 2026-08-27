@@ -58,7 +58,12 @@ function Dashboard() {
         setSelectedAttack,
         attackParameters,
         setAttackParameters,
+        recoveredEvaluation,
+        setRecoveredEvaluation,
+        recoveredIndividualAnalysis,
+        setRecoveredIndividualAnalysis,
         openRecoveredEvaluation,
+        openRecoveredIndividualAnalysis,
     } = useExperiment()
     const { user } = useAuth()
 
@@ -135,6 +140,18 @@ function Dashboard() {
     )
 
     const activeAttackName = getAttackName(selectedAttack, attackCatalog)
+
+    function startNewEvaluation() {
+        if (recoveredEvaluation) setRecoveredEvaluation(null)
+        if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
+        navigate('/evaluation')
+    }
+
+    function startNewIndividualAnalysis() {
+        if (recoveredEvaluation) setRecoveredEvaluation(null)
+        if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
+        navigate('/comparison')
+    }
 
     return (
         <div
@@ -252,7 +269,9 @@ function Dashboard() {
                             datasets={datasets}
                             attackCatalog={attackCatalog}
                             openRecoveredEvaluation={openRecoveredEvaluation}
+                            openRecoveredIndividualAnalysis={openRecoveredIndividualAnalysis}
                             onNavigateToEvaluation={() => navigate('/evaluation')}
+                            onNavigateToIndividualAnalysis={() => navigate('/comparison')}
                             onNavigateToProfile={() => navigate('/profile')}
                             onNavigateToComparison={(left, right) => {
                                 const search = new URLSearchParams({
@@ -290,7 +309,7 @@ function Dashboard() {
                         <button
                             type="button"
                             className="secondary-action"
-                            onClick={() => navigate('/evaluation')}
+                            onClick={startNewEvaluation}
                             disabled={!readiness.canEvaluate}
                         >
                             Evaluar dataset
@@ -298,7 +317,7 @@ function Dashboard() {
                         <button
                             type="button"
                             className="primary-action"
-                            onClick={() => navigate('/comparison')}
+                            onClick={startNewIndividualAnalysis}
                             disabled={!readiness.canAnalyze}
                         >
                             Analizar imagen

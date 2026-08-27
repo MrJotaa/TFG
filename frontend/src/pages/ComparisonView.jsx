@@ -27,6 +27,7 @@ import {
     resolveClassificationExplanation,
     resolveDetectionExplanation,
 } from '../utils/individualAnalysis'
+import { formatCreatedAgo } from '../utils/evaluationHistory'
 
 function DetectionList({ detections = [], title }) {
     return (
@@ -443,6 +444,7 @@ function ComparisonView() {
         attackCatalog,
         selectedAttack,
         attackParameters,
+        recoveredIndividualAnalysis,
     } = useExperiment()
     const { setNavigationProtection, clearNavigationProtection, requestNavigation } =
         useNavigationGuard()
@@ -457,11 +459,25 @@ function ComparisonView() {
     const [errorState, setErrorState] = useState(null)
     const requestAbortController = useRef(null)
 
-    const taskType = activeModel?.task_type ?? 'classification'
+    const recoveredHistoryItem = recoveredIndividualAnalysis?.historyItem ?? null
+    const recoveredAnalysis = recoveredIndividualAnalysis?.data ?? null
+    const historyMode = Boolean(recoveredHistoryItem && recoveredAnalysis)
+    const viewModel = historyMode
+        ? {
+            id: recoveredHistoryItem.model_id,
+            name: recoveredHistoryItem.model_name,
+            task_type: recoveredHistoryItem.task_type,
+        }
+        : activeModel
+    const viewAttack = historyMode ? recoveredHistoryItem.attack_type : selectedAttack
+    const viewAttackParameters = historyMode
+        ? recoveredHistoryItem.parameters
+        : attackParameters
+    const taskType = viewModel?.task_type ?? 'classification'
     const isDetection = taskType === 'detection'
     const isAttackSupported = isAttackSupportedForTask(
         attackCatalog,
-        selectedAttack,
+        viewAttack,
         taskType,
     )
     const datasetImages = useMemo(
@@ -474,19 +490,21 @@ function ComparisonView() {
     const imageContextKey = [
         selectedDataset?.id,
         selectedImage?.id,
-        activeModel?.id,
+        viewModel?.id,
     ].join(':')
     const attackContextKey = [
         imageContextKey,
-        selectedAttack,
-        attackParametersKey(attackParameters),
+        viewAttack,
+        attackParametersKey(viewAttackParameters),
     ].join(':')
     const predictionResult = predictionResultState?.contextKey === imageContextKey
         ? predictionResultState.data
         : null
-    const attackResult = attackResultState?.contextKey === attackContextKey
-        ? attackResultState.data
-        : null
+    const attackResult = historyMode
+        ? recoveredAnalysis
+        : attackResultState?.contextKey === attackContextKey
+            ? attackResultState.data
+            : null
     const explainabilityResult =
         explainabilityResultState?.contextKey === imageContextKey
             ? explainabilityResultState.data
@@ -502,7 +520,7 @@ function ComparisonView() {
         : null
     const requestedPanel = activePanelState?.contextKey === imageContextKey
         ? activePanelState.panel
-        : 'clean'
+        : historyMode ? 'attack' : 'clean'
     const activePanel = !isDetection
         ? normalizeClassificationPanel(requestedPanel)
         : normalizeDetectionPanel(requestedPanel)
@@ -523,7 +541,7 @@ function ComparisonView() {
         : ''
     const busy = loading || loadingPrediction || loadingExplainability
     const hasTemporaryWork = Boolean(
-        predictionResult || attackResult || explainabilityResult,
+        !historyMode && (predictionResult || attackResult || explainabilityResult),
     )
 
     useEffect(() => {
@@ -680,15 +698,15 @@ function ComparisonView() {
     const imageDimensions = selectedImage?.width && selectedImage?.height
         ? `${selectedImage.width} × ${selectedImage.height} px`
         : null
-    const attackName = getAttackName(selectedAttack, attackCatalog)
+    const attackName = getAttackName(viewAttack, attackCatalog)
     const attackParameterSummary = formatAttackParameters(
-        selectedAttack,
-        attackParameters,
+        viewAttack,
+        viewAttackParameters,
         attackCatalog,
     )
 
     if (!isDetection) {
-        const hasContext = Boolean(selectedDataset && selectedImage && activeModel)
+        const hasContext = Boolean(selectedDataset && selectedImage && viewModel)
 
         return (
             <section className="comparison-page classification-analysis-page">
@@ -721,7 +739,7 @@ function ComparisonView() {
                         <section className="classification-context-shell">
                             <div className="classification-context-strip">
                                 <div className="classification-context-summary">
-                                    <strong title={activeModel.name}>{activeModel.name}</strong>
+                                    <strong title={viewModel.name}>{viewModel.name}</strong>
                                     <span aria-hidden="true">/</span>
                                     <span>{attackName} {attackParameterSummary}</span>
                                     <span aria-hidden="true">/</span>
@@ -733,7 +751,7 @@ function ComparisonView() {
                                         <button
                                             type="button"
                                             onClick={() => selectRelativeImage(-1)}
-                                            disabled={selectedIndex <= 0 || busy}
+                                            disabled={selectedIndex <= 0 || busy || historyMode}
                                             aria-label="Imagen anterior"
                                             title="Imagen anterior"
                                         >
@@ -748,7 +766,8 @@ function ComparisonView() {
                                             disabled={
                                                 selectedIndex < 0 ||
                                                 selectedIndex >= datasetImages.length - 1 ||
-                                                busy
+                                                busy ||
+                                                historyMode
                                             }
                                             aria-label="Imagen siguiente"
                                             title="Imagen siguiente"
@@ -780,7 +799,7 @@ function ComparisonView() {
                                     </div>
                                     <div>
                                         <dt>Modelo</dt>
-                                        <dd>{activeModel.name}</dd>
+                                        <dd>{viewModel.name}</dd>
                                     </div>
                                     <div>
                                         <dt>Ataque</dt>
@@ -796,17 +815,30 @@ function ComparisonView() {
                                     </div>
                                     {attackResult?.result_id && (
                                         <div>
-                                            <dt>Resultado temporal</dt>
-                                            <dd>{attackResult.result_id}</dd>
+                                            <dt>{historyMode ? 'Análisis guardado' : 'Resultado temporal'}</dt>
+                                            <dd>{historyMode ? recoveredHistoryItem.analysis_id : attackResult.result_id}</dd>
                                         </div>
                                     )}
                                 </dl>
                             )}
                         </section>
 
+                        {historyMode && (
+                            <div className="individual-history-readonly-notice">
+                                <div>
+                                    <span className="evaluation-eyebrow">Historial</span>
+                                    <strong>Análisis individual conservado</strong>
+                                </div>
+                                <p>
+                                    Estás inspeccionando el resultado guardado de {formatCreatedAgo(recoveredHistoryItem.saved_at)}.
+                                    Los cálculos se muestran tal como fueron persistidos y no se repiten al abrirlos.
+                                </p>
+                            </div>
+                        )}
+
                         {error && <p className="error classification-analysis-error" role="alert">{error}</p>}
 
-                        {!isAttackSupported && (
+                        {!historyMode && !isAttackSupported && (
                             <div className="evaluation-warning-banner">
                                 El ataque seleccionado no es compatible con el modelo activo.
                                 Cámbialo desde el panel principal antes de ejecutar la comparación.
@@ -832,7 +864,7 @@ function ComparisonView() {
                                                 Ejecuta únicamente la inferencia original cuando no necesites aplicar un ataque.
                                             </p>
                                         </div>
-                                        {cleanPrediction && !loadingPrediction && (
+                                        {!historyMode && cleanPrediction && !loadingPrediction && (
                                             <button
                                                 type="button"
                                                 className="secondary-action"
@@ -877,7 +909,7 @@ function ComparisonView() {
                                                 Conserva el visor sincronizado, la superposición y Grad-CAM para comparar ambas condiciones.
                                             </p>
                                         </div>
-                                        {attackResult && !loading && (
+                                        {!historyMode && attackResult && !loading && (
                                             <button
                                                 type="button"
                                                 className="secondary-action"
@@ -934,7 +966,7 @@ function ComparisonView() {
                                                 Analiza Grad-CAM como resultado independiente o compara la atención original y adversaria cuando ya existe un ataque.
                                             </p>
                                         </div>
-                                        {classificationExplanation?.mode === 'single' &&
+                                        {!historyMode && classificationExplanation?.mode === 'single' &&
                                             !loadingExplainability && (
                                             <button
                                                 type="button"
@@ -958,6 +990,11 @@ function ComparisonView() {
                                             explanation={classificationExplanation}
                                             selectedImage={selectedImage}
                                         />
+                                    ) : historyMode ? (
+                                        <div className="dashboard-empty-state individual-history-explanation-empty">
+                                            <strong>Grad-CAM no se guardó con este análisis</strong>
+                                            <span>El historial conserva únicamente los artefactos que ya existían cuando se guardó el resultado.</span>
+                                        </div>
                                     ) : (
                                         <AnalysisPrompt
                                             eyebrow="Atención visual"
@@ -976,7 +1013,7 @@ function ComparisonView() {
         )
     }
 
-    const hasDetectionContext = Boolean(selectedDataset && selectedImage && activeModel)
+    const hasDetectionContext = Boolean(selectedDataset && selectedImage && viewModel)
 
     return (
         <section className="comparison-page classification-analysis-page detection-analysis-page">
@@ -1009,7 +1046,7 @@ function ComparisonView() {
                     <section className="classification-context-shell">
                         <div className="classification-context-strip">
                             <div className="classification-context-summary">
-                                <strong title={activeModel.name}>{activeModel.name}</strong>
+                                <strong title={viewModel.name}>{viewModel.name}</strong>
                                 <span aria-hidden="true">/</span>
                                 <span>{attackName} {attackParameterSummary}</span>
                                 <span aria-hidden="true">/</span>
@@ -1021,7 +1058,7 @@ function ComparisonView() {
                                     <button
                                         type="button"
                                         onClick={() => selectRelativeImage(-1)}
-                                        disabled={selectedIndex <= 0 || busy}
+                                        disabled={selectedIndex <= 0 || busy || historyMode}
                                         aria-label="Imagen anterior"
                                         title="Imagen anterior"
                                     >
@@ -1036,7 +1073,8 @@ function ComparisonView() {
                                         disabled={
                                             selectedIndex < 0 ||
                                             selectedIndex >= datasetImages.length - 1 ||
-                                            busy
+                                            busy ||
+                                            historyMode
                                         }
                                         aria-label="Imagen siguiente"
                                         title="Imagen siguiente"
@@ -1069,7 +1107,7 @@ function ComparisonView() {
                                 </div>
                                 <div>
                                     <dt>Modelo</dt>
-                                    <dd>{activeModel.name}</dd>
+                                    <dd>{viewModel.name}</dd>
                                 </div>
                                 <div>
                                     <dt>Ataque</dt>
@@ -1085,13 +1123,26 @@ function ComparisonView() {
                                 </div>
                                 {(attackResult?.result_id || explainabilityResult?.result_id) && (
                                     <div>
-                                        <dt>Resultado temporal</dt>
-                                        <dd>{attackResult?.result_id || explainabilityResult?.result_id}</dd>
+                                        <dt>{historyMode ? 'Análisis guardado' : 'Resultado temporal'}</dt>
+                                        <dd>{historyMode ? recoveredHistoryItem.analysis_id : attackResult?.result_id || explainabilityResult?.result_id}</dd>
                                     </div>
                                 )}
                             </dl>
                         )}
                     </section>
+
+                    {historyMode && (
+                        <div className="individual-history-readonly-notice">
+                            <div>
+                                <span className="evaluation-eyebrow">Historial</span>
+                                <strong>Análisis individual conservado</strong>
+                            </div>
+                            <p>
+                                Estás inspeccionando el resultado guardado de {formatCreatedAgo(recoveredHistoryItem.saved_at)}.
+                                Los cálculos se muestran tal como fueron persistidos y no se repiten al abrirlos.
+                            </p>
+                        </div>
+                    )}
 
                     {error && (
                         <p className="error classification-analysis-error" role="alert">
@@ -1099,7 +1150,7 @@ function ComparisonView() {
                         </p>
                     )}
 
-                    {!isAttackSupported && (
+                    {!historyMode && !isAttackSupported && (
                         <div className="evaluation-warning-banner">
                             El ataque seleccionado no es compatible con este detector.
                             Cambia el ataque desde el panel principal.
@@ -1125,7 +1176,7 @@ function ComparisonView() {
                                             Inspecciona las cajas, clases y confianzas del detector antes de aplicar perturbaciones.
                                         </p>
                                     </div>
-                                    {cleanDetection && !loadingPrediction && (
+                                    {!historyMode && cleanDetection && !loadingPrediction && (
                                         <button
                                             type="button"
                                             className="secondary-action"
@@ -1170,7 +1221,7 @@ function ComparisonView() {
                                             Conserva el visor sincronizado, la superposición, las cajas y Eigen-CAM para comparar ambas condiciones.
                                         </p>
                                     </div>
-                                    {attackResult && !loading && (
+                                    {!historyMode && attackResult && !loading && (
                                         <button
                                             type="button"
                                             className="secondary-action"
@@ -1227,7 +1278,7 @@ function ComparisonView() {
                                             Analiza Eigen-CAM como resultado independiente o compara la atención original y adversaria cuando el ataque ya la ha generado.
                                         </p>
                                     </div>
-                                    {detectionExplanation?.mode === 'single' &&
+                                    {!historyMode && detectionExplanation?.mode === 'single' &&
                                         !loadingExplainability && (
                                         <button
                                             type="button"
@@ -1251,6 +1302,11 @@ function ComparisonView() {
                                         explanation={detectionExplanation}
                                         selectedImage={selectedImage}
                                     />
+                                ) : historyMode ? (
+                                    <div className="dashboard-empty-state individual-history-explanation-empty">
+                                        <strong>Eigen-CAM no se guardó con este análisis</strong>
+                                        <span>El historial conserva únicamente los artefactos que ya existían cuando se guardó el resultado.</span>
+                                    </div>
                                 ) : (
                                     <AnalysisPrompt
                                         eyebrow="Atención visual"
