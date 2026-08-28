@@ -11,6 +11,8 @@ services:
       - ./tests:/app/tests
       - ./pytest.ini:/app/pytest.ini
       - ./pyproject.toml:/app/pyproject.toml:ro
+      - ./.coveragerc:/app/.coveragerc:ro
+      - ./coverage:/app/coverage
       - ./uploads:/app/uploads
     depends_on:
       - mongo
