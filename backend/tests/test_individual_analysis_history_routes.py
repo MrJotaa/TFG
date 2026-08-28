@@ -7,6 +7,7 @@ def _item():
     now = datetime.now(timezone.utc)
     return {
         "analysis_id": "individual_analysis_00000000-0000-4000-8000-000000000001",
+        "source_result_id": "attack_00000000-0000-4000-8000-000000000001",
         "task_type": "classification",
         "dataset_id": "dataset-1",
         "dataset_name": "Imagenette",
@@ -21,6 +22,24 @@ def _item():
         "explanation_available": True,
         "created_at": now,
         "saved_at": now,
+    }
+
+
+def _identity():
+    return {
+        "task_type": "classification",
+        "dataset_id": "dataset-1",
+        "dataset_name": "Imagenette",
+        "dataset_revision": 3,
+        "image_id": "image-1",
+        "image_filename": "tench.jpg",
+        "model_id": "resnet18",
+        "model_name": "ResNet-18",
+        "model_revision": "resnet18-v1",
+        "attack_type": "fgsm",
+        "attack_revision": "fgsm-v1",
+        "parameters": {"epsilon": 0.03},
+        "pipeline_version": "classification-individual-analysis-v1",
     }
 
 
@@ -58,7 +77,7 @@ def test_individual_analysis_compatibility_uses_authenticated_owner(
 
     async def fake_find(**kwargs):
         captured.update(kwargs)
-        return {"match": _item()}
+        return {"identity": _identity(), "match": _item()}
 
     monkeypatch.setattr(history_route, "find_compatible_individual_analysis", fake_find)
     response = client.post(
@@ -74,4 +93,6 @@ def test_individual_analysis_compatibility_uses_authenticated_owner(
     )
 
     assert response.status_code == 200
+    assert response.json()["identity"]["dataset_revision"] == 3
+    assert response.json()["match"]["source_result_id"].startswith("attack_")
     assert captured["owner_id"] == registered_user["user"]["id"]

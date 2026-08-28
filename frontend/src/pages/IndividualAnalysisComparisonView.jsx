@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { getDatasetById } from '../api/datasets'
-import { getStoredIndividualAnalysis } from '../api/individualAnalysisHistory'
+import {
+    getStoredIndividualAnalysis,
+    saveIndividualAnalysis,
+} from '../api/individualAnalysisHistory'
 import IndividualAnalysisComparisonExplorer from '../components/individualAnalysisComparison/IndividualAnalysisComparisonExplorer'
 import { useExperiment } from '../context/ExperimentContext'
+import { useNavigationGuard } from '../context/NavigationGuardContext'
 import {
     formatAttackParameters,
     getAttackName,
@@ -12,6 +16,7 @@ import {
     buildIndividualAnalysisComparison,
     individualAnalysisComparisonSummary,
 } from '../utils/individualAnalysisComparison'
+import { resolveSaveState } from '../utils/individualAnalysisFlow'
 import { formatAnalysisProbability, formatSignedPercentagePoints } from '../utils/individualAnalysis'
 import { formatCreatedAgo } from '../utils/evaluationHistory'
 
@@ -23,12 +28,23 @@ function formatMagnitude(value) {
     return numeric.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
 }
 
-function AnalysisIdentity({ side, item, attackCatalog }) {
+function analysisPersistenceLabel(reference, saveStatus) {
+    if (!reference?.temporary) {
+        return reference?.item?.saved_at
+            ? `guardado ${formatCreatedAgo(reference.item.saved_at)}`
+            : 'guardado'
+    }
+    if (saveStatus === 'equivalent') return 'temporal · equivalente guardado'
+    return 'temporal · no guardado'
+}
+
+function AnalysisIdentity({ side, reference, attackCatalog, saveStatus }) {
+    const item = reference.item
     return (
         <article className={`individual-comparison-identity side-${side.toLowerCase()}`}>
             <div className="individual-comparison-identity-topline">
                 <span>{side}</span>
-                <small>guardado {formatCreatedAgo(item.saved_at)}</small>
+                <small>{analysisPersistenceLabel(reference, saveStatus)}</small>
             </div>
             <strong>{item.model_name}</strong>
             <div>
@@ -99,28 +115,107 @@ function DetectionSummary({ side, summary }) {
     )
 }
 
+function PersistenceAction({ side, reference, status, saving, onSave }) {
+    if (!reference.temporary) {
+        return (
+            <div className={`individual-comparison-save-state side-${side.toLowerCase()}`}>
+                <span>{side}</span>
+                <div>
+                    <strong>Guardado</strong>
+                    <small>Este lado ya está conservado en el historial.</small>
+                </div>
+            </div>
+        )
+    }
+
+    const equivalent = status === 'equivalent'
+    return (
+        <div className={`individual-comparison-save-state side-${side.toLowerCase()} temporary`}>
+            <span>{side}</span>
+            <div>
+                <strong>{equivalent ? 'Equivalente ya guardado' : 'Resultado temporal'}</strong>
+                <small>
+                    {equivalent
+                        ? 'Existe la misma configuración en historial, pero esta ejecución concreta sigue siendo temporal.'
+                        : 'Puedes compararlo ahora sin guardarlo o conservar esta ejecución indefinidamente.'}
+                </small>
+            </div>
+            <button
+                type="button"
+                className="secondary-action"
+                onClick={onSave}
+                disabled={saving || equivalent}
+            >
+                {saving ? 'Guardando…' : equivalent ? 'Ya existe' : `Guardar ${side}`}
+            </button>
+        </div>
+    )
+}
+
+function buildSavedReference(stored, dataset, image) {
+    return {
+        item: stored.item,
+        analysis: stored.analysis,
+        dataset,
+        image,
+        temporary: false,
+        resultId: stored.analysis?.result_id ?? stored.item?.source_result_id ?? null,
+    }
+}
+
 function IndividualAnalysisComparisonView() {
     const navigate = useNavigate()
+    const location = useLocation()
     const [searchParams] = useSearchParams()
     const { attackCatalog } = useExperiment()
+    const { setNavigationProtection, clearNavigationProtection } = useNavigationGuard()
     const [state, setState] = useState({ status: 'loading' })
+    const [savingSide, setSavingSide] = useState(null)
+    const [saveStatuses, setSaveStatuses] = useState({ A: null, B: null })
 
     const leftId = searchParams.get('a')
     const rightId = searchParams.get('b')
+    const transientPair = location.state?.individualComparisonPair ?? null
 
     useEffect(() => {
         let cancelled = false
 
         async function load() {
-            if (!leftId || !rightId || leftId === rightId) {
-                setState({
-                    status: 'error',
-                    message: 'Selecciona dos análisis individuales diferentes desde el historial.',
-                })
-                return
-            }
-
             try {
+                setSaveStatuses({ A: null, B: null })
+
+                if (transientPair) {
+                    const left = transientPair.left
+                    const right = transientPair.right
+                    if (!left?.item || !right?.item || !left?.analysis || !right?.analysis) {
+                        throw new Error('La comparación temporal ya no contiene los dos resultados necesarios.')
+                    }
+                    const comparison = buildIndividualAnalysisComparison(left.item, right.item)
+                    if (!comparison.compatible) throw new Error(comparison.reason)
+
+                    const dataset = transientPair.dataset ?? left.dataset ?? right.dataset
+                    const image = transientPair.image ?? left.image ?? right.image
+                    if (!dataset || !image) {
+                        throw new Error('No se pudo recuperar el contexto visual de la imagen comparada.')
+                    }
+
+                    if (!cancelled) {
+                        setState({
+                            status: 'ready',
+                            left,
+                            right,
+                            comparison,
+                            dataset,
+                            image,
+                        })
+                    }
+                    return
+                }
+
+                if (!leftId || !rightId || leftId === rightId) {
+                    throw new Error('Selecciona dos análisis individuales diferentes desde el historial.')
+                }
+
                 setState({ status: 'loading' })
                 const [leftStored, rightStored] = await Promise.all([
                     getStoredIndividualAnalysis(leftId),
@@ -130,27 +225,21 @@ function IndividualAnalysisComparisonView() {
                     leftStored.item,
                     rightStored.item,
                 )
-                if (!comparison.compatible) {
-                    throw new Error(comparison.reason)
-                }
+                if (!comparison.compatible) throw new Error(comparison.reason)
 
                 const dataset = await getDatasetById(leftStored.item.dataset_id)
                 const image = dataset?.images?.find(
                     (candidate) => candidate.id === leftStored.item.image_id,
                 )
                 if (!image) {
-                    throw new Error(
-                        'La imagen original asociada ya no está disponible en el dataset.',
-                    )
+                    throw new Error('La imagen original asociada ya no está disponible en el dataset.')
                 }
 
                 if (!cancelled) {
                     setState({
                         status: 'ready',
-                        leftItem: leftStored.item,
-                        rightItem: rightStored.item,
-                        leftAnalysis: leftStored.analysis,
-                        rightAnalysis: rightStored.analysis,
+                        left: buildSavedReference(leftStored, dataset, image),
+                        right: buildSavedReference(rightStored, dataset, image),
                         comparison,
                         dataset,
                         image,
@@ -170,28 +259,92 @@ function IndividualAnalysisComparisonView() {
         return () => {
             cancelled = true
         }
-    }, [leftId, rightId])
+    }, [leftId, rightId, transientPair])
 
     const summaries = useMemo(() => {
         if (state.status !== 'ready') return null
         return {
             left: individualAnalysisComparisonSummary(
-                state.leftItem.task_type,
-                state.leftAnalysis,
+                state.left.item.task_type,
+                state.left.analysis,
             ),
             right: individualAnalysisComparisonSummary(
-                state.rightItem.task_type,
-                state.rightAnalysis,
+                state.right.item.task_type,
+                state.right.analysis,
             ),
         }
     }, [state])
+
+    const hasTemporaryWork = state.status === 'ready'
+        && (state.left.temporary || state.right.temporary)
+    const busy = Boolean(savingSide)
+
+    useEffect(() => {
+        setNavigationProtection({ hasTemporaryWork, busy })
+        return () => clearNavigationProtection()
+    }, [hasTemporaryWork, busy, setNavigationProtection, clearNavigationProtection])
+
+    async function handleSave(side) {
+        if (state.status !== 'ready') return
+        const key = side === 'A' ? 'left' : 'right'
+        const reference = state[key]
+        if (!reference?.temporary || !reference.resultId) return
+
+        try {
+            setSavingSide(side)
+            setState((current) => ({ ...current, saveError: '' }))
+            const item = await saveIndividualAnalysis({
+                taskType: reference.item.task_type,
+                resultId: reference.resultId,
+            })
+            const status = resolveSaveState(reference.resultId, item)
+            setSaveStatuses((current) => ({ ...current, [side]: status }))
+
+            if (status !== 'saved') return
+
+            const savedReference = {
+                ...reference,
+                item,
+                temporary: false,
+            }
+            const other = side === 'A' ? state.right : state.left
+            setState((current) => ({
+                ...current,
+                [key]: savedReference,
+            }))
+
+            if (!other.temporary) {
+                const leftAnalysisId = side === 'A'
+                    ? item.analysis_id
+                    : state.left.item.analysis_id
+                const rightAnalysisId = side === 'B'
+                    ? item.analysis_id
+                    : state.right.item.analysis_id
+                const search = new URLSearchParams({
+                    a: leftAnalysisId,
+                    b: rightAnalysisId,
+                })
+                clearNavigationProtection()
+                navigate(`/individual-analyses/compare?${search.toString()}`, {
+                    replace: true,
+                })
+            }
+        } catch (error) {
+            setState((current) => ({
+                ...current,
+                saveError: error.message || `No se pudo guardar el análisis ${side}.`,
+            }))
+        } finally {
+            setSavingSide(null)
+        }
+    }
 
     if (state.status === 'loading') {
         return (
             <section className="individual-comparison-page">
                 <div className="individual-comparison-loading">
                     <strong>Preparando comparación visual…</strong>
-                    <span>Recuperando los dos análisis guardados sin volver a ejecutar ataques.</span>
+                    <span>Recuperando los análisis disponibles sin volver a ejecutar ataques.</span>
                 </div>
             </section>
         )
@@ -217,14 +370,17 @@ function IndividualAnalysisComparisonView() {
     }
 
     const {
-        leftItem,
-        rightItem,
-        leftAnalysis,
-        rightAnalysis,
+        left,
+        right,
         comparison,
         dataset,
         image,
+        saveError,
     } = state
+    const leftItem = left.item
+    const rightItem = right.item
+    const leftAnalysis = left.analysis
+    const rightAnalysis = right.analysis
     const taskType = leftItem.task_type
     const taskLabel = taskType === 'detection' ? 'detección' : 'clasificación'
     const Summary = taskType === 'detection' ? DetectionSummary : ClassificationSummary
@@ -259,10 +415,40 @@ function IndividualAnalysisComparisonView() {
             </header>
 
             <div className="individual-comparison-identities" aria-label="Análisis comparados">
-                <AnalysisIdentity side="A" item={leftItem} attackCatalog={attackCatalog} />
+                <AnalysisIdentity
+                    side="A"
+                    reference={left}
+                    attackCatalog={attackCatalog}
+                    saveStatus={saveStatuses.A}
+                />
                 <span className="individual-comparison-versus">vs</span>
-                <AnalysisIdentity side="B" item={rightItem} attackCatalog={attackCatalog} />
+                <AnalysisIdentity
+                    side="B"
+                    reference={right}
+                    attackCatalog={attackCatalog}
+                    saveStatus={saveStatuses.B}
+                />
             </div>
+
+            {(left.temporary || right.temporary) && (
+                <section className="individual-comparison-save-strip" aria-label="Persistencia de la comparación">
+                    <PersistenceAction
+                        side="A"
+                        reference={left}
+                        status={saveStatuses.A}
+                        saving={savingSide === 'A'}
+                        onSave={() => handleSave('A')}
+                    />
+                    <PersistenceAction
+                        side="B"
+                        reference={right}
+                        status={saveStatuses.B}
+                        saving={savingSide === 'B'}
+                        onSave={() => handleSave('B')}
+                    />
+                </section>
+            )}
+            {saveError && <p className="error individual-comparison-save-error">{saveError}</p>}
 
             <details className="individual-comparison-guide">
                 <summary>
@@ -279,6 +465,13 @@ function IndividualAnalysisComparisonView() {
                         experimental. La vista permite estudiar predicciones, detecciones,
                         perturbaciones y explicabilidad persistida sin recalcular el ataque.
                     </p>
+                    {hasTemporaryWork && (
+                        <p>
+                            <strong>Persistencia:</strong> al menos uno de los lados sigue siendo
+                            temporal. Puedes compararlo sin guardarlo, pero se perderá al abandonar
+                            la vista si no decides conservarlo.
+                        </p>
+                    )}
                     <p>
                         <strong>Importante:</strong> un caso individual explica comportamiento local,
                         pero no demuestra por sí solo que un modelo o ataque sea globalmente superior.

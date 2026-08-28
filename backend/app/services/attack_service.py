@@ -219,6 +219,7 @@ async def apply_adversarial_attack(
             "result_type": "attack",
             "task_type": "classification",
             "dataset_id": request.dataset_id,
+            "dataset_revision": int(image.info.get("dataset_revision", 0)),
             "image_id": request.image_id,
             "model_id": model.id,
             "model_name": getattr(model, "name", model.id),

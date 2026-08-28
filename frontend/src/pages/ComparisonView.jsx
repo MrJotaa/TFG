@@ -4,8 +4,19 @@ import { applyAttack } from '../api/attack'
 import { isRequestCancelled, resolveApiUrl } from '../api/client'
 import { attackDetectionImage, detectImage } from '../api/detect'
 import { generateDetectionExplainability, generateGradCam } from '../api/explainability'
+import {
+    findCompatibleIndividualAnalysis,
+    getAllIndividualAnalysisHistory,
+    getStoredIndividualAnalysis,
+    saveIndividualAnalysis,
+} from '../api/individualAnalysisHistory'
 import { predictImage } from '../api/predict'
 import AdversarialImageExplorer from '../components/visualExplorer/AdversarialImageExplorer'
+import {
+    DuplicateAnalysisDialog,
+    IndividualAnalysisActionBar,
+    IndividualAnalysisCompareDialog,
+} from '../components/individualAnalysis/IndividualAnalysisFlowControls'
 import { useExperiment } from '../context/ExperimentContext'
 import { useNavigationGuard } from '../context/NavigationGuardContext'
 import { resolveCleanDetectionResult } from '../utils/adversarialExplorer'
@@ -28,6 +39,14 @@ import {
     resolveDetectionExplanation,
 } from '../utils/individualAnalysis'
 import { formatCreatedAgo } from '../utils/evaluationHistory'
+import { getCompatibleIndividualAnalysisCandidates } from '../utils/individualAnalysisHistory'
+import {
+    individualComparisonKindCopy,
+    makeAnalysisReference,
+    makeTemporaryAnalysisItem,
+    resolveSaveState,
+    validatePreparedComparison,
+} from '../utils/individualAnalysisFlow'
 
 function DetectionList({ detections = [], title }) {
     return (
@@ -445,6 +464,10 @@ function ComparisonView() {
         selectedAttack,
         attackParameters,
         recoveredIndividualAnalysis,
+        openRecoveredIndividualAnalysis,
+        pendingIndividualComparison,
+        beginIndividualComparison,
+        clearPendingIndividualComparison,
     } = useExperiment()
     const { setNavigationProtection, clearNavigationProtection, requestNavigation } =
         useNavigationGuard()
@@ -456,6 +479,13 @@ function ComparisonView() {
     const [loadingPrediction, setLoadingPrediction] = useState(false)
     const [loading, setLoading] = useState(false)
     const [loadingExplainability, setLoadingExplainability] = useState(false)
+    const [checkingHistory, setCheckingHistory] = useState(false)
+    const [savingAnalysis, setSavingAnalysis] = useState(false)
+    const [savedAnalysisState, setSavedAnalysisState] = useState(null)
+    const [duplicateAnalysis, setDuplicateAnalysis] = useState(null)
+    const [compareDialogOpen, setCompareDialogOpen] = useState(false)
+    const [comparisonCandidates, setComparisonCandidates] = useState([])
+    const [loadingComparisonCandidates, setLoadingComparisonCandidates] = useState(false)
     const [errorState, setErrorState] = useState(null)
     const requestAbortController = useRef(null)
 
@@ -505,6 +535,9 @@ function ComparisonView() {
         : attackResultState?.contextKey === attackContextKey
             ? attackResultState.data
             : null
+    const attackIdentity = !historyMode && attackResultState?.contextKey === attackContextKey
+        ? attackResultState.identity ?? null
+        : null
     const explainabilityResult =
         explainabilityResultState?.contextKey === imageContextKey
             ? explainabilityResultState.data
@@ -539,9 +572,44 @@ function ComparisonView() {
     const error = errorState?.contextKey === imageContextKey
         ? errorState.message
         : ''
-    const busy = loading || loadingPrediction || loadingExplainability
+    const currentSavedAnalysis = !historyMode
+        && savedAnalysisState?.resultId === attackResult?.result_id
+        ? savedAnalysisState
+        : null
+    const saveState = historyMode ? 'saved' : currentSavedAnalysis?.status ?? 'temporary'
+    const temporaryItem = !historyMode && attackResult && attackIdentity
+        ? makeTemporaryAnalysisItem({ identity: attackIdentity, analysis: attackResult })
+        : null
+    const currentReference = historyMode
+        ? makeAnalysisReference({
+            item: recoveredHistoryItem,
+            analysis: recoveredAnalysis,
+            dataset: selectedDataset,
+            image: selectedImage,
+            temporary: false,
+        })
+        : temporaryItem
+            ? makeAnalysisReference({
+                item: saveState === 'saved' && currentSavedAnalysis?.item
+                    ? currentSavedAnalysis.item
+                    : temporaryItem,
+                analysis: attackResult,
+                dataset: selectedDataset,
+                image: selectedImage,
+                temporary: saveState !== 'saved',
+            })
+            : null
+    const busy = loading
+        || loadingPrediction
+        || loadingExplainability
+        || checkingHistory
+        || savingAnalysis
     const hasTemporaryWork = Boolean(
-        !historyMode && (predictionResult || attackResult || explainabilityResult),
+        pendingIndividualComparison?.base?.temporary
+        || (!historyMode && (
+            (attackResult && saveState !== 'saved')
+            || (!attackResult && (predictionResult || explainabilityResult))
+        )),
     )
 
     useEffect(() => {
@@ -608,17 +676,45 @@ function ComparisonView() {
         }
     }
 
-    async function handleRunAttack() {
-        if (!selectedDataset || !selectedImage || !activeModel) {
-            setCurrentError('Debes seleccionar un conjunto de datos, una imagen y un modelo.')
+    async function getAnalysisPreflight() {
+        setCheckingHistory(true)
+        try {
+            return await findCompatibleIndividualAnalysis({
+                taskType,
+                datasetId: selectedDataset.id,
+                imageId: selectedImage.id,
+                attackType: selectedAttack,
+                parameters: attackParameters,
+            })
+        } finally {
+            setCheckingHistory(false)
+        }
+    }
+
+    function navigateToComparisonPair(left, right) {
+        clearNavigationProtection()
+        if (!left.temporary && !right.temporary) {
+            const search = new URLSearchParams({
+                a: left.item.analysis_id,
+                b: right.item.analysis_id,
+            })
+            navigate(`/individual-analyses/compare?${search.toString()}`)
             return
         }
 
-        if (!isAttackSupported) {
-            setCurrentError('El ataque seleccionado no es compatible con el modelo activo.')
-            return
-        }
+        navigate('/individual-analyses/compare', {
+            state: {
+                individualComparisonPair: {
+                    left,
+                    right,
+                    dataset: left.dataset ?? right.dataset ?? selectedDataset,
+                    image: left.image ?? right.image ?? selectedImage,
+                },
+            },
+        })
+    }
 
+    async function executeAttack(preflight) {
         const controller = beginCancellableRequest()
         const request = {
             datasetId: selectedDataset.id,
@@ -632,11 +728,35 @@ function ComparisonView() {
             setLoading(true)
             setCurrentError('')
             setAttackResultState(null)
+            setSavedAnalysisState(null)
             setActivePanelState({ contextKey: imageContextKey, panel: 'attack' })
             const result = isDetection
                 ? await attackDetectionImage(request)
                 : await applyAttack(request)
-            setAttackResultState({ contextKey: attackContextKey, data: result })
+
+            const resultState = {
+                contextKey: attackContextKey,
+                data: result,
+                identity: preflight.identity,
+            }
+            setAttackResultState(resultState)
+
+            if (pendingIndividualComparison) {
+                const rightItem = makeTemporaryAnalysisItem({
+                    identity: preflight.identity,
+                    analysis: result,
+                })
+                const right = makeAnalysisReference({
+                    item: rightItem,
+                    analysis: result,
+                    dataset: selectedDataset,
+                    image: selectedImage,
+                    temporary: true,
+                })
+                const left = pendingIndividualComparison.base
+                clearPendingIndividualComparison()
+                navigateToComparisonPair(left, right)
+            }
         } catch (err) {
             if (!isRequestCancelled(err)) {
                 setCurrentError(err.message)
@@ -644,6 +764,163 @@ function ComparisonView() {
         } finally {
             finishCancellableRequest(controller)
             setLoading(false)
+        }
+    }
+
+    async function handleRunAttack() {
+        if (!selectedDataset || !selectedImage || !activeModel) {
+            setCurrentError('Debes seleccionar un conjunto de datos, una imagen y un modelo.')
+            return
+        }
+
+        if (!isAttackSupported) {
+            setCurrentError('El ataque seleccionado no es compatible con el modelo activo.')
+            return
+        }
+
+        try {
+            setCurrentError('')
+            const preflight = await getAnalysisPreflight()
+
+            if (pendingIndividualComparison) {
+                const validation = validatePreparedComparison({
+                    baseItem: pendingIndividualComparison.base.item,
+                    expectedKind: pendingIndividualComparison.kind,
+                    identity: preflight.identity,
+                })
+                if (!validation.valid) {
+                    setCurrentError(validation.message)
+                    return
+                }
+            }
+
+            if (preflight.match) {
+                setDuplicateAnalysis({ match: preflight.match, preflight })
+                return
+            }
+
+            await executeAttack(preflight)
+        } catch (err) {
+            setCurrentError(err.message)
+        }
+    }
+
+    async function handleRecalculateDuplicate() {
+        const preflight = duplicateAnalysis?.preflight
+        if (!preflight) return
+        setDuplicateAnalysis(null)
+        await executeAttack(preflight)
+    }
+
+    async function handleOpenDuplicate() {
+        const match = duplicateAnalysis?.match
+        if (!match || !selectedDataset || !selectedImage) return
+        try {
+            setCheckingHistory(true)
+            const stored = await getStoredIndividualAnalysis(match.analysis_id)
+            clearPendingIndividualComparison()
+            openRecoveredIndividualAnalysis({
+                historyItem: match,
+                stored,
+                dataset: selectedDataset,
+                image: selectedImage,
+            })
+            setDuplicateAnalysis(null)
+        } catch (err) {
+            setCurrentError(err.message)
+        } finally {
+            setCheckingHistory(false)
+        }
+    }
+
+    async function handleUseDuplicateAsB() {
+        const match = duplicateAnalysis?.match
+        const left = pendingIndividualComparison?.base
+        if (!match || !left || !selectedDataset || !selectedImage) return
+        try {
+            setCheckingHistory(true)
+            const stored = await getStoredIndividualAnalysis(match.analysis_id)
+            const right = makeAnalysisReference({
+                item: stored.item,
+                analysis: stored.analysis,
+                dataset: selectedDataset,
+                image: selectedImage,
+                temporary: false,
+            })
+            setDuplicateAnalysis(null)
+            clearPendingIndividualComparison()
+            navigateToComparisonPair(left, right)
+        } catch (err) {
+            setCurrentError(err.message)
+        } finally {
+            setCheckingHistory(false)
+        }
+    }
+
+    async function handleSaveAnalysis() {
+        if (!attackResult || historyMode) return
+        try {
+            setSavingAnalysis(true)
+            setCurrentError('')
+            const item = await saveIndividualAnalysis({
+                taskType,
+                resultId: attackResult.result_id,
+            })
+            setSavedAnalysisState({
+                resultId: attackResult.result_id,
+                item,
+                status: resolveSaveState(attackResult.result_id, item),
+            })
+        } catch (err) {
+            setCurrentError(err.message)
+        } finally {
+            setSavingAnalysis(false)
+        }
+    }
+
+    async function handleOpenCompareDialog() {
+        if (!currentReference) return
+        setCompareDialogOpen(true)
+        setLoadingComparisonCandidates(true)
+        setComparisonCandidates([])
+        try {
+            const items = await getAllIndividualAnalysisHistory({ taskType })
+            setComparisonCandidates(
+                getCompatibleIndividualAnalysisCandidates(currentReference.item, items),
+            )
+        } catch (err) {
+            setCurrentError(err.message)
+        } finally {
+            setLoadingComparisonCandidates(false)
+        }
+    }
+
+    function handlePrepareComparison(kind) {
+        if (!currentReference) return
+        beginIndividualComparison({ base: currentReference, kind })
+        setCompareDialogOpen(false)
+        clearNavigationProtection()
+        navigate('/dashboard', { state: { workspaceTab: 'data' } })
+    }
+
+    async function handleCompareSavedCandidate(item) {
+        if (!currentReference) return
+        try {
+            setLoadingComparisonCandidates(true)
+            const stored = await getStoredIndividualAnalysis(item.analysis_id)
+            const right = makeAnalysisReference({
+                item: stored.item,
+                analysis: stored.analysis,
+                dataset: selectedDataset,
+                image: selectedImage,
+                temporary: false,
+            })
+            setCompareDialogOpen(false)
+            navigateToComparisonPair(currentReference, right)
+        } catch (err) {
+            setCurrentError(err.message)
+        } finally {
+            setLoadingComparisonCandidates(false)
         }
     }
 
@@ -704,6 +981,9 @@ function ComparisonView() {
         viewAttackParameters,
         attackCatalog,
     )
+    const pendingComparisonCopy = pendingIndividualComparison
+        ? individualComparisonKindCopy(pendingIndividualComparison.kind)
+        : null
 
     if (!isDetection) {
         const hasContext = Boolean(selectedDataset && selectedImage && viewModel)
@@ -736,6 +1016,15 @@ function ComparisonView() {
                     </div>
                 ) : (
                     <>
+                        {pendingIndividualComparison && (
+                            <div className="individual-analysis-preparing-b">
+                                <span className="individual-comparison-side-token">B</span>
+                                <div>
+                                    <strong>Preparando B · {pendingComparisonCopy.label}</strong>
+                                    <p>{pendingComparisonCopy.instruction} Antes de ejecutar se validará la identidad experimental exacta.</p>
+                                </div>
+                            </div>
+                        )}
                         <section className="classification-context-shell">
                             <div className="classification-context-strip">
                                 <div className="classification-context-summary">
@@ -1007,7 +1296,39 @@ function ComparisonView() {
                                 </section>
                             )}
                         </div>
+
+                        {attackResult && (
+                            <IndividualAnalysisActionBar
+                                historyMode={historyMode}
+                                saveState={saveState}
+                                saving={savingAnalysis}
+                                onSave={handleSaveAnalysis}
+                                onCompare={handleOpenCompareDialog}
+                            />
+                        )}
                     </>
+                )}
+
+                <DuplicateAnalysisDialog
+                    match={duplicateAnalysis?.match}
+                    attackCatalog={attackCatalog}
+                    preparingB={Boolean(pendingIndividualComparison)}
+                    busy={checkingHistory || loading}
+                    onOpenSaved={handleOpenDuplicate}
+                    onUseAsB={handleUseDuplicateAsB}
+                    onRecalculate={handleRecalculateDuplicate}
+                    onCancel={() => setDuplicateAnalysis(null)}
+                />
+                {compareDialogOpen && currentReference && (
+                    <IndividualAnalysisCompareDialog
+                        baseItem={currentReference.item}
+                        candidates={comparisonCandidates}
+                        loadingCandidates={loadingComparisonCandidates}
+                        attackCatalog={attackCatalog}
+                        onPrepare={handlePrepareComparison}
+                        onCompareCandidate={handleCompareSavedCandidate}
+                        onClose={() => setCompareDialogOpen(false)}
+                    />
                 )}
             </section>
         )
@@ -1043,6 +1364,15 @@ function ComparisonView() {
                 </div>
             ) : (
                 <>
+                    {pendingIndividualComparison && (
+                        <div className="individual-analysis-preparing-b">
+                            <span className="individual-comparison-side-token">B</span>
+                            <div>
+                                <strong>Preparando B · {pendingComparisonCopy.label}</strong>
+                                <p>{pendingComparisonCopy.instruction} Antes de ejecutar se validará la identidad experimental exacta.</p>
+                            </div>
+                        </div>
+                    )}
                     <section className="classification-context-shell">
                         <div className="classification-context-strip">
                             <div className="classification-context-summary">
@@ -1319,7 +1649,39 @@ function ComparisonView() {
                             </section>
                         )}
                     </div>
+
+                    {attackResult && (
+                        <IndividualAnalysisActionBar
+                            historyMode={historyMode}
+                            saveState={saveState}
+                            saving={savingAnalysis}
+                            onSave={handleSaveAnalysis}
+                            onCompare={handleOpenCompareDialog}
+                        />
+                    )}
                 </>
+            )}
+
+            <DuplicateAnalysisDialog
+                match={duplicateAnalysis?.match}
+                attackCatalog={attackCatalog}
+                preparingB={Boolean(pendingIndividualComparison)}
+                busy={checkingHistory || loading}
+                onOpenSaved={handleOpenDuplicate}
+                onUseAsB={handleUseDuplicateAsB}
+                onRecalculate={handleRecalculateDuplicate}
+                onCancel={() => setDuplicateAnalysis(null)}
+            />
+            {compareDialogOpen && currentReference && (
+                <IndividualAnalysisCompareDialog
+                    baseItem={currentReference.item}
+                    candidates={comparisonCandidates}
+                    loadingCandidates={loadingComparisonCandidates}
+                    attackCatalog={attackCatalog}
+                    onPrepare={handlePrepareComparison}
+                    onCompareCandidate={handleCompareSavedCandidate}
+                    onClose={() => setCompareDialogOpen(false)}
+                />
             )}
         </section>
     )

@@ -20,6 +20,7 @@ from schemas.individual_analysis_history import (
     IndividualAnalysisCompatibilityRequest,
     IndividualAnalysisCompatibilityResponse,
     IndividualAnalysisHistoryItem,
+    IndividualAnalysisIdentity,
     IndividualAnalysisHistoryPage,
     IndividualAnalysisSaveRequest,
     IndividualAnalysisTaskType,
@@ -65,7 +66,9 @@ async def save_individual_analysis(
         {"owner_id": owner_id, "signature": signature}
     )
     if existing is not None:
-        return _history_item(existing)
+        if _source_artifact_exists(existing):
+            return _history_item(existing)
+        await individual_analyses_collection.delete_one({"_id": existing["_id"]})
 
     created_at = _parse_metadata_datetime(metadata.get("created_at"))
     saved_at = datetime.now(timezone.utc)
@@ -118,7 +121,8 @@ async def find_compatible_individual_analysis(
     if document is not None and not _source_artifact_exists(document):
         document = None
     return IndividualAnalysisCompatibilityResponse(
-        match=_history_item(document) if document is not None else None
+        identity=IndividualAnalysisIdentity.model_validate(identity),
+        match=_history_item(document) if document is not None else None,
     )
 
 
@@ -201,7 +205,7 @@ async def protected_individual_result_ids() -> set[str]:
 async def _build_current_identity(
     *, request: IndividualAnalysisCompatibilityRequest, owner_id: str
 ) -> dict:
-    dataset, _ = await _validate_dataset_context(
+    dataset, image_metadata = await _validate_dataset_context(
         dataset_id=request.dataset_id,
         image_id=request.image_id,
         owner_id=owner_id,
@@ -221,9 +225,12 @@ async def _build_current_identity(
     metadata = {
         "task_type": request.task_type,
         "dataset_id": request.dataset_id,
+        "dataset_name": dataset.get("name", request.dataset_id),
         "dataset_revision": int(dataset.get("dataset_revision", 0)),
         "image_id": request.image_id,
+        "image_filename": image_metadata.get("filename", request.image_id),
         "model_id": model.id,
+        "model_name": model.name,
         "model_revision": get_active_model_revision(),
         "attack_type": request.attack_type.value,
         "attack_revision": attack.revision,
@@ -345,6 +352,7 @@ def _history_item(document: dict) -> IndividualAnalysisHistoryItem:
     try:
         return IndividualAnalysisHistoryItem(
             analysis_id=document["_id"],
+            source_result_id=document["source_result_id"],
             task_type=document["task_type"],
             dataset_id=document["dataset_id"],
             dataset_name=document.get("dataset_name", document["dataset_id"]),

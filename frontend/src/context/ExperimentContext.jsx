@@ -25,6 +25,7 @@ export function ExperimentProvider({ children }) {
     const [attackParameters, setAttackParametersState] = useState({})
     const [recoveredEvaluation, setRecoveredEvaluation] = useState(null)
     const [recoveredIndividualAnalysis, setRecoveredIndividualAnalysis] = useState(null)
+    const [pendingIndividualComparison, setPendingIndividualComparison] = useState(null)
 
     const attackCatalogLoading = Boolean(
         isAuthenticated && attackCatalog.length === 0 && !attackCatalogError,
@@ -121,14 +122,45 @@ export function ExperimentProvider({ children }) {
     }
 
     function openRecoveredIndividualAnalysis({ historyItem, stored, dataset, image }) {
+        selectedAttackRef.current = historyItem.attack_type
         setSelectedDatasetState(dataset)
         setSelectedImageState(image)
+        setSelectedAttackState(historyItem.attack_type)
+        setAttackParametersState(
+            buildAttackParameters(
+                attackCatalog,
+                historyItem.attack_type,
+                historyItem.parameters,
+            ),
+        )
+        setPendingIndividualComparison(null)
         setRecoveredEvaluation(null)
         setRecoveredIndividualAnalysis({
             historyItem,
             taskType: historyItem.task_type,
             data: stored.analysis,
         })
+    }
+
+    function beginIndividualComparison({ base, kind }) {
+        selectedAttackRef.current = base.item.attack_type
+        setSelectedDatasetState(base.dataset)
+        setSelectedImageState(base.image)
+        setSelectedAttackState(base.item.attack_type)
+        setAttackParametersState(
+            buildAttackParameters(
+                attackCatalog,
+                base.item.attack_type,
+                base.item.parameters,
+            ),
+        )
+        setRecoveredEvaluation(null)
+        setRecoveredIndividualAnalysis(null)
+        setPendingIndividualComparison({ base, kind })
+    }
+
+    function clearPendingIndividualComparison() {
+        setPendingIndividualComparison(null)
     }
 
     function resetExperiment() {
@@ -141,6 +173,7 @@ export function ExperimentProvider({ children }) {
         setAttackParametersState(buildAttackParameters(attackCatalog, 'fgsm'))
         setRecoveredEvaluation(null)
         setRecoveredIndividualAnalysis(null)
+        setPendingIndividualComparison(null)
     }
 
     const value = {
@@ -163,6 +196,9 @@ export function ExperimentProvider({ children }) {
         setRecoveredEvaluation,
         recoveredIndividualAnalysis,
         setRecoveredIndividualAnalysis,
+        pendingIndividualComparison,
+        beginIndividualComparison,
+        clearPendingIndividualComparison,
         openRecoveredEvaluation,
         openRecoveredIndividualAnalysis,
         resetExperiment,

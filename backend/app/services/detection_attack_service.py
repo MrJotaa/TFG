@@ -217,6 +217,7 @@ async def apply_detection_attack(
         "result_id": result_id,
         "result_type": "detection_attack",
         "dataset_id": request.dataset_id,
+        "dataset_revision": int(image.info.get("dataset_revision", 0)),
         "image_id": request.image_id,
         "model_id": model.id,
         "model_name": getattr(model, "name", model.id),

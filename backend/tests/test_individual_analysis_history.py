@@ -156,6 +156,7 @@ def analysis_environment(monkeypatch):
     monkeypatch.setattr(history, "individual_analyses_collection", analyses)
     monkeypatch.setattr(history, "read_result_metadata", lambda _result_id: metadata)
     monkeypatch.setattr(history, "read_result_payload", lambda _result_id: payload)
+    monkeypatch.setattr(history, "_source_artifact_exists", lambda _document: True)
     return owner_id, result_id, analyses
 
 
@@ -173,6 +174,7 @@ async def test_saved_individual_analysis_is_permanent_and_idempotent(
     second = await history.save_individual_analysis(request=request, owner_id=owner_id)
 
     assert first.analysis_id == second.analysis_id
+    assert first.source_result_id == result_id
     assert first.image_filename == "tench.jpg"
     assert first.explanation_available is True
     assert first.model_revision == 'resnet18-v1'
@@ -215,9 +217,26 @@ async def test_compatibility_returns_saved_identical_analysis(
         ),
         owner_id=owner_id,
     )
-    signature = analyses.documents[0]["signature"]
+    document = analyses.documents[0]
+    signature = document["signature"]
+
     async def fake_identity(**_kwargs):
-        return {"signature": signature}
+        return {
+            "task_type": document["task_type"],
+            "dataset_id": document["dataset_id"],
+            "dataset_name": document["dataset_name"],
+            "dataset_revision": document["dataset_revision"],
+            "image_id": document["image_id"],
+            "image_filename": document["image_filename"],
+            "model_id": document["model_id"],
+            "model_name": document["model_name"],
+            "model_revision": document["model_revision"],
+            "attack_type": document["attack_type"],
+            "attack_revision": document["attack_revision"],
+            "parameters": document["parameters"],
+            "pipeline_version": document["pipeline_version"],
+            "signature": signature,
+        }
 
     monkeypatch.setattr(history, "_build_current_identity", fake_identity)
     monkeypatch.setattr(history, "_source_artifact_exists", lambda _document: True)
@@ -233,6 +252,8 @@ async def test_compatibility_returns_saved_identical_analysis(
         owner_id=owner_id,
     )
 
+    assert response.identity.dataset_revision == 7
+    assert response.identity.image_filename == "tench.jpg"
     assert response.match is not None
     assert response.match.analysis_id == saved.analysis_id
 

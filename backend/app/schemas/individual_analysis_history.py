@@ -22,8 +22,25 @@ class IndividualAnalysisCompatibilityRequest(BaseModel):
     parameters: AttackParameters = Field(default_factory=AttackParameters)
 
 
+class IndividualAnalysisIdentity(BaseModel):
+    task_type: IndividualAnalysisTaskType
+    dataset_id: str
+    dataset_name: str
+    dataset_revision: int = Field(ge=0)
+    image_id: str
+    image_filename: str
+    model_id: str
+    model_name: str
+    model_revision: str | None = None
+    attack_type: AttackType
+    attack_revision: str | None = None
+    parameters: AttackParameters
+    pipeline_version: str | None = None
+
+
 class IndividualAnalysisHistoryItem(BaseModel):
     analysis_id: str
+    source_result_id: str
     task_type: IndividualAnalysisTaskType
     dataset_id: str
     dataset_name: str
@@ -51,6 +68,7 @@ class IndividualAnalysisHistoryPage(BaseModel):
 
 
 class IndividualAnalysisCompatibilityResponse(BaseModel):
+    identity: IndividualAnalysisIdentity
     match: IndividualAnalysisHistoryItem | None = None
 
 

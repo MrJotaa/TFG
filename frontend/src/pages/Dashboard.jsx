@@ -8,9 +8,14 @@ import ModelSelector from '../components/ModelSelector'
 import { getDatasetsByUser } from '../api/datasets'
 import { useExperiment } from '../context/ExperimentContext'
 import { useAuth } from '../context/AuthContext'
+import { useNavigationGuard } from '../context/NavigationGuardContext'
 import { getAttackName } from '../utils/attackFormatting'
 import { isAttackSupportedForTask } from '../utils/attackCatalog'
 import { getExperimentReadiness } from '../utils/dashboard'
+import {
+    individualComparisonKindCopy,
+    pendingComparisonReadiness,
+} from '../utils/individualAnalysisFlow'
 
 function DatabaseIcon() {
     return (
@@ -62,10 +67,13 @@ function Dashboard() {
         setRecoveredEvaluation,
         recoveredIndividualAnalysis,
         setRecoveredIndividualAnalysis,
+        pendingIndividualComparison,
+        clearPendingIndividualComparison,
         openRecoveredEvaluation,
         openRecoveredIndividualAnalysis,
     } = useExperiment()
     const { user } = useAuth()
+    const { setNavigationProtection, clearNavigationProtection, requestNavigation } = useNavigationGuard()
 
     const [datasetsError, setDatasetsError] = useState('')
     const [imagesRefreshKey] = useState(0)
@@ -140,17 +148,59 @@ function Dashboard() {
     )
 
     const activeAttackName = getAttackName(selectedAttack, attackCatalog)
+    const pendingComparisonStatus = pendingIndividualComparison
+        ? pendingComparisonReadiness({
+            baseItem: pendingIndividualComparison.base.item,
+            expectedKind: pendingIndividualComparison.kind,
+            selectedDataset,
+            selectedImage,
+            activeModel,
+            selectedAttack,
+            attackParameters,
+        })
+        : null
+    const pendingComparisonCopy = pendingIndividualComparison
+        ? individualComparisonKindCopy(pendingIndividualComparison.kind)
+        : null
+
+    useEffect(() => {
+        setNavigationProtection({
+            hasTemporaryWork: Boolean(pendingIndividualComparison?.base?.temporary),
+            busy: false,
+        })
+        return () => clearNavigationProtection()
+    }, [
+        pendingIndividualComparison,
+        setNavigationProtection,
+        clearNavigationProtection,
+    ])
 
     function startNewEvaluation() {
+        if (pendingIndividualComparison) return
         if (recoveredEvaluation) setRecoveredEvaluation(null)
         if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
         navigate('/evaluation')
     }
 
     function startNewIndividualAnalysis() {
+        if (pendingIndividualComparison && !pendingComparisonStatus?.ready) return
         if (recoveredEvaluation) setRecoveredEvaluation(null)
         if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
+        if (!pendingIndividualComparison) clearPendingIndividualComparison()
+        clearNavigationProtection()
         navigate('/comparison')
+    }
+
+    function cancelPreparedComparison() {
+        const discard = () => {
+            clearPendingIndividualComparison()
+            clearNavigationProtection()
+        }
+        if (pendingIndividualComparison?.base?.temporary) {
+            requestNavigation(discard)
+            return
+        }
+        discard()
     }
 
     return (
@@ -291,6 +341,35 @@ function Dashboard() {
                     )}
                 </div>
 
+                {pendingIndividualComparison && (
+                    <section className="dashboard-individual-compare-draft" aria-live="polite">
+                        <div className="dashboard-individual-compare-draft-side">
+                            <span>A</span>
+                            <div>
+                                <strong>{pendingIndividualComparison.base.item.model_name}</strong>
+                                <small>
+                                    {getAttackName(
+                                        pendingIndividualComparison.base.item.attack_type,
+                                        attackCatalog,
+                                    )} · {pendingIndividualComparison.base.item.image_filename}
+                                </small>
+                            </div>
+                        </div>
+                        <div className="dashboard-individual-compare-draft-copy">
+                            <span className="dashboard-section-eyebrow">Preparando análisis B</span>
+                            <strong>{pendingComparisonCopy.label}</strong>
+                            <p>{pendingComparisonStatus?.message || pendingComparisonCopy.instruction}</p>
+                        </div>
+                        <button
+                            type="button"
+                            className="dashboard-text-action"
+                            onClick={cancelPreparedComparison}
+                        >
+                            Cancelar comparación
+                        </button>
+                    </section>
+                )}
+
                 <footer className="dashboard-action-bar">
                     <div className="dashboard-action-status">
                         <div className={`dashboard-readiness ${readiness.tone}`}>
@@ -317,7 +396,7 @@ function Dashboard() {
                             type="button"
                             className="secondary-action"
                             onClick={startNewEvaluation}
-                            disabled={!readiness.canEvaluate}
+                            disabled={!readiness.canEvaluate || Boolean(pendingIndividualComparison)}
                         >
                             Evaluar dataset
                         </button>
@@ -325,9 +404,12 @@ function Dashboard() {
                             type="button"
                             className="primary-action"
                             onClick={startNewIndividualAnalysis}
-                            disabled={!readiness.canAnalyze}
+                            disabled={
+                                !readiness.canAnalyze
+                                || (pendingIndividualComparison && !pendingComparisonStatus?.ready)
+                            }
                         >
-                            Analizar imagen
+                            {pendingIndividualComparison ? 'Analizar B' : 'Analizar imagen'}
                         </button>
                     </div>
                 </footer>

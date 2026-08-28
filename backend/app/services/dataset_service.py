@@ -489,7 +489,12 @@ async def get_image_from_dataset(
     if not os.path.exists(image_path):
         raise NotFoundError(IMAGE_FILE_NOT_FOUND_MESSAGE)
 
-    return Image.open(image_path).convert("RGB")
+    image = Image.open(image_path).convert("RGB")
+    # Keep the revision that was actually used by the individual analysis.
+    # PIL's ``info`` travels with this in-memory image without changing the
+    # public service contract used throughout the inference stack.
+    image.info["dataset_revision"] = int(dataset.get("dataset_revision", 0))
+    return image
 
 
 async def get_datasets_by_user(
