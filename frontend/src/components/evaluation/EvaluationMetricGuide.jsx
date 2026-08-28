@@ -3,8 +3,10 @@ function EvaluationMetricGuide({ guide, variant = null }) {
         return null
     }
 
+    const variantClassName = variant ? ` ${variant}-guide` : ''
+
     return (
-        <details className={`evaluation-metric-guide${variant ? ` ${variant}-guide` : ''}`}>
+        <details className={`evaluation-metric-guide${variantClassName}`}>
             <summary>
                 <span className="evaluation-info-icon" aria-hidden="true">i</span>
                 <span>

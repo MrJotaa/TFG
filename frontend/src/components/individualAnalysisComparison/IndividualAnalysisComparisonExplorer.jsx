@@ -141,28 +141,28 @@ function ComparisonToolbar({
         <div className="individual-comparison-toolbar">
             <div className="individual-comparison-control-group">
                 <span>Disposición</span>
-                <div className="individual-comparison-segmented" role="group" aria-label="Disposición de la comparación">
+                <fieldset className="individual-comparison-segmented semantic-fieldset-reset" aria-label="Disposición de la comparación">
                     <button type="button" className={layout === 'parallel' ? 'active' : ''} onClick={() => setLayout('parallel')}>Paralelo</button>
                     <button type="button" className={layout === 'overlay' ? 'active' : ''} onClick={() => setLayout('overlay')}>Superpuesto</button>
-                </div>
+                </fieldset>
             </div>
 
             <div className="individual-comparison-control-group">
                 <span>Capa</span>
-                <div className="individual-comparison-segmented" role="group" aria-label="Capa visual">
+                <fieldset className="individual-comparison-segmented semantic-fieldset-reset" aria-label="Capa visual">
                     {layerOptions.map((option) => (
                         <button key={option.id} type="button" className={layer === option.id ? 'active' : ''} onClick={() => setLayer(option.id)}>{option.label}</button>
                     ))}
-                </div>
+                </fieldset>
             </div>
 
             {layer !== 'perturbation' && (
                 <div className="individual-comparison-control-group">
                     <span>Estado</span>
-                    <div className="individual-comparison-segmented" role="group" aria-label="Estado de la imagen">
+                    <fieldset className="individual-comparison-segmented semantic-fieldset-reset" aria-label="Estado de la imagen">
                         <button type="button" className={stage === 'original' ? 'active' : ''} onClick={() => setStage('original')}>Original</button>
                         <button type="button" className={stage === 'adversarial' ? 'active' : ''} onClick={() => setStage('adversarial')}>Tras ataque</button>
-                    </div>
+                    </fieldset>
                 </div>
             )}
 
@@ -173,12 +173,12 @@ function ComparisonToolbar({
                 </label>
             )}
 
-            <div className="individual-comparison-zoom" role="group" aria-label="Zoom sincronizado">
+            <fieldset className="individual-comparison-zoom semantic-fieldset-reset" aria-label="Zoom sincronizado">
                 <button type="button" disabled={zoom === EXPLORER_MIN_ZOOM} onClick={() => changeZoom(zoom - EXPLORER_ZOOM_STEP)} aria-label="Reducir">−</button>
                 <output>{Math.round(zoom * 100)}%</output>
                 <button type="button" disabled={zoom === EXPLORER_MAX_ZOOM} onClick={() => changeZoom(zoom + EXPLORER_ZOOM_STEP)} aria-label="Ampliar">+</button>
                 <button type="button" onClick={resetView}>Restablecer</button>
-            </div>
+            </fieldset>
         </div>
     )
 }

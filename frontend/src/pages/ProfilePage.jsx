@@ -875,9 +875,9 @@ function ProfilePage() {
                         aria-label="Cerrar diálogo de eliminación de cuenta"
                         disabled={deletingAccount}
                     />
-                    <section
+                    <dialog
+                        open
                         className="profile-delete-dialog"
-                        role="dialog"
                         aria-modal="true"
                         aria-labelledby="profile-delete-title"
                     >
@@ -926,7 +926,7 @@ function ProfilePage() {
                                 </button>
                             </div>
                         </form>
-                    </section>
+                    </dialog>
                 </div>
             )}
         </section>

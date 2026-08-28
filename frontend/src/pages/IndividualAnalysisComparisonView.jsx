@@ -155,6 +155,10 @@ function PersistenceAction({ side, reference, status, saving, onSave }) {
     }
 
     const equivalent = status === 'equivalent'
+    let saveButtonLabel = `Guardar ${side}`
+    if (saving) saveButtonLabel = 'Guardando…'
+    else if (equivalent) saveButtonLabel = 'Ya existe'
+
     return (
         <div className={`individual-comparison-save-state side-${side.toLowerCase()} temporary`}>
             <span>{side}</span>
@@ -172,7 +176,7 @@ function PersistenceAction({ side, reference, status, saving, onSave }) {
                 onClick={onSave}
                 disabled={saving || equivalent}
             >
-                {saving ? 'Guardando…' : equivalent ? 'Ya existe' : `Guardar ${side}`}
+                {saveButtonLabel}
             </button>
         </div>
     )

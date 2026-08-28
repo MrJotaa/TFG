@@ -48,7 +48,6 @@ function NavigationGuardDialog({ request, protection, onCancel, onConfirm }) {
     return (
         <div
             className="navigation-guard-backdrop"
-            role="presentation"
             onMouseDown={(event) => {
                 if (event.target === event.currentTarget) onCancel()
             }}

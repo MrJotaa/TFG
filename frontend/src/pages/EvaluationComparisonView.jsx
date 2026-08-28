@@ -48,7 +48,14 @@ function formatSupervisedProtocol(configuration) {
 }
 
 
+function comparisonGuideSummary(comparisonKind) {
+    if (comparisonKind === 'model') return 'Compara el rendimiento robusto y su retención frente a la referencia de cada modelo. Un valor absoluto mayor y una menor pérdida responden a preguntas complementarias.'
+    if (comparisonKind === 'attack') return 'Compara cuánto rendimiento conserva el mismo modelo frente a cada ataque. Las diferencias describen el impacto observado, pero no convierten automáticamente un ataque en «mejor» o «peor» porque sus intensidades pueden no ser equivalentes.'
+    return 'Compara cómo cambia el impacto del mismo ataque al modificar su configuración. La referencia original permanece como ancla para interpretar la degradación.'
+}
+
 function SummaryComparisonGuide({ taskType, comparisonKind }) {
+    const summary = comparisonGuideSummary(comparisonKind)
     return (
         <details className="evaluation-comparison-guide summary-guide">
             <summary>
@@ -57,7 +64,7 @@ function SummaryComparisonGuide({ taskType, comparisonKind }) {
                 <span className="evaluation-comparison-guide-chevron" aria-hidden="true">⌄</span>
             </summary>
             <div className="evaluation-comparison-guide-body">
-                <p>{comparisonKind === 'model' ? 'Compara el rendimiento robusto y su retención frente a la referencia de cada modelo. Un valor absoluto mayor y una menor pérdida responden a preguntas complementarias.' : comparisonKind === 'attack' ? 'Compara cuánto rendimiento conserva el mismo modelo frente a cada ataque. Las diferencias describen el impacto observado, pero no convierten automáticamente un ataque en «mejor» o «peor» porque sus intensidades pueden no ser equivalentes.' : 'Compara cómo cambia el impacto del mismo ataque al modificar su configuración. La referencia original permanece como ancla para interpretar la degradación.'}</p>
+                <p>{summary}</p>
                 <div className="evaluation-comparison-guide-grid">
                     <div><strong>A y B son identidades</strong><span>Ámbar y cian solo distinguen evaluaciones; no significan mejor o peor.</span></div>
                     <div><strong>{taskType === 'detection' ? 'Retención de mAP' : 'Retención de exactitud'}</strong><span>Relaciona el resultado robusto con el rendimiento original de la misma evaluación y evita confundir un buen punto de partida con mayor resistencia.</span></div>

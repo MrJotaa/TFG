@@ -45,6 +45,7 @@ from utils.result_files import RESULTS_BASE_PATH
 
 logger = logging.getLogger(__name__)
 _EVALUATION_NOT_FOUND = "Evaluación no encontrada"
+_EVALUATION_WRONG_OWNER = "La evaluación pertenece a otro usuario"
 
 EVALUATION_STORAGE_SCHEMA_VERSION = 2
 CLASSIFICATION_PIPELINE_VERSION = "classification-evaluation-v2"
@@ -584,7 +585,7 @@ async def _get_owned_running_document(evaluation_id: str, owner_id: str) -> dict
     if document is None:
         raise NotFoundError(_EVALUATION_NOT_FOUND)
     if document.get("owner_id") != owner_id:
-        raise ForbiddenError("La evaluación pertenece a otro usuario")
+        raise ForbiddenError(_EVALUATION_WRONG_OWNER)
     if document.get("status") != "running":
         raise BadRequestError("La evaluación no está en curso")
     return document
@@ -597,7 +598,7 @@ async def _get_owned_completed_document(evaluation_id: str, owner_id: str) -> di
     if document is None:
         raise NotFoundError(_EVALUATION_NOT_FOUND)
     if document.get("owner_id") != owner_id:
-        raise ForbiddenError("La evaluación pertenece a otro usuario")
+        raise ForbiddenError(_EVALUATION_WRONG_OWNER)
     if document.get("status") != "completed":
         raise BadRequestError("La evaluación no está completada")
     return document
@@ -610,7 +611,7 @@ async def _get_accessible_document(evaluation_id: str, owner_id: str) -> dict:
     if document is None:
         raise NotFoundError(_EVALUATION_NOT_FOUND)
     if document.get("owner_id") != owner_id:
-        raise ForbiddenError("La evaluación pertenece a otro usuario")
+        raise ForbiddenError(_EVALUATION_WRONG_OWNER)
     if document.get("status") != "completed":
         raise BadRequestError("La evaluación no está completada")
     if document.get("preserved") is not True:

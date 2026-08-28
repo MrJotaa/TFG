@@ -3,6 +3,7 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from 'react'
@@ -102,7 +103,7 @@ export function ExperimentProvider({ children }) {
         setAttackParametersState(parameters)
     }, [clearRecoveredResults])
 
-    function openRecoveredEvaluation({ historyItem, stored, dataset }) {
+    const openRecoveredEvaluation = useCallback(({ historyItem, stored, dataset }) => {
         selectedAttackRef.current = historyItem.attack_type
         setSelectedDatasetState(dataset)
         setSelectedAttackState(historyItem.attack_type)
@@ -119,9 +120,9 @@ export function ExperimentProvider({ children }) {
             taskType: stored.task_type,
             data: stored.evaluation,
         })
-    }
+    }, [attackCatalog])
 
-    function openRecoveredIndividualAnalysis({ historyItem, stored, dataset, image }) {
+    const openRecoveredIndividualAnalysis = useCallback(({ historyItem, stored, dataset, image }) => {
         selectedAttackRef.current = historyItem.attack_type
         setSelectedDatasetState(dataset)
         setSelectedImageState(image)
@@ -140,9 +141,9 @@ export function ExperimentProvider({ children }) {
             taskType: historyItem.task_type,
             data: stored.analysis,
         })
-    }
+    }, [attackCatalog])
 
-    function beginIndividualComparison({ base, kind }) {
+    const beginIndividualComparison = useCallback(({ base, kind }) => {
         selectedAttackRef.current = base.item.attack_type
         setSelectedDatasetState(base.dataset)
         setSelectedImageState(base.image)
@@ -157,13 +158,13 @@ export function ExperimentProvider({ children }) {
         setRecoveredEvaluation(null)
         setRecoveredIndividualAnalysis(null)
         setPendingIndividualComparison({ base, kind })
-    }
+    }, [attackCatalog])
 
-    function clearPendingIndividualComparison() {
+    const clearPendingIndividualComparison = useCallback(() => {
         setPendingIndividualComparison(null)
-    }
+    }, [])
 
-    function resetExperiment() {
+    const resetExperiment = useCallback(() => {
         selectedAttackRef.current = 'fgsm'
         setDatasets([])
         setSelectedDatasetState(null)
@@ -174,9 +175,9 @@ export function ExperimentProvider({ children }) {
         setRecoveredEvaluation(null)
         setRecoveredIndividualAnalysis(null)
         setPendingIndividualComparison(null)
-    }
+    }, [attackCatalog])
 
-    const value = {
+    const value = useMemo(() => ({
         datasets,
         setDatasets,
         selectedDataset,
@@ -202,7 +203,14 @@ export function ExperimentProvider({ children }) {
         openRecoveredEvaluation,
         openRecoveredIndividualAnalysis,
         resetExperiment,
-    }
+    }), [
+        activeModel, attackCatalog, attackCatalogError, attackCatalogLoading, attackParameters,
+        beginIndividualComparison, clearPendingIndividualComparison, datasets,
+        openRecoveredEvaluation, openRecoveredIndividualAnalysis, pendingIndividualComparison,
+        recoveredEvaluation, recoveredIndividualAnalysis, resetExperiment, selectAttack,
+        selectDataset, selectImage, selectModel, selectedAttack, selectedDataset, selectedImage,
+        updateAttackParameters,
+    ])
 
     return (
         <ExperimentContext.Provider value={value}>

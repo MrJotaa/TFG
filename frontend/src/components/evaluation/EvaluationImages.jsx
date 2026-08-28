@@ -256,14 +256,13 @@ function EvaluationImageLightbox({ preview, onClose }) {
     const modal = (
         <div
             className="image-lightbox-backdrop evaluation-image-lightbox-backdrop"
-            role="presentation"
             onMouseDown={(event) => {
                 if (event.target === event.currentTarget) onClose()
             }}
         >
-            <section
+            <dialog
+                open
                 className="image-lightbox evaluation-image-lightbox"
-                role="dialog"
                 aria-modal="true"
                 aria-label={`Vista ampliada: ${preview.label}`}
             >
@@ -337,7 +336,7 @@ function EvaluationImageLightbox({ preview, onClose }) {
                         Usa + / − para cambiar el zoom. Con zoom activo, arrastra la imagen para desplazarte.
                     </span>
                 </footer>
-            </section>
+            </dialog>
         </div>
     )
 

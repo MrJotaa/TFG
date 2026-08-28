@@ -255,7 +255,7 @@ function AdversarialImageExplorer({
             </header>
 
             <div className="adversarial-explorer-toolbar" aria-label="Controles del explorador">
-                <div className="adversarial-explorer-segmented" role="group" aria-label="Disposición">
+                <fieldset className="adversarial-explorer-segmented semantic-fieldset-reset" aria-label="Disposición">
                     <button
                         type="button"
                         className={layout === 'parallel' ? 'active' : ''}
@@ -272,9 +272,9 @@ function AdversarialImageExplorer({
                     >
                         Superpuesto
                     </button>
-                </div>
+                </fieldset>
 
-                <div className="adversarial-explorer-segmented" role="group" aria-label="Capa visual">
+                <fieldset className="adversarial-explorer-segmented semantic-fieldset-reset" aria-label="Capa visual">
                     <button
                         type="button"
                         className={layer === 'image' ? 'active' : ''}
@@ -293,7 +293,7 @@ function AdversarialImageExplorer({
                             {taskType === 'detection' ? 'Eigen-CAM' : 'Grad-CAM'}
                         </button>
                     )}
-                </div>
+                </fieldset>
 
                 {sources.supportsAnnotations && layer === 'image' && (
                     <label className="adversarial-explorer-toggle">
@@ -315,7 +315,7 @@ function AdversarialImageExplorer({
                     <span>Mostrar perturbación</span>
                 </label>
 
-                <div className="adversarial-zoom-controls" role="group" aria-label="Ampliación sincronizada">
+                <fieldset className="adversarial-zoom-controls semantic-fieldset-reset" aria-label="Ampliación sincronizada">
                     <button
                         type="button"
                         onClick={() => changeZoom(zoom - EXPLORER_ZOOM_STEP)}
@@ -347,7 +347,7 @@ function AdversarialImageExplorer({
                     <button type="button" onClick={resetView}>
                         Restablecer
                     </button>
-                </div>
+                </fieldset>
             </div>
 
             {layout === 'parallel' ? (

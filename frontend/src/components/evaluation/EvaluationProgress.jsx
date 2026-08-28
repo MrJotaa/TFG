@@ -43,19 +43,7 @@ function EvaluationProgress({ progress, title, pendingMessage, onCancel }) {
                     <strong>{title}</strong>
                     <span>{percent}%</span>
                 </div>
-                <div
-                    className="evaluation-progress-track"
-                    role="progressbar"
-                    aria-label="Progreso de evaluación"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                    aria-valuenow={percent}
-                >
-                    <div
-                        className="evaluation-progress-value"
-                        style={{ width: `${percent}%` }}
-                    />
-                </div>
+                <progress className="evaluation-progress-track" aria-label="Progreso de evaluación" max="100" value={percent} />
                 <p>{message}</p>
             </div>
             {onCancel && (

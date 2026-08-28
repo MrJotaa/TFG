@@ -2716,7 +2716,7 @@ html[data-theme='dark'] .workspace-image-gallery .image-card.selected {
 /* --------------------------------------------------------------------------
  * Access experience
  * -------------------------------------------------------------------------- */
-.auth-page {
+.auth-page:where(*) {
     min-height: 100svh;
     display: flex;
     flex-direction: column;
@@ -6135,7 +6135,7 @@ html[data-theme='dark'] .classification-inline-loading {
 }
 
 /* Classification evaluation refinement */
-html[data-theme='dark'] {
+html[data-theme='dark']:where(*) {
     --evaluation-original: #60a5fa;
     --evaluation-adversarial: #ff5368;
     --evaluation-danger: #ff5368;
@@ -6146,7 +6146,7 @@ html[data-theme='dark'] {
     --evaluation-chart-axis: #52637d;
 }
 
-:root {
+:root:where(*) {
     --evaluation-matrix-text: #172033;
     --evaluation-matrix-strong-text: #ffffff;
     --evaluation-matrix-zero: #94a3b8;
@@ -6372,14 +6372,14 @@ html[data-theme='dark'] {
     color: var(--text);
 }
 
-.evaluation-metric-guide summary small,
-.evaluation-metric-guide-intro,
-.evaluation-metric-guide-grid dd,
-.evaluation-metric-guide-note {
+.evaluation-metric-guide summary small:where(*),
+.evaluation-metric-guide-intro:where(*),
+.evaluation-metric-guide-grid dd:where(*),
+.evaluation-metric-guide-note:where(*) {
     color: var(--muted);
 }
 
-.evaluation-info-icon {
+.evaluation-info-icon:where(*) {
     width: 1.45rem;
     height: 1.45rem;
     border: 1px solid var(--info-border);
@@ -6408,7 +6408,7 @@ html[data-theme='dark'] {
     color: var(--text-soft);
 }
 
-.evaluation-metric-guide-note {
+.evaluation-metric-guide-note:where(*) {
     margin: 0.15rem 0.9rem 0.9rem;
     padding: 0.7rem 0.8rem;
     border: 0;
@@ -7012,11 +7012,11 @@ html[data-theme='dark'] .evaluation-gradcam-grid .evaluation-image-preview img {
     }
 }
 
-.evaluation-metric-card {
+.evaluation-metric-card:where(*) {
     overflow: visible;
 }
 
-.evaluation-gradcam-grid .evaluation-image-preview img {
+.evaluation-gradcam-grid .evaluation-image-preview img:where(*) {
     height: clamp(240px, 25vw, 380px);
     aspect-ratio: auto;
     object-fit: contain;
@@ -7084,11 +7084,11 @@ html[data-theme='dark'] .classification-evaluation-panel .evaluation-coverage-me
     z-index: 90;
 }
 
-.evaluation-info-tip {
+.evaluation-info-tip:where(*) {
     z-index: 100;
 }
 
-.evaluation-info-tip-content {
+.evaluation-info-tip-content:where(*) {
     z-index: 110;
 }
 
@@ -7156,7 +7156,7 @@ html[data-theme='dark'] .classification-evaluation-panel .confusion-matrix-corne
     overscroll-behavior: contain;
 }
 
-.evaluation-image-lightbox {
+.evaluation-image-lightbox:where(*) {
     width: min(1440px, calc(100vw - 2rem));
     height: min(94vh, 1000px);
     max-height: 94vh;
@@ -7260,7 +7260,7 @@ html[data-theme='dark'] .classification-evaluation-panel .confusion-matrix-corne
 }
 
 /* Classification evaluation: final dark-mode flattening and interaction polish. */
-:root {
+:root:where(*):where(*) {
     --evaluation-transition-warning: #f59e0b;
 }
 
@@ -7375,13 +7375,13 @@ html[data-theme='dark'] .classification-evaluation-page .evaluation-context-stri
 }
 
 /* The image preview opens slightly smaller and becomes pannable only after zooming. */
-.evaluation-image-lightbox {
+.evaluation-image-lightbox:where(*):where(*) {
     width: min(1240px, calc(100vw - 3rem));
     height: min(88vh, 860px);
     max-height: 88vh;
 }
 
-.evaluation-image-lightbox-content {
+.evaluation-image-lightbox-content:where(*) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -7397,7 +7397,7 @@ html[data-theme='dark'] .classification-evaluation-page .evaluation-context-stri
     cursor: grabbing;
 }
 
-.evaluation-image-lightbox-content img {
+.evaluation-image-lightbox-content img:where(*) {
     width: auto;
     height: auto;
     max-width: 100%;
@@ -7830,7 +7830,7 @@ html[data-theme='dark'] .detection-evaluation-panel .detection-eigencam-action {
     background: #07101d;
 }
 
-.detection-evaluation-panel .detection-eigencam-preview img {
+.detection-evaluation-panel .detection-eigencam-preview img:where(*) {
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -8075,7 +8075,7 @@ html[data-theme='dark'] .detection-evaluation-panel :is(.detection-metrics-table
 }
 
 /* Effective COCO configuration is metadata, not another boxed table. */
-.detection-evaluation-panel .detection-method-card dl {
+.detection-evaluation-panel .detection-method-card dl:where(*) {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1rem 2rem;
@@ -8085,9 +8085,9 @@ html[data-theme='dark'] .detection-evaluation-panel :is(.detection-metrics-table
     background: transparent;
 }
 
-.detection-evaluation-panel .detection-method-card dl div,
-.detection-evaluation-panel .detection-method-card dl div:nth-child(3n),
-.detection-evaluation-panel .detection-method-card dl div:nth-child(n + 4) {
+.detection-evaluation-panel .detection-method-card dl div:where(*),
+.detection-evaluation-panel .detection-method-card dl div:nth-child(3n):where(*),
+.detection-evaluation-panel .detection-method-card dl div:nth-child(n + 4):where(*) {
     min-width: 0;
     padding: 0;
     margin: 0;
@@ -8373,7 +8373,7 @@ html[data-theme='dark'] .detection-evaluation-panel :is(
 /* --------------------------------------------------------------------------
  * Historical evaluation comparison
  * -------------------------------------------------------------------------- */
-:root {
+:root:where(*):where(*):where(*) {
     --comparison-a: #b45309;
     --comparison-a-soft: #fff7ed;
     --comparison-a-border: #fdba74;
@@ -8383,7 +8383,7 @@ html[data-theme='dark'] .detection-evaluation-panel :is(
     --comparison-reference: #64748b;
 }
 
-html[data-theme='dark'] {
+html[data-theme='dark']:where(*):where(*) {
     --comparison-a: #fbbf24;
     --comparison-a-soft: #332812;
     --comparison-a-border: #7c5b16;
@@ -9758,8 +9758,8 @@ html[data-theme='dark'] {
 .evaluation-comparison-class-meta dt { color: var(--muted); font-size: 0.61rem; }
 .evaluation-comparison-class-meta dd { margin: 0; color: var(--text-soft); font-size: 0.63rem; font-weight: 750; }
 
-.evaluation-comparison-chart { border-radius: 12px; background: linear-gradient(180deg, color-mix(in srgb, var(--surface-soft) 42%, transparent), transparent); }
-.evaluation-comparison-chart.tide { height: 390px; }
+.evaluation-comparison-chart:where(*) { border-radius: 12px; background: linear-gradient(180deg, color-mix(in srgb, var(--surface-soft) 42%, transparent), transparent); }
+.evaluation-comparison-chart.tide:where(*) { height: 390px; }
 .evaluation-chart-tooltip.comparison-chart-tooltip { border: 1px solid var(--border-strong); background: var(--surface-elevated); box-shadow: var(--shadow-lg); color: var(--text); }
 html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip { background: #111c2e; border-color: #33445e; }
 
@@ -9787,7 +9787,7 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip { bac
 .evaluation-comparison-image-filters button { min-height: 31px; padding: 0.3rem 0.6rem; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text-soft); font-size: 0.63rem; font-weight: 750; }
 .evaluation-comparison-image-filters button.active { border-color: var(--primary-border); background: var(--primary-soft); color: var(--primary); }
 .evaluation-comparison-image-filters > span { margin-left: auto; color: var(--muted); font-size: 0.63rem; }
-.evaluation-comparison-image-grid.detection { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.evaluation-comparison-image-grid.detection:where(*) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .evaluation-comparison-image-grid.detection .evaluation-comparison-image-figure > div { height: clamp(190px, 20vw, 270px); }
 .evaluation-comparison-detection-box { fill: transparent; stroke: #22d3ee; vector-effect: non-scaling-stroke; }
 .evaluation-comparison-detection-label-bg { fill: #0891b2; stroke: none !important; opacity: 0.93; }
@@ -9810,13 +9810,13 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip { bac
 .evaluation-comparison-explain-errors { border-left-color: var(--danger); color: var(--text-soft); }
 .evaluation-comparison-explain-errors p { margin: 0.2rem 0; }
 
-.comparison-image-lightbox { width: min(1080px, 90vw); height: min(720px, 86vh); }
-.comparison-image-lightbox .evaluation-image-lightbox-stage { display: grid; min-height: 0; place-items: center; overflow: hidden; padding: 0.75rem; }
+.comparison-image-lightbox:where(*) { width: min(1080px, 90vw); height: min(720px, 86vh); }
+.comparison-image-lightbox .evaluation-image-lightbox-stage:where(*) { display: grid; min-height: 0; place-items: center; overflow: hidden; padding: 0.75rem; }
 .evaluation-comparison-lightbox-canvas { position: relative; display: inline-block; max-width: 100%; max-height: 100%; transform-origin: center; will-change: transform; }
 .evaluation-comparison-lightbox-canvas > img { display: block; width: auto; height: auto; max-width: min(900px, 82vw); max-height: min(570px, 68vh); object-fit: contain; user-select: none; }
 .evaluation-comparison-lightbox-canvas .evaluation-comparison-detection-overlay { position: absolute; inset: 0; }
 .comparison-image-lightbox .evaluation-image-lightbox-stage.can-pan { cursor: grab; }
-.comparison-image-lightbox .evaluation-image-lightbox-stage.is-dragging { cursor: grabbing; }
+.comparison-image-lightbox .evaluation-image-lightbox-stage.is-dragging:where(*) { cursor: grabbing; }
 
 @media (max-width: 900px) {
     .evaluation-comparison-retention { grid-template-columns: 1fr; }
@@ -10136,20 +10136,20 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip { bac
 .evaluation-comparison-detection-label-bg.adversarial { fill: var(--evaluation-adversarial); }
 
 /* The enlarged viewer sizes itself around the media instead of reserving an empty half-panel. */
-.comparison-image-lightbox {
+.comparison-image-lightbox:where(*):where(*) {
     width: min(1120px, 92vw);
     height: auto;
     max-height: 88vh;
 }
 
-.comparison-image-lightbox .evaluation-image-lightbox-stage {
+.comparison-image-lightbox .evaluation-image-lightbox-stage:where(*):where(*) {
     flex: 0 1 auto;
     min-height: 0;
     max-height: 68vh;
     padding: 0.35rem;
 }
 
-.evaluation-comparison-lightbox-canvas > img {
+.evaluation-comparison-lightbox-canvas > img:where(*) {
     max-width: min(980px, 86vw);
     max-height: 64vh;
 }
@@ -10357,7 +10357,7 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip {
     stroke-width: 3px;
 }
 
-.evaluation-comparison-scatter-legend {
+.evaluation-comparison-scatter-legend:where(*) {
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
@@ -10415,7 +10415,7 @@ html[data-theme='light'] .evaluation-chart-tooltip.comparison-chart-tooltip {
     opacity: 1 !important;
 }
 
-html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip {
+html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip:where(*) {
     border-color: #3b4c67 !important;
     background: #111c2e !important;
     box-shadow: 0 14px 38px rgba(0, 0, 0, 0.42) !important;
@@ -10495,8 +10495,8 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip {
 .evaluation-comparison-case-summary.image-cases button strong {
     color: var(--text);
 }
-.evaluation-comparison-case-summary.image-cases button.side-a strong { color: var(--comparison-a); }
-.evaluation-comparison-case-summary.image-cases button.side-b strong { color: var(--comparison-b); }
+.evaluation-comparison-case-summary.image-cases button.side-a strong:where(*) { color: var(--comparison-a); }
+.evaluation-comparison-case-summary.image-cases button.side-b strong:where(*) { color: var(--comparison-b); }
 
 /* --------------------------------------------------------------------------
  * Unified history: evaluations + explicitly saved individual analyses
@@ -10555,7 +10555,7 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip {
     background: var(--primary);
 }
 
-.dashboard-history-row {
+.dashboard-history-row:where(*) {
     position: relative;
 }
 
@@ -12151,11 +12151,11 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip {
     }
 }
 
-.individual-analysis-preparing-b {
+.individual-analysis-preparing-b:where(*) {
     grid-template-columns: auto minmax(0, 1fr);
 }
 
-.individual-analysis-preparing-b > div:last-child {
+.individual-analysis-preparing-b > div:last-child:where(*) {
     display: grid;
     gap: 0.12rem;
     text-align: left;
@@ -12223,3 +12223,12 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip {
     background: var(--danger-soft);
     color: var(--danger);
 }
+
+/* Semantic HTML resets for native elements introduced during the accessibility cleanup. */
+:where(.semantic-fieldset-reset) { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+:where(.semantic-figure-reset) { margin: 0; }
+:where(dialog[open]) { position: relative; inset: auto; width: auto; max-width: none; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; }
+:where(progress.evaluation-progress-track) { appearance: none; border: 0; }
+:where(progress.evaluation-progress-track)::-webkit-progress-bar { border-radius: inherit; background: #dbeafe; }
+:where(progress.evaluation-progress-track)::-webkit-progress-value { border-radius: inherit; background: var(--primary); transition: width 180ms ease-out; }
+:where(progress.evaluation-progress-track)::-moz-progress-bar { border-radius: inherit; background: var(--primary); }

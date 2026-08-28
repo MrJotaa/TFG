@@ -74,8 +74,8 @@ function DetectionBoxesOverlay({ detections, dimensions }) {
             className="detection-box-overlay"
             viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
             aria-label={`${detections.length} detecciones`}
-            role="img"
-        >
+            >
+            <title>{`${detections.length} detecciones`}</title>
             {detections.map((detection, index) => {
                 const { x1, y1, x2, y2 } = detection.bbox
                 const label = `${detection.label} ${formatDecimal(detection.confidence, 2)}`
@@ -303,14 +303,13 @@ function DetectionImageLightbox({ preview, onClose }) {
     const modal = (
         <div
             className="image-lightbox-backdrop evaluation-image-lightbox-backdrop"
-            role="presentation"
             onMouseDown={(event) => {
                 if (event.target === event.currentTarget) onClose()
             }}
         >
-            <section
+            <dialog
+                open
                 className="image-lightbox evaluation-image-lightbox detection-evaluation-image-lightbox"
-                role="dialog"
                 aria-modal="true"
                 aria-label={`Vista ampliada: ${preview.label}`}
             >
@@ -396,7 +395,7 @@ function DetectionImageLightbox({ preview, onClose }) {
                         Usa + / − para cambiar el zoom. Con zoom activo, arrastra la imagen para desplazarte.
                     </span>
                 </footer>
-            </section>
+            </dialog>
         </div>
     )
 
@@ -492,9 +491,9 @@ function DetectionImageCard({
                 </div>
 
                 {eigenCamLoading && (
-                    <p className="evaluation-gradcam-status" role="status">
+                    <output className="evaluation-gradcam-status">
                         Calculando Eigen-CAM sin repetir el ataque ni las detecciones.
-                    </p>
+                    </output>
                 )}
 
                 {eigenCamError && (

@@ -284,6 +284,24 @@ function ComparisonCurveChart({ series, yLabel = 'Valor', xLabel = 'Umbral', dom
     )
 }
 
+function comparisonDeltaTone(delta) {
+    if (delta < 0) return 'side-a'
+    if (delta > 0) return 'side-b'
+    return ''
+}
+
+function comparisonCaseTone(id) {
+    if (id === 'left_better' || id === 'left_more') return 'side-a'
+    if (id === 'right_better' || id === 'right_more') return 'side-b'
+    return ''
+}
+
+function compareDetectionClassRows(sort, left, right) {
+    if (sort === 'support') return right.support - left.support
+    if (sort === 'name') return left.label.localeCompare(right.label, 'es')
+    return Math.abs(right.selectedDelta ?? -Infinity) - Math.abs(left.selectedDelta ?? -Infinity)
+}
+
 function ClassDifferenceDivergingBars({ rows, leftKey, rightKey, label = 'Clase', limit = 12 }) {
     const data = [...(rows ?? [])]
         .filter((row) => Number.isFinite(row[leftKey]) && Number.isFinite(row[rightKey]))
@@ -310,7 +328,7 @@ function ClassDifferenceDivergingBars({ rows, leftKey, rightKey, label = 'Clase'
                                 <b aria-hidden="true" />
                                 <span className="right">{delta > 0 && <i className="side-b" style={{ width }} />}</span>
                             </div>
-                            <span className={delta < 0 ? 'side-a' : delta > 0 ? 'side-b' : ''}>{formatPoints(delta)}</span>
+                            <span className={comparisonDeltaTone(delta)}>{formatPoints(delta)}</span>
                         </div>
                     )
                 })}
@@ -353,12 +371,12 @@ function ClassDifferenceScatter({ rows, leftKey, rightKey, label = 'Clase' }) {
         <figure className="evaluation-comparison-scatter">
             <figcaption>
                 <div><strong>Mapa A frente a B</strong><span>La diagonal representa igualdad. Las coordenadas idénticas se agrupan para no ocultar clases superpuestas.</span></div>
-                <div className="evaluation-comparison-scatter-scale" role="group" aria-label="Escala del mapa de diferencias">
+                <fieldset className="evaluation-comparison-scatter-scale semantic-fieldset-reset" aria-label="Escala del mapa de diferencias">
                     <button type="button" className={scaleMode === 'full' ? 'active' : ''} onClick={() => setScaleMode('full')}>Completa</button>
                     <button type="button" className={scaleMode === 'fit' ? 'active' : ''} onClick={() => setScaleMode('fit')}>Ajustar a datos</button>
-                </div>
+                </fieldset>
             </figcaption>
-            <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Dispersión A frente a B por ${label.toLowerCase()}`}>
+            <svg viewBox={`0 0 ${width} ${height}`} aria-label={`Dispersión A frente a B por ${label.toLowerCase()}`}>
                 {ticks.map((tick) => (
                     <g key={tick}>
                         <line x1={scaleX(tick)} x2={scaleX(tick)} y1={padding.top} y2={height - padding.bottom} className="grid" />
@@ -375,7 +393,10 @@ function ClassDifferenceScatter({ rows, leftKey, rightKey, label = 'Clase' }) {
                     const equal = Math.abs(group.left - group.right) < 1e-10
                     const names = group.rows.slice(0, 6).map((row) => row.label).join(', ')
                     const more = group.rows.length > 6 ? ` y ${group.rows.length - 6} más` : ''
-                    const title = `${group.rows.length > 1 ? `${group.rows.length} ${label.toLowerCase()}s` : group.rows[0].label}: A ${formatPercent(group.left)} · B ${formatPercent(group.right)}${group.rows.length > 1 ? ` · ${names}${more}` : ''}`
+                    const grouped = group.rows.length > 1
+                    const groupName = grouped ? `${group.rows.length} ${label.toLowerCase()}s` : group.rows[0].label
+                    const groupDetails = grouped ? ` · ${names}${more}` : ''
+                    const title = `${groupName}: A ${formatPercent(group.left)} · B ${formatPercent(group.right)}${groupDetails}`
                     return (
                         <g key={group.key} className="evaluation-comparison-scatter-point">
                             <title>{title}</title>
@@ -545,11 +566,7 @@ function DetectionClassComparison({ leftEvaluation, rightEvaluation }) {
                     : null,
             }))
             .filter((row) => !normalized || row.label.toLocaleLowerCase('es').includes(normalized))
-            .sort((left, right) => sort === 'support'
-                ? right.support - left.support
-                : sort === 'name'
-                    ? left.label.localeCompare(right.label, 'es')
-                    : Math.abs(right.selectedDelta ?? -Infinity) - Math.abs(left.selectedDelta ?? -Infinity))
+            .sort((left, right) => compareDetectionClassRows(sort, left, right))
     }, [leftEvaluation, metricConfig.leftKey, metricConfig.rightKey, query, rightEvaluation, sort])
 
     return (
@@ -720,6 +737,12 @@ function DetectionObjectCases({ leftEvaluation, rightEvaluation }) {
 
     if (!pairs.length) return <EmptyComparison title="Detalle por objeto no disponible">Las evaluaciones no contienen objetos materializados comunes.</EmptyComparison>
 
+    const preservationBalance = summary.preservation_balance
+    const preservationTone = comparisonDeltaTone(preservationBalance)
+    const preservationPrefix = preservationBalance > 0 ? '+' : ''
+    const preservationDirection = preservationBalance > 0 ? 'B' : 'A'
+    const preservationSummary = preservationBalance === 0 ? 'Mismo número preservado en exclusiva' : `${Math.abs(preservationBalance)} objetos hacia ${preservationDirection}`
+
     return (
         <section className="evaluation-comparison-detail-section evaluation-comparison-object-cases">
             <ComparisonSectionHeading eyebrow="Casos clave" title="Objetos que explican la diferencia" description="En lugar de leer coordenadas, inspecciona la referencia y el resultado visual del mismo objeto bajo A y B." />
@@ -733,15 +756,15 @@ function DetectionObjectCases({ leftEvaluation, rightEvaluation }) {
             />
             <div className="evaluation-comparison-paired-stats" aria-label="Resumen de preservación A/B">
                 <div><span>Desacuerdo de preservación</span><strong>{summary.preservation_disagreements} / {summary.total}</strong><small>{formatPercent(summary.preservation_disagreement_rate)} de los objetos comparables</small></div>
-                <div><span>Balance neto</span><strong className={summary.preservation_balance < 0 ? 'side-a' : summary.preservation_balance > 0 ? 'side-b' : ''}>{summary.preservation_balance > 0 ? '+' : ''}{summary.preservation_balance}</strong><small>{summary.preservation_balance === 0 ? 'Mismo número preservado en exclusiva' : `${Math.abs(summary.preservation_balance)} objetos hacia ${summary.preservation_balance > 0 ? 'B' : 'A'}`}</small></div>
+                <div><span>Balance neto</span><strong className={preservationTone}>{preservationPrefix}{preservationBalance}</strong><small>{preservationSummary}</small></div>
             </div>
-            <div className="evaluation-comparison-case-summary" role="group" aria-label="Filtros de comportamiento por objeto">
+            <fieldset className="evaluation-comparison-case-summary semantic-fieldset-reset" aria-label="Filtros de comportamiento por objeto">
                 {filters.map(([id, label, count]) => (
                     <button key={id} type="button" className={filter === id ? 'active' : ''} onClick={() => { setFilter(id); setVisible(8) }}>
                         <strong>{count}</strong><span>{label}</span>
                     </button>
                 ))}
-            </div>
+            </fieldset>
             <div className="evaluation-comparison-object-evidence-list">
                 {shown.map(({ left, right }) => {
                     const leftResult = leftResults.get(String(left.image_id))
@@ -782,7 +805,7 @@ function DetectionLabelsOverlay({ detections = [], dimensions }) {
     const fontSize = Math.max(12, Math.round(Math.min(dimensions.width, dimensions.height) * 0.024))
     const strokeWidth = Math.max(2, Math.round(Math.min(dimensions.width, dimensions.height) * 0.004))
     return (
-        <svg className="evaluation-comparison-detection-overlay" viewBox={`0 0 ${dimensions.width} ${dimensions.height}`} aria-label={`${detections.length} detecciones`} role="img">
+        <svg className="evaluation-comparison-detection-overlay" viewBox={`0 0 ${dimensions.width} ${dimensions.height}`} aria-label={`${detections.length} detecciones`}>
             {detections.map((detection, index) => {
                 const box = detection.bbox
                 if (!box) return null
@@ -852,8 +875,8 @@ function ComparisonImageLightbox({ preview, onClose }) {
 
     const safeZoom = clampEvaluationPreviewZoom(zoom)
     const modal = (
-        <div className="image-lightbox-backdrop evaluation-image-lightbox-backdrop comparison-image-lightbox-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-            <section className="image-lightbox evaluation-image-lightbox comparison-image-lightbox" role="dialog" aria-modal="true" aria-label={`Vista ampliada: ${preview.label}`}>
+        <div className="image-lightbox-backdrop evaluation-image-lightbox-backdrop comparison-image-lightbox-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+            <dialog open className="image-lightbox evaluation-image-lightbox comparison-image-lightbox" aria-modal="true" aria-label={`Vista ampliada: ${preview.label}`}>
                 <header>
                     <div><span className="evaluation-eyebrow">Vista ampliada</span><strong>{preview.label}</strong></div>
                     <div className="evaluation-image-lightbox-actions">
@@ -871,7 +894,7 @@ function ComparisonImageLightbox({ preview, onClose }) {
                     </div>
                 </div>
                 <footer><span>Usa + / − para cambiar el zoom. Con zoom activo, arrastra para inspeccionar otras zonas.</span></footer>
-            </section>
+            </dialog>
         </div>
     )
     return createPortal(modal, document.body)
@@ -1065,13 +1088,13 @@ function ComparisonImages({ taskType, leftItem, rightItem, leftEvaluation, right
                     <div><span>McNemar exacto</span><strong>{classificationSummary.mcnemar_exact_p < 0.001 ? '< 0.001' : classificationSummary.mcnemar_exact_p.toFixed(3)}</strong><small>Contrasta si los desacuerdos están sistemáticamente inclinados hacia A o B</small></div>
                 </div>
             )}
-            <div className="evaluation-comparison-case-summary image-cases" role="group" aria-label="Filtros de casos A/B">
+            <fieldset className="evaluation-comparison-case-summary image-cases semantic-fieldset-reset" aria-label="Filtros de casos A/B">
                 {caseFilters.map(([id, label, count]) => (
-                    <button key={id} type="button" className={`${filter === id ? 'active ' : ''}${id === 'left_better' || id === 'left_more' ? 'side-a' : id === 'right_better' || id === 'right_more' ? 'side-b' : ''}`.trim()} onClick={() => { setFilter(id); setVisible(8) }}>
+                    <button key={id} type="button" className={`${filter === id ? 'active ' : ''}${comparisonCaseTone(id)}`.trim()} onClick={() => { setFilter(id); setVisible(8) }}>
                         <strong>{count}</strong><span>{label}</span>
                     </button>
                 ))}
-            </div>
+            </fieldset>
             {classificationSummary && <p className="evaluation-comparison-stat-note"><strong>Cómo leer McNemar:</strong> un p pequeño aporta evidencia de que los desacuerdos favorecen sistemáticamente a una evaluación en estas mismas imágenes. No mide el tamaño ni la importancia práctica de la diferencia.</p>}
             {shown.map(({ left, right }) => (
                 <ComparisonImageCase
@@ -1101,10 +1124,10 @@ function DetectionCases({ leftItem, rightItem, leftEvaluation, rightEvaluation }
     const [mode, setMode] = useState('objects')
     return (
         <section className="evaluation-comparison-cases-shell">
-            <div className="evaluation-comparison-view-switcher" role="group" aria-label="Tipo de caso clave">
+            <fieldset className="evaluation-comparison-view-switcher semantic-fieldset-reset" aria-label="Tipo de caso clave">
                 <button type="button" className={mode === 'objects' ? 'active' : ''} onClick={() => setMode('objects')}>Objetos anotados</button>
                 <button type="button" className={mode === 'images' ? 'active' : ''} onClick={() => setMode('images')}>Imágenes completas</button>
-            </div>
+            </fieldset>
             {mode === 'objects'
                 ? <DetectionObjectCases leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />
                 : <ComparisonImages taskType="detection" leftItem={leftItem} rightItem={rightItem} leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
@@ -1119,11 +1142,11 @@ function ComparisonDiagnostics({ taskType, leftEvaluation, rightEvaluation, same
     }
     return (
         <section className="evaluation-comparison-diagnostics-shell">
-            <div className="evaluation-comparison-view-switcher" role="group" aria-label="Herramienta de diagnóstico">
+            <fieldset className="evaluation-comparison-view-switcher semantic-fieldset-reset" aria-label="Herramienta de diagnóstico">
                 <button type="button" className={mode === 'coco' ? 'active' : ''} onClick={() => setMode('coco')}>COCO</button>
                 <button type="button" className={mode === 'curves' ? 'active' : ''} onClick={() => setMode('curves')}>Precision–Recall</button>
                 <button type="button" className={mode === 'tide' ? 'active' : ''} onClick={() => setMode('tide')}>TIDE</button>
-            </div>
+            </fieldset>
             {mode === 'coco' && <DetectionCocoComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
             {mode === 'curves' && <DetectionCurveComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}
             {mode === 'tide' && <DetectionTideComparison leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} />}

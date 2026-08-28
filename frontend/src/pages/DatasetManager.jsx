@@ -78,6 +78,9 @@ function DatasetCreateDialog({ user, onClose, onCreated }) {
         }
     }
 
+    const imageNoun = files.length === 1 ? 'imagen' : 'imágenes'
+    const createLabel = loading ? 'Creando conjunto...' : `Crear con ${files.length} ${imageNoun}`
+
     return (
         <DatasetDialog
             title="Nuevo conjunto de datos"
@@ -142,7 +145,7 @@ function DatasetCreateDialog({ user, onClose, onCreated }) {
                         className="primary-action"
                         disabled={loading || !name.trim() || files.length === 0}
                     >
-                        {loading ? 'Creando conjunto...' : `Crear con ${files.length} ${files.length === 1 ? 'imagen' : 'imágenes'}`}
+                        {createLabel}
                     </button>
                 </div>
             </form>
@@ -171,6 +174,9 @@ function AddImagesDialog({ dataset, onClose, onUploaded }) {
         }
     }
 
+    const imageNoun = files.length === 1 ? 'imagen' : 'imágenes'
+    const addLabel = loading ? 'Añadiendo...' : `Añadir ${files.length || ''} ${imageNoun}`
+
     return (
         <DatasetDialog
             title={`Añadir imágenes a ${dataset.name}`}
@@ -189,7 +195,7 @@ function AddImagesDialog({ dataset, onClose, onUploaded }) {
                         Cancelar
                     </button>
                     <button type="submit" className="primary-action" disabled={loading || files.length === 0}>
-                        {loading ? 'Añadiendo...' : `Añadir ${files.length || ''} ${files.length === 1 ? 'imagen' : 'imágenes'}`}
+                        {addLabel}
                     </button>
                 </div>
             </form>
@@ -279,6 +285,9 @@ function DatasetImageInspector({ dataset, image, onSaved, onDelete }) {
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState('')
     const classification = dataset.task_type === 'classification'
+    let taskTypeLabel = 'Sin definir'
+    if (classification) taskTypeLabel = 'Clasificación'
+    else if (dataset.task_type === 'detection') taskTypeLabel = 'Detección'
 
     async function handleSave(event) {
         event.preventDefault()
@@ -309,7 +318,7 @@ function DatasetImageInspector({ dataset, image, onSaved, onDelete }) {
             <img className="dataset-inspector-preview" src={imageSource(image)} alt={image.filename} />
             <dl className="dataset-image-metadata">
                 <div><dt>Dimensiones</dt><dd>{image.width && image.height ? `${image.width} × ${image.height}` : 'No disponibles'}</dd></div>
-                <div><dt>Tipo</dt><dd>{classification ? 'Clasificación' : dataset.task_type === 'detection' ? 'Detección' : 'Sin definir'}</dd></div>
+                <div><dt>Tipo</dt><dd>{taskTypeLabel}</dd></div>
             </dl>
 
             {classification && (

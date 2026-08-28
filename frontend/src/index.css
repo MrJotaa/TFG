@@ -1778,7 +1778,7 @@ button {
     font-size: 0.75rem;
 }
 
-.detection-actions {
+.detection-actions:where(*) {
     display: flex;
     justify-content: flex-end;
     gap: 0.75rem;
@@ -1822,7 +1822,7 @@ button {
     }
 }
 /* Modern classification evaluation dashboard */
-:root {
+:root:where(*) {
     --evaluation-original: #2563eb;
     --evaluation-adversarial: #dc2626;
     --evaluation-danger: #dc2626;
@@ -5103,18 +5103,18 @@ button {
     outline-offset: 3px;
 }
 
-.evaluation-tabs {
+.evaluation-tabs:where(*) {
     scrollbar-width: thin;
     scroll-snap-type: x proximity;
     overscroll-behavior-x: contain;
 }
 
-.evaluation-tab {
+.evaluation-tab:where(*) {
     min-height: 44px;
     scroll-snap-align: start;
 }
 
-.evaluation-tab-panel {
+.evaluation-tab-panel:where(*) {
     outline: none;
 }
 
@@ -5207,7 +5207,7 @@ button {
 }
 
 /* Classification evaluation: compact page frame */
-.app-shell {
+.app-shell:where(*) {
     gap: 0.55rem;
 }
 
@@ -5227,7 +5227,7 @@ button {
     margin: 0;
 }
 
-.modern-evaluation-page {
+.modern-evaluation-page:where(*) {
     gap: 0.7rem;
 }
 
@@ -5296,25 +5296,25 @@ button {
     line-height: 1;
 }
 
-.evaluation-context-strip {
+.evaluation-context-strip:where(*) {
     border-radius: 14px;
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.045);
 }
 
-.evaluation-context-item {
+.evaluation-context-item:where(*) {
     padding: 0.7rem 0.85rem;
 }
 
-.evaluation-context-item span {
+.evaluation-context-item span:where(*) {
     margin-bottom: 0.18rem;
     font-size: 0.65rem;
 }
 
-.evaluation-context-item strong {
+.evaluation-context-item strong:where(*) {
     font-size: 0.84rem;
 }
 
-.evaluation-dashboard {
+.evaluation-dashboard:where(*) {
     gap: 0.7rem;
 }
 
@@ -5490,7 +5490,7 @@ button {
     color: #166534;
 }
 
-.success-message {
+.success-message:where(*) {
     color: #166534;
     font-weight: 600;
 }

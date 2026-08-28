@@ -30,9 +30,13 @@ function getCellStyle(value, maximum, mode, variant) {
     const alpha = numericValue > 0 ? 0.08 + intensity * 0.72 : 0.035
     const rgb = variant === 'original' ? '37, 99, 235' : '220, 38, 38'
 
+    let color = 'var(--evaluation-matrix-zero)'
+    if (intensity > 0.62) color = 'var(--evaluation-matrix-strong-text)'
+    else if (numericValue > 0) color = 'var(--evaluation-matrix-text)'
+
     return {
         backgroundColor: `rgba(${rgb}, ${alpha})`,
-        color: intensity > 0.62 ? 'var(--evaluation-matrix-strong-text)' : numericValue > 0 ? 'var(--evaluation-matrix-text)' : 'var(--evaluation-matrix-zero)',
+        color,
         opacity: mode === 'normalized' && numericValue === 0 ? 0.68 : 1,
     }
 }
@@ -125,9 +129,8 @@ function EvaluationConfusionMatrices({ evaluation }) {
                 </div>
 
                 <div className="confusion-matrix-controls">
-                    <div
-                        className="evaluation-segmented-control confusion-variant-control"
-                        role="group"
+                    <fieldset
+                        className="evaluation-segmented-control confusion-variant-control semantic-fieldset-reset"
                         aria-label="Predicciones mostradas"
                     >
                         <button
@@ -148,11 +151,10 @@ function EvaluationConfusionMatrices({ evaluation }) {
                         >
                             Tras el ataque
                         </button>
-                    </div>
+                    </fieldset>
 
-                    <div
-                        className="evaluation-segmented-control"
-                        role="group"
+                    <fieldset
+                        className="evaluation-segmented-control semantic-fieldset-reset"
                         aria-label="Representación de la matriz"
                     >
                         <button
@@ -171,11 +173,10 @@ function EvaluationConfusionMatrices({ evaluation }) {
                         >
                             Normalizada
                         </button>
-                    </div>
+                    </fieldset>
 
-                    <div
-                        className="evaluation-segmented-control"
-                        role="group"
+                    <fieldset
+                        className="evaluation-segmented-control semantic-fieldset-reset"
                         aria-label="Densidad de la matriz"
                     >
                         <button
@@ -194,7 +195,7 @@ function EvaluationConfusionMatrices({ evaluation }) {
                         >
                             Completa
                         </button>
-                    </div>
+                    </fieldset>
                 </div>
             </section>
 
@@ -238,9 +239,8 @@ function EvaluationConfusionMatrices({ evaluation }) {
                 <div className="confusion-matrix-layout">
                     <div className="confusion-matrix-axis-label side">Clase real</div>
 
-                    <div
+                    <section
                         className="confusion-matrix-scroll"
-                        role="region"
                         aria-label={`Matriz de confusión ${selectedName}`}
                     >
                         <table
@@ -305,7 +305,7 @@ function EvaluationConfusionMatrices({ evaluation }) {
                                 ))}
                             </tbody>
                         </table>
-                    </div>
+                    </section>
                 </div>
 
                 <div className="confusion-matrix-legend" aria-label="Escala de intensidad">

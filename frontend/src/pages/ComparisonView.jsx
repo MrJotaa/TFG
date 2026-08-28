@@ -21,8 +21,6 @@ import {
 import { useExperiment } from '../context/ExperimentContext'
 import { useNavigationGuard } from '../context/NavigationGuardContext'
 import {
-} from '../utils/attackCatalog'
-import {
     formatAttackParameters,
     getAttackName,
 } from '../utils/attackFormatting'
@@ -42,6 +40,12 @@ import {
     resolveSaveState,
     validatePreparedComparison,
 } from '../utils/individualAnalysisFlow'
+
+function detectionExplanationListTitle(title) {
+    if (title === 'Original') return 'Detecciones originales'
+    if (title === 'Tras el ataque') return 'Detecciones tras el ataque'
+    return 'Detecciones explicadas'
+}
 
 function DetectionList({ detections = [], title }) {
     return (
@@ -220,7 +224,7 @@ function ClassificationWorkspaceTabs({ activePanel, onSelect }) {
 
 function ClassificationLoadingState({ title, description, onCancel }) {
     return (
-        <div className="classification-inline-loading" role="status">
+        <div className="classification-inline-loading" aria-live="polite">
             <span className="evaluation-loading-spinner" aria-hidden="true" />
             <div>
                 <strong>{title}</strong>
@@ -316,7 +320,7 @@ function DetectionExplainabilityResult({ explanation, selectedImage }) {
                 {items.map(([title, item]) => (
                     <DetectionList
                         key={`${title}-detections`}
-                        title={title === 'Original' ? 'Detecciones originales' : title === 'Tras el ataque' ? 'Detecciones tras el ataque' : 'Detecciones explicadas'}
+                        title={detectionExplanationListTitle(title)}
                         detections={item?.detections ?? []}
                     />
                 ))}

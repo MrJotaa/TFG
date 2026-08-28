@@ -188,6 +188,10 @@ function AttackSelector({
                             activeTaskType,
                         )
                         const isSelected = selectedAttack === attack.id
+                        const taskLabel = activeTaskType === 'classification' ? 'clasificación' : 'detección'
+                        const attackTitle = isSupported
+                            ? attack.description
+                            : `No compatible con ${taskLabel}`
 
                         return (
                             <button
@@ -198,11 +202,7 @@ function AttackSelector({
                                     if (isSupported) onSelectAttack(attack.id)
                                 }}
                                 disabled={!isSupported}
-                                title={
-                                    isSupported
-                                        ? attack.description
-                                        : `No compatible con ${activeTaskType === 'classification' ? 'clasificación' : 'detección'}`
-                                }
+                                title={attackTitle}
                                 aria-pressed={isSupported ? isSelected : undefined}
                             >
                                 <span>{attack.name}</span>

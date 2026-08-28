@@ -21,7 +21,7 @@ function CompatibleEvaluationNotice({
     return (
         <section
             className={`evaluation-reuse-notice ${nearExpiration ? 'near-expiration' : ''}`}
-            role="status"
+            aria-live="polite"
         >
             <div className="evaluation-reuse-copy">
                 <span className="evaluation-eyebrow">

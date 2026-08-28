@@ -24,15 +24,15 @@ function DatasetList({
                 >
                     {datasets.map((dataset) => {
                         const isSelected = selectedDataset?.id === dataset.id
+                        const baseClassName = variant === 'workspace'
+                            ? 'dataset-workspace-option'
+                            : 'sidebar-list-item'
+                        const buttonClassName = `${baseClassName}${isSelected ? ' active' : ''}`
                         return (
                             <button
                                 key={dataset.id}
                                 type="button"
-                                className={
-                                    variant === 'workspace'
-                                        ? `dataset-workspace-option${isSelected ? ' active' : ''}`
-                                        : `sidebar-list-item${isSelected ? ' active' : ''}`
-                                }
+                                className={buttonClassName}
                                 onClick={() => onSelectDataset(dataset)}
                                 aria-pressed={isSelected}
                             >

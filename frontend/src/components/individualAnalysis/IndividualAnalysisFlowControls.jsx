@@ -18,19 +18,18 @@ function DialogShell({ children, onClose, busy = false, labelledBy }) {
     return (
         <div
             className="individual-analysis-flow-backdrop"
-            role="presentation"
             onMouseDown={(event) => {
                 if (event.target === event.currentTarget && !busy) onClose()
             }}
         >
-            <section
+            <dialog
+                open
                 className="individual-analysis-flow-dialog"
-                role="dialog"
                 aria-modal="true"
                 aria-labelledby={labelledBy}
             >
                 {children}
-            </section>
+            </dialog>
         </div>
     )
 }
@@ -42,32 +41,27 @@ export function IndividualAnalysisActionBar({
     onSave,
     onCompare,
 }) {
-    const saveCopy = saveState === 'saved'
-        ? 'Guardado'
-        : saveState === 'equivalent'
-            ? 'Equivalente ya guardado'
-            : saving
-                ? 'Guardando…'
-                : 'Guardar análisis'
+    let saveCopy = 'Guardar análisis'
+    if (saveState === 'saved') saveCopy = 'Guardado'
+    else if (saveState === 'equivalent') saveCopy = 'Equivalente ya guardado'
+    else if (saving) saveCopy = 'Guardando…'
+
+    let statusTitle = 'Este resultado sigue siendo temporal'
+    let statusDescription = 'Guárdalo únicamente si este caso merece conservarse indefinidamente.'
+    if (historyMode || saveState === 'saved') {
+        statusTitle = 'Este análisis está conservado en el historial'
+        statusDescription = 'Puedes volver a abrirlo y compararlo sin recalcular el ataque.'
+    } else if (saveState === 'equivalent') {
+        statusTitle = 'Ya existe una ejecución equivalente guardada'
+        statusDescription = 'El recálculo actual no se ha fijado: solo el resultado equivalente anterior es permanente.'
+    }
 
     return (
         <section className="individual-analysis-persistence-bar" aria-label="Acciones del análisis individual">
             <div>
                 <span className="evaluation-eyebrow">Resultado individual</span>
-                <strong>
-                    {historyMode || saveState === 'saved'
-                        ? 'Este análisis está conservado en el historial'
-                        : saveState === 'equivalent'
-                            ? 'Ya existe una ejecución equivalente guardada'
-                            : 'Este resultado sigue siendo temporal'}
-                </strong>
-                <small>
-                    {historyMode || saveState === 'saved'
-                        ? 'Puedes volver a abrirlo y compararlo sin recalcular el ataque.'
-                        : saveState === 'equivalent'
-                            ? 'El recálculo actual no se ha fijado: solo el resultado equivalente anterior es permanente.'
-                            : 'Guárdalo únicamente si este caso merece conservarse indefinidamente.'}
-                </small>
+                <strong>{statusTitle}</strong>
+                <small>{statusDescription}</small>
             </div>
             <div className="individual-analysis-persistence-actions">
                 {!historyMode && (

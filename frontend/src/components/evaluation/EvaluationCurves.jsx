@@ -365,9 +365,8 @@ function EvaluationCurves({ evaluation }) {
                 </div>
 
                 <div className="curve-controls">
-                    <div
-                        className="evaluation-segmented-control"
-                        role="group"
+                    <fieldset
+                        className="evaluation-segmented-control semantic-fieldset-reset"
                         aria-label="Tipo de curva"
                     >
                         {Object.entries(CURVE_TYPES).map(([id, option]) => (
@@ -384,7 +383,7 @@ function EvaluationCurves({ evaluation }) {
                                 {option.label}
                             </button>
                         ))}
-                    </div>
+                    </fieldset>
 
                     <label>
                         <span className="evaluation-label-with-info">
@@ -495,16 +494,15 @@ function EvaluationCurves({ evaluation }) {
             {isExpanded && (
                 <div
                     className="curve-modal-backdrop"
-                    role="presentation"
                     onMouseDown={(event) => {
                         if (event.target === event.currentTarget) {
                             setIsExpanded(false)
                         }
                     }}
                 >
-                    <section
+                    <dialog
+                        open
                         className="curve-modal"
-                        role="dialog"
                         aria-modal="true"
                         aria-labelledby="curve-modal-title"
                     >
@@ -546,7 +544,7 @@ function EvaluationCurves({ evaluation }) {
                                 expanded
                             />
                         </div>
-                    </section>
+                    </dialog>
                 </div>
             )}
 

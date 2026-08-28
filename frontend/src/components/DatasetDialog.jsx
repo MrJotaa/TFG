@@ -20,14 +20,13 @@ function DatasetDialog({ title, eyebrow, children, onClose, busy = false, danger
     return (
         <div
             className="dataset-dialog-backdrop"
-            role="presentation"
             onMouseDown={(event) => {
                 if (event.target === event.currentTarget && !busy) onClose()
             }}
         >
-            <section
+            <dialog
+                open
                 className={`dataset-dialog${danger ? ' danger' : ''}`}
-                role="dialog"
                 aria-modal="true"
                 aria-label={title}
             >
@@ -47,7 +46,7 @@ function DatasetDialog({ title, eyebrow, children, onClose, busy = false, danger
                     </button>
                 </header>
                 {children}
-            </section>
+            </dialog>
         </div>
     )
 }

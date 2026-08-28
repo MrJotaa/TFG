@@ -137,6 +137,10 @@ function CocoAnnotationPanel({ selectedDataset, onAnnotationsImported }) {
         performImport()
     }
 
+    let importButtonLabel = 'Importar anotaciones'
+    if (importing) importButtonLabel = 'Importando...'
+    else if (visibleCoverage?.has_annotation_snapshot) importButtonLabel = 'Reemplazar anotaciones'
+
     return (
         <section className="coco-annotation-panel modern">
             <div className="coco-annotation-heading">
@@ -178,11 +182,7 @@ function CocoAnnotationPanel({ selectedDataset, onAnnotationsImported }) {
                     className="primary-action"
                     disabled={!canSubmitCocoImport({ file: selectedFile, importing })}
                 >
-                    {importing
-                        ? 'Importando...'
-                        : visibleCoverage?.has_annotation_snapshot
-                          ? 'Reemplazar anotaciones'
-                          : 'Importar anotaciones'}
+{importButtonLabel}
                 </button>
             </form>
 

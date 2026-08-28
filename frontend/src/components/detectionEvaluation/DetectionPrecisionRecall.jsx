@@ -101,7 +101,7 @@ function DetectionPrecisionRecall({ evaluation }) {
             </section>
 
             {data.length ? (
-                <section className="evaluation-surface detection-pr-chart" role="img" aria-label={`Curva Precision–Recall para ${selected.label}`}>
+                <figure className="evaluation-surface detection-pr-chart semantic-figure-reset" aria-label={`Curva Precision–Recall para ${selected.label}`}>
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={data} margin={{ top: 16, right: 24, bottom: 22, left: 16 }}>
                             <CartesianGrid stroke="var(--border)" strokeDasharray="4 4" />
@@ -112,7 +112,7 @@ function DetectionPrecisionRecall({ evaluation }) {
                             <Line dataKey="adversarial" name="Tras el ataque" stroke="var(--evaluation-adversarial)" strokeWidth={3} dot={false} isAnimationActive={false} />
                         </LineChart>
                     </ResponsiveContainer>
-                </section>
+                </figure>
             ) : (
                 <div className="evaluation-empty-panel compact">
                     <h3>Curva no definida</h3>

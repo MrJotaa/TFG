@@ -216,11 +216,10 @@ export function pairComparisonMetrics(taskType, leftEvaluation, rightEvaluation)
         const delta = left.value != null && right.value != null
             ? right.value - left.value
             : null
-        const advantage = delta == null || Math.abs(delta) < 1e-12
-            ? 'equal'
-            : (delta > 0) === left.higherIsBetter
-                ? 'right'
-                : 'left'
+        let advantage = 'equal'
+        if (delta != null && Math.abs(delta) >= 1e-12) {
+            advantage = (delta > 0) === left.higherIsBetter ? 'right' : 'left'
+        }
 
         return {
             ...left,

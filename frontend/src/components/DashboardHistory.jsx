@@ -98,7 +98,16 @@ function TaskLabel({ item }) {
     )
 }
 
+function evaluationRetentionCopy(item) {
+    if (item.preserved) return ' · conservación indefinida'
+    if (item.status !== 'running' && item.expires_at) {
+        return ` · caduca en ${formatRemainingTime(item.expires_at)}`
+    }
+    return ''
+}
+
 function EvaluationCopy({ item, attackCatalog }) {
+    const retentionCopy = evaluationRetentionCopy(item)
     return (
         <>
             <div className="dashboard-history-identity">
@@ -130,11 +139,7 @@ function EvaluationCopy({ item, attackCatalog }) {
                 <strong>{historySummary(item)}</strong>
                 <small title={formatDateTime(item.created_at)}>
                     {formatCreatedAgo(item.created_at)}
-                    {item.preserved
-                        ? ' · conservación indefinida'
-                        : item.status !== 'running' && item.expires_at
-                            ? ` · caduca en ${formatRemainingTime(item.expires_at)}`
-                            : ''}
+{retentionCopy}
                 </small>
             </div>
         </>
@@ -283,14 +288,13 @@ export function HistoryConfirmationDialog({ confirmation, busy, onCancel, onConf
     return (
         <div
             className="dashboard-history-dialog-backdrop"
-            role="presentation"
             onMouseDown={(event) => {
                 if (event.target === event.currentTarget && !busy) onCancel()
             }}
         >
-            <section
+            <dialog
+                open
                 className="dashboard-history-dialog"
-                role="dialog"
                 aria-modal="true"
                 aria-labelledby="history-confirmation-title"
             >
@@ -315,7 +319,7 @@ export function HistoryConfirmationDialog({ confirmation, busy, onCancel, onConf
                         {copy.actionLabel}
                     </button>
                 </div>
-            </section>
+            </dialog>
         </div>
     )
 }
