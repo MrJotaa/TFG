@@ -799,10 +799,10 @@ class DetectionObjectAdversarialAnalysis(DetectionMetricModel):
             raise ValueError("detail collections must follow details_included")
 
     def _validate_class_dimension(self) -> None:
-        class_keys = tuple(
+        class_keys = {
             _class_reference_key(item.category) for item in self.by_class
-        )
-        if len(set(class_keys)) != len(self.by_class):
+        }
+        if len(class_keys) != len(self.by_class):
             raise ValueError("by_class categories must be unique")
         canonical_order = tuple(
             sorted(

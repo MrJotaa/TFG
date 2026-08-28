@@ -17,7 +17,7 @@ from services.evaluation_service import evaluate_dataset
 router = APIRouter()
 
 
-@router.post("/evaluate", response_model=EvaluationResponse)
+@router.post("/evaluate")
 async def evaluate(
     request: EvaluationRequest,
     current_user: UserResponse = Depends(require_current_user),
@@ -55,7 +55,6 @@ async def evaluate_stream(
 
 @router.post(
     "/evaluations/{evaluation_id}/images/{image_id}/gradcam",
-    response_model=EvaluationGradCamResponse,
 )
 async def evaluation_image_gradcam(
     evaluation_id: str,

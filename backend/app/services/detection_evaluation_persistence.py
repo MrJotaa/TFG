@@ -159,7 +159,7 @@ async def get_detection_evaluation(
     try:
         payload = await asyncio.to_thread(_read_json, artifact_path)
         response = DetectionEvaluationResponse.model_validate(payload)
-    except (OSError, UnicodeError, ValueError, ValidationError) as error:
+    except (OSError, ValueError, ValidationError) as error:
         raise BadRequestError("El artefacto de la evaluación de detección no es válido") from error
     if response.result_id != evaluation_id:
         raise BadRequestError("La identidad del artefacto de la evaluación de detección no es válida")

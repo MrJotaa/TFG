@@ -24,7 +24,6 @@ router = APIRouter()
 
 @router.post(
     "/individual-analyses/compatibility",
-    response_model=IndividualAnalysisCompatibilityResponse,
 )
 async def check_individual_analysis_compatibility(
     request: IndividualAnalysisCompatibilityRequest,
@@ -38,7 +37,6 @@ async def check_individual_analysis_compatibility(
 
 @router.post(
     "/individual-analyses",
-    response_model=IndividualAnalysisHistoryItem,
     status_code=status.HTTP_201_CREATED,
 )
 async def persist_individual_analysis(
@@ -50,7 +48,6 @@ async def persist_individual_analysis(
 
 @router.get(
     "/individual-analyses",
-    response_model=IndividualAnalysisHistoryPage,
 )
 async def get_individual_analysis_history(
     limit: int = Query(default=10, ge=1, le=50),
@@ -68,7 +65,6 @@ async def get_individual_analysis_history(
 
 @router.get(
     "/individual-analyses/{analysis_id}",
-    response_model=StoredIndividualAnalysisResponse,
 )
 async def get_individual_analysis(
     analysis_id: str,

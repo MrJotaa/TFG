@@ -303,7 +303,7 @@ async def get_stored_evaluation(
             evaluation = EvaluationResponse.model_validate(payload)
         else:
             evaluation = DetectionEvaluationResponse.model_validate(payload)
-    except (OSError, UnicodeError, ValueError, ValidationError) as error:
+    except (OSError, ValueError, ValidationError) as error:
         raise BadRequestError("El artefacto de la evaluación no es válido") from error
     if evaluation.result_id != evaluation_id:
         raise BadRequestError("La identidad del artefacto de la evaluación no es válida")

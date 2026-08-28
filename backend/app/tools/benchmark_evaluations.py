@@ -587,7 +587,7 @@ def main() -> int:
         print(json.dumps(summary, indent=2, sort_keys=True))
         print(f"Saved benchmark to {args.output}")
         return 0
-    except (RuntimeError, OSError, ValueError, json.JSONDecodeError) as error:
+    except (RuntimeError, OSError, ValueError) as error:
         print(f"benchmark failed: {error}", file=sys.stderr)
         return 1
 

@@ -24,7 +24,6 @@ router = APIRouter()
 
 @router.post(
     "/evaluations/compatibility",
-    response_model=EvaluationCompatibilityResponse,
 )
 async def check_evaluation_compatibility(
     request: EvaluationCompatibilityRequest,
@@ -36,7 +35,7 @@ async def check_evaluation_compatibility(
     )
 
 
-@router.get("/evaluations", response_model=EvaluationHistoryPage)
+@router.get("/evaluations")
 async def get_evaluation_history(
     limit: int = Query(default=10, ge=1, le=50),
     offset: int = Query(default=0, ge=0),
@@ -53,7 +52,6 @@ async def get_evaluation_history(
 
 @router.get(
     "/evaluations/{evaluation_id}",
-    response_model=StoredEvaluationResponse,
 )
 async def get_evaluation_history_result(
     evaluation_id: str,
@@ -67,7 +65,6 @@ async def get_evaluation_history_result(
 
 @router.patch(
     "/evaluations/{evaluation_id}/preservation",
-    response_model=EvaluationHistoryItem,
 )
 async def change_evaluation_preservation(
     evaluation_id: str,

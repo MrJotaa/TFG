@@ -278,7 +278,7 @@ def _load_temporary_analysis(
         metadata = read_result_metadata(result_id)
         payload = read_result_payload(result_id)
         analysis = _validate_analysis_payload(task_type, payload)
-    except (OSError, ValueError, ValidationError, json.JSONDecodeError) as error:
+    except (OSError, ValueError, ValidationError) as error:
         raise GoneError("El análisis temporal ya no está disponible") from error
     if metadata.get("task_type") != task_type:
         raise BadRequestError("El tipo del análisis temporal no coincide")

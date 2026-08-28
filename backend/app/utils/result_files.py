@@ -69,7 +69,7 @@ def read_result_expiration(
             if created_at.tzinfo is None:
                 created_at = created_at.replace(tzinfo=timezone.utc)
             return created_at.timestamp() + ttl_seconds
-    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+    except (OSError, TypeError, ValueError):
         pass
     try:
         return os.path.getmtime(result_path) + ttl_seconds
