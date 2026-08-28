@@ -181,9 +181,12 @@ def test_ultralytics_adapter_clips_partially_outside_box():
     ],
 )
 def test_ultralytics_adapter_rejects_invalid_native_detection(row):
+    _prepared_receiver = UltralyticsDetectionAdapter()
+    _prepared_arg_1 = _native_result([row])
+
     with pytest.raises(DetectionAdapterError):
-        UltralyticsDetectionAdapter().adapt(
-            _native_result([row]),
+        _prepared_receiver.adapt(
+            _prepared_arg_1,
             source_width=640,
             source_height=320,
         )
@@ -200,15 +203,18 @@ def test_ultralytics_adapter_rejects_negative_class_id_without_indexing_names(
             accessed_indexes.append(index)
             return super().__getitem__(index)
 
+    _prepared_receiver_2 = UltralyticsDetectionAdapter()
+    _prepared_arg_1_2 = _native_result(
+        [[10.0, 10.0, 20.0, 20.0, 0.5, -1.0]],
+        names=_TrackedNames(values),
+    )
+
     with pytest.raises(
         DetectionAdapterError,
         match=r"native detection 0 is invalid: class_id must not be negative",
     ):
-        UltralyticsDetectionAdapter().adapt(
-            _native_result(
-                [[10.0, 10.0, 20.0, 20.0, 0.5, -1.0]],
-                names=_TrackedNames(values),
-            ),
+        _prepared_receiver_2.adapt(
+            _prepared_arg_1_2,
             source_width=640,
             source_height=320,
         )
@@ -217,9 +223,12 @@ def test_ultralytics_adapter_rejects_negative_class_id_without_indexing_names(
 
 
 def test_ultralytics_adapter_rejects_mismatched_source_geometry():
+    _prepared_receiver_3 = UltralyticsDetectionAdapter()
+    _prepared_arg_1_3 = _native_result([[1.0, 2.0, 3.0, 4.0, 0.5, 0.0]])
+
     with pytest.raises(DetectionAdapterError, match="does not match"):
-        UltralyticsDetectionAdapter().adapt(
-            _native_result([[1.0, 2.0, 3.0, 4.0, 0.5, 0.0]]),
+        _prepared_receiver_3.adapt(
+            _prepared_arg_1_3,
             source_width=320,
             source_height=640,
         )

@@ -255,13 +255,16 @@ def test_rf_detr_adapter_filters_placeholder_and_fully_outside_boxes():
 
 
 def test_rf_detr_adapter_rejects_unknown_prediction_class():
+    _prepared_receiver = RfDetrDetectionAdapter()
+    _prepared_arg_1 = {
+        "scores": torch.tensor([0.9]),
+        "labels": torch.tensor([7]),
+        "boxes": torch.tensor([[1.0, 2.0, 20.0, 30.0]]),
+    }
+
     with pytest.raises(RfDetrDetectionAdapterError, match="unknown class id 7"):
-        RfDetrDetectionAdapter().adapt(
-            {
-                "scores": torch.tensor([0.9]),
-                "labels": torch.tensor([7]),
-                "boxes": torch.tensor([[1.0, 2.0, 20.0, 30.0]]),
-            },
+        _prepared_receiver.adapt(
+            _prepared_arg_1,
             source_width=640,
             source_height=320,
             id2label={1: "person"},
@@ -301,8 +304,10 @@ def test_rf_detr_adapter_rejects_provider_dtype_contract_violations(
     native_result,
     message,
 ):
+    _prepared_receiver_2 = RfDetrDetectionAdapter()
+
     with pytest.raises(RfDetrDetectionAdapterError, match=message):
-        RfDetrDetectionAdapter().adapt(
+        _prepared_receiver_2.adapt(
             native_result,
             source_width=640,
             source_height=320,

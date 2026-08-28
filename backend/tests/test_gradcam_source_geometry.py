@@ -224,13 +224,15 @@ def test_gradcam_rejects_non_spatial_model_transform():
     wrapper = _TrackingWrapper()
     wrapper.reshape_gradcam_tensor = lambda tensor: tensor.flatten(start_dim=2)
 
+    _prepared_arg_2 = torch.rand((1, 3, 5, 7))
+
     with pytest.raises(
         ValueError,
         match=r"Grad-CAM activation must have shape \[B, C, H, W\]",
     ):
         gradcam_module._calculate_gradcam(
             wrapper,
-            torch.rand((1, 3, 5, 7)),
+            _prepared_arg_2,
         )
 
     assert len(wrapper.model.target_layer._forward_hooks) == 0
@@ -266,11 +268,14 @@ def test_clean_gradcam_removes_hooks_when_forward_fails(monkeypatch):
 
     monkeypatch.setattr(wrapper.model, "forward", failing_forward)
 
+    _prepared_model_input = torch.zeros((1, 3, 5, 7))
+    _prepared_source_image = Image.new("RGB", (19, 11))
+
     with pytest.raises(RuntimeError, match="forward failed"):
         gradcam_module.generate_clean_gradcam(
             model_wrapper=wrapper,
-            model_input=torch.zeros((1, 3, 5, 7)),
-            source_image=Image.new("RGB", (19, 11)),
+            model_input=_prepared_model_input,
+            source_image=_prepared_source_image,
         )
 
     assert len(target_layer._forward_hooks) == 0
@@ -287,11 +292,14 @@ def test_clean_gradcam_removes_hook_when_gradient_calculation_fails(monkeypatch)
 
     monkeypatch.setattr(wrapper.model, "forward", disconnected_forward)
 
+    _prepared_model_input_2 = torch.zeros((1, 3, 5, 7))
+    _prepared_source_image_2 = Image.new("RGB", (19, 11))
+
     with pytest.raises(RuntimeError, match="does not require grad"):
         gradcam_module.generate_clean_gradcam(
             model_wrapper=wrapper,
-            model_input=torch.zeros((1, 3, 5, 7)),
-            source_image=Image.new("RGB", (19, 11)),
+            model_input=_prepared_model_input_2,
+            source_image=_prepared_source_image_2,
         )
 
     assert len(target_layer._forward_hooks) == 0

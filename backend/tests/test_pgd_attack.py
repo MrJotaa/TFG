@@ -201,15 +201,18 @@ def test_pgd_requires_loaded_model():
         loaded=False,
     )
 
+    _prepared_image = _create_test_image()
+    _prepared_parameters = _create_parameters(
+        epsilon=0.1,
+        alpha=0.02,
+        steps=3,
+    )
+
     with pytest.raises(ValueError, match="Model is not loaded"):
         attack.apply(
             model_wrapper=wrapper,
-            image=_create_test_image(),
-            parameters=_create_parameters(
-                epsilon=0.1,
-                alpha=0.02,
-                steps=3,
-            ),
+            image=_prepared_image,
+            parameters=_prepared_parameters,
         )
 
 

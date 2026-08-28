@@ -74,8 +74,7 @@ class _Wrapper:
 def test_detection_eigencam_uses_model_contract_and_source_geometry(monkeypatch):
     wrapper = _Wrapper()
     source_image = Image.new("RGB", (23, 17), color=(30, 40, 50))
-    _FakeCAM.captured = {}
-
+    monkeypatch.setattr(_FakeCAM, "captured", {})
     monkeypatch.setattr(gradcam, "EigenCAM", _FakeCAM)
     monkeypatch.setattr(
         gradcam,

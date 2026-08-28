@@ -198,48 +198,56 @@ def test_resolution_contract_rejects_duplicate_resolved_class_ids():
     model_class = DetectionClass(class_id=0, name="person")
     catalog = _catalog((0, "person"))
 
+    _prepared_matches = (
+        _resolved_match("category-a", model_class),
+        _resolved_match("category-b", model_class),
+    )
+
     with pytest.raises(
         DetectionCategoryResolutionError,
         match="resolved class ID 0 is claimed by multiple",
     ):
         DetectionCategoryResolution(
             catalog=catalog,
-            matches=(
-                _resolved_match("category-a", model_class),
-                _resolved_match("category-b", model_class),
-            ),
+            matches=_prepared_matches,
         )
 
 
 def test_resolution_contract_rejects_resolved_class_outside_catalog():
+    _prepared_catalog = _catalog((0, "person"))
+    _prepared_matches_2 = (
+        _resolved_match(
+            "category-person",
+            DetectionClass(class_id=9, name="person"),
+        ),
+    )
+
     with pytest.raises(
         DetectionCategoryResolutionError,
         match="resolved class ID 9.*not present in catalog",
     ):
         DetectionCategoryResolution(
-            catalog=_catalog((0, "person")),
-            matches=(
-                _resolved_match(
-                    "category-person",
-                    DetectionClass(class_id=9, name="person"),
-                ),
-            ),
+            catalog=_prepared_catalog,
+            matches=_prepared_matches_2,
         )
 
 
 def test_resolution_contract_rejects_resolved_class_name_mismatch():
+    _prepared_catalog_2 = _catalog((0, "car"))
+    _prepared_matches_3 = (
+        _resolved_match(
+            "category-person",
+            DetectionClass(class_id=0, name="car"),
+        ),
+    )
+
     with pytest.raises(
         DetectionCategoryResolutionError,
         match="resolved class ID 0 name does not match",
     ):
         DetectionCategoryResolution(
-            catalog=_catalog((0, "car")),
-            matches=(
-                _resolved_match(
-                    "category-person",
-                    DetectionClass(class_id=0, name="car"),
-                ),
-            ),
+            catalog=_prepared_catalog_2,
+            matches=_prepared_matches_3,
         )
 
 
@@ -258,34 +266,40 @@ def _ambiguous_match(
 
 
 def test_resolution_contract_rejects_candidate_outside_catalog():
+    _prepared_catalog_3 = _catalog((0, "person"))
+    _prepared_matches_4 = (
+        _ambiguous_match(
+            DetectionClass(class_id=0, name="person"),
+            DetectionClass(class_id=9, name="person"),
+        ),
+    )
+
     with pytest.raises(
         DetectionCategoryResolutionError,
         match="candidate class ID 9.*not present in catalog",
     ):
         DetectionCategoryResolution(
-            catalog=_catalog((0, "person")),
-            matches=(
-                _ambiguous_match(
-                    DetectionClass(class_id=0, name="person"),
-                    DetectionClass(class_id=9, name="person"),
-                ),
-            ),
+            catalog=_prepared_catalog_3,
+            matches=_prepared_matches_4,
         )
 
 
 def test_resolution_contract_rejects_candidate_name_mismatch():
+    _prepared_catalog_4 = _catalog((0, "person"), (1, "car"))
+    _prepared_matches_5 = (
+        _ambiguous_match(
+            DetectionClass(class_id=0, name="person"),
+            DetectionClass(class_id=1, name="car"),
+        ),
+    )
+
     with pytest.raises(
         DetectionCategoryResolutionError,
         match="candidate class ID 1 name does not match",
     ):
         DetectionCategoryResolution(
-            catalog=_catalog((0, "person"), (1, "car")),
-            matches=(
-                _ambiguous_match(
-                    DetectionClass(class_id=0, name="person"),
-                    DetectionClass(class_id=1, name="car"),
-                ),
-            ),
+            catalog=_prepared_catalog_4,
+            matches=_prepared_matches_5,
         )
 
 

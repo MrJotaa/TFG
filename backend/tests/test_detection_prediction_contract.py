@@ -114,11 +114,13 @@ def test_detection_box_rejects_invalid_geometry(box):
     ],
 )
 def test_detection_result_rejects_boxes_outside_source_bounds(box):
+    _prepared_detections = (_detection(box=box),)
+
     with pytest.raises(DetectionContractError):
         DetectionResult(
             source_width=100,
             source_height=50,
-            detections=(_detection(box=box),),
+            detections=_prepared_detections,
         )
 
 

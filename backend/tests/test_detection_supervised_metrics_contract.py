@@ -138,12 +138,14 @@ def test_preparation_rejects_snapshot_object_without_persisted_internal_id():
         annotations=(replace(_annotation(1001), object_internal_id=None),),
     )
 
+    _prepared_catalog = _catalog((0, "person"))
+
     with pytest.raises(
         DetectionGroundTruthIdentityError, match="persisted internal ID"
     ):
         prepare_detection_supervised_evaluation(
             snapshot=snapshot,
-            catalog=_catalog((0, "person")),
+            catalog=_prepared_catalog,
         )
 
 
@@ -542,12 +544,14 @@ def test_coco_analysis_contract_rejects_incoherent_aggregate(
     curve,
     operating_point,
 ):
+    _prepared_per_class = (_positive_class_metrics(),)
+
     with pytest.raises(ValidationError):
         DetectionCocoAnalysis(
             aggregate=aggregate,
             precision_recall_curve=curve,
             operating_point=operating_point,
-            per_class=(_positive_class_metrics(),),
+            per_class=_prepared_per_class,
         )
 
 

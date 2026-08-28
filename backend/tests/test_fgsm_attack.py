@@ -185,11 +185,14 @@ def test_fgsm_requires_loaded_model():
         loaded=False,
     )
 
+    _prepared_image = _create_test_image()
+    _prepared_parameters = _create_parameters(epsilon=0.05)
+
     with pytest.raises(ValueError, match="Model is not loaded"):
         attack.apply(
             model_wrapper=wrapper,
-            image=_create_test_image(),
-            parameters=_create_parameters(epsilon=0.05),
+            image=_prepared_image,
+            parameters=_prepared_parameters,
         )
 
 

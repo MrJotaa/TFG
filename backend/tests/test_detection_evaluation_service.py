@@ -810,10 +810,12 @@ async def test_detection_evaluation_propagates_supervised_geometry_error(
         lambda attack_type: _FakeAttack(),
     )
 
+    _prepared_arg_1 = DetectionEvaluationRequest(
+        dataset_id="dataset-1",
+        attack_type=AttackType.RANDOM_NOISE,
+    )
+
     with pytest.raises(RuntimeError, match="does not match snapshot geometry"):
         await detection_evaluation_service.evaluate_detection_dataset(
-            DetectionEvaluationRequest(
-                dataset_id="dataset-1",
-                attack_type=AttackType.RANDOM_NOISE,
-            )
+            _prepared_arg_1
         )

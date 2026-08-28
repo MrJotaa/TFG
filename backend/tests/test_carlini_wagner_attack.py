@@ -92,8 +92,10 @@ def test_carlini_wagner_linf_drops_l2_only_search_parameter():
 def test_carlini_wagner_parameter_contract_rejects_unknown_norm():
     attack = CarliniWagnerAttack()
 
+    _prepared_arg_1 = AttackParameters(norm="l1")
+
     with pytest.raises(ValueError, match="debe ser uno de"):
-        attack.resolve_parameters(AttackParameters(norm="l1"))
+        attack.resolve_parameters(_prepared_arg_1)
 
 
 def test_carlini_wagner_builds_l2_with_pinned_art_defaults(monkeypatch):
@@ -265,10 +267,12 @@ def test_carlini_wagner_runner_rejects_out_of_range_original_class(monkeypatch):
     parameters = _resolved_parameters()
     runner = attack.create_runner(model_wrapper=model, parameters=parameters)
 
+    _prepared_image = Image.new("RGB", (4, 4), color=(128, 128, 128))
+
     with pytest.raises(ValueError, match="outside the model output range"):
         runner.apply(
             model_wrapper=model,
-            image=Image.new("RGB", (4, 4), color=(128, 128, 128)),
+            image=_prepared_image,
             parameters=parameters,
             original_class_index=3,
         )

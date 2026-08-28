@@ -217,19 +217,22 @@ def test_low_class_support_adds_warning():
 
 
 def test_curve_analysis_rejects_mismatched_lengths():
+    _prepared_original_predictions = [
+        _prediction((0.9, 0.1, 0.0)),
+    ]
+    _prepared_adversarial_predictions = [
+        _prediction((0.8, 0.2, 0.0)),
+        _prediction((0.2, 0.8, 0.0)),
+    ]
+
     with pytest.raises(
         ValueError,
         match=("Original prediction count must match"),
     ):
         calculate_classification_curves(
             y_true=[0, 1],
-            original_predictions=[
-                _prediction((0.9, 0.1, 0.0)),
-            ],
-            adversarial_predictions=[
-                _prediction((0.8, 0.2, 0.0)),
-                _prediction((0.2, 0.8, 0.0)),
-            ],
+            original_predictions=_prepared_original_predictions,
+            adversarial_predictions=_prepared_adversarial_predictions,
             metric_labels=[0, 1],
             class_labels=CLASS_LABELS,
         )

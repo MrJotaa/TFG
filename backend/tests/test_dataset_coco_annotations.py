@@ -637,13 +637,16 @@ async def test_annotation_coverage_read_stops_after_retry_limit(monkeypatch):
         annotation_collection,
     )
 
+    _prepared_arg_1 = str(dataset_id)
+    _prepared_arg_2 = _annotation_test_user(owner_id)
+
     with pytest.raises(
         dataset_annotation_service.ConflictError,
         match="cambió repetidamente",
     ):
         await dataset_annotation_service.get_annotation_coverage(
-            str(dataset_id),
-            _annotation_test_user(owner_id),
+            _prepared_arg_1,
+            _prepared_arg_2,
         )
 
     max_attempts = dataset_annotation_service.ANNOTATION_COVERAGE_MAX_READ_ATTEMPTS
@@ -1204,13 +1207,16 @@ async def test_partial_annotation_write_failure_cleans_only_prepared_snapshot(
     )
     current_user = _annotation_test_user(owner_id)
 
+    _prepared_arg_1_2 = str(dataset_id)
+    _prepared_arg_2_2 = _service_upload(_coco_payload())
+
     with pytest.raises(
         PyMongoError,
         match="simulated annotation persistence failure",
     ):
         await dataset_annotation_service.import_coco_annotations(
-            str(dataset_id),
-            _service_upload(_coco_payload()),
+            _prepared_arg_1_2,
+            _prepared_arg_2_2,
             current_user,
         )
 

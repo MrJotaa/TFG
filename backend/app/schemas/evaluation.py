@@ -1,12 +1,11 @@
 from pydantic import BaseModel, Field
 
-from schemas.predict import TopKPrediction
-
 from schemas.attack import AttackParameters, AttackType
 from schemas.classification_metrics import (
     AdvancedClassificationMetrics,
     EvaluationImageDiagnostics,
 )
+from schemas.predict import TopKPrediction
 
 
 class EvaluationRequest(BaseModel):

@@ -34,17 +34,21 @@ class _TestModel(BaseModel):
 
 
 def test_model_registry_rejects_duplicate_model_ids():
+    _prepared_models = (_TestModel("detector"), _TestModel("detector"))
+
     with pytest.raises(ModelRegistryError, match="Duplicate model id"):
         ModelRegistry(
-            models=(_TestModel("detector"), _TestModel("detector")),
+            models=_prepared_models,
             default_model_id="detector",
         )
 
 
 def test_model_registry_rejects_unknown_default_model():
+    _prepared_models_2 = (_TestModel("detector"),)
+
     with pytest.raises(ModelRegistryError, match="is not registered"):
         ModelRegistry(
-            models=(_TestModel("detector"),),
+            models=_prepared_models_2,
             default_model_id="missing",
         )
 

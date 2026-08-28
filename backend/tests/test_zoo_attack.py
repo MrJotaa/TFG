@@ -65,8 +65,10 @@ def test_zoo_parameter_contract_accepts_custom_values():
 def test_zoo_parameter_contract_rejects_invalid_values(parameters, message):
     attack = ZerothOrderOptimizationAttack()
 
+    _prepared_arg_1 = AttackParameters(**parameters)
+
     with pytest.raises(ValueError, match=message):
-        attack.resolve_parameters(AttackParameters(**parameters))
+        attack.resolve_parameters(_prepared_arg_1)
 
 
 def test_zoo_builds_art_attack_with_explicit_runtime_defaults(monkeypatch):

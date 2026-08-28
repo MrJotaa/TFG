@@ -510,13 +510,12 @@ class DetectionObjectResult(DetectionMetricModel):
     def validate_outcome(self):
         if not self.object_id.strip() or not self.image_id.strip():
             raise ValueError("object and image IDs must be non-empty")
-        expected_size = (
-            DetectionObjectSizeBucket.SMALL
-            if self.area < 32.0**2
-            else DetectionObjectSizeBucket.MEDIUM
-            if self.area < 96.0**2
-            else DetectionObjectSizeBucket.LARGE
-        )
+        if self.area < 32.0**2:
+            expected_size = DetectionObjectSizeBucket.SMALL
+        elif self.area < 96.0**2:
+            expected_size = DetectionObjectSizeBucket.MEDIUM
+        else:
+            expected_size = DetectionObjectSizeBucket.LARGE
         if self.size_bucket is not expected_size:
             raise ValueError("size_bucket is inconsistent with ground-truth area")
         expected_presence = {

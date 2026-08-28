@@ -175,10 +175,13 @@ def test_coco_importer_rejects_invalid_payloads(mutate, expected_section):
 
 
 def test_coco_importer_rejects_malformed_json():
+    _prepared_receiver = CocoAnnotationImporter()
+    _prepared_arg_2 = (_dataset_image(),)
+
     with pytest.raises(CocoImportValidationError) as error:
-        CocoAnnotationImporter().parse(
+        _prepared_receiver.parse(
             b"{not-json",
-            (_dataset_image(),),
+            _prepared_arg_2,
         )
 
     assert error.value.detail["section"] == "root"
