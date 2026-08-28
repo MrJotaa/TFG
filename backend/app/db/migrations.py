@@ -5,6 +5,7 @@ from db.collections import (
     annotation_categories_collection,
     datasets_collection,
     detection_evaluations_collection,
+    individual_analyses_collection,
     object_annotations_collection,
 )
 
@@ -238,6 +239,36 @@ async def upgrade_detection_evaluations_schema(database=None) -> None:
                     "status": "running",
                     "signature": {"$type": "string"},
                 },
+            ),
+        ]
+    )
+
+
+async def upgrade_individual_analyses_schema(database=None) -> None:
+    analyses = (
+        individual_analyses_collection
+        if database is None
+        else database["individual_analyses"]
+    )
+    await analyses.create_indexes(
+        [
+            IndexModel(
+                [("owner_id", ASCENDING), ("saved_at", DESCENDING)],
+                name="individual_analyses_by_owner",
+            ),
+            IndexModel(
+                [("owner_id", ASCENDING), ("signature", ASCENDING)],
+                name="one_saved_individual_analysis_per_signature",
+                unique=True,
+            ),
+            IndexModel(
+                [("dataset_id", ASCENDING)],
+                name="individual_analyses_by_dataset",
+            ),
+            IndexModel(
+                [("source_result_id", ASCENDING)],
+                name="individual_analyses_by_source_result",
+                unique=True,
             ),
         ]
     )

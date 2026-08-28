@@ -20,7 +20,7 @@ def test_signup_with_existing_email_returns_400(client, test_user_payload):
     second_response = client.post("/auth/signup", json=test_user_payload)
 
     assert second_response.status_code == 400
-    assert "already exists" in second_response.json()["detail"]
+    assert "Ya existe un usuario" in second_response.json()["detail"]
 
 
 def test_login_returns_token_for_valid_credentials(client, test_user_payload):

@@ -1,17 +1,52 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import AttackSelector from '../components/AttackSelector'
+import DashboardHistory from '../components/DashboardHistory'
 import DatasetList from '../components/DatasetList'
 import ImageGallery from '../components/ImageGallery'
-import { getDatasetsByUser } from '../api/datasets'
 import ModelSelector from '../components/ModelSelector'
-import AttackSelector from '../components/AttackSelector'
-import ExperimentSummary from '../components/ExperimentSummary'
+import { getDatasetsByUser } from '../api/datasets'
 import { useExperiment } from '../context/ExperimentContext'
 import { useAuth } from '../context/AuthContext'
+import { useNavigationGuard } from '../context/NavigationGuardContext'
+import { getAttackName } from '../utils/attackFormatting'
+import { isAttackSupportedForTask } from '../utils/attackCatalog'
+import { getExperimentReadiness } from '../utils/dashboard'
+import {
+    individualComparisonKindCopy,
+    pendingComparisonReadiness,
+} from '../utils/individualAnalysisFlow'
+
+function DatabaseIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <ellipse cx="12" cy="5.5" rx="7" ry="3" />
+            <path d="M5 5.5v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6M5 11.5v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" />
+        </svg>
+    )
+}
+
+function HistoryIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4.8 8.2A8 8 0 1 1 4 12" />
+            <path d="M4 5v4h4M12 7.5V12l3 2" />
+        </svg>
+    )
+}
+
+function SettingsIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
+            <path d="m18.3 13.5 1.7 1-.9 2.2-1.9-.5a7.7 7.7 0 0 1-1.5 1.5l.5 1.9-2.2.9-1-1.7a7.8 7.8 0 0 1-2 0l-1 1.7-2.2-.9.5-1.9a7.7 7.7 0 0 1-1.5-1.5l-1.9.5-.9-2.2 1.7-1a7.8 7.8 0 0 1 0-2l-1.7-1 .9-2.2 1.9.5a7.7 7.7 0 0 1 1.5-1.5l-.5-1.9 2.2-.9 1 1.7a7.8 7.8 0 0 1 2 0l1-1.7 2.2.9-.5 1.9a7.7 7.7 0 0 1 1.5 1.5l1.9-.5.9 2.2-1.7 1a7.8 7.8 0 0 1 0 2Z" />
+        </svg>
+    )
+}
 
 function Dashboard() {
     const navigate = useNavigate()
-
+    const location = useLocation()
     const {
         datasets,
         setDatasets,
@@ -28,13 +63,24 @@ function Dashboard() {
         setSelectedAttack,
         attackParameters,
         setAttackParameters,
+        recoveredEvaluation,
+        setRecoveredEvaluation,
+        recoveredIndividualAnalysis,
+        setRecoveredIndividualAnalysis,
+        pendingIndividualComparison,
+        clearPendingIndividualComparison,
+        openRecoveredEvaluation,
+        openRecoveredIndividualAnalysis,
     } = useExperiment()
+    const { user } = useAuth()
+    const { setNavigationProtection, clearNavigationProtection, requestNavigation } = useNavigationGuard()
 
     const [datasetsError, setDatasetsError] = useState('')
     const [imagesRefreshKey] = useState(0)
-    const [leftWidth, setLeftWidth] = useState(300)
-    const [rightWidth, setRightWidth] = useState(380)
-    const { user } = useAuth()
+    const [leftWidth, setLeftWidth] = useState(320)
+    const [workspaceTab, setWorkspaceTab] = useState(() =>
+        location.state?.workspaceTab === 'history' ? 'history' : 'data',
+    )
 
     useEffect(() => {
         async function loadUserDatasets() {
@@ -64,13 +110,12 @@ function Dashboard() {
 
     function startLeftResize(event) {
         event.preventDefault()
-
         const startX = event.clientX
         const startWidth = leftWidth
 
         function handleMouseMove(moveEvent) {
             const nextWidth = startWidth + (moveEvent.clientX - startX)
-            setLeftWidth(Math.min(Math.max(nextWidth, 240), 460))
+            setLeftWidth(Math.min(Math.max(nextWidth, 275), 430))
         }
 
         function handleMouseUp() {
@@ -82,38 +127,89 @@ function Dashboard() {
         window.addEventListener('mouseup', handleMouseUp)
     }
 
-    function startRightResize(event) {
-        event.preventDefault()
+    const attackSupported = Boolean(
+        activeModel
+        && attackCatalog.length > 0
+        && isAttackSupportedForTask(
+            attackCatalog,
+            selectedAttack,
+            activeModel.task_type || 'classification',
+        )
+    )
 
-        const startX = event.clientX
-        const startWidth = rightWidth
+    const readiness = useMemo(
+        () => getExperimentReadiness({
+            selectedDataset,
+            selectedImage,
+            activeModel,
+            attackSupported,
+        }),
+        [selectedDataset, selectedImage, activeModel, attackSupported],
+    )
 
-        function handleMouseMove(moveEvent) {
-            const nextWidth = startWidth - (moveEvent.clientX - startX)
-            setRightWidth(Math.min(Math.max(nextWidth, 280), 520))
+    const activeAttackName = getAttackName(selectedAttack, attackCatalog)
+    const pendingComparisonStatus = pendingIndividualComparison
+        ? pendingComparisonReadiness({
+            baseItem: pendingIndividualComparison.base.item,
+            expectedKind: pendingIndividualComparison.kind,
+            selectedDataset,
+            selectedImage,
+            activeModel,
+            selectedAttack,
+            attackParameters,
+        })
+        : null
+    const pendingComparisonCopy = pendingIndividualComparison
+        ? individualComparisonKindCopy(pendingIndividualComparison.kind)
+        : null
+
+    useEffect(() => {
+        setNavigationProtection({
+            hasTemporaryWork: Boolean(pendingIndividualComparison?.base?.temporary),
+            busy: false,
+        })
+        return () => clearNavigationProtection()
+    }, [
+        pendingIndividualComparison,
+        setNavigationProtection,
+        clearNavigationProtection,
+    ])
+
+    function startNewEvaluation() {
+        if (pendingIndividualComparison) return
+        if (recoveredEvaluation) setRecoveredEvaluation(null)
+        if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
+        navigate('/evaluation')
+    }
+
+    function startNewIndividualAnalysis() {
+        if (pendingIndividualComparison && !pendingComparisonStatus?.ready) return
+        if (recoveredEvaluation) setRecoveredEvaluation(null)
+        if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
+        if (!pendingIndividualComparison) clearPendingIndividualComparison()
+        clearNavigationProtection()
+        navigate('/comparison')
+    }
+
+    function cancelPreparedComparison() {
+        const discard = () => {
+            clearPendingIndividualComparison()
+            clearNavigationProtection()
         }
-
-        function handleMouseUp() {
-            window.removeEventListener('mousemove', handleMouseMove)
-            window.removeEventListener('mouseup', handleMouseUp)
+        if (pendingIndividualComparison?.base?.temporary) {
+            requestNavigation(discard)
+            return
         }
-
-        window.addEventListener('mousemove', handleMouseMove)
-        window.addEventListener('mouseup', handleMouseUp)
+        discard()
     }
 
     return (
         <div
-            className="dashboard-layout"
-            style={{
-                '--left-width': `${leftWidth}px`,
-                '--right-width': `${rightWidth}px`,
-            }}
+            className="dashboard-layout dashboard-workspace-layout"
+            style={{ '--left-width': `${leftWidth}px` }}
         >
-            <aside className="dashboard-sidebar left-sidebar">
-
+            <aside className="dashboard-sidebar dashboard-config-panel" aria-label="Configuración del experimento">
                 <ModelSelector onActiveModelChange={setActiveModel} />
-
                 <AttackSelector
                     selectedAttack={selectedAttack}
                     onSelectAttack={setSelectedAttack}
@@ -127,99 +223,197 @@ function Dashboard() {
             </aside>
 
             <div
-                className="resize-handle resize-handle-left"
+                className="resize-handle resize-handle-left dashboard-resize-handle"
                 onMouseDown={startLeftResize}
                 role="separator"
-                aria-label="Redimensionar panel izquierdo"
+                aria-label="Redimensionar configuración"
+                aria-orientation="vertical"
             />
 
-            <section className="dashboard-main-panel">
-                <ExperimentSummary
-                    selectedDataset={selectedDataset}
-                    selectedImage={selectedImage}
-                    activeModel={activeModel}
-                    selectedAttack={selectedAttack}
-                    attackParameters={attackParameters}
-                    attackCatalog={attackCatalog}
-                    onGoToEvaluation={() => navigate('/evaluation')}
-                    onGoToComparison={() => navigate('/comparison')}
-                />
-            </section>
+            <section className="dashboard-workspace-shell">
+                <nav className="dashboard-workspace-tabs" aria-label="Contenido del panel principal">
+                    <button
+                        type="button"
+                        className={workspaceTab === 'data' ? 'active' : ''}
+                        onClick={() => setWorkspaceTab('data')}
+                    >
+                        <DatabaseIcon />
+                        <span>Datos</span>
+                    </button>
+                    <button
+                        type="button"
+                        className={workspaceTab === 'history' ? 'active' : ''}
+                        onClick={() => setWorkspaceTab('history')}
+                    >
+                        <HistoryIcon />
+                        <span>Historial</span>
+                    </button>
+                </nav>
 
-            <div
-                className="resize-handle resize-handle-right"
-                onMouseDown={startRightResize}
-                role="separator"
-                aria-label="Redimensionar panel derecho"
-            />
+                <div className="dashboard-workspace-content">
+                    {workspaceTab === 'data' ? (
+                        <section className="dashboard-data-view">
+                            <header className="dashboard-workspace-header">
+                                <div>
+                                    <span className="dashboard-section-eyebrow">Espacio de trabajo</span>
+                                    <h1>Datos del experimento</h1>
+                                    <p>Selecciona un dataset y una imagen. La configuración activa permanece visible a la izquierda.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="dashboard-text-action"
+                                    onClick={() => navigate('/datasets')}
+                                >
+                                    <SettingsIcon />
+                                    <span>Gestionar datasets</span>
+                                </button>
+                            </header>
 
-            <aside className="dashboard-sidebar right-sidebar">
+                            {datasetsError && <p className="error dashboard-datasets-error">{datasetsError}</p>}
 
-                <button
-                    type="button"
-                    className="dashboard-user-card dashboard-user-button"
-                    onClick={() => navigate('/profile')}
-                >
-                    <div className="user-avatar">
-                        {user?.name?.charAt(0).toUpperCase() || 'U'}
-                    </div>
+                            <section className="dashboard-dataset-browser">
+                                <div className="dashboard-inline-heading">
+                                    <div>
+                                        <h2>Conjuntos de datos</h2>
+                                        <span>{datasets.length} disponibles</span>
+                                    </div>
+                                </div>
+                                <DatasetList
+                                    datasets={datasets}
+                                    selectedDataset={selectedDataset}
+                                    onSelectDataset={handleDatasetSelect}
+                                    variant="workspace"
+                                />
+                            </section>
 
-                    <div>
-                        <p className="user-card-label">Usuario activo</p>
-                        <strong>{user?.name || 'Sin usuario'}</strong>
-                        {user?.email && <span>{user.email}</span>}
-                    </div>
-                </button>
+                            <section className="dashboard-image-browser">
+                                <div className="dashboard-inline-heading dashboard-image-heading">
+                                    <div>
+                                        <h2>{selectedDataset?.name || 'Imágenes del dataset'}</h2>
+                                        <span>
+                                            {selectedDataset
+                                                ? `${selectedDataset.image_count} imágenes · selecciona una para analizarla`
+                                                : 'Selecciona un dataset para explorar sus imágenes'}
+                                        </span>
+                                    </div>
+                                    {selectedImage && (
+                                        <span className="dashboard-selected-image-label" title={selectedImage.filename}>
+                                            Seleccionada · {selectedImage.filename}
+                                        </span>
+                                    )}
+                                </div>
 
-                <div className="sidebar-block">
-                    <div className="sidebar-title-row">
-                        <div className="sidebar-block-title">Conjuntos de datos</div>
-
-                        <button
-                            type="button"
-                            className="icon-button"
-                            onClick={() => navigate('/datasets')}
-                            title="Gestionar conjuntos de datos"
-                        >
-                            ⚙
-                        </button>
-                    </div>
-
-                    {datasetsError && <p className="error">{datasetsError}</p>}
-
-                    <DatasetList
-                        datasets={datasets}
-                        selectedDataset={selectedDataset}
-                        onSelectDataset={handleDatasetSelect}
-                        compact
-                    />
+                                <ImageGallery
+                                    selectedDataset={selectedDataset}
+                                    selectedImage={selectedImage}
+                                    onSelectImage={setSelectedImage}
+                                    refreshKey={imagesRefreshKey}
+                                    workspace
+                                    allowPreview
+                                    showLabelEditor={false}
+                                />
+                            </section>
+                        </section>
+                    ) : (
+                        <DashboardHistory
+                            datasets={datasets}
+                            attackCatalog={attackCatalog}
+                            openRecoveredEvaluation={openRecoveredEvaluation}
+                            openRecoveredIndividualAnalysis={openRecoveredIndividualAnalysis}
+                            onNavigateToEvaluation={() => navigate('/evaluation')}
+                            onNavigateToIndividualAnalysis={() => navigate('/comparison')}
+                            onNavigateToProfile={() => navigate('/profile')}
+                            onNavigateToComparison={(left, right) => {
+                                const search = new URLSearchParams({
+                                    a: left.result_id,
+                                    b: right.result_id,
+                                })
+                                navigate(`/evaluations/compare?${search.toString()}`)
+                            }}
+                            onNavigateToIndividualComparison={(left, right) => {
+                                const search = new URLSearchParams({
+                                    a: left.analysis_id,
+                                    b: right.analysis_id,
+                                })
+                                navigate(`/individual-analyses/compare?${search.toString()}`)
+                            }}
+                        />
+                    )}
                 </div>
 
-                <div className="sidebar-block">
-                    <div className="sidebar-title-row">
-                        <div className="sidebar-block-title">
-                            Imágenes del Dataset
+                {pendingIndividualComparison && (
+                    <section className="dashboard-individual-compare-draft" aria-live="polite">
+                        <div className="dashboard-individual-compare-draft-side">
+                            <span>A</span>
+                            <div>
+                                <strong>{pendingIndividualComparison.base.item.model_name}</strong>
+                                <small>
+                                    {getAttackName(
+                                        pendingIndividualComparison.base.item.attack_type,
+                                        attackCatalog,
+                                    )} · {pendingIndividualComparison.base.item.image_filename}
+                                </small>
+                            </div>
                         </div>
-
+                        <div className="dashboard-individual-compare-draft-copy">
+                            <span className="dashboard-section-eyebrow">Preparando análisis B</span>
+                            <strong>{pendingComparisonCopy.label}</strong>
+                            <p>{pendingComparisonStatus?.message || pendingComparisonCopy.instruction}</p>
+                        </div>
                         <button
                             type="button"
-                            className="icon-button"
-                            title="Vista ampliada pendiente"
+                            className="dashboard-text-action"
+                            onClick={cancelPreparedComparison}
                         >
-                            🔍
+                            Cancelar comparación
                         </button>
+                    </section>
+                )}
+
+                <footer className="dashboard-action-bar">
+                    <div className="dashboard-action-status">
+                        <div className={`dashboard-readiness ${readiness.tone}`}>
+                            <span aria-hidden="true" />
+                            <strong>{readiness.message}</strong>
+                        </div>
+                        <div className="dashboard-action-context" aria-label="Configuración seleccionada">
+                            <span>{activeModel?.name || 'Sin modelo activo'}</span>
+                            <i aria-hidden="true">/</i>
+                            <span>{activeAttackName || 'Sin ataque'}</span>
+                            <i aria-hidden="true">/</i>
+                            <span>{selectedDataset?.name || 'Sin dataset'}</span>
+                            {selectedImage && (
+                                <>
+                                    <i aria-hidden="true">/</i>
+                                    <span title={selectedImage.filename}>{selectedImage.filename}</span>
+                                </>
+                            )}
+                        </div>
                     </div>
 
-                    <ImageGallery
-                        selectedDataset={selectedDataset}
-                        selectedImage={selectedImage}
-                        onSelectImage={setSelectedImage}
-                        refreshKey={imagesRefreshKey}
-                        compact
-                        showLabelEditor={false}
-                    />
-                </div>
-            </aside>
+                    <div className="dashboard-action-buttons">
+                        <button
+                            type="button"
+                            className="secondary-action"
+                            onClick={startNewEvaluation}
+                            disabled={!readiness.canEvaluate || Boolean(pendingIndividualComparison)}
+                        >
+                            Evaluar dataset
+                        </button>
+                        <button
+                            type="button"
+                            className="primary-action"
+                            onClick={startNewIndividualAnalysis}
+                            disabled={
+                                !readiness.canAnalyze
+                                || (pendingIndividualComparison && !pendingComparisonStatus?.ready)
+                            }
+                        >
+                            {pendingIndividualComparison ? 'Analizar B' : 'Analizar imagen'}
+                        </button>
+                    </div>
+                </footer>
+            </section>
         </div>
     )
 }

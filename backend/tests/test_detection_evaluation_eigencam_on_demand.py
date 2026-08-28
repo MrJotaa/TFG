@@ -84,7 +84,7 @@ async def test_detection_eigencam_reuses_evaluation_inputs_and_caches(
     async def fake_get_evaluation(*, evaluation_id, owner_id):
         assert evaluation_id == EVALUATION_ID
         assert owner_id == "user-1"
-        return evaluation
+        return SimpleNamespace(task_type="detection", evaluation=evaluation)
 
     async def fake_get_image(*, dataset_id, image_id):
         nonlocal original_loads
@@ -100,7 +100,7 @@ async def test_detection_eigencam_reuses_evaluation_inputs_and_caches(
 
     monkeypatch.setattr(
         eigencam_service,
-        "get_detection_evaluation",
+        "get_stored_evaluation",
         fake_get_evaluation,
     )
     monkeypatch.setattr(
@@ -158,15 +158,15 @@ async def test_detection_eigencam_requires_persisted_adversarial_source(
     )
 
     async def fake_get_evaluation(**kwargs):
-        return evaluation
+        return SimpleNamespace(task_type="detection", evaluation=evaluation)
 
     monkeypatch.setattr(
         eigencam_service,
-        "get_detection_evaluation",
+        "get_stored_evaluation",
         fake_get_evaluation,
     )
 
-    with pytest.raises(GoneError, match="repeat the evaluation"):
+    with pytest.raises(GoneError, match="repite la evaluación"):
         await eigencam_service.generate_detection_evaluation_image_eigencam(
             evaluation_id=EVALUATION_ID,
             image_id=IMAGE_ID,
@@ -192,11 +192,11 @@ async def test_detection_eigencam_requires_the_evaluation_model(
     )
 
     async def fake_get_evaluation(**kwargs):
-        return evaluation
+        return SimpleNamespace(task_type="detection", evaluation=evaluation)
 
     monkeypatch.setattr(
         eigencam_service,
-        "get_detection_evaluation",
+        "get_stored_evaluation",
         fake_get_evaluation,
     )
     monkeypatch.setattr(
@@ -205,7 +205,7 @@ async def test_detection_eigencam_requires_the_evaluation_model(
         lambda: SimpleNamespace(id="detector-2", task_type="detection"),
     )
 
-    with pytest.raises(BadRequestError, match="not active"):
+    with pytest.raises(BadRequestError, match="no está activo"):
         await eigencam_service.generate_detection_evaluation_image_eigencam(
             evaluation_id=EVALUATION_ID,
             image_id=IMAGE_ID,

@@ -16,6 +16,7 @@ class UserUpdate(BaseModel):
     name: str | None = None
     email: EmailStr | None = None
     password: str | None = None
+    current_password: str | None = None
 
 
 class UserRetentionUpdate(BaseModel):

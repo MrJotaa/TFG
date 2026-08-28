@@ -61,13 +61,17 @@ class _FakeEvaluationCollection:
         return self.documents.get(query["_id"])
 
     def find(self, query):
-        now = query["expires_at"]["$gt"]
+        conditions = query["$or"]
+        now = conditions[1]["expires_at"]["$gt"]
         documents = [
             document
             for document in self.documents.values()
             if document["owner_id"] == query["owner_id"]
             and document["status"] == query["status"]
-            and document["expires_at"] > now
+            and (
+                document.get("preserved") is True
+                or document.get("expires_at") > now
+            )
         ]
         return _FakeCursor(documents)
 
@@ -184,7 +188,7 @@ async def test_detection_evaluation_detail_enforces_ownership(
         owner_id="user-1",
     )
 
-    with pytest.raises(ForbiddenError, match="another user"):
+    with pytest.raises(ForbiddenError, match="otro usuario"):
         await persistence.get_detection_evaluation(
             evaluation_id=result_id,
             owner_id="user-2",
@@ -205,7 +209,7 @@ async def test_detection_evaluation_expiration_and_missing_artifact_are_typed(
     document = persistence_environment.documents[result_id]
     document["expires_at"] = datetime.now(timezone.utc) - timedelta(seconds=1)
 
-    with pytest.raises(GoneError, match="expired"):
+    with pytest.raises(GoneError, match="ha caducado"):
         await persistence.get_detection_evaluation(
             evaluation_id=result_id,
             owner_id="user-1",
@@ -224,7 +228,7 @@ async def test_detection_evaluation_expiration_and_missing_artifact_are_typed(
         tmp_path / result_id / persistence.DETECTION_EVALUATION_ARTIFACT_FILENAME
     )
     artifact_path.unlink()
-    with pytest.raises(GoneError, match="no longer available"):
+    with pytest.raises(GoneError, match="ya no está disponible"):
         await persistence.get_detection_evaluation(
             evaluation_id=result_id,
             owner_id="user-1",
@@ -236,7 +240,7 @@ async def test_detection_evaluation_rejects_invalid_identity_and_artifact(
     tmp_path,
     persistence_environment,
 ):
-    with pytest.raises(NotFoundError, match="not found"):
+    with pytest.raises(NotFoundError, match="no encontrada"):
         await persistence.get_detection_evaluation(
             evaluation_id="../evaluation.json",
             owner_id="user-1",
@@ -253,7 +257,7 @@ async def test_detection_evaluation_rejects_invalid_identity_and_artifact(
     )
     artifact_path.write_text("{}", encoding="utf-8")
 
-    with pytest.raises(BadRequestError, match="artifact is invalid"):
+    with pytest.raises(BadRequestError, match="artefacto de la evaluación de detección no es válido"):
         await persistence.get_detection_evaluation(
             evaluation_id=result_id,
             owner_id="user-1",
@@ -304,20 +308,20 @@ async def test_evaluation_indexes_include_history_expiry_and_concurrency():
 
 
 @pytest.mark.asyncio
-async def test_persistence_removes_only_expired_evaluation_artifact_directories(
+async def test_persistence_does_not_delete_stale_evaluation_directories_by_mtime(
     tmp_path,
     persistence_environment,
 ):
-    expired_id = "detection_evaluation_00000000-0000-4000-8000-000000000020"
+    stale_id = "detection_evaluation_00000000-0000-4000-8000-000000000020"
     active_id = "detection_evaluation_00000000-0000-4000-8000-000000000021"
-    expired_path = tmp_path / expired_id
+    stale_path = tmp_path / stale_id
     unrelated_path = tmp_path / "unrelated"
-    expired_path.mkdir()
+    stale_path.mkdir()
     unrelated_path.mkdir()
-    expired_timestamp = datetime.now(timezone.utc).timestamp() - (
+    stale_timestamp = datetime.now(timezone.utc).timestamp() - (
         persistence.RESULTS_TTL_SECONDS + 1
     )
-    os.utime(expired_path, (expired_timestamp, expired_timestamp))
+    os.utime(stale_path, (stale_timestamp, stale_timestamp))
 
     await persistence.persist_detection_evaluation(
         response=_response(active_id),
@@ -325,6 +329,39 @@ async def test_persistence_removes_only_expired_evaluation_artifact_directories(
         owner_id="user-1",
     )
 
-    assert not expired_path.exists()
+    # Persistence must not remove evaluation directories using only filesystem
+    # age. A preserved evaluation may legitimately be older than the default
+    # TTL; cleanup is handled centrally using MongoDB as the source of truth.
+    assert stale_path.is_dir()
     assert unrelated_path.is_dir()
     assert (tmp_path / active_id).is_dir()
+
+@pytest.mark.asyncio
+async def test_legacy_detection_access_honors_preserved_evaluations(
+    persistence_environment,
+):
+    result_id = "detection_evaluation_00000000-0000-4000-8000-000000000099"
+    response = _response(result_id)
+    await persistence.persist_detection_evaluation(
+        response=response,
+        request=_request(),
+        owner_id="user-1",
+    )
+    document = persistence_environment.documents[result_id]
+    document["preserved"] = True
+    document["expires_at"] = None
+
+    restored = await persistence.get_detection_evaluation(
+        evaluation_id=result_id,
+        owner_id="user-1",
+    )
+    history = await persistence.list_detection_evaluations(
+        owner_id="user-1",
+        limit=50,
+        offset=0,
+    )
+
+    assert restored == response
+    assert len(history) == 1
+    assert history[0].preserved is True
+    assert history[0].expires_at is None

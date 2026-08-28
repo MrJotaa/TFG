@@ -6,6 +6,7 @@ import { resolveApiUrl } from '../src/api/client.js'
 import {
     canRequestEvaluationGradCam,
     evaluationGradCamReducer,
+    getEvaluationGradCamButtonLabel,
     getEvaluationGradCamEntry,
     getEvaluationGradCamErrorMessage,
     getEvaluationGradCamKey,
@@ -172,5 +173,21 @@ test('controlled HTTP and network errors have understandable messages', () => {
     assert.match(
         getEvaluationGradCamErrorMessage({ status: 410 }),
         /Repite la evaluación/,
+    )
+})
+
+
+test('Grad-CAM generado puede ocultarse y volver a mostrarse sin recalcular', () => {
+    const ready = { status: 'success' }
+
+    assert.equal(getEvaluationGradCamButtonLabel(ready, true), 'Ocultar Grad-CAM')
+    assert.equal(getEvaluationGradCamButtonLabel(ready, false), 'Mostrar Grad-CAM')
+    assert.equal(
+        getEvaluationGradCamButtonLabel({ status: 'loading' }, true),
+        'Generando Grad-CAM…',
+    )
+    assert.equal(
+        getEvaluationGradCamButtonLabel({ status: 'error' }, true),
+        'Reintentar Grad-CAM',
     )
 })

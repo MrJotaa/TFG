@@ -53,6 +53,13 @@ export function evaluationGradCamReducer(state, action) {
     return state
 }
 
+export function getEvaluationGradCamButtonLabel(entry, isVisible = true) {
+    if (entry?.status === 'loading') return 'Generando Grad-CAM…'
+    if (entry?.status === 'success') return isVisible ? 'Ocultar Grad-CAM' : 'Mostrar Grad-CAM'
+    if (entry?.status === 'error') return 'Reintentar Grad-CAM'
+    return 'Generar Grad-CAM'
+}
+
 export function canRequestEvaluationGradCam(entry, isInFlight = false) {
     return (
         !isInFlight

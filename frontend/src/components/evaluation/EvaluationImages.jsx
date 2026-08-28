@@ -1,4 +1,5 @@
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
     formatDecimal,
     formatInteger,
@@ -6,9 +7,16 @@ import {
 } from '../../utils/metricFormatting'
 import { resolveApiUrl } from '../../api/client'
 import {
+    getEvaluationGradCamButtonLabel,
     getEvaluationGradCamEntry,
     getEvaluationGradCamKey,
 } from '../../utils/evaluationGradCamState'
+import {
+    clampEvaluationPreviewPan,
+    clampEvaluationPreviewZoom,
+    getEvaluationPreviewPanBounds,
+    stepEvaluationPreviewZoom,
+} from '../../utils/evaluationImagePreview'
 
 const PAGE_SIZE = 6
 
@@ -96,19 +104,243 @@ function BooleanValue({ value }) {
     return value ? 'Sí' : 'No'
 }
 
-function ImagePreview({ label, path, alt, variant }) {
+function ExpandIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8.5 4H4v4.5M15.5 4H20v4.5M20 15.5V20h-4.5M8.5 20H4v-4.5" />
+        </svg>
+    )
+}
+
+function CloseIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m6 6 12 12M18 6 6 18" />
+        </svg>
+    )
+}
+
+function ImagePreview({ label, path, alt, variant, onExpand }) {
     const url = resolveApiUrl(path)
 
     return (
         <figure className={`evaluation-image-preview ${variant}`}>
             <figcaption>{label}</figcaption>
             {url ? (
-                <img src={url} alt={alt} loading="lazy" />
+                <div className="evaluation-image-preview-visual">
+                    <img src={url} alt={alt} loading="lazy" />
+                    {onExpand && (
+                        <button
+                            type="button"
+                            className="evaluation-image-expand"
+                            aria-label={`Ampliar ${label.toLowerCase()}`}
+                            title={`Ampliar ${label.toLowerCase()}`}
+                            onClick={() => onExpand({ label, url, alt })}
+                        >
+                            <ExpandIcon />
+                        </button>
+                    )}
+                </div>
             ) : (
                 <div className="evaluation-image-missing">Imagen no disponible</div>
             )}
         </figure>
     )
+}
+
+function ZoomOutIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h14" />
+        </svg>
+    )
+}
+
+function ZoomInIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+        </svg>
+    )
+}
+
+function EvaluationImageLightbox({ preview, onClose }) {
+    const [zoom, setZoom] = useState(1)
+    const [pan, setPan] = useState({ x: 0, y: 0 })
+    const [isDragging, setIsDragging] = useState(false)
+    const viewportRef = useRef(null)
+    const imageRef = useRef(null)
+    const dragRef = useRef(null)
+
+    useEffect(() => {
+        const previousOverflow = document.body.style.overflow
+        document.body.style.overflow = 'hidden'
+
+        function handleKeyDown(event) {
+            if (event.key === 'Escape') onClose()
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => {
+            document.body.style.overflow = previousOverflow
+            window.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [onClose])
+
+    function getPanBounds(nextZoom = zoom) {
+        const viewport = viewportRef.current
+        const image = imageRef.current
+
+        if (!viewport || !image) return { x: 0, y: 0 }
+
+        return getEvaluationPreviewPanBounds({
+            viewportWidth: viewport.clientWidth,
+            viewportHeight: viewport.clientHeight,
+            imageWidth: image.offsetWidth,
+            imageHeight: image.offsetHeight,
+            zoom: nextZoom,
+        })
+    }
+
+    function changeZoom(direction) {
+        const nextZoom = stepEvaluationPreviewZoom(zoom, direction)
+        setZoom(nextZoom)
+        setPan((current) => clampEvaluationPreviewPan(current, getPanBounds(nextZoom)))
+    }
+
+    function resetView() {
+        setZoom(1)
+        setPan({ x: 0, y: 0 })
+        setIsDragging(false)
+        dragRef.current = null
+    }
+
+    function handlePointerDown(event) {
+        if (zoom <= 1) return
+
+        event.currentTarget.setPointerCapture(event.pointerId)
+        dragRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            panX: pan.x,
+            panY: pan.y,
+        }
+        setIsDragging(true)
+    }
+
+    function handlePointerMove(event) {
+        const drag = dragRef.current
+        if (!drag || drag.pointerId !== event.pointerId || zoom <= 1) return
+
+        const nextPan = {
+            x: drag.panX + event.clientX - drag.startX,
+            y: drag.panY + event.clientY - drag.startY,
+        }
+        setPan(clampEvaluationPreviewPan(nextPan, getPanBounds()))
+    }
+
+    function finishPointerDrag(event) {
+        const drag = dragRef.current
+        if (!drag || drag.pointerId !== event.pointerId) return
+
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId)
+        }
+        dragRef.current = null
+        setIsDragging(false)
+    }
+
+    const safeZoom = clampEvaluationPreviewZoom(zoom)
+    const modal = (
+        <div
+            className="image-lightbox-backdrop evaluation-image-lightbox-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+                if (event.target === event.currentTarget) onClose()
+            }}
+        >
+            <section
+                className="image-lightbox evaluation-image-lightbox"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Vista ampliada: ${preview.label}`}
+            >
+                <header>
+                    <div>
+                        <span className="evaluation-eyebrow">Vista ampliada</span>
+                        <strong>{preview.label}</strong>
+                    </div>
+                    <div className="evaluation-image-lightbox-actions">
+                        <button
+                            type="button"
+                            className="image-lightbox-close evaluation-image-zoom-button"
+                            onClick={() => changeZoom(-1)}
+                            disabled={safeZoom <= 1}
+                            aria-label="Alejar imagen"
+                            title="Alejar"
+                        >
+                            <ZoomOutIcon />
+                        </button>
+                        <output aria-live="polite">{Math.round(safeZoom * 100)}%</output>
+                        <button
+                            type="button"
+                            className="image-lightbox-close evaluation-image-zoom-button"
+                            onClick={() => changeZoom(1)}
+                            disabled={safeZoom >= 4}
+                            aria-label="Acercar imagen"
+                            title="Acercar"
+                        >
+                            <ZoomInIcon />
+                        </button>
+                        <button
+                            type="button"
+                            className="evaluation-image-reset-zoom"
+                            onClick={resetView}
+                            disabled={safeZoom === 1 && pan.x === 0 && pan.y === 0}
+                        >
+                            Restablecer
+                        </button>
+                        <button
+                            type="button"
+                            className="image-lightbox-close"
+                            onClick={onClose}
+                            aria-label="Cerrar vista ampliada"
+                        >
+                            <CloseIcon />
+                        </button>
+                    </div>
+                </header>
+                <div
+                    ref={viewportRef}
+                    className={`image-lightbox-content evaluation-image-lightbox-content${
+                        safeZoom > 1 ? ' is-zoomed' : ''
+                    }${isDragging ? ' is-dragging' : ''}`}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={finishPointerDrag}
+                    onPointerCancel={finishPointerDrag}
+                >
+                    <img
+                        ref={imageRef}
+                        src={preview.url}
+                        alt={preview.alt}
+                        draggable="false"
+                        style={{
+                            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${safeZoom})`,
+                        }}
+                    />
+                </div>
+                <footer>
+                    <span>
+                        Usa + / − para cambiar el zoom. Con zoom activo, arrastra la imagen para desplazarte.
+                    </span>
+                </footer>
+            </section>
+        </div>
+    )
+
+    return createPortal(modal, document.body)
 }
 
 function EvaluationImageCard({
@@ -118,6 +350,8 @@ function EvaluationImageCard({
     onGenerateGradCam,
 }) {
     const [expanded, setExpanded] = useState(false)
+    const [previewImage, setPreviewImage] = useState(null)
+    const [showGradCam, setShowGradCam] = useState(true)
     const titleId = useId()
     const diagnosticsId = useId()
     const gradCamErrorId = useId()
@@ -155,18 +389,21 @@ function EvaluationImageCard({
                         path={result.original_image_url}
                         alt={`Imagen original ${result.filename}`}
                         variant="original"
+                        onExpand={setPreviewImage}
                     />
                     <ImagePreview
                         label="Tras el ataque"
                         path={result.adversarial_image_url}
                         alt={`Imagen tras el ataque ${result.filename}`}
                         variant="adversarial"
+                        onExpand={setPreviewImage}
                     />
                     <ImagePreview
                         label="Perturbación"
                         path={result.perturbation_image_url}
                         alt={`Perturbación aplicada a ${result.filename}`}
                         variant="perturbation"
+                        onExpand={setPreviewImage}
                     />
                 </div>
 
@@ -220,19 +457,21 @@ function EvaluationImageCard({
                     <button
                         type="button"
                         className="evaluation-gradcam-button"
-                        disabled={gradCamLoading || gradCamReady}
+                        disabled={gradCamLoading}
+                        aria-expanded={gradCamReady ? showGradCam : undefined}
                         aria-describedby={gradCamError ? gradCamErrorId : undefined}
-                        onClick={() =>
+                        onClick={() => {
+                            if (gradCamReady) {
+                                setShowGradCam((current) => !current)
+                                return
+                            }
                             onGenerateGradCam(evaluationId, result.image_id)
-                        }
+                        }}
                     >
-                        {gradCamLoading
-                            ? 'Generando Grad-CAM…'
-                            : gradCamReady
-                              ? 'Grad-CAM generado'
-                              : gradCamError
-                                ? 'Reintentar Grad-CAM'
-                                : 'Generar Grad-CAM'}
+                        {getEvaluationGradCamButtonLabel(
+                            gradCamEntry,
+                            showGradCam,
+                        )}
                     </button>
                 </div>
 
@@ -256,7 +495,7 @@ function EvaluationImageCard({
                     </div>
                 )}
 
-                {gradCamReady && (
+                {gradCamReady && showGradCam && (
                     <div className="evaluation-gradcam-grid">
                         <ImagePreview
                             label="Grad-CAM original"
@@ -266,6 +505,7 @@ function EvaluationImageCard({
                             }
                             alt={`Grad-CAM original de ${result.filename}`}
                             variant="gradcam-original"
+                            onExpand={setPreviewImage}
                         />
                         <ImagePreview
                             label="Grad-CAM tras el ataque"
@@ -275,6 +515,7 @@ function EvaluationImageCard({
                             }
                             alt={`Grad-CAM tras el ataque de ${result.filename}`}
                             variant="gradcam-adversarial"
+                            onExpand={setPreviewImage}
                         />
                     </div>
                 )}
@@ -338,6 +579,14 @@ function EvaluationImageCard({
                     <strong>Etiqueta no resuelta:</strong>{' '}
                     {diagnostics.label_resolution_reason}
                 </div>
+            )}
+
+            {previewImage && (
+                <EvaluationImageLightbox
+                    key={previewImage.url}
+                    preview={previewImage}
+                    onClose={() => setPreviewImage(null)}
+                />
             )}
         </article>
     )
@@ -485,7 +734,7 @@ function EvaluationImages({
             ) : (
                 <div className="evaluation-empty-panel compact">
                     <h3>No hay resultados para este filtro</h3>
-                    <p>Prueba con otra transición o modifica el texto de búsqueda.</p>
+                    <p>Prueba con otro filtro o modifica el texto de búsqueda.</p>
                 </div>
             )}
 

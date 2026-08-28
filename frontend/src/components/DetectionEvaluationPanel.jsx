@@ -1,4 +1,4 @@
-import { useMemo, useReducer, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
     evaluateDetectionDataset,
     generateDetectionEvaluationEigenCam,
@@ -14,6 +14,7 @@ import DetectionObjectAnalysis from './detectionEvaluation/DetectionObjectAnalys
 import DetectionOverview from './detectionEvaluation/DetectionOverview'
 import DetectionPrecisionRecall from './detectionEvaluation/DetectionPrecisionRecall'
 import DetectionTideAnalysis from './detectionEvaluation/DetectionTideAnalysis'
+import EvaluationInfoTip from './evaluation/EvaluationInfoTip'
 import EvaluationMetricGuide from './evaluation/EvaluationMetricGuide'
 import EvaluationProgress from './evaluation/EvaluationProgress'
 import EvaluationTabs from './evaluation/EvaluationTabs'
@@ -33,6 +34,7 @@ import {
 } from '../utils/attackCatalog'
 import { getAttackName } from '../utils/attackFormatting'
 import { isRequestCancelled } from '../api/client'
+import { useNavigationGuard } from '../context/NavigationGuardContext'
 
 const IOU_THRESHOLDS = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
 
@@ -43,10 +45,13 @@ function DetectionEvaluationPanel({
     attackCatalog = [],
     recoveredEvaluation = null,
     onStartNewEvaluation = () => {},
+    onResultContextChange = () => {},
 }) {
     const [evaluationState, setEvaluationState] = useState(null)
     const [activeTab, setActiveTab] = useState('overview')
     const [loading, setLoading] = useState(false)
+    const { setNavigationProtection, clearNavigationProtection } =
+        useNavigationGuard()
     const [progress, setProgress] = useState(null)
     const [errorState, setErrorState] = useState(null)
     const [reuseCandidate, setReuseCandidate] = useState(null)
@@ -64,6 +69,15 @@ function DetectionEvaluationPanel({
     const eigenCamRequests = useRef(new Set())
     const eigenCamRun = useRef(0)
     const evaluationAbortController = useRef(null)
+
+    useEffect(() => {
+        setNavigationProtection({ busy: loading })
+    }, [loading, setNavigationProtection])
+
+    useEffect(() => () => {
+        evaluationAbortController.current?.abort()
+        clearNavigationProtection()
+    }, [clearNavigationProtection])
     const isSupportedAttack = isAttackSupportedForTask(
         attackCatalog,
         selectedAttack,
@@ -126,6 +140,10 @@ function DetectionEvaluationPanel({
             })
             onStartNewEvaluation()
             setEvaluationState({ contextKey, data: result })
+            onResultContextChange({
+                resultId: result.result_id,
+                datasetRevision: result.dataset_revision,
+            })
             setActiveTab('overview')
         } finally {
             if (evaluationAbortController.current === controller) {
@@ -182,6 +200,10 @@ function DetectionEvaluationPanel({
             }
             onStartNewEvaluation()
             setEvaluationState({ contextKey, data: stored.evaluation })
+            onResultContextChange({
+                resultId: stored.evaluation.result_id,
+                datasetRevision: stored.evaluation.dataset_revision,
+            })
             setReuseCandidate(null)
             setActiveTab('overview')
         } catch (requestError) {
@@ -273,7 +295,7 @@ function DetectionEvaluationPanel({
     }
 
     return (
-        <div className="evaluation-panel evaluation-dashboard detection-evaluation-dashboard">
+        <div className="evaluation-panel evaluation-dashboard detection-evaluation-dashboard detection-evaluation-panel">
             {!evaluation && !loading && (
                 <section className="evaluation-run-card modern detection-run-card">
                     <div className="detection-run-copy">
@@ -289,9 +311,15 @@ function DetectionEvaluationPanel({
                     </div>
 
                     <div className="detection-run-controls" aria-label="Configuración supervisada">
-                        <label>
-                            <span>Confianza</span>
+                        <div className="detection-run-field">
+                            <div className="detection-run-field-label">
+                                <label htmlFor="detection-evaluation-confidence">Confianza</label>
+                                <EvaluationInfoTip label="Confianza">
+                                    Umbral mínimo de puntuación para incluir una detección en el punto de operación supervisado.
+                                </EvaluationInfoTip>
+                            </div>
                             <input
+                                id="detection-evaluation-confidence"
                                 type="number"
                                 min="0.001"
                                 max="1"
@@ -304,10 +332,16 @@ function DetectionEvaluationPanel({
                                     )
                                 }
                             />
-                        </label>
-                        <label>
-                            <span>IoU</span>
+                        </div>
+                        <div className="detection-run-field">
+                            <div className="detection-run-field-label">
+                                <label htmlFor="detection-evaluation-iou">IoU de matching</label>
+                                <EvaluationInfoTip label="IoU de matching">
+                                    Solapamiento mínimo entre una detección y una caja de referencia para considerarlas emparejadas.
+                                </EvaluationInfoTip>
+                            </div>
                             <select
+                                id="detection-evaluation-iou"
                                 value={configuration.iou_threshold}
                                 onChange={(event) =>
                                     updateConfiguration(
@@ -322,20 +356,26 @@ function DetectionEvaluationPanel({
                                     </option>
                                 ))}
                             </select>
-                        </label>
-                        <label className="detection-details-toggle">
-                            <input
-                                type="checkbox"
-                                checked={configuration.include_object_level_details}
-                                onChange={(event) =>
-                                    updateConfiguration(
-                                        'include_object_level_details',
-                                        event.target.checked,
-                                    )
-                                }
-                            />
-                            <span>Incluir detalle por objeto</span>
-                        </label>
+                        </div>
+                        <div className="detection-details-toggle-row">
+                            <label className="detection-details-toggle" htmlFor="detection-evaluation-object-details">
+                                <input
+                                    id="detection-evaluation-object-details"
+                                    type="checkbox"
+                                    checked={configuration.include_object_level_details}
+                                    onChange={(event) =>
+                                        updateConfiguration(
+                                            'include_object_level_details',
+                                            event.target.checked,
+                                        )
+                                    }
+                                />
+                                <span>Incluir detalle por objeto</span>
+                            </label>
+                            <EvaluationInfoTip label="Detalle por objeto">
+                                Materializa las tablas por imagen y el explorador de objetos. Aumenta el detalle de la respuesta, no cambia las métricas COCO.
+                            </EvaluationInfoTip>
+                        </div>
                         {!isConfigurationValid && (
                             <p className="detection-configuration-error" role="alert">
                                 La confianza debe estar entre 0.001 y 1.
@@ -379,32 +419,17 @@ function DetectionEvaluationPanel({
                 />
             )}
 
-            {evaluation && (
-                <section className="evaluation-results-shell">
-                    <header className="detection-result-header">
-                        <div>
-                            <span className="evaluation-eyebrow">Evaluación completada</span>
-                            <h3>{evaluation.model_name}</h3>
-                            <p>ID {evaluation.result_id} · revisión {evaluation.dataset_revision}</p>
-                        </div>
-                        <button
-                            type="button"
-                            className="secondary-action"
-                            onClick={() => {
-                                eigenCamRun.current += 1
-                                eigenCamRequests.current.clear()
-                                dispatchEigenCam({ type: 'reset' })
-                                setEvaluationState(null)
-                            }}
-                        >
-                            Nueva evaluación
-                        </button>
-                    </header>
+            {evaluation && !loading && (
+                <section className="evaluation-results-shell" aria-label="Resultados de evaluación de detección">
+                    <p className="evaluation-sr-only" role="status" aria-live="polite">
+                        Evaluación de detección completada. Se muestran los resultados del conjunto de datos.
+                    </p>
 
                     <EvaluationTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
                     <EvaluationMetricGuide
                         key={activeTab}
                         guide={DETECTION_METRIC_GUIDES[activeTab]}
+                        variant="detection"
                     />
 
                     <div
@@ -412,6 +437,7 @@ function DetectionEvaluationPanel({
                         className="evaluation-tab-panel"
                         role="tabpanel"
                         aria-labelledby={`evaluation-tab-${activeTab}`}
+                        tabIndex={0}
                     >
                         {activeTab === 'overview' && <DetectionOverview evaluation={evaluation} />}
                         {activeTab === 'coco' && <DetectionCocoMetrics evaluation={evaluation} />}
@@ -427,6 +453,22 @@ function DetectionEvaluationPanel({
                             />
                         )}
                     </div>
+
+                    <footer className="evaluation-rerun-footer detection-evaluation-rerun-footer">
+                        <div>
+                            <strong>Resultado disponible</strong>
+                            <span>
+                                Puedes repetir la evaluación con la misma configuración si necesitas resultados nuevos.
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            className="secondary-action evaluation-rerun-button"
+                            onClick={handleEvaluate}
+                        >
+                            Repetir evaluación
+                        </button>
+                    </footer>
                 </section>
             )}
         </div>

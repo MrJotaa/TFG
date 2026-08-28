@@ -161,7 +161,7 @@ def test_single_ground_truth_class_disables_roc():
 
     assert metrics.roc.micro.original.available is False
 
-    assert "negative sample" in metrics.roc.micro.original.reason
+    assert "muestra negativa" in metrics.roc.micro.original.reason
 
     assert metrics.roc.macro_original.available is False
 
@@ -191,7 +191,7 @@ def test_single_ground_truth_class_keeps_pr_available():
 
     assert precision_recall.micro.original.score == 1.0
 
-    assert "no negative samples" in precision_recall.micro.original.warning
+    assert "no contiene muestras negativas" in precision_recall.micro.original.warning
 
 
 def test_low_class_support_adds_warning():
@@ -213,7 +213,7 @@ def test_low_class_support_adds_warning():
 
     assert class_curve.support == 1
 
-    assert "fewer than 2 positive samples" in class_curve.curves.original.warning
+    assert "menos de 2 muestras positivas" in class_curve.curves.original.warning
 
 
 def test_curve_analysis_rejects_mismatched_lengths():

@@ -12,11 +12,12 @@ export function getDatasetImages(datasetId) {
     return apiRequest(`/datasets/${datasetId}/images`)
 }
 
-export function uploadDataset({ userId, name, files }) {
+export function uploadDataset({ userId, name, taskType, files }) {
     const formData = new FormData()
 
     formData.append('user_id', userId)
     formData.append('name', name)
+    if (taskType) formData.append('task_type', taskType)
 
     Array.from(files).forEach((file) => {
         formData.append('files', file)
@@ -25,6 +26,21 @@ export function uploadDataset({ userId, name, files }) {
     return apiRequest('/datasets', {
         method: 'POST',
         body: formData,
+    })
+}
+
+
+export function updateDataset({ datasetId, name, taskType }) {
+    const payload = {}
+    if (name !== undefined) payload.name = name
+    if (taskType !== undefined) payload.task_type = taskType
+
+    return apiRequest(`/datasets/${datasetId}`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
     })
 }
 

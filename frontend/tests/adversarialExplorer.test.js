@@ -5,6 +5,7 @@ import {
     clampExplorerZoom,
     resolveCleanDetectionResult,
     resolveExplorerPair,
+    resolveOverlaySplit,
 } from '../src/utils/adversarialExplorer.js'
 
 test('clampExplorerZoom keeps zoom inside the supported interval', () => {
@@ -12,6 +13,26 @@ test('clampExplorerZoom keeps zoom inside the supported interval', () => {
     assert.equal(clampExplorerZoom(2.5), 2.5)
     assert.equal(clampExplorerZoom(8), 4)
     assert.equal(clampExplorerZoom('invalid'), 1)
+})
+
+test('overlay split keeps original on the left and adversarial on the right', () => {
+    assert.deepEqual(resolveOverlaySplit(48), {
+        originalPercent: 48,
+        adversarialPercent: 52,
+        originalClipPath: 'inset(0 52% 0 0)',
+    })
+
+    assert.deepEqual(resolveOverlaySplit(0), {
+        originalPercent: 0,
+        adversarialPercent: 100,
+        originalClipPath: 'inset(0 100% 0 0)',
+    })
+
+    assert.deepEqual(resolveOverlaySplit(100), {
+        originalPercent: 100,
+        adversarialPercent: 0,
+        originalClipPath: 'inset(0 0% 0 0)',
+    })
 })
 
 test('classification sources preserve real images and Grad-CAM layers', () => {
@@ -87,6 +108,17 @@ test('detection sources switch boxes without replacing adversarial pixels', () =
         {
             original: '/datasets/2/images/clean',
             adversarial: '/results/2/adversarial.png',
+        },
+    )
+    assert.deepEqual(
+        resolveExplorerPair({
+            sources,
+            layer: 'explanation',
+            showAnnotations: true,
+        }),
+        {
+            original: '/results/2/original-cam.png',
+            adversarial: '/results/2/adversarial-cam.png',
         },
     )
 })

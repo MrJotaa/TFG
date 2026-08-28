@@ -15,6 +15,19 @@ export function clampExplorerZoom(value) {
     )
 }
 
+export function resolveOverlaySplit(value) {
+    const numericValue = Number(value)
+    const originalPercent = Number.isFinite(numericValue)
+        ? Math.min(100, Math.max(0, numericValue))
+        : 50
+
+    return {
+        originalPercent,
+        adversarialPercent: 100 - originalPercent,
+        originalClipPath: `inset(0 ${100 - originalPercent}% 0 0)`,
+    }
+}
+
 export function resolveCleanDetectionResult({ detectionResult, attackResult }) {
     if (detectionResult) {
         return detectionResult

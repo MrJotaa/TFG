@@ -7,6 +7,7 @@ import {
     EXPLORER_MIN_ZOOM,
     EXPLORER_ZOOM_STEP,
     resolveExplorerPair,
+    resolveOverlaySplit,
 } from '../../utils/adversarialExplorer'
 
 const PAN_STEP = 24
@@ -65,6 +66,7 @@ function OverlayComparison({
     zoom,
 }) {
     const { onSplitChange, ...imageHandlers } = viewportHandlers
+    const splitState = resolveOverlaySplit(split)
 
     return (
         <div className="adversarial-overlay-comparison">
@@ -76,8 +78,8 @@ function OverlayComparison({
                 {...imageHandlers}
             >
                 <img
-                    src={resolveApiUrl(originalUrl)}
-                    alt="Vista original"
+                    src={resolveApiUrl(adversarialUrl)}
+                    alt="Vista adversaria"
                     draggable="false"
                     style={{
                         transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
@@ -85,11 +87,11 @@ function OverlayComparison({
                 />
                 <div
                     className="adversarial-overlay-layer"
-                    style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}
+                    style={{ clipPath: splitState.originalClipPath }}
                 >
                     <img
-                        src={resolveApiUrl(adversarialUrl)}
-                        alt="Vista adversaria"
+                        src={resolveApiUrl(originalUrl)}
+                        alt="Vista original"
                         draggable="false"
                         style={{
                             transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
@@ -98,7 +100,7 @@ function OverlayComparison({
                 </div>
                 <span
                     className="adversarial-overlay-divider"
-                    style={{ left: `${split}%` }}
+                    style={{ left: `${splitState.originalPercent}%` }}
                     aria-hidden="true"
                 />
                 <span className="adversarial-overlay-label original">Original</span>
@@ -108,16 +110,16 @@ function OverlayComparison({
             </div>
 
             <label className="adversarial-split-control">
-                <span>Posición del comparador</span>
+                <span>Original {splitState.originalPercent}%</span>
+                <output>{splitState.adversarialPercent}% adversaria</output>
                 <input
                     type="range"
                     min="0"
                     max="100"
                     value={split}
                     onChange={onSplitChange}
-                    aria-label="Porcentaje visible de la imagen adversaria"
+                    aria-label="Posición del divisor entre la imagen original y la adversaria"
                 />
-                <output>{split}% adversaria</output>
             </label>
         </div>
     )
@@ -127,6 +129,7 @@ function AdversarialImageExplorer({
     attackResult,
     filename,
     imageDimensions,
+    perturbationMetrics = null,
     selectedImage,
     taskType,
 }) {
@@ -389,17 +392,32 @@ function AdversarialImageExplorer({
 
             {showPerturbation && sources.perturbationUrl && (
                 <section className="adversarial-perturbation-panel" aria-label="Mapa de perturbación">
-                    <div>
+                    <div className="adversarial-perturbation-preview">
+                        <img
+                            src={resolveApiUrl(sources.perturbationUrl)}
+                            alt={`Perturbación aplicada a ${filename || 'la imagen'}`}
+                        />
+                    </div>
+                    <div className="adversarial-perturbation-copy">
+                        <span className="evaluation-eyebrow">Perturbación</span>
                         <h4>Mapa de perturbación</h4>
                         <p>
-                            Representación visual amplificada; L∞ y L2 conservan la
-                            magnitud numérica real del ataque.
+                            Representación visual amplificada. Las métricas conservan
+                            la magnitud numérica real del ataque.
                         </p>
+                        {perturbationMetrics && (
+                            <dl className="adversarial-perturbation-metrics">
+                                <div>
+                                    <dt>L∞</dt>
+                                    <dd>{perturbationMetrics.linf ?? '—'}</dd>
+                                </div>
+                                <div>
+                                    <dt>L2</dt>
+                                    <dd>{perturbationMetrics.l2 ?? '—'}</dd>
+                                </div>
+                            </dl>
+                        )}
                     </div>
-                    <img
-                        src={resolveApiUrl(sources.perturbationUrl)}
-                        alt={`Perturbación aplicada a ${filename || 'la imagen'}`}
-                    />
                 </section>
             )}
         </section>

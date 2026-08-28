@@ -32,6 +32,7 @@ from schemas.evaluation_history import (
     EvaluationCompatibilityResponse,
     EvaluationHistoryItem,
     EvaluationHistoryPage,
+    EvaluationPreservationUpdate,
     EvaluationTaskType,
     StoredEvaluationResponse,
 )
@@ -117,14 +118,18 @@ async def begin_evaluation_execution(
                 }
             )
         if not request.force_recompute:
+            compatible_expires_at = compatible.get("expires_at")
             raise ConflictError(
                 {
                     "code": "compatible_evaluation_exists",
                     "message": "Ya hay una evaluación compatible disponible",
                     "result_id": compatible["_id"],
-                    "expires_at": _utc_datetime(
-                        compatible.get("expires_at"), "expires_at"
-                    ).isoformat(),
+                    "expires_at": (
+                        _utc_datetime(compatible_expires_at, "expires_at").isoformat()
+                        if compatible_expires_at is not None
+                        else None
+                    ),
+                    "preserved": bool(compatible.get("preserved")),
                 }
             )
 
@@ -171,6 +176,7 @@ async def begin_evaluation_execution(
                 "parameters": identity["parameters"],
                 "supervised_configuration": identity["supervised_configuration"],
                 "retention_seconds": retention_seconds,
+                "preserved": False,
                 "created_at": created_at,
             }
         )
@@ -254,8 +260,10 @@ async def list_evaluation_history(
         "owner_id": owner_id,
         "$or": [
             {"status": "running"},
+            {"status": "completed", "preserved": True},
             {
                 "status": "completed",
+                "preserved": {"$ne": True},
                 "expires_at": {"$gt": datetime.now(timezone.utc)},
             },
         ],
@@ -307,6 +315,33 @@ async def get_evaluation_history_item(
     return _history_item(await _get_accessible_document(evaluation_id, owner_id))
 
 
+async def update_evaluation_preservation(
+    *,
+    evaluation_id: str,
+    owner_id: str,
+    update: EvaluationPreservationUpdate,
+    retention_seconds: int,
+) -> EvaluationHistoryItem:
+    document = await _get_owned_completed_document(evaluation_id, owner_id)
+    if update.preserved:
+        values = {"preserved": True, "expires_at": None}
+    else:
+        values = {
+            "preserved": False,
+            "retention_seconds": retention_seconds,
+            "expires_at": datetime.now(timezone.utc)
+            + timedelta(seconds=retention_seconds),
+        }
+    await evaluations_collection.update_one({"_id": evaluation_id}, {"$set": values})
+    document.update(values)
+    return _history_item(document)
+
+
+async def delete_evaluation_result(*, evaluation_id: str, owner_id: str) -> None:
+    await _get_owned_completed_document(evaluation_id, owner_id)
+    await _delete_matching_evaluations({"_id": evaluation_id, "owner_id": owner_id})
+
+
 async def delete_evaluations_for_owner(owner_id: str) -> None:
     await _delete_matching_evaluations({"owner_id": owner_id})
 
@@ -319,7 +354,11 @@ async def cleanup_expired_evaluations() -> set[str]:
     now = datetime.now(timezone.utc)
     query = {
         "$or": [
-            {"status": "completed", "expires_at": {"$lte": now}},
+            {
+                "status": "completed",
+                "preserved": {"$ne": True},
+                "expires_at": {"$lte": now},
+            },
             {
                 "status": "running",
                 "created_at": {"$lte": now - timedelta(days=1)},
@@ -332,7 +371,12 @@ async def cleanup_expired_evaluations() -> set[str]:
         {
             "$or": [
                 {"status": "running"},
-                {"status": "completed", "expires_at": {"$gt": now}},
+                {"status": "completed", "preserved": True},
+                {
+                    "status": "completed",
+                    "preserved": {"$ne": True},
+                    "expires_at": {"$gt": now},
+                },
             ]
         },
         {"_id": 1},
@@ -370,6 +414,8 @@ async def evaluation_artifact_is_accessible(result_id: str) -> bool:
     document = await evaluations_collection.find_one({"_id": result_id})
     if document is None or document.get("status") != "completed":
         return False
+    if document.get("preserved") is True:
+        return True
     try:
         return _utc_datetime(document.get("expires_at"), "expires_at") > datetime.now(
             timezone.utc
@@ -494,13 +540,29 @@ async def _find_compatible_document(*, owner_id: str, signature: str) -> dict | 
             "owner_id": owner_id,
             "signature": signature,
             "status": "completed",
-            "expires_at": {"$gt": now},
+            "$or": [
+                {"preserved": True},
+                {"preserved": {"$ne": True}, "expires_at": {"$gt": now}},
+            ],
         }
     ).sort([("completed_at", -1), ("_id", -1)])
     async for document in cursor:
         if _artifact_path(document["_id"], _document_task_type(document)).is_file():
             return document
     return None
+
+
+async def _get_owned_completed_document(evaluation_id: str, owner_id: str) -> dict:
+    if not _valid_result_id(evaluation_id):
+        raise NotFoundError("Evaluación no encontrada")
+    document = await evaluations_collection.find_one({"_id": evaluation_id})
+    if document is None:
+        raise NotFoundError("Evaluación no encontrada")
+    if document.get("owner_id") != owner_id:
+        raise ForbiddenError("La evaluación pertenece a otro usuario")
+    if document.get("status") != "completed":
+        raise BadRequestError("La evaluación no está completada")
+    return document
 
 
 async def _get_accessible_document(evaluation_id: str, owner_id: str) -> dict:
@@ -513,9 +575,10 @@ async def _get_accessible_document(evaluation_id: str, owner_id: str) -> dict:
         raise ForbiddenError("La evaluación pertenece a otro usuario")
     if document.get("status") != "completed":
         raise BadRequestError("La evaluación no está completada")
-    expires_at = _utc_datetime(document.get("expires_at"), "expires_at")
-    if expires_at <= datetime.now(timezone.utc):
-        raise GoneError("La evaluación ha caducado")
+    if document.get("preserved") is not True:
+        expires_at = _utc_datetime(document.get("expires_at"), "expires_at")
+        if expires_at <= datetime.now(timezone.utc):
+            raise GoneError("La evaluación ha caducado")
     return document
 
 
@@ -531,13 +594,19 @@ def _history_item(document: dict) -> EvaluationHistoryItem:
         if retention_seconds is None and expires_at is not None:
             retention_seconds = max(0, int((expires_at - created_at).total_seconds()))
         task_type = _document_task_type(document)
+        preserved = bool(document.get("preserved"))
         exact_reuse_available = bool(
             document.get("status") == "completed"
             and document.get("signature")
             and document.get("storage_schema_version")
             == EVALUATION_STORAGE_SCHEMA_VERSION
-            and expires_at is not None
-            and expires_at > datetime.now(timezone.utc)
+            and (
+                preserved
+                or (
+                    expires_at is not None
+                    and expires_at > datetime.now(timezone.utc)
+                )
+            )
             and _artifact_path(document["_id"], task_type).is_file()
         )
         return EvaluationHistoryItem(
@@ -561,6 +630,7 @@ def _history_item(document: dict) -> EvaluationHistoryItem:
             ),
             expires_at=expires_at,
             retention_seconds=retention_seconds,
+            preserved=preserved,
             exact_reuse_available=exact_reuse_available,
         )
     except (KeyError, TypeError, ValueError, ValidationError) as error:

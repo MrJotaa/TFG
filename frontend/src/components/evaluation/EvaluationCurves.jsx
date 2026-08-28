@@ -9,6 +9,8 @@ import {
     XAxis,
     YAxis,
 } from 'recharts'
+import EvaluationInfoTip from './EvaluationInfoTip'
+import { CLASSIFICATION_METRIC_HELP } from '../../utils/evaluationMetricGuides'
 import {
     formatAvailableMetric,
     formatPoints,
@@ -78,7 +80,7 @@ function getScopeData(analysis, scope) {
 
     if (scope === 'micro') {
         return {
-            label: 'Micro global',
+            label: 'Global (micro)',
             support: null,
             curves: analysis.micro,
         }
@@ -178,22 +180,22 @@ function CurveChart({ curveType, original, adversarial, scopeLabel, expanded = f
         >
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart margin={{ top: 12, right: 18, bottom: 8, left: 12 }}>
-                    <CartesianGrid stroke="#e7edf5" strokeDasharray="4 4" />
+                    <CartesianGrid stroke="var(--evaluation-chart-grid)" strokeDasharray="4 4" />
                     <XAxis
                         dataKey="x"
                         type="number"
                         domain={[0, 1]}
                         ticks={TICKS}
                         tickFormatter={(value) => Number(value).toFixed(2)}
-                        tick={{ fill: '#64748b', fontSize: 12 }}
+                        tick={{ fill: 'var(--evaluation-muted)', fontSize: 12 }}
                         tickLine={false}
-                        axisLine={{ stroke: '#94a3b8' }}
+                        axisLine={{ stroke: 'var(--evaluation-chart-axis)' }}
                         height={48}
                         label={{
                             value: config.xLabel,
                             position: 'insideBottom',
                             offset: -6,
-                            fill: '#64748b',
+                            fill: 'var(--evaluation-muted)',
                             fontSize: 13,
                             fontWeight: 750,
                         }}
@@ -203,16 +205,16 @@ function CurveChart({ curveType, original, adversarial, scopeLabel, expanded = f
                         domain={[0, 1]}
                         ticks={TICKS}
                         tickFormatter={(value) => Number(value).toFixed(2)}
-                        tick={{ fill: '#64748b', fontSize: 12 }}
+                        tick={{ fill: 'var(--evaluation-muted)', fontSize: 12 }}
                         tickLine={false}
-                        axisLine={{ stroke: '#94a3b8' }}
+                        axisLine={{ stroke: 'var(--evaluation-chart-axis)' }}
                         width={72}
                         label={{
                             value: config.yLabel,
                             angle: -90,
                             position: 'insideLeft',
                             offset: 8,
-                            fill: '#64748b',
+                            fill: 'var(--evaluation-muted)',
                             fontSize: 13,
                             fontWeight: 750,
                         }}
@@ -220,7 +222,7 @@ function CurveChart({ curveType, original, adversarial, scopeLabel, expanded = f
                     <Tooltip
                         content={<CurveTooltip curveType={curveType} />}
                         cursor={{
-                            stroke: '#94a3b8',
+                            stroke: 'var(--evaluation-chart-axis)',
                             strokeDasharray: '4 4',
                         }}
                     />
@@ -231,7 +233,7 @@ function CurveChart({ curveType, original, adversarial, scopeLabel, expanded = f
                                 { x: 0, y: 0 },
                                 { x: 1, y: 1 },
                             ]}
-                            stroke="#94a3b8"
+                            stroke="var(--evaluation-chart-axis)"
                             strokeWidth={2}
                             strokeDasharray="8 8"
                         />
@@ -270,10 +272,13 @@ function CurveChart({ curveType, original, adversarial, scopeLabel, expanded = f
     )
 }
 
-function CurveScoreCard({ label, series, tone }) {
+function CurveScoreCard({ label, series, tone, info }) {
     return (
         <article className={`curve-score-card ${tone}`}>
-            <span>{label}</span>
+            <span className="evaluation-label-with-info">
+                {label}
+                {info && <EvaluationInfoTip label={label}>{info}</EvaluationInfoTip>}
+            </span>
             <strong>{series?.available ? formatRatio(series.score) : '—'}</strong>
             <small>{series?.warning ?? series?.reason ?? 'Valor calculado'}</small>
         </article>
@@ -309,7 +314,7 @@ function EvaluationCurves({ evaluation }) {
         originalScore !== null && adversarialScore !== null
             ? originalScore - adversarialScore
             : null
-    const scopeLabel = selectedScope?.class_reference?.label ?? 'Micro global'
+    const scopeLabel = selectedScope?.class_reference?.label ?? 'Global (micro)'
 
     useEffect(() => {
         if (!isExpanded) {
@@ -354,8 +359,8 @@ function EvaluationCurves({ evaluation }) {
                     <span className="evaluation-eyebrow">Análisis por umbral</span>
                     <h3>Curvas ROC y Precision–Recall</h3>
                     <p>
-                        Superpone el comportamiento original y tras el ataque y explora el
-                        el ámbito micro global o una clase concreta.
+                        Superpone el comportamiento original y tras el ataque y explora
+                        el ámbito global (micro) o una clase concreta.
                     </p>
                 </div>
 
@@ -382,12 +387,17 @@ function EvaluationCurves({ evaluation }) {
                     </div>
 
                     <label>
-                        <span>Ámbito de la curva</span>
+                        <span className="evaluation-label-with-info">
+                            Ámbito de la curva
+                            <EvaluationInfoTip label="Global (micro)">
+                                {CLASSIFICATION_METRIC_HELP.micro}
+                            </EvaluationInfoTip>
+                        </span>
                         <select
                             value={scope}
                             onChange={(event) => setScope(event.target.value)}
                         >
-                            <option value="micro">Micro global (todas las clases)</option>
+                            <option value="micro">Global (micro) · todas las clases</option>
                             {classOptions.map((option) => (
                                 <option key={option.index} value={option.index}>
                                     {option.label} · n={option.support}
@@ -403,11 +413,17 @@ function EvaluationCurves({ evaluation }) {
                     label={`${config.scoreLabel} original`}
                     series={original}
                     tone="original"
+                    info={curveType === 'roc'
+                        ? CLASSIFICATION_METRIC_HELP.roc_auc
+                        : CLASSIFICATION_METRIC_HELP.average_precision}
                 />
                 <CurveScoreCard
                     label={`${config.scoreLabel} tras el ataque`}
                     series={adversarial}
                     tone="adversarial"
+                    info={curveType === 'roc'
+                        ? CLASSIFICATION_METRIC_HELP.roc_auc
+                        : CLASSIFICATION_METRIC_HELP.average_precision}
                 />
                 <article className={`curve-score-card ${getDeltaTone(delta)}`}>
                     <span>Degradación</span>
@@ -415,7 +431,7 @@ function EvaluationCurves({ evaluation }) {
                     <small>Original menos tras el ataque</small>
                 </article>
                 <article className="curve-score-card neutral">
-                    <span>Macro original / tras el ataque</span>
+                    <span className="evaluation-label-with-info">Macro original / tras el ataque <EvaluationInfoTip label="Promedio macro">{CLASSIFICATION_METRIC_HELP.macro}</EvaluationInfoTip></span>
                     <strong>
                         {formatAvailableMetric(analysis?.macro_original)} /{' '}
                         {formatAvailableMetric(analysis?.macro_adversarial)}

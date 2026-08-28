@@ -1,8 +1,13 @@
-function MetricCard({ label, value, helper, tone = 'neutral', badge }) {
+import EvaluationInfoTip from './EvaluationInfoTip'
+
+function MetricCard({ label, value, helper, tone = 'neutral', badge, info }) {
     return (
         <article className={`evaluation-metric-card tone-${tone}`}>
             <div className="evaluation-metric-card-heading">
-                <span>{label}</span>
+                <span>
+                    {label}
+                    {info && <EvaluationInfoTip label={label}>{info}</EvaluationInfoTip>}
+                </span>
                 {badge && <small>{badge}</small>}
             </div>
 

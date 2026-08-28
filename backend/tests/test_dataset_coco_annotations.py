@@ -639,7 +639,7 @@ async def test_annotation_coverage_read_stops_after_retry_limit(monkeypatch):
 
     with pytest.raises(
         dataset_annotation_service.ConflictError,
-        match="changed repeatedly",
+        match="cambió repetidamente",
     ):
         await dataset_annotation_service.get_annotation_coverage(
             str(dataset_id),
@@ -683,6 +683,10 @@ def test_import_coco_snapshot_updates_coverage_states_and_canonical_records(
     data = response.json()
     assert data["format"] == "coco"
     assert data["replaced_existing_snapshot"] is False
+
+    dataset_response = client.get(f"/datasets/{dataset_id}")
+    assert dataset_response.status_code == 200
+    assert dataset_response.json()["task_type"] == "detection"
 
     coverage = data["coverage"]
     assert coverage == {
@@ -1595,3 +1599,39 @@ async def test_category_and_annotation_unique_indexes_are_enforced():
             }
         )
     await mongo_client.close()
+
+
+def test_classification_dataset_rejects_coco_import(
+    client,
+    registered_user,
+    auth_headers,
+    image_file_factory,
+):
+    user_id = registered_user["user"]["id"]
+    created = client.post(
+        "/datasets",
+        data={
+            "user_id": user_id,
+            "name": "Classification Dataset",
+            "task_type": "classification",
+        },
+        files=[image_file_factory("image.png")],
+    )
+    assert created.status_code == 200
+
+    response = client.post(
+        f"/datasets/{created.json()['id']}/annotations/coco",
+        headers=auth_headers,
+        files={
+            "file": (
+                "annotations.json",
+                b"{}",
+                "application/json",
+            )
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Las anotaciones COCO solo están disponibles para conjuntos de datos de detección"
+    )

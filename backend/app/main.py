@@ -12,6 +12,9 @@ from api.routes.detection_attack import router as detection_attack_router
 from api.routes.detection_evaluate import router as detection_evaluate_router
 from api.routes.evaluate import router as evaluate_router
 from api.routes.evaluation_history import router as evaluation_history_router
+from api.routes.individual_analysis_history import (
+    router as individual_analysis_history_router,
+)
 from api.routes.explainability import router as explainability_router
 from api.routes.models import router as models_router
 from api.routes.predict import router as predict_router
@@ -22,6 +25,7 @@ from db.database import get_database
 from db.migrations import (
     upgrade_coco_annotations_schema,
     upgrade_detection_evaluations_schema,
+    upgrade_individual_analyses_schema,
 )
 from services.result_cleanup_service import (
     cleanup_temporary_results_once,
@@ -33,6 +37,7 @@ from services.result_cleanup_service import (
 async def lifespan(app: FastAPI):
     await upgrade_coco_annotations_schema()
     await upgrade_detection_evaluations_schema()
+    await upgrade_individual_analyses_schema()
     await cleanup_temporary_results_once()
     cleanup_task = asyncio.create_task(run_result_cleanup_loop())
     try:
@@ -75,6 +80,10 @@ app.include_router(explainability_router, tags=["Explainability"])
 app.include_router(attack_router, tags=["Attack"])
 app.include_router(evaluate_router, tags=["Evaluation"])
 app.include_router(evaluation_history_router, tags=["Evaluation History"])
+app.include_router(
+    individual_analysis_history_router,
+    tags=["Individual Analysis History"],
+)
 app.include_router(results_router, tags=["Temporary Results"])
 
 

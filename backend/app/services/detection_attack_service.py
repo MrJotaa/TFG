@@ -31,6 +31,7 @@ from utils.result_files import (
     create_result_directory,
     save_result_image,
     save_result_metadata,
+    save_result_payload,
 )
 
 
@@ -49,7 +50,6 @@ async def apply_detection_attack(
         dataset_id=request.dataset_id,
         image_id=request.image_id,
     )
-
     model = await run_detection_model_operation(get_active_model_instance)
 
     require_model_task_type(
@@ -217,9 +217,10 @@ async def apply_detection_attack(
         "result_id": result_id,
         "result_type": "detection_attack",
         "dataset_id": request.dataset_id,
+        "dataset_revision": int(image.info.get("dataset_revision", 0)),
         "image_id": request.image_id,
         "model_id": model.id,
-        "model_name": model.name,
+        "model_name": getattr(model, "name", model.id),
         "attack_type": request.attack_type,
         "parameters": request.parameters.model_dump(),
         "original_detection_count": metrics.original_count,
@@ -235,12 +236,7 @@ async def apply_detection_attack(
             }
         )
 
-    save_result_metadata(
-        result_path=result_path,
-        metadata=metadata,
-    )
-
-    return DetectionAttackResponse(
+    response = DetectionAttackResponse(
         result_id=result_id,
         attack_type=request.attack_type,
         parameters=request.parameters,
@@ -254,3 +250,23 @@ async def apply_detection_attack(
         original_explanation_image_url=original_explanation_image_url,
         adversarial_explanation_image_url=adversarial_explanation_image_url,
     )
+
+    metadata.update(
+        {
+            "task_type": "detection",
+            "model_revision": getattr(model, "revision", model.id),
+            "attack_type": request.attack_type.value,
+            "attack_revision": getattr(attack, "revision", None),
+            "parameters": request.parameters.model_dump(mode="json"),
+            "pipeline_version": "detection-individual-analysis-v1",
+        }
+    )
+    save_result_metadata(
+        result_path=result_path,
+        metadata=metadata,
+    )
+    save_result_payload(
+        result_path=result_path,
+        payload=response.model_dump(mode="json"),
+    )
+    return response

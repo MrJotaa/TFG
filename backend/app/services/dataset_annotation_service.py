@@ -9,6 +9,7 @@ from PIL import Image
 from pymongo.errors import PyMongoError
 
 from core.errors import (
+    BadRequestError,
     ConflictError,
     ForbiddenError,
     NotFoundError,
@@ -246,6 +247,10 @@ async def import_coco_annotations(
         dataset_id,
         current_user,
     )
+    if dataset.get("task_type") == "classification":
+        raise BadRequestError(
+            "Las anotaciones COCO solo están disponibles para conjuntos de datos de detección"
+        )
     content = await _read_coco_upload(file)
     importer = get_annotation_importer("coco")
     image_identities = _dataset_image_identities(dataset)
@@ -359,6 +364,7 @@ async def import_coco_annotations(
                     "active_annotation_snapshot_id": snapshot_id,
                     "annotation_snapshot_format": "coco",
                     "annotation_updated_at": datetime.now(timezone.utc),
+                    "task_type": "detection",
                 },
                 "$inc": {"dataset_revision": 1},
             },

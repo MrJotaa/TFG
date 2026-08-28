@@ -3,88 +3,108 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useRef,
     useState,
 } from 'react'
 import { getAttacks } from '../api/attacks'
+import { useAuth } from './AuthContext'
 import { buildAttackParameters } from '../utils/attackCatalog'
 
 const ExperimentContext = createContext(null)
 
 export function ExperimentProvider({ children }) {
+    const { isAuthenticated } = useAuth()
     const [datasets, setDatasets] = useState([])
-    const [selectedDataset, setSelectedDataset] = useState(null)
-    const [selectedImage, setSelectedImage] = useState(null)
-    const [activeModel, setActiveModel] = useState(null)
+    const [selectedDataset, setSelectedDatasetState] = useState(null)
+    const [selectedImage, setSelectedImageState] = useState(null)
+    const [activeModel, setActiveModelState] = useState(null)
     const [attackCatalog, setAttackCatalog] = useState([])
-    const [attackCatalogLoading, setAttackCatalogLoading] = useState(true)
     const [attackCatalogError, setAttackCatalogError] = useState('')
     const [selectedAttack, setSelectedAttackState] = useState('fgsm')
+    const selectedAttackRef = useRef(selectedAttack)
     const [attackParameters, setAttackParametersState] = useState({})
     const [recoveredEvaluation, setRecoveredEvaluation] = useState(null)
+    const [recoveredIndividualAnalysis, setRecoveredIndividualAnalysis] = useState(null)
+    const [pendingIndividualComparison, setPendingIndividualComparison] = useState(null)
+
+    const attackCatalogLoading = Boolean(
+        isAuthenticated && attackCatalog.length === 0 && !attackCatalogError,
+    )
 
     useEffect(() => {
+        if (!isAuthenticated || attackCatalog.length > 0) return undefined
+
         let cancelled = false
 
-        async function loadAttackCatalog() {
-            try {
-                setAttackCatalogLoading(true)
-                setAttackCatalogError('')
-                const catalog = await getAttacks()
+        Promise.resolve().then(() => {
+            if (!cancelled) setAttackCatalogError('')
+        })
+
+        getAttacks()
+            .then((catalog) => {
                 if (cancelled) return
 
                 setAttackCatalog(catalog)
-            } catch (error) {
-                if (!cancelled) setAttackCatalogError(error.message)
-            } finally {
-                if (!cancelled) setAttackCatalogLoading(false)
-            }
-        }
+                setAttackParametersState((current) =>
+                    buildAttackParameters(
+                        catalog,
+                        selectedAttackRef.current,
+                        current,
+                    ),
+                )
+            })
+            .catch((error) => {
+                if (!cancelled) {
+                    setAttackCatalogError(
+                        error?.status
+                            ? error.message
+                            : 'No se pudo conectar con el servidor.',
+                    )
+                }
+            })
 
-        loadAttackCatalog()
         return () => {
             cancelled = true
         }
+    }, [isAuthenticated, attackCatalog.length])
+
+    const clearRecoveredResults = useCallback(() => {
+        setRecoveredEvaluation(null)
+        setRecoveredIndividualAnalysis(null)
     }, [])
-
-
-    useEffect(() => {
-        if (attackCatalog.length === 0) return
-
-        setAttackParametersState((current) => {
-            const next = buildAttackParameters(
-                attackCatalog,
-                selectedAttack,
-                current,
-            )
-            return JSON.stringify(next) === JSON.stringify(current) ? current : next
-        })
-    }, [attackCatalog, selectedAttack])
 
     const selectDataset = useCallback((dataset) => {
-        setRecoveredEvaluation(null)
-        setSelectedDataset(dataset)
-    }, [])
+        clearRecoveredResults()
+        setSelectedDatasetState(dataset)
+    }, [clearRecoveredResults])
+
+    const selectImage = useCallback((image) => {
+        clearRecoveredResults()
+        setSelectedImageState(image)
+    }, [clearRecoveredResults])
 
     const selectModel = useCallback((model) => {
-        setRecoveredEvaluation(null)
-        setActiveModel(model)
-    }, [])
+        clearRecoveredResults()
+        setActiveModelState(model)
+    }, [clearRecoveredResults])
 
     const selectAttack = useCallback((attackId) => {
-        setRecoveredEvaluation(null)
+        selectedAttackRef.current = attackId
+        clearRecoveredResults()
         setSelectedAttackState(attackId)
         setAttackParametersState((current) =>
             buildAttackParameters(attackCatalog, attackId, current),
         )
-    }, [attackCatalog])
+    }, [attackCatalog, clearRecoveredResults])
 
     const updateAttackParameters = useCallback((parameters) => {
-        setRecoveredEvaluation(null)
+        clearRecoveredResults()
         setAttackParametersState(parameters)
-    }, [])
+    }, [clearRecoveredResults])
 
     function openRecoveredEvaluation({ historyItem, stored, dataset }) {
-        setSelectedDataset(dataset)
+        selectedAttackRef.current = historyItem.attack_type
+        setSelectedDatasetState(dataset)
         setSelectedAttackState(historyItem.attack_type)
         setAttackParametersState(
             buildAttackParameters(
@@ -93,6 +113,7 @@ export function ExperimentProvider({ children }) {
                 historyItem.parameters,
             ),
         )
+        setRecoveredIndividualAnalysis(null)
         setRecoveredEvaluation({
             historyItem,
             taskType: stored.task_type,
@@ -100,14 +121,59 @@ export function ExperimentProvider({ children }) {
         })
     }
 
+    function openRecoveredIndividualAnalysis({ historyItem, stored, dataset, image }) {
+        selectedAttackRef.current = historyItem.attack_type
+        setSelectedDatasetState(dataset)
+        setSelectedImageState(image)
+        setSelectedAttackState(historyItem.attack_type)
+        setAttackParametersState(
+            buildAttackParameters(
+                attackCatalog,
+                historyItem.attack_type,
+                historyItem.parameters,
+            ),
+        )
+        setPendingIndividualComparison(null)
+        setRecoveredEvaluation(null)
+        setRecoveredIndividualAnalysis({
+            historyItem,
+            taskType: historyItem.task_type,
+            data: stored.analysis,
+        })
+    }
+
+    function beginIndividualComparison({ base, kind }) {
+        selectedAttackRef.current = base.item.attack_type
+        setSelectedDatasetState(base.dataset)
+        setSelectedImageState(base.image)
+        setSelectedAttackState(base.item.attack_type)
+        setAttackParametersState(
+            buildAttackParameters(
+                attackCatalog,
+                base.item.attack_type,
+                base.item.parameters,
+            ),
+        )
+        setRecoveredEvaluation(null)
+        setRecoveredIndividualAnalysis(null)
+        setPendingIndividualComparison({ base, kind })
+    }
+
+    function clearPendingIndividualComparison() {
+        setPendingIndividualComparison(null)
+    }
+
     function resetExperiment() {
+        selectedAttackRef.current = 'fgsm'
         setDatasets([])
-        setSelectedDataset(null)
-        setSelectedImage(null)
-        setActiveModel(null)
+        setSelectedDatasetState(null)
+        setSelectedImageState(null)
+        setActiveModelState(null)
         setSelectedAttackState('fgsm')
         setAttackParametersState(buildAttackParameters(attackCatalog, 'fgsm'))
         setRecoveredEvaluation(null)
+        setRecoveredIndividualAnalysis(null)
+        setPendingIndividualComparison(null)
     }
 
     const value = {
@@ -116,7 +182,7 @@ export function ExperimentProvider({ children }) {
         selectedDataset,
         setSelectedDataset: selectDataset,
         selectedImage,
-        setSelectedImage,
+        setSelectedImage: selectImage,
         activeModel,
         setActiveModel: selectModel,
         attackCatalog,
@@ -128,7 +194,13 @@ export function ExperimentProvider({ children }) {
         setAttackParameters: updateAttackParameters,
         recoveredEvaluation,
         setRecoveredEvaluation,
+        recoveredIndividualAnalysis,
+        setRecoveredIndividualAnalysis,
+        pendingIndividualComparison,
+        beginIndividualComparison,
+        clearPendingIndividualComparison,
         openRecoveredEvaluation,
+        openRecoveredIndividualAnalysis,
         resetExperiment,
     }
 

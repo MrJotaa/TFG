@@ -1,5 +1,6 @@
 import MetricCard from './MetricCard'
 import MetricComparisonChart from './MetricComparisonChart'
+import { CLASSIFICATION_METRIC_HELP } from '../../utils/evaluationMetricGuides'
 import {
     formatAvailableMetric,
     formatDecimal,
@@ -11,7 +12,7 @@ import {
 const TRANSITION_COLORS = {
     danger: 'var(--evaluation-adversarial)',
     success: 'var(--evaluation-success)',
-    warning: '#f59e0b',
+    warning: 'var(--evaluation-transition-warning)',
     neutral: '#cbd5e1',
     unresolved: '#64748b',
 }
@@ -188,6 +189,7 @@ function EvaluationOverview({ evaluation }) {
                     )}
                     helper="Correctas que pasan a incorrectas"
                     tone="danger"
+                    info={CLASSIFICATION_METRIC_HELP.conditional_asr}
                 />
             </section>
 
@@ -262,19 +264,22 @@ function EvaluationOverview({ evaluation }) {
                     label="F1 macro original"
                     value={aggregate ? formatRatio(aggregate.original.f1_macro) : '—'}
                     helper="Todas las clases pesan lo mismo"
-                    tone="neutral"
+                    tone="original"
+                    info={CLASSIFICATION_METRIC_HELP.f1_macro}
                 />
                 <MetricCard
                     label="F1 macro tras el ataque"
                     value={aggregate ? formatRatio(aggregate.adversarial.f1_macro) : '—'}
                     helper="Tras aplicar la perturbación"
-                    tone="neutral"
+                    tone="adversarial"
+                    info={CLASSIFICATION_METRIC_HELP.f1_macro}
                 />
                 <MetricCard
                     label="Exactitud robusta top-5"
                     value={aggregate ? formatRatio(aggregate.adversarial.top_5_accuracy) : '—'}
                     helper="La clase real permanece entre las cinco primeras"
                     tone="neutral"
+                    info={CLASSIFICATION_METRIC_HELP.top5_robust_accuracy}
                 />
                 <MetricCard
                     label="Caída prob. clase real"
@@ -282,19 +287,22 @@ function EvaluationOverview({ evaluation }) {
                         robustness.average_true_class_probability_drop,
                     )}
                     helper="Promedio original menos tras el ataque"
-                    tone="neutral"
+                    tone="danger"
+                    info={CLASSIFICATION_METRIC_HELP.true_class_probability_drop}
                 />
                 <MetricCard
                     label="Perturbación media L∞"
                     value={formatDecimal(robustness.average_perturbation_linf)}
                     helper="Máxima variación por píxel"
                     tone="neutral"
+                    info={CLASSIFICATION_METRIC_HELP.linf}
                 />
                 <MetricCard
                     label="Perturbación media L2"
                     value={formatDecimal(robustness.average_perturbation_l2)}
                     helper="Magnitud total de la perturbación"
                     tone="neutral"
+                    info={CLASSIFICATION_METRIC_HELP.l2}
                 />
             </section>
 

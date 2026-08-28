@@ -1,16 +1,350 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import DatasetUploader from '../components/DatasetUploader'
-import DatasetImageUploader from '../components/DatasetImageUploader'
+import { useCallback, useMemo, useState, useEffect } from 'react'
+import BulkImagePicker from '../components/BulkImagePicker'
 import CocoAnnotationPanel from '../components/CocoAnnotationPanel'
+import DatasetDialog from '../components/DatasetDialog'
 import ImageGallery from '../components/ImageGallery'
-import { deleteDataset, getDatasetsByUser } from '../api/datasets'
+import {
+    addImagesToDataset,
+    deleteDataset,
+    deleteDatasetImage,
+    getDatasetsByUser,
+    updateDataset,
+    updateImageLabel,
+    uploadDataset,
+} from '../api/datasets'
 import { useExperiment } from '../context/ExperimentContext'
 import { useAuth } from '../context/AuthContext'
+import {
+    datasetSupportsAnnotations,
+    getClassificationLabelStats,
+    getDatasetSidebarMeta,
+    getDatasetTaskLabel,
+} from '../utils/datasetManagement'
+import { getAnnotationStatusLabel } from '../utils/cocoAnnotations'
+
+function PlusIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+        </svg>
+    )
+}
+
+function EditIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m4.5 19.5 3.7-.8L18.4 8.5l-2.9-2.9L5.3 15.8l-.8 3.7ZM13.9 7.2l2.9 2.9" />
+        </svg>
+    )
+}
+
+function TrashIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 7h14M9 7V4h6v3m2 0-.7 13H7.7L7 7m3.2 3v6.5m3.6-6.5v6.5" />
+        </svg>
+    )
+}
+
+function imageSource(image) {
+    return `http://127.0.0.1:8000${image.url}`
+}
+
+function DatasetCreateDialog({ user, onClose, onCreated }) {
+    const [name, setName] = useState('')
+    const [taskType, setTaskType] = useState('classification')
+    const [files, setFiles] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState('')
+
+    async function handleSubmit(event) {
+        event.preventDefault()
+        if (!name.trim() || files.length === 0 || !user) return
+
+        try {
+            setLoading(true)
+            setError('')
+            const dataset = await uploadDataset({
+                userId: user.id,
+                name: name.trim(),
+                taskType,
+                files,
+            })
+            onCreated(dataset)
+        } catch (requestError) {
+            setError(requestError.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <DatasetDialog
+            title="Nuevo conjunto de datos"
+            eyebrow="Creación"
+            onClose={onClose}
+            busy={loading}
+        >
+            <form className="dataset-dialog-form" onSubmit={handleSubmit}>
+                <label className="dataset-form-field">
+                    <span>Nombre</span>
+                    <input
+                        type="text"
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        placeholder="Ej. Imagenette 100 balanced"
+                        disabled={loading}
+                        autoFocus
+                    />
+                </label>
+
+                <fieldset className="dataset-task-picker">
+                    <legend>Tipo de conjunto</legend>
+                    <label className={taskType === 'classification' ? 'active' : ''}>
+                        <input
+                            type="radio"
+                            name="dataset-task"
+                            value="classification"
+                            checked={taskType === 'classification'}
+                            onChange={() => setTaskType('classification')}
+                            disabled={loading}
+                        />
+                        <strong>Clasificación</strong>
+                        <span>Una etiqueta de clase por imagen.</span>
+                    </label>
+                    <label className={taskType === 'detection' ? 'active' : ''}>
+                        <input
+                            type="radio"
+                            name="dataset-task"
+                            value="detection"
+                            checked={taskType === 'detection'}
+                            onChange={() => setTaskType('detection')}
+                            disabled={loading}
+                        />
+                        <strong>Detección</strong>
+                        <span>Anotaciones de objetos mediante COCO.</span>
+                    </label>
+                </fieldset>
+
+                <div className="dataset-form-field">
+                    <span>Imágenes</span>
+                    <BulkImagePicker files={files} onChange={setFiles} disabled={loading} />
+                </div>
+
+                {error && <p className="error dataset-inline-feedback">{error}</p>}
+
+                <div className="dataset-dialog-actions">
+                    <button type="button" className="secondary-action" onClick={onClose} disabled={loading}>
+                        Cancelar
+                    </button>
+                    <button
+                        type="submit"
+                        className="primary-action"
+                        disabled={loading || !name.trim() || files.length === 0}
+                    >
+                        {loading ? 'Creando conjunto...' : `Crear con ${files.length} ${files.length === 1 ? 'imagen' : 'imágenes'}`}
+                    </button>
+                </div>
+            </form>
+        </DatasetDialog>
+    )
+}
+
+function AddImagesDialog({ dataset, onClose, onUploaded }) {
+    const [files, setFiles] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState('')
+
+    async function handleSubmit(event) {
+        event.preventDefault()
+        if (files.length === 0) return
+
+        try {
+            setLoading(true)
+            setError('')
+            const images = await addImagesToDataset({ datasetId: dataset.id, files })
+            onUploaded(images)
+        } catch (requestError) {
+            setError(requestError.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <DatasetDialog
+            title={`Añadir imágenes a ${dataset.name}`}
+            eyebrow="Subida masiva"
+            onClose={onClose}
+            busy={loading}
+        >
+            <form className="dataset-dialog-form" onSubmit={handleSubmit}>
+                <BulkImagePicker files={files} onChange={setFiles} disabled={loading} />
+                <p className="dataset-dialog-help">
+                    Puedes seleccionar muchas imágenes en una única operación. Todas se añadirán al conjunto actual.
+                </p>
+                {error && <p className="error dataset-inline-feedback">{error}</p>}
+                <div className="dataset-dialog-actions">
+                    <button type="button" className="secondary-action" onClick={onClose} disabled={loading}>
+                        Cancelar
+                    </button>
+                    <button type="submit" className="primary-action" disabled={loading || files.length === 0}>
+                        {loading ? 'Añadiendo...' : `Añadir ${files.length || ''} ${files.length === 1 ? 'imagen' : 'imágenes'}`}
+                    </button>
+                </div>
+            </form>
+        </DatasetDialog>
+    )
+}
+
+function EditDatasetDialog({ dataset, onClose, onUpdated }) {
+    const [name, setName] = useState(dataset.name)
+    const [taskType, setTaskType] = useState(dataset.task_type || '')
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState('')
+
+    async function handleSubmit(event) {
+        event.preventDefault()
+        if (!name.trim()) return
+
+        try {
+            setLoading(true)
+            setError('')
+            const updated = await updateDataset({
+                datasetId: dataset.id,
+                name: name.trim(),
+                taskType: dataset.task_type ? undefined : (taskType || undefined),
+            })
+            onUpdated(updated)
+        } catch (requestError) {
+            setError(requestError.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <DatasetDialog title="Editar conjunto de datos" eyebrow="Metadatos" onClose={onClose} busy={loading}>
+            <form className="dataset-dialog-form" onSubmit={handleSubmit}>
+                <label className="dataset-form-field">
+                    <span>Nombre</span>
+                    <input value={name} onChange={(event) => setName(event.target.value)} disabled={loading} autoFocus />
+                </label>
+
+                {dataset.task_type ? (
+                    <div className="dataset-readonly-type">
+                        <span>Tipo</span>
+                        <strong>{getDatasetTaskLabel(dataset.task_type)}</strong>
+                        <small>El tipo queda fijado una vez definido para evitar mezclar anotaciones incompatibles.</small>
+                    </div>
+                ) : (
+                    <label className="dataset-form-field">
+                        <span>Tipo</span>
+                        <select value={taskType} onChange={(event) => setTaskType(event.target.value)} disabled={loading}>
+                            <option value="">Sin definir</option>
+                            <option value="classification">Clasificación</option>
+                            <option value="detection">Detección</option>
+                        </select>
+                    </label>
+                )}
+
+                {error && <p className="error dataset-inline-feedback">{error}</p>}
+                <div className="dataset-dialog-actions">
+                    <button type="button" className="secondary-action" onClick={onClose} disabled={loading}>Cancelar</button>
+                    <button type="submit" className="primary-action" disabled={loading || !name.trim()}>
+                        {loading ? 'Guardando...' : 'Guardar cambios'}
+                    </button>
+                </div>
+            </form>
+        </DatasetDialog>
+    )
+}
+
+function ConfirmDeleteDialog({ title, description, confirmLabel, onClose, onConfirm, busy }) {
+    return (
+        <DatasetDialog title={title} eyebrow="Acción destructiva" onClose={onClose} busy={busy} danger>
+            <div className="dataset-dialog-body"><p>{description}</p></div>
+            <div className="dataset-dialog-actions">
+                <button type="button" className="secondary-action" onClick={onClose} disabled={busy}>Cancelar</button>
+                <button type="button" className="danger-action" onClick={onConfirm} disabled={busy}>
+                    {busy ? 'Eliminando...' : confirmLabel}
+                </button>
+            </div>
+        </DatasetDialog>
+    )
+}
+
+function DatasetImageInspector({ dataset, image, onSaved, onDelete }) {
+    const [label, setLabel] = useState(image.label || '')
+    const [saving, setSaving] = useState(false)
+    const [error, setError] = useState('')
+    const classification = dataset.task_type === 'classification'
+
+    async function handleSave(event) {
+        event.preventDefault()
+        if (!classification) return
+
+        try {
+            setSaving(true)
+            setError('')
+            const updated = await updateImageLabel({
+                datasetId: dataset.id,
+                imageId: image.id,
+                label,
+            })
+            onSaved(updated)
+        } catch (requestError) {
+            setError(requestError.message)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    return (
+        <aside className="dataset-image-inspector">
+            <div className="dataset-inspector-heading">
+                <span className="dashboard-section-eyebrow">Detalle de imagen</span>
+                <strong title={image.filename}>{image.filename}</strong>
+            </div>
+            <img className="dataset-inspector-preview" src={imageSource(image)} alt={image.filename} />
+            <dl className="dataset-image-metadata">
+                <div><dt>Dimensiones</dt><dd>{image.width && image.height ? `${image.width} × ${image.height}` : 'No disponibles'}</dd></div>
+                <div><dt>Tipo</dt><dd>{classification ? 'Clasificación' : dataset.task_type === 'detection' ? 'Detección' : 'Sin definir'}</dd></div>
+            </dl>
+
+            {classification && (
+                <form className="dataset-label-editor-modern" onSubmit={handleSave}>
+                    <label>
+                        <span>Etiqueta de clase</span>
+                        <input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Ej. tench" disabled={saving} />
+                    </label>
+                    {error && <p className="error dataset-inline-feedback">{error}</p>}
+                    <button type="submit" className="primary-action" disabled={saving || label.trim() === (image.label || '').trim()}>
+                        {saving ? 'Guardando...' : 'Guardar etiqueta'}
+                    </button>
+                </form>
+            )}
+
+            {dataset.task_type === 'detection' && (
+                <div className="dataset-detection-image-status">
+                    <span>Estado de anotación</span>
+                    <strong>{getAnnotationStatusLabel(image.annotation_review_status)}</strong>
+                    <small>Las cajas y categorías se gestionan mediante el snapshot COCO del conjunto.</small>
+                </div>
+            )}
+
+            {!dataset.task_type && (
+                <p className="dataset-inspector-note">Define el tipo de conjunto para habilitar sus herramientas de etiquetado.</p>
+            )}
+
+            <button type="button" className="dataset-delete-image-action" onClick={() => onDelete(image)}>
+                <TrashIcon /> Eliminar imagen
+            </button>
+        </aside>
+    )
+}
 
 function DatasetManager() {
-    const navigate = useNavigate()
-
     const {
         datasets,
         setDatasets,
@@ -19,243 +353,332 @@ function DatasetManager() {
         selectedImage,
         setSelectedImage,
     } = useExperiment()
-
+    const { user } = useAuth()
     const [datasetsError, setDatasetsError] = useState('')
     const [imagesRefreshKey, setImagesRefreshKey] = useState(0)
-    const { user } = useAuth()
+    const [loadedImages, setLoadedImages] = useState([])
+    const [workspaceTab, setWorkspaceTab] = useState('images')
+    const [imageFilter, setImageFilter] = useState('all')
+    const [dialog, setDialog] = useState(null)
+    const [deleting, setDeleting] = useState(false)
 
     useEffect(() => {
-        async function loadUserDatasets() {
-            if (!user) {
-                setDatasets([])
-                setSelectedDataset(null)
-                setSelectedImage(null)
-                return
-            }
+        let active = true
+        if (!user) return undefined
 
-            try {
+        getDatasetsByUser(user.id)
+            .then((data) => {
+                if (!active) return
                 setDatasetsError('')
-                const data = await getDatasetsByUser(user.id)
                 setDatasets(data)
-            } catch (err) {
-                setDatasetsError(err.message)
-            }
-        }
-
-        loadUserDatasets()
-    }, [user, setDatasets, setSelectedDataset, setSelectedImage])
-
-    function handleDatasetUploaded(dataset) {
-        setDatasets((currentDatasets) => [...currentDatasets, dataset])
-    }
-
-    function handleImagesUploaded(uploadedImages) {
-        setImagesRefreshKey((current) => current + 1)
-
-        setDatasets((currentDatasets) =>
-            currentDatasets.map((dataset) =>
-                dataset.id === selectedDataset.id
-                    ? {
-                        ...dataset,
-                        image_count: dataset.image_count + uploadedImages.length,
+                setSelectedDataset((current) => {
+                    if (current) {
+                        return data.find((dataset) => dataset.id === current.id) || data[0] || null
                     }
-                    : dataset,
-            ),
-        )
+                    return data[0] || null
+                })
+            })
+            .catch((requestError) => {
+                if (active) setDatasetsError(requestError.message)
+            })
 
-        setSelectedDataset((currentDataset) =>
-            currentDataset
-                ? {
-                    ...currentDataset,
-                    image_count: currentDataset.image_count + uploadedImages.length,
-                }
-                : currentDataset,
-        )
+        return () => { active = false }
+    }, [user, setDatasets, setSelectedDataset])
+
+    const handleImagesLoaded = useCallback((images) => {
+        setLoadedImages(images)
+        setSelectedImage((current) => {
+            if (!current) return null
+            return images.find((image) => image.id === current.id) || null
+        })
+    }, [setSelectedImage])
+
+    const classificationStats = useMemo(
+        () => getClassificationLabelStats(loadedImages),
+        [loadedImages],
+    )
+
+    const filterImage = (image) => {
+        if (selectedDataset?.task_type !== 'classification' || imageFilter === 'all') return true
+        const labeled = Boolean(image.label?.trim())
+        return imageFilter === 'labeled' ? labeled : !labeled
     }
 
-    async function handleDeleteDataset(datasetId) {
-        const confirmed = window.confirm(
-            '¿Seguro que quieres borrar este conjunto de datos? Esta acción no se puede deshacer.',
-        )
+    function replaceDataset(updatedDataset) {
+        setDatasets((current) => current.map((dataset) => dataset.id === updatedDataset.id ? updatedDataset : dataset))
+        setSelectedDataset((current) => current?.id === updatedDataset.id ? updatedDataset : current)
+    }
 
-        if (!confirmed) return
+    function selectDataset(dataset) {
+        setSelectedDataset(dataset)
+        setSelectedImage(null)
+        setLoadedImages([])
+        setWorkspaceTab('images')
+        setImageFilter('all')
+    }
 
+    function handleDatasetCreated(dataset) {
+        setDatasets((current) => [...current, dataset])
+        selectDataset(dataset)
+        setDialog(null)
+    }
+
+    function handleImagesUploaded(images) {
+        const updated = {
+            ...selectedDataset,
+            image_count: selectedDataset.image_count + images.length,
+        }
+        replaceDataset(updated)
+        setImagesRefreshKey((current) => current + 1)
+        setDialog(null)
+    }
+
+    async function handleAssignType(taskType) {
+        if (!selectedDataset) return
         try {
             setDatasetsError('')
-            await deleteDataset(datasetId)
-
-            setDatasets((currentDatasets) =>
-                currentDatasets.filter((dataset) => dataset.id !== datasetId),
-            )
-
-            if (selectedDataset?.id === datasetId) {
-                setSelectedDataset(null)
-                setSelectedImage(null)
-            }
-        } catch (err) {
-            setDatasetsError(err.message)
+            const updated = await updateDataset({ datasetId: selectedDataset.id, taskType })
+            replaceDataset(updated)
+            setWorkspaceTab('images')
+        } catch (requestError) {
+            setDatasetsError(requestError.message)
         }
+    }
+
+    async function handleDeleteDataset() {
+        if (!selectedDataset) return
+        try {
+            setDeleting(true)
+            setDatasetsError('')
+            await deleteDataset(selectedDataset.id)
+            const remaining = datasets.filter((dataset) => dataset.id !== selectedDataset.id)
+            setDatasets(remaining)
+            setSelectedDataset(remaining[0] || null)
+            setSelectedImage(null)
+            setWorkspaceTab('images')
+            setImageFilter('all')
+            setDialog(null)
+        } catch (requestError) {
+            setDatasetsError(requestError.message)
+        } finally {
+            setDeleting(false)
+        }
+    }
+
+    async function handleDeleteImage() {
+        if (!selectedDataset || !selectedImage) return
+        try {
+            setDeleting(true)
+            setDatasetsError('')
+            await deleteDatasetImage({ datasetId: selectedDataset.id, imageId: selectedImage.id })
+            replaceDataset({ ...selectedDataset, image_count: Math.max(selectedDataset.image_count - 1, 0) })
+            setSelectedImage(null)
+            setImagesRefreshKey((current) => current + 1)
+            setDialog(null)
+        } catch (requestError) {
+            setDatasetsError(requestError.message)
+        } finally {
+            setDeleting(false)
+        }
+    }
+
+    function handleImageLabelSaved(updatedImage) {
+        setSelectedImage((current) => current?.id === updatedImage.id ? { ...current, ...updatedImage } : current)
+        setImagesRefreshKey((current) => current + 1)
     }
 
     return (
-        <div className="dataset-manager-page">
-            <div className="page-toolbar">
-                <div>
-                    <h2>Gestión de conjuntos de datos</h2>
-                    <p>Gestiona conjuntos de datos, imágenes y etiquetas asociadas.</p>
-                </div>
+        <div className="dataset-manager-page modern">
+            <header className="dataset-manager-heading">
+                <span className="dashboard-section-eyebrow">Biblioteca de datos</span>
+                <h1>Conjuntos de datos</h1>
+                <p>Organiza imágenes, etiquetas de clasificación y anotaciones de detección desde un único espacio.</p>
+            </header>
 
-                <button
-                    type="button"
-                    className="secondary-action"
-                    onClick={() => navigate('/dashboard')}
-                >
-                    Volver al panel principal
-                </button>
-            </div>
+            {datasetsError && <p className="error dataset-page-error">{datasetsError}</p>}
 
-            {datasetsError && <p className="error">{datasetsError}</p>}
+            <div className="dataset-workspace-shell">
+                <aside className="dataset-library-sidebar">
+                    <div className="dataset-library-heading">
+                        <div>
+                            <span>CONJUNTOS</span>
+                            <small>{datasets.length} disponibles</small>
+                        </div>
+                        <button type="button" className="dataset-new-button" onClick={() => setDialog('create')}>
+                            <PlusIcon /> Nuevo
+                        </button>
+                    </div>
 
-            <div className="dataset-manager-layout">
-                <aside className="dataset-manager-sidebar">
-                    <section className="management-card">
-                        <h3>Mis conjuntos de datos</h3>
-
-                        {!user ? (
-                            <p>Inicia sesión para ver tus conjuntos de datos.</p>
-                        ) : datasets.length === 0 ? (
-                            <p>No hay conjuntos de datos disponibles.</p>
-                        ) : (
-                            <div className="management-list">
-                                {datasets.map((dataset) => (
-                                    <article
-                                        key={dataset.id}
-                                        className={
-                                            selectedDataset?.id === dataset.id
-                                                ? 'dataset-management-item active'
-                                                : 'dataset-management-item'
-                                        }
-                                    >
-                                        <h4>{dataset.name}</h4>
-                                        <p>
-                                            Imágenes:{' '}
-                                            <strong>{dataset.image_count}</strong>
-                                        </p>
-
-                                        <div className="item-actions">
-                                            <button
-                                                type="button"
-                                                className="secondary-action small"
-                                                onClick={() => {
-                                                    setSelectedDataset(dataset)
-                                                    setSelectedImage(null)
-                                                }}
-                                            >
-                                                Seleccionar
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                className="danger-action small"
-                                                onClick={() =>
-                                                    handleDeleteDataset(dataset.id)
-                                                }
-                                            >
-                                                Eliminar
-                                            </button>
-                                        </div>
-                                    </article>
-                                ))}
-                            </div>
-                        )}
-                    </section>
-
-                    <section className="management-card">
-                        <h3>Subir un nuevo conjunto de datos</h3>
-
-                        <DatasetUploader
-                            selectedUser={user}
-                            onDatasetUploaded={handleDatasetUploaded}
-                        />
-
-                        <p className="muted-text">
-                            Soporte para subida de archivos ZIP disponible pronto.
-                        </p>
-                    </section>
+                    {datasets.length === 0 ? (
+                        <div className="dataset-library-empty">
+                            <strong>Todavía no hay conjuntos</strong>
+                            <span>Crea el primero para empezar a trabajar con imágenes.</span>
+                        </div>
+                    ) : (
+                        <nav className="dataset-library-list" aria-label="Conjuntos de datos">
+                            {datasets.map((dataset) => (
+                                <button
+                                    type="button"
+                                    key={dataset.id}
+                                    className={selectedDataset?.id === dataset.id ? 'active' : ''}
+                                    onClick={() => selectDataset(dataset)}
+                                >
+                                    <strong>{dataset.name}</strong>
+                                    <span>{getDatasetSidebarMeta(dataset)}</span>
+                                </button>
+                            ))}
+                        </nav>
+                    )}
                 </aside>
 
-                <section className="dataset-manager-content">
-                    <div className="management-card">
-                        <h3>
-                            Conjunto de datos seleccionado:{' '}
-                            <span>{selectedDataset?.name || 'Sin seleccionar'}</span>
-                        </h3>
+                <main className="dataset-management-workspace">
+                    {!selectedDataset ? (
+                        <div className="dataset-workspace-empty">
+                            <span className="dataset-workspace-empty-icon"><PlusIcon /></span>
+                            <strong>Selecciona o crea un conjunto de datos</strong>
+                            <p>Cuando elijas uno, sus imágenes y herramientas de gestión aparecerán aquí.</p>
+                            <button type="button" className="primary-action" onClick={() => setDialog('create')}>Crear conjunto</button>
+                        </div>
+                    ) : (
+                        <>
+                            <header className="dataset-selected-heading">
+                                <div>
+                                    <div className="dataset-title-line">
+                                        <h2>{selectedDataset.name}</h2>
+                                        <span className={`dataset-status-badge ${selectedDataset.task_type || 'undefined'}`}>
+                                            {getDatasetTaskLabel(selectedDataset.task_type)}
+                                        </span>
+                                    </div>
+                                    <p>{selectedDataset.image_count} {selectedDataset.image_count === 1 ? 'imagen' : 'imágenes'}</p>
+                                </div>
+                                <div className="dataset-heading-actions">
+                                    <button type="button" className="secondary-action dataset-icon-action" onClick={() => setDialog('edit')}>
+                                        <EditIcon /> Editar
+                                    </button>
+                                    <button type="button" className="primary-action dataset-add-images" onClick={() => setDialog('add-images')}>
+                                        <PlusIcon /> Añadir imágenes
+                                    </button>
+                                    <button type="button" className="dataset-more-action" onClick={() => setDialog('delete-dataset')} aria-label="Eliminar conjunto de datos" title="Eliminar conjunto de datos">
+                                        <TrashIcon />
+                                    </button>
+                                </div>
+                            </header>
 
-                        {!selectedDataset ? (
-                            <p>Selecciona un conjunto de datos para gestionar sus imágenes.</p>
-                        ) : (
-                            <>
-                                <p>
-                                    Imágenes Totales:{' '}
-                                    <strong>{selectedDataset.image_count}</strong>
-                                </p>
+                            {!selectedDataset.task_type && (
+                                <section className="dataset-type-resolution">
+                                    <div>
+                                        <span className="dashboard-section-eyebrow">Conjunto histórico</span>
+                                        <h3>Define cómo se utiliza este conjunto</h3>
+                                        <p>Fue creado antes de introducir los tipos de dataset. Esta decisión habilita únicamente las herramientas compatibles.</p>
+                                    </div>
+                                    <div>
+                                        <button type="button" className="secondary-action" onClick={() => handleAssignType('classification')}>Clasificación</button>
+                                        <button type="button" className="secondary-action" onClick={() => handleAssignType('detection')}>Detección</button>
+                                    </div>
+                                </section>
+                            )}
 
-                                <CocoAnnotationPanel
-                                    selectedDataset={selectedDataset}
-                                    onAnnotationsImported={() => {
-                                        setImagesRefreshKey(
-                                            (current) => current + 1,
-                                        )
-                                    }}
-                                />
+                            <div className="dataset-workspace-tabs" role="tablist" aria-label="Gestión del conjunto">
+                                <button type="button" className={workspaceTab === 'images' ? 'active' : ''} onClick={() => setWorkspaceTab('images')}>Imágenes</button>
+                                {datasetSupportsAnnotations(selectedDataset) && (
+                                    <button type="button" className={workspaceTab === 'annotations' ? 'active' : ''} onClick={() => setWorkspaceTab('annotations')}>Anotaciones</button>
+                                )}
+                            </div>
 
-                                <DatasetImageUploader
-                                    selectedDataset={selectedDataset}
-                                    onImagesUploaded={handleImagesUploaded}
-                                />
+                            {workspaceTab === 'annotations' && datasetSupportsAnnotations(selectedDataset) ? (
+                                <div className="dataset-annotations-workspace">
+                                    <CocoAnnotationPanel
+                                        selectedDataset={selectedDataset}
+                                        onAnnotationsImported={() => setImagesRefreshKey((current) => current + 1)}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="dataset-images-workspace">
+                                    <section className="dataset-gallery-panel">
+                                        <div className="dataset-gallery-heading">
+                                            <div>
+                                                <h3>Imágenes</h3>
+                                                {selectedDataset.task_type === 'classification' ? (
+                                                    <p>{classificationStats.labeled} de {classificationStats.total} etiquetadas · {classificationStats.percentage}% de cobertura</p>
+                                                ) : selectedDataset.task_type === 'detection' ? (
+                                                    <p>Selecciona una imagen para consultar su estado dentro del snapshot COCO.</p>
+                                                ) : (
+                                                    <p>Selecciona una imagen para inspeccionarla.</p>
+                                                )}
+                                            </div>
+                                            {selectedDataset.task_type === 'classification' && (
+                                                <div className="dataset-image-filters" aria-label="Filtrar imágenes">
+                                                    {[
+                                                        ['all', `Todas (${classificationStats.total})`],
+                                                        ['labeled', `Etiquetadas (${classificationStats.labeled})`],
+                                                        ['unlabeled', `Sin etiquetar (${classificationStats.unlabeled})`],
+                                                    ].map(([value, label]) => (
+                                                        <button key={value} type="button" className={imageFilter === value ? 'active' : ''} onClick={() => setImageFilter(value)}>{label}</button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
 
-                                <ImageGallery
-                                    selectedDataset={selectedDataset}
-                                    selectedImage={selectedImage}
-                                    onSelectImage={setSelectedImage}
-                                    refreshKey={imagesRefreshKey}
-                                    showLabelEditor
-                                    showDeleteButton
-                                    onImageDeleted={() => {
-                                        setImagesRefreshKey((current) => current + 1)
+                                        <ImageGallery
+                                            selectedDataset={selectedDataset}
+                                            selectedImage={selectedImage}
+                                            onSelectImage={setSelectedImage}
+                                            refreshKey={imagesRefreshKey}
+                                            workspace
+                                            allowPreview
+                                            onImagesLoaded={handleImagesLoaded}
+                                            filterImage={filterImage}
+                                        />
+                                    </section>
 
-                                        setDatasets((currentDatasets) =>
-                                            currentDatasets.map((dataset) =>
-                                                dataset.id === selectedDataset.id
-                                                    ? {
-                                                        ...dataset,
-                                                        image_count: Math.max(
-                                                            dataset.image_count - 1,
-                                                            0,
-                                                        ),
-                                                    }
-                                                    : dataset,
-                                            ),
-                                        )
-
-                                        setSelectedDataset((currentDataset) =>
-                                            currentDataset
-                                                ? {
-                                                    ...currentDataset,
-                                                    image_count: Math.max(
-                                                        currentDataset.image_count - 1,
-                                                        0,
-                                                    ),
-                                                }
-                                                : currentDataset,
-                                        )
-                                    }}
-                                />
-                            </>
-                        )}
-                    </div>
-                </section>
+                                    {selectedImage && (
+                                        <DatasetImageInspector
+                                            key={`${selectedImage.id}:${selectedImage.label || ''}:${selectedImage.annotation_review_status || ''}`}
+                                            dataset={selectedDataset}
+                                            image={selectedImage}
+                                            onSaved={handleImageLabelSaved}
+                                            onDelete={(image) => {
+                                                setSelectedImage(image)
+                                                setDialog('delete-image')
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </main>
             </div>
+
+            {dialog === 'create' && (
+                <DatasetCreateDialog user={user} onClose={() => setDialog(null)} onCreated={handleDatasetCreated} />
+            )}
+            {dialog === 'add-images' && selectedDataset && (
+                <AddImagesDialog dataset={selectedDataset} onClose={() => setDialog(null)} onUploaded={handleImagesUploaded} />
+            )}
+            {dialog === 'edit' && selectedDataset && (
+                <EditDatasetDialog dataset={selectedDataset} onClose={() => setDialog(null)} onUpdated={(updated) => { replaceDataset(updated); setDialog(null) }} />
+            )}
+            {dialog === 'delete-dataset' && selectedDataset && (
+                <ConfirmDeleteDialog
+                    title={`Eliminar ${selectedDataset.name}`}
+                    description={`Se eliminarán permanentemente sus ${selectedDataset.image_count} imágenes, etiquetas, anotaciones y evaluaciones asociadas. Esta acción no se puede deshacer.`}
+                    confirmLabel="Eliminar conjunto"
+                    onClose={() => setDialog(null)}
+                    onConfirm={handleDeleteDataset}
+                    busy={deleting}
+                />
+            )}
+            {dialog === 'delete-image' && selectedImage && (
+                <ConfirmDeleteDialog
+                    title="Eliminar imagen"
+                    description={`Se eliminará permanentemente ${selectedImage.filename} y sus anotaciones asociadas.`}
+                    confirmLabel="Eliminar imagen"
+                    onClose={() => setDialog(null)}
+                    onConfirm={handleDeleteImage}
+                    busy={deleting}
+                />
+            )}
         </div>
     )
 }

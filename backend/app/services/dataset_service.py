@@ -22,7 +22,9 @@ from db.collections import (
 from schemas.datasets import (
     DatasetImage,
     DatasetImageLabelUpdate,
+    DatasetMetadataUpdate,
     DatasetResponse,
+    DatasetTaskType,
 )
 from utils.file_manager import (
     create_directory,
@@ -90,6 +92,19 @@ def _to_dataset_image(
     )
 
 
+def _dataset_task_type(dataset: dict) -> DatasetTaskType | None:
+    task_type = dataset.get("task_type")
+    if task_type in {"classification", "detection"}:
+        return task_type
+
+    # Los datasets creados antes de introducir task_type pueden inferirse
+    # de forma inequívoca si ya tienen un snapshot de anotaciones COCO.
+    if dataset.get("active_annotation_snapshot_id") is not None:
+        return "detection"
+
+    return None
+
+
 def dataset_to_response(dataset: dict) -> DatasetResponse:
     dataset_id = str(dataset["_id"])
 
@@ -97,6 +112,7 @@ def dataset_to_response(dataset: dict) -> DatasetResponse:
         id=dataset_id,
         name=dataset["name"],
         owner_id=str(dataset["owner_id"]),
+        task_type=_dataset_task_type(dataset),
         image_count=dataset["image_count"],
         images=[_to_dataset_image(dataset_id, image) for image in dataset["images"]],
     )
@@ -180,12 +196,17 @@ async def create_dataset_from_images(
     user_id: str,
     name: str,
     files: list[UploadFile],
+    task_type: DatasetTaskType | None = None,
 ) -> DatasetResponse:
     user_object_id = _validate_user_id(user_id)
     user = await users_collection.find_one({"_id": user_object_id})
 
     if not user:
         raise NotFoundError(USER_NOT_FOUND_MESSAGE)
+
+    normalized_name = name.strip()
+    if not normalized_name:
+        raise BadRequestError("El nombre del conjunto de datos no puede estar vacío")
 
     if not files:
         raise BadRequestError("El conjunto de datos debe contener al menos una imagen")
@@ -234,8 +255,9 @@ async def create_dataset_from_images(
 
     dataset_doc = {
         "_id": dataset_id,
-        "name": name,
+        "name": normalized_name,
         "owner_id": user_object_id,
+        "task_type": task_type,
         "image_count": len(images_metadata),
         "path": dataset_path,
         "images": images_metadata,
@@ -252,6 +274,53 @@ async def create_dataset_from_images(
     created_dataset = await datasets_collection.find_one({"_id": dataset_id})
 
     return dataset_to_response(created_dataset)
+
+
+async def update_dataset_metadata(
+    dataset_id: str,
+    metadata: DatasetMetadataUpdate,
+) -> DatasetResponse:
+    object_id, dataset = await _get_dataset_document(dataset_id)
+    updates: dict[str, str] = {}
+
+    if metadata.name is not None:
+        normalized_name = metadata.name.strip()
+        if not normalized_name:
+            raise BadRequestError("El nombre del conjunto de datos no puede estar vacío")
+        if normalized_name != dataset.get("name"):
+            updates["name"] = normalized_name
+
+    if metadata.task_type is not None:
+        current_task_type = _dataset_task_type(dataset)
+        if current_task_type is not None and current_task_type != metadata.task_type:
+            raise BadRequestError(
+                "El tipo del conjunto de datos no puede cambiar una vez definido"
+            )
+        if (
+            metadata.task_type == "classification"
+            and dataset.get("active_annotation_snapshot_id") is not None
+        ):
+            raise BadRequestError(
+                "Un conjunto de datos con anotaciones de detección no puede marcarse como clasificación"
+            )
+        if dataset.get("task_type") != metadata.task_type:
+            updates["task_type"] = metadata.task_type
+
+    if updates:
+        await datasets_collection.update_one(
+            {"_id": object_id},
+            {
+                "$set": updates,
+                "$inc": {"dataset_revision": 1},
+            },
+        )
+        dataset = {
+            **dataset,
+            **updates,
+            "dataset_revision": dataset.get("dataset_revision", 0) + 1,
+        }
+
+    return dataset_to_response(dataset)
 
 
 async def list_datasets() -> list[DatasetResponse]:
@@ -383,6 +452,12 @@ async def delete_image_from_dataset(
         }
     )
 
+    from services.individual_analysis_history_service import (
+        delete_individual_analyses_for_image,
+    )
+
+    await delete_individual_analyses_for_image(dataset_id, image_id)
+
 
 async def delete_dataset(dataset_id: str) -> None:
     object_id, dataset = await _get_dataset_document(dataset_id)
@@ -392,8 +467,12 @@ async def delete_dataset(dataset_id: str) -> None:
         shutil.rmtree(dataset_path)
 
     from services.evaluation_history_service import delete_evaluations_for_dataset
+    from services.individual_analysis_history_service import (
+        delete_individual_analyses_for_dataset,
+    )
 
     await delete_evaluations_for_dataset(dataset_id)
+    await delete_individual_analyses_for_dataset(dataset_id)
 
     await datasets_collection.delete_one({"_id": object_id})
     await annotation_categories_collection.delete_many({"dataset_id": object_id})
@@ -416,7 +495,12 @@ async def get_image_from_dataset(
     if not os.path.exists(image_path):
         raise NotFoundError(IMAGE_FILE_NOT_FOUND_MESSAGE)
 
-    return Image.open(image_path).convert("RGB")
+    image = Image.open(image_path).convert("RGB")
+    # Keep the revision that was actually used by the individual analysis.
+    # PIL's ``info`` travels with this in-memory image without changing the
+    # public service contract used throughout the inference stack.
+    image.info["dataset_revision"] = int(dataset.get("dataset_revision", 0))
+    return image
 
 
 async def get_datasets_by_user(

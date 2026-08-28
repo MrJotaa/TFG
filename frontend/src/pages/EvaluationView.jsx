@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import DetectionEvaluationPanel from '../components/DetectionEvaluationPanel'
 import EvaluationPanel from '../components/EvaluationPanel'
 import { useExperiment } from '../context/ExperimentContext'
@@ -19,8 +18,8 @@ function ContextItem({ label, value }) {
 }
 
 function EvaluationView() {
-    const navigate = useNavigate()
     const [isContextOpen, setIsContextOpen] = useState(false)
+    const [detectionResultContext, setDetectionResultContext] = useState(null)
 
     const {
         selectedDataset,
@@ -38,14 +37,31 @@ function EvaluationView() {
     })
     const isDetection = taskType === 'detection'
     const attackName = getAttackName(selectedAttack, attackCatalog)
+    const modelName = recoveredEvaluation?.historyItem?.model_name || activeModel?.name || 'Sin modelo activo'
+    const datasetName = selectedDataset?.name || 'Sin conjunto de datos'
     const contextPanelId = 'evaluation-context-panel'
+    const recoveredDetectionResultContext = isDetection && recoveredEvaluation?.data
+        ? {
+            resultId: recoveredEvaluation.data.result_id,
+            datasetRevision: recoveredEvaluation.data.dataset_revision,
+        }
+        : null
+    const activeDetectionResultContext = (
+        detectionResultContext ?? recoveredDetectionResultContext
+    )
 
     return (
-        <section className="evaluation-page modern-evaluation-page">
-            <header className="evaluation-page-hero compact">
+        <section
+            className={`evaluation-page modern-evaluation-page ${
+                isDetection
+                    ? 'detection-evaluation-page'
+                    : 'classification-evaluation-page'
+            }`}
+        >
+            <header className="evaluation-page-hero compact evaluation-page-hero-flat">
                 <div className="evaluation-page-heading">
                     <span className="evaluation-eyebrow">
-                        {isDetection ? 'Detección de objetos' : 'Clasificación de imágenes'}
+                        {isDetection ? 'Evaluación · detección' : 'Evaluación · clasificación'}
                     </span>
                     <h2>
                         {isDetection
@@ -59,7 +75,14 @@ function EvaluationView() {
                     </p>
                 </div>
 
-                <div className="evaluation-page-actions">
+                <div className="evaluation-hero-context">
+                    <div className="evaluation-context-summary" aria-label="Resumen de configuración">
+                        <strong>{datasetName}</strong>
+                        <span aria-hidden="true">/</span>
+                        <span title={modelName}>{modelName}</span>
+                        <span aria-hidden="true">/</span>
+                        <span>{attackName}</span>
+                    </div>
                     <button
                         type="button"
                         className="secondary-action evaluation-context-toggle"
@@ -67,58 +90,46 @@ function EvaluationView() {
                         aria-controls={contextPanelId}
                         onClick={() => setIsContextOpen((current) => !current)}
                     >
-                        <span>Contexto de evaluación</span>
-                        <span
-                            className="evaluation-context-chevron"
-                            aria-hidden="true"
-                        >
-                            {isContextOpen ? '▴' : '▾'}
-                        </span>
-                    </button>
-
-                    <button
-                        type="button"
-                        className="secondary-action evaluation-back-button"
-                        onClick={() => navigate('/dashboard')}
-                    >
-                        Volver al panel principal
+                        <span>Contexto</span>
+                        <span className="evaluation-context-chevron" aria-hidden="true">▾</span>
                     </button>
                 </div>
             </header>
 
-            {isContextOpen && (
-                <section
-                    id={contextPanelId}
-                    className="evaluation-context-strip"
-                    aria-label="Contexto del experimento"
-                >
-                    <ContextItem
-                        label="Conjunto de datos"
-                        value={selectedDataset?.name || 'Sin seleccionar'}
-                    />
-                    <ContextItem
-                        label="Imágenes"
-                        value={selectedDataset?.image_count ?? '—'}
-                    />
-                    <ContextItem
-                        label="Modelo"
-                        value={
-                            recoveredEvaluation?.historyItem?.model_name ||
-                            activeModel?.name ||
-                            'Sin modelo activo'
-                        }
-                    />
-                    <ContextItem label="Ataque" value={attackName} />
-                    <ContextItem
-                        label="Parámetros"
-                        value={formatAttackParameters(
-                            selectedAttack,
-                            attackParameters,
-                            attackCatalog,
+            <div
+                className={`evaluation-context-collapse${isContextOpen ? ' open' : ''}`}
+                aria-hidden={!isContextOpen}
+            >
+                <div className="evaluation-context-collapse-inner">
+                    <section
+                        id={contextPanelId}
+                        className="evaluation-context-strip"
+                        aria-label="Contexto del experimento"
+                    >
+                        <ContextItem label="Conjunto de datos" value={datasetName} />
+                        <ContextItem
+                            label="Imágenes"
+                            value={selectedDataset?.image_count ?? '—'}
+                        />
+                        <ContextItem label="Modelo" value={modelName} />
+                        <ContextItem label="Ataque" value={attackName} />
+                        <ContextItem
+                            label="Parámetros"
+                            value={formatAttackParameters(
+                                selectedAttack,
+                                attackParameters,
+                                attackCatalog,
+                            )}
+                        />
+                        {isDetection && activeDetectionResultContext?.resultId && (
+                            <ContextItem
+                                label="Resultado"
+                                value={`${activeDetectionResultContext.resultId} · revisión ${activeDetectionResultContext.datasetRevision ?? '—'}`}
+                            />
                         )}
-                    />
-                </section>
-            )}
+                    </section>
+                </div>
+            </div>
 
             {isDetection ? (
                 <DetectionEvaluationPanel
@@ -128,6 +139,7 @@ function EvaluationView() {
                     attackCatalog={attackCatalog}
                     recoveredEvaluation={recoveredEvaluation}
                     onStartNewEvaluation={() => setRecoveredEvaluation(null)}
+                    onResultContextChange={setDetectionResultContext}
                 />
             ) : (
                 <EvaluationPanel

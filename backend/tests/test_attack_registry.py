@@ -178,7 +178,7 @@ def test_apply_attack_runner_batch_for_evaluation_uses_optional_batch_path():
 
 
 def test_get_unknown_attack_raises_value_error():
-    with pytest.raises(ValueError, match="not supported"):
+    with pytest.raises(ValueError, match="no es compatible"):
         get_attack("unknown_attack")
 
 

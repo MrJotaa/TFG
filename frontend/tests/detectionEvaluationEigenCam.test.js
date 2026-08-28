@@ -6,6 +6,7 @@ import {
     canRequestDetectionEigenCam,
     detectionEigenCamReducer,
     getDetectionEigenCamEntry,
+    getDetectionEigenCamButtonLabel,
     getDetectionEigenCamErrorMessage,
     getDetectionEigenCamKey,
     isDetectionEigenCamResponse,
@@ -116,4 +117,17 @@ test('controlled EigenCAM errors have understandable messages', () => {
         getDetectionEigenCamErrorMessage({ status: 410 }),
         /Repite la evaluación/,
     )
+})
+
+test('EigenCAM button toggles visibility without requiring a new request', () => {
+    const idle = { status: 'idle' }
+    const loading = { status: 'loading' }
+    const ready = { status: 'success' }
+    const failed = { status: 'error' }
+
+    assert.equal(getDetectionEigenCamButtonLabel(idle), 'Generar Eigen-CAM')
+    assert.equal(getDetectionEigenCamButtonLabel(loading), 'Generando Eigen-CAM…')
+    assert.equal(getDetectionEigenCamButtonLabel(ready, true), 'Ocultar Eigen-CAM')
+    assert.equal(getDetectionEigenCamButtonLabel(ready, false), 'Mostrar Eigen-CAM')
+    assert.equal(getDetectionEigenCamButtonLabel(failed), 'Reintentar Eigen-CAM')
 })

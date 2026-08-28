@@ -276,7 +276,7 @@ def test_active_class_catalog_rejects_detection_model(
 
     with pytest.raises(
         BadRequestError,
-        match=("Endpoint '/models/active/classes' requires a classification model"),
+        match=("El endpoint '/models/active/classes' requiere un modelo de clasificación"),
     ):
         label_service.get_active_model_class_catalog()
 

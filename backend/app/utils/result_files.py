@@ -128,3 +128,48 @@ def save_result_metadata(
         json.dump(metadata_with_timestamp, file, indent=2)
 
     return metadata_path
+
+
+def save_result_payload(
+    result_path: str,
+    payload: dict,
+    *,
+    filename: str = "analysis.json",
+) -> str:
+    os.makedirs(result_path, exist_ok=True)
+    payload_path = os.path.join(result_path, filename)
+    temporary_path = f"{payload_path}.{uuid.uuid4().hex}.tmp"
+    try:
+        with open(temporary_path, "w", encoding="utf-8") as file:
+            json.dump(
+                payload,
+                file,
+                ensure_ascii=False,
+                allow_nan=False,
+                separators=(",", ":"),
+            )
+        os.replace(temporary_path, payload_path)
+    finally:
+        if os.path.exists(temporary_path):
+            os.remove(temporary_path)
+    return payload_path
+
+
+def read_result_metadata(result_id: str) -> dict:
+    if not isinstance(result_id, str) or os.path.basename(result_id) != result_id:
+        raise ValueError("Result identity is invalid")
+    metadata_path = os.path.join(RESULTS_BASE_PATH, result_id, "metadata.json")
+    with open(metadata_path, encoding="utf-8") as file:
+        return json.load(file)
+
+
+def read_result_payload(
+    result_id: str,
+    *,
+    filename: str = "analysis.json",
+) -> dict:
+    if not isinstance(result_id, str) or os.path.basename(result_id) != result_id:
+        raise ValueError("Result identity is invalid")
+    payload_path = os.path.join(RESULTS_BASE_PATH, result_id, filename)
+    with open(payload_path, encoding="utf-8") as file:
+        return json.load(file)

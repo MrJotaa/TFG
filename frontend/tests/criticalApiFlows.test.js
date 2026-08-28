@@ -15,6 +15,7 @@ let explainability
 let evaluation
 let detectionEvaluation
 let evaluationHistory
+let individualAnalysisHistory
 let originalFetch
 let storage
 
@@ -53,6 +54,7 @@ before(async () => {
         evaluation,
         detectionEvaluation,
         evaluationHistory,
+        individualAnalysisHistory,
     ] = await Promise.all([
         viteServer.ssrLoadModule('/src/api/client.js'),
         viteServer.ssrLoadModule('/src/api/auth.js'),
@@ -66,6 +68,7 @@ before(async () => {
         viteServer.ssrLoadModule('/src/api/evaluation.js'),
         viteServer.ssrLoadModule('/src/api/detectionEvaluation.js'),
         viteServer.ssrLoadModule('/src/api/evaluationHistory.js'),
+        viteServer.ssrLoadModule('/src/api/individualAnalysisHistory.js'),
     ])
 })
 
@@ -178,6 +181,7 @@ test('dataset upload keeps multipart headers browser-managed', async () => {
     await datasets.uploadDataset({
         userId: 'user-1',
         name: 'COCO sample',
+        taskType: 'detection',
         files: [image],
     })
 
@@ -189,7 +193,30 @@ test('dataset upload keeps multipart headers browser-managed', async () => {
     assert.ok(call.options.body instanceof FormData)
     assert.equal(call.options.body.get('user_id'), 'user-1')
     assert.equal(call.options.body.get('name'), 'COCO sample')
+    assert.equal(call.options.body.get('task_type'), 'detection')
     assert.equal(call.options.body.get('files').name, 'sample.png')
+})
+
+
+test('dataset metadata update uses the dataset PATCH contract', async () => {
+    client.setStoredToken('session-token')
+    const calls = captureFetch(() =>
+        jsonResponse({ id: 'dataset-1', name: 'Renamed', task_type: 'classification' }),
+    )
+
+    await datasets.updateDataset({
+        datasetId: 'dataset-1',
+        name: 'Renamed',
+        taskType: 'classification',
+    })
+
+    const call = calls[0]
+    assert.equal(call.url, 'http://127.0.0.1:8000/datasets/dataset-1')
+    assert.equal(call.options.method, 'PATCH')
+    assert.deepEqual(requestBody(call), {
+        name: 'Renamed',
+        task_type: 'classification',
+    })
 })
 
 test('attack catalog is retrieved from the backend source of truth', async () => {
@@ -372,4 +399,82 @@ test('evaluation compatibility and recovery preserve task-specific identity', as
         calls[1].url,
         'http://127.0.0.1:8000/evaluations/evaluation%2Fwith%20spaces',
     )
+})
+
+
+test('individual analysis persistence and duplicate lookup use stable history contracts', async () => {
+    const calls = captureFetch(() => jsonResponse({ match: null }))
+
+    await individualAnalysisHistory.findCompatibleIndividualAnalysis({
+        taskType: 'classification',
+        datasetId: 'dataset-1',
+        imageId: 'image-1',
+        attackType: 'fgsm',
+        parameters: { epsilon: 0.03 },
+    })
+    await individualAnalysisHistory.saveIndividualAnalysis({
+        taskType: 'classification',
+        resultId: 'attack-result-1',
+    })
+
+    assert.equal(calls[0].url, 'http://127.0.0.1:8000/individual-analyses/compatibility')
+    assert.deepEqual(requestBody(calls[0]), {
+        task_type: 'classification',
+        dataset_id: 'dataset-1',
+        image_id: 'image-1',
+        attack_type: 'fgsm',
+        parameters: { epsilon: 0.03 },
+    })
+    assert.equal(calls[1].url, 'http://127.0.0.1:8000/individual-analyses')
+    assert.deepEqual(requestBody(calls[1]), {
+        task_type: 'classification',
+        result_id: 'attack-result-1',
+    })
+})
+
+test('evaluation history exposes preserve and delete operations', async () => {
+    const calls = captureFetch(() => jsonResponse({ preserved: true }))
+
+    await evaluationHistory.setEvaluationPreserved('evaluation-1', true)
+    await evaluationHistory.deleteEvaluation('evaluation-1')
+
+    assert.equal(calls[0].url, 'http://127.0.0.1:8000/evaluations/evaluation-1/preservation')
+    assert.equal(calls[0].options.method, 'PATCH')
+    assert.deepEqual(requestBody(calls[0]), { preserved: true })
+    assert.equal(calls[1].url, 'http://127.0.0.1:8000/evaluations/evaluation-1')
+    assert.equal(calls[1].options.method, 'DELETE')
+})
+
+test('individual analysis history supports paged recovery and manual deletion', async () => {
+    const calls = captureFetch((_url, _options, index) => {
+        if (index === 0) {
+            return jsonResponse({ items: [], total: 0, limit: 8, offset: 0 })
+        }
+        if (index === 1) {
+            return jsonResponse({ item: { analysis_id: 'analysis-1' }, analysis: {} })
+        }
+        return new Response(null, { status: 204 })
+    })
+
+    await individualAnalysisHistory.getIndividualAnalysisHistory({
+        limit: 8,
+        offset: 0,
+        taskType: 'detection',
+    })
+    await individualAnalysisHistory.getStoredIndividualAnalysis('analysis/with spaces')
+    await individualAnalysisHistory.deleteIndividualAnalysis('analysis-1')
+
+    assert.equal(
+        calls[0].url,
+        'http://127.0.0.1:8000/individual-analyses?limit=8&offset=0&task_type=detection',
+    )
+    assert.equal(
+        calls[1].url,
+        'http://127.0.0.1:8000/individual-analyses/analysis%2Fwith%20spaces',
+    )
+    assert.equal(
+        calls[2].url,
+        'http://127.0.0.1:8000/individual-analyses/analysis-1',
+    )
+    assert.equal(calls[2].options.method, 'DELETE')
 })

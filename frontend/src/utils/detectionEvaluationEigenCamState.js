@@ -41,6 +41,13 @@ export function detectionEigenCamReducer(state, action) {
     return state
 }
 
+export function getDetectionEigenCamButtonLabel(entry, isVisible = true) {
+    if (entry?.status === 'loading') return 'Generando Eigen-CAM…'
+    if (entry?.status === 'success') return isVisible ? 'Ocultar Eigen-CAM' : 'Mostrar Eigen-CAM'
+    if (entry?.status === 'error') return 'Reintentar Eigen-CAM'
+    return 'Generar Eigen-CAM'
+}
+
 export function canRequestDetectionEigenCam(entry, isInFlight = false) {
     return (
         !isInFlight

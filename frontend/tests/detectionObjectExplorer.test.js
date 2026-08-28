@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+    DETECTION_IMAGE_AGGREGATE_BATCH_SIZE,
     filterAndSortDetectionObjects,
+    getDetectionImageAggregateView,
     getDetectionObjectFilterOptions,
     paginateDetectionObjects,
 } from '../src/utils/detectionObjectExplorer.js'
@@ -115,4 +117,21 @@ test('pagina después de filtrar y limita páginas fuera de rango', () => {
     )
     assert.equal(last.page, 3)
     assert.equal(last.items.length, 12)
+})
+
+test('resultados agregados por imagen se revelan de diez en diez', () => {
+    const rows = Array.from({ length: 26 }, (_, index) => ({ key: `image-${index}` }))
+    const first = getDetectionImageAggregateView(rows)
+    const second = getDetectionImageAggregateView(rows, first.nextVisibleCount)
+    const last = getDetectionImageAggregateView(rows, 30)
+
+    assert.equal(DETECTION_IMAGE_AGGREGATE_BATCH_SIZE, 10)
+    assert.deepEqual(
+        { visible: first.visibleCount, total: first.totalCount, hasMore: first.hasMore, next: first.nextVisibleCount },
+        { visible: 10, total: 26, hasMore: true, next: 20 },
+    )
+    assert.equal(second.items.length, 20)
+    assert.equal(second.nextVisibleCount, 26)
+    assert.equal(last.items.length, 26)
+    assert.equal(last.hasMore, false)
 })

@@ -6,6 +6,9 @@ from schemas.classification_metrics import (
     LabelResolutionSummary,
 )
 
+DatasetTaskType = Literal["classification", "detection"]
+
+
 AnnotationReviewStatus = Literal[
     "unreviewed",
     "reviewed_empty",
@@ -27,8 +30,14 @@ class DatasetResponse(BaseModel):
     id: str
     name: str
     owner_id: str
+    task_type: DatasetTaskType | None = None
     image_count: int
     images: list[DatasetImage]
+
+
+class DatasetMetadataUpdate(BaseModel):
+    name: str | None = None
+    task_type: DatasetTaskType | None = None
 
 
 class DatasetImageLabelUpdate(BaseModel):

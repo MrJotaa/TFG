@@ -1,8 +1,9 @@
+import { useEffect, useRef, useState } from 'react'
 import {
     getAttackDefinition,
-    getSupportedAttacksForTask,
     isAttackSupportedForTask,
 } from '../utils/attackCatalog'
+import { resolveScrollOverflow } from '../utils/dashboard'
 
 function parseParameterValue(parameter, event) {
     if (parameter.value_type === 'boolean') {
@@ -18,21 +19,27 @@ function parseParameterValue(parameter, event) {
 function ParameterControl({ parameter, value, onChange }) {
     if (parameter.control === 'checkbox') {
         return (
-            <label title={parameter.description}>
-                <input
-                    type="checkbox"
-                    checked={Boolean(value)}
-                    onChange={(event) => onChange(parseParameterValue(parameter, event))}
-                />
-                {parameter.label}
+            <label className="parameter-toggle" title={parameter.description}>
+                <span className="parameter-toggle-copy">
+                    <strong>{parameter.label}</strong>
+                    {parameter.description && <small>{parameter.description}</small>}
+                </span>
+                <span className="parameter-switch-control">
+                    <input
+                        type="checkbox"
+                        checked={Boolean(value)}
+                        onChange={(event) => onChange(parseParameterValue(parameter, event))}
+                    />
+                    <span className="parameter-switch" aria-hidden="true" />
+                </span>
             </label>
         )
     }
 
     if (parameter.control === 'select') {
         return (
-            <label title={parameter.description}>
-                {parameter.label}
+            <label className="parameter-field" title={parameter.description}>
+                <span>{parameter.label}</span>
                 <select
                     value={value}
                     onChange={(event) => onChange(parseParameterValue(parameter, event))}
@@ -48,11 +55,31 @@ function ParameterControl({ parameter, value, onChange }) {
     }
 
     const isRange = parameter.control === 'range'
+
+    if (isRange) {
+        return (
+            <label className="parameter-field parameter-range" title={parameter.description}>
+                <span className="parameter-field-heading">
+                    <span>{parameter.label}</span>
+                    <output>{String(value)}</output>
+                </span>
+                <input
+                    type="range"
+                    min={parameter.minimum ?? undefined}
+                    max={parameter.maximum ?? undefined}
+                    step={parameter.step ?? undefined}
+                    value={value}
+                    onChange={(event) => onChange(parseParameterValue(parameter, event))}
+                />
+            </label>
+        )
+    }
+
     return (
-        <label title={parameter.description}>
-            {parameter.label}{isRange ? `: ${value}` : ''}
+        <label className="parameter-field" title={parameter.description}>
+            <span>{parameter.label}</span>
             <input
-                type={isRange ? 'range' : 'number'}
+                type="number"
                 min={parameter.minimum ?? undefined}
                 max={parameter.maximum ?? undefined}
                 step={parameter.step ?? undefined}
@@ -75,7 +102,42 @@ function AttackSelector({
 }) {
     const activeTaskType = activeModel?.task_type || 'classification'
     const selectedDefinition = getAttackDefinition(attackCatalog, selectedAttack)
-    const supportedAttacks = getSupportedAttacksForTask(attackCatalog, activeTaskType)
+    const attackListRef = useRef(null)
+    const [scrollOverflow, setScrollOverflow] = useState({
+        canScrollUp: false,
+        canScrollDown: false,
+    })
+
+    useEffect(() => {
+        const element = attackListRef.current
+        if (!element) return undefined
+
+        function updateOverflow() {
+            setScrollOverflow(resolveScrollOverflow(element))
+        }
+
+        const frame = window.requestAnimationFrame(updateOverflow)
+        const observer = typeof ResizeObserver === 'function'
+            ? new ResizeObserver(updateOverflow)
+            : null
+        observer?.observe(element)
+
+        return () => {
+            window.cancelAnimationFrame(frame)
+            observer?.disconnect()
+        }
+    }, [attackCatalog.length, activeTaskType])
+
+    function handleAttackListScroll(event) {
+        setScrollOverflow(resolveScrollOverflow(event.currentTarget))
+    }
+
+    function scrollAttackList(direction) {
+        attackListRef.current?.scrollBy({
+            top: direction * 120,
+            behavior: 'smooth',
+        })
+    }
 
     function handleParameterChange(name, value) {
         onChangeAttackParameters({
@@ -85,83 +147,114 @@ function AttackSelector({
     }
 
     return (
-        <div className="sidebar-block">
-            <div className="sidebar-block-title">Ataques</div>
+        <section className="sidebar-block dashboard-config-section attack-selector-section">
+            <div className="dashboard-config-heading">
+                <div>
+                    <span className="dashboard-section-eyebrow">Configuración</span>
+                    <h2>Ataque</h2>
+                </div>
+                <span className="dashboard-config-step">02</span>
+            </div>
 
             {loading && <p className="muted-text">Cargando catálogo de ataques…</p>}
             {error && <p className="error">No se pudo cargar el catálogo: {error}</p>}
 
-            <div className="sidebar-list">
-                {attackCatalog.map((attack) => {
-                    const isSupported = isAttackSupportedForTask(
-                        attackCatalog,
-                        attack.id,
-                        activeTaskType,
-                    )
+            <div className={`attack-list-shell ${scrollOverflow.canScrollUp ? 'has-up' : ''} ${scrollOverflow.canScrollDown ? 'has-down' : ''}`}>
+                {scrollOverflow.canScrollUp && (
+                    <button
+                        type="button"
+                        className="attack-scroll-hint up"
+                        onClick={() => scrollAttackList(-1)}
+                        aria-label="Ver ataques anteriores"
+                        title="Hay más ataques arriba"
+                    >
+                        <span aria-hidden="true">⌃</span>
+                    </button>
+                )}
 
-                    return (
-                        <button
-                            key={attack.id}
-                            type="button"
-                            className={
-                                selectedAttack === attack.id
-                                    ? 'sidebar-list-item active'
-                                    : 'sidebar-list-item'
-                            }
-                            onClick={() => {
-                                if (isSupported) onSelectAttack(attack.id)
-                            }}
-                            disabled={!isSupported}
-                            title={
-                                isSupported
-                                    ? attack.description
-                                    : 'Ataque no disponible para este tipo de modelo'
-                            }
-                        >
-                            <span>{attack.name}</span>
+                <div
+                    ref={attackListRef}
+                    className="sidebar-list attack-list"
+                    aria-label="Ataques disponibles"
+                    onScroll={handleAttackListScroll}
+                >
+                    {attackCatalog.map((attack) => {
+                        const isSupported = isAttackSupportedForTask(
+                            attackCatalog,
+                            attack.id,
+                            activeTaskType,
+                        )
+                        const isSelected = selectedAttack === attack.id
 
-                            {!isSupported && (
-                                <small className="attack-unavailable">
-                                    No disponible
-                                </small>
-                            )}
-                        </button>
-                    )
-                })}
+                        return (
+                            <button
+                                key={attack.id}
+                                type="button"
+                                className={isSelected ? 'sidebar-list-item active' : 'sidebar-list-item'}
+                                onClick={() => {
+                                    if (isSupported) onSelectAttack(attack.id)
+                                }}
+                                disabled={!isSupported}
+                                title={
+                                    isSupported
+                                        ? attack.description
+                                        : `No compatible con ${activeTaskType === 'classification' ? 'clasificación' : 'detección'}`
+                                }
+                                aria-pressed={isSupported ? isSelected : undefined}
+                            >
+                                <span>{attack.name}</span>
+
+                                {!isSupported && (
+                                    <small className="attack-unavailable">No disponible</small>
+                                )}
+                            </button>
+                        )
+                    })}
+                </div>
+
+                {scrollOverflow.canScrollDown && (
+                    <button
+                        type="button"
+                        className="attack-scroll-hint down"
+                        onClick={() => scrollAttackList(1)}
+                        aria-label="Ver más ataques"
+                        title="Hay más ataques abajo"
+                    >
+                        <span aria-hidden="true">⌄</span>
+                    </button>
+                )}
             </div>
 
-            {attackCatalog.length > 0 && (
-                <p className="muted-text">
-                    Compatibles con {activeTaskType === 'classification' ? 'clasificación' : 'detección'}:{' '}
-                    {supportedAttacks.map((attack) => attack.name).join(', ') || 'ninguno'}.
-                </p>
-            )}
-
             {selectedDefinition && (
-                <div className="attack-config">
-                    <h4>Configuración</h4>
+                <div className="attack-config dashboard-parameter-section">
+                    <div className="dashboard-parameter-heading">
+                        <span className="dashboard-section-eyebrow">Parámetros</span>
+                        <strong>{selectedDefinition.name}</strong>
+                    </div>
 
                     {selectedDefinition.parameters.length === 0 ? (
                         <p className="muted-text">Este ataque no requiere parámetros.</p>
                     ) : (
-                        selectedDefinition.parameters.map((parameter) => (
-                            <ParameterControl
-                                key={parameter.key}
-                                parameter={parameter}
-                                value={
-                                    Object.hasOwn(attackParameters, parameter.key)
-                                        ? attackParameters[parameter.key]
-                                        : parameter.default
-                                }
-                                onChange={(value) =>
-                                    handleParameterChange(parameter.key, value)
-                                }
-                            />
-                        ))
+                        <div className="parameter-control-list">
+                            {selectedDefinition.parameters.map((parameter) => (
+                                <ParameterControl
+                                    key={parameter.key}
+                                    parameter={parameter}
+                                    value={
+                                        Object.hasOwn(attackParameters, parameter.key)
+                                            ? attackParameters[parameter.key]
+                                            : parameter.default
+                                    }
+                                    onChange={(value) =>
+                                        handleParameterChange(parameter.key, value)
+                                    }
+                                />
+                            ))}
+                        </div>
                     )}
                 </div>
             )}
-        </div>
+        </section>
     )
 }
 

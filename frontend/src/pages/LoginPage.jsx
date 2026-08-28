@@ -1,5 +1,7 @@
-import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import AuthShell from '../components/AuthShell'
+import PasswordField from '../components/PasswordField'
 import { useAuth } from '../context/AuthContext'
 
 function LoginPage() {
@@ -19,7 +21,6 @@ function LoginPage() {
             setError('')
 
             await login({ email, password })
-
             navigate('/dashboard')
         } catch (err) {
             setError(err.message)
@@ -29,52 +30,64 @@ function LoginPage() {
     }
 
     return (
-        <main className="auth-page">
-            <section className="auth-card">
-                <h1>Analizador de ataques adversarios</h1>
-                <h2>Iniciar sesión</h2>
+        <AuthShell
+            eyebrow="Acceso"
+            title="Bienvenido de nuevo"
+            description="Accede a tu espacio de experimentación y continúa tus análisis."
+        >
+            {error && (
+                <div className="auth-alert" role="alert">
+                    <span className="auth-alert-icon" aria-hidden="true">!</span>
+                    <span>{error}</span>
+                </div>
+            )}
 
-                <p>Introduce tus credenciales para acceder al panel principal.</p>
-
-                {error && <p className="error">{error}</p>}
-
-                <form onSubmit={handleLogin}>
-                    <label>
-                        Correo
-                        <input
-                            type="email"
-                            placeholder="usuario@email.com"
-                            value={email}
-                            onChange={(event) => setEmail(event.target.value)}
-                            required
-                        />
-                    </label>
-
-                    <label>
-                        Contraseña
-                        <input
-                            type="password"
-                            placeholder="Contraseña"
-                            value={password}
-                            onChange={(event) => setPassword(event.target.value)}
-                            required
-                        />
-                    </label>
-
-                    <button
-                        type="submit"
-                        className="primary-action auth-submit"
+            <form className="auth-form" onSubmit={handleLogin} aria-busy={loading}>
+                <label className="auth-field" htmlFor="login-email">
+                    <span className="auth-field-label">Correo electrónico</span>
+                    <input
+                        id="login-email"
+                        type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        spellCheck="false"
+                        placeholder="usuario@email.com"
+                        value={email}
+                        onChange={(event) => {
+                            setEmail(event.target.value)
+                            if (error) setError('')
+                        }}
+                        required
                         disabled={loading}
-                    >
-                        {loading ? 'Entrando...' : 'Entrar'}
-                    </button>
-                </form>
+                    />
+                </label>
 
-                <p>
-                    ¿No tienes usuario? <Link to="/signup">Crear usuario</Link>
-                </p>
-            </section>
-        </main>
+                <PasswordField
+                    id="login-password"
+                    label="Contraseña"
+                    value={password}
+                    onChange={(event) => {
+                        setPassword(event.target.value)
+                        if (error) setError('')
+                    }}
+                    autoComplete="current-password"
+                    disabled={loading}
+                />
+
+                <button
+                    type="submit"
+                    className="primary-action auth-submit"
+                    disabled={loading}
+                >
+                    {loading && <span className="auth-submit-spinner" aria-hidden="true" />}
+                    <span>{loading ? 'Iniciando sesión…' : 'Iniciar sesión'}</span>
+                </button>
+            </form>
+
+            <p className="auth-alternative">
+                ¿No tienes una cuenta? <Link to="/signup">Crear cuenta</Link>
+            </p>
+        </AuthShell>
     )
 }
 

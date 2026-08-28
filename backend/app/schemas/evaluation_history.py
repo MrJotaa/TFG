@@ -37,6 +37,7 @@ class EvaluationHistoryItem(BaseModel):
     completed_at: datetime | None = None
     expires_at: datetime | None = None
     retention_seconds: int | None = None
+    preserved: bool = False
     exact_reuse_available: bool = False
 
 
@@ -54,3 +55,7 @@ class EvaluationCompatibilityResponse(BaseModel):
 class StoredEvaluationResponse(BaseModel):
     task_type: EvaluationTaskType
     evaluation: EvaluationResponse | DetectionEvaluationResponse
+
+
+class EvaluationPreservationUpdate(BaseModel):
+    preserved: bool

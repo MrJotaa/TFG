@@ -1,148 +1,131 @@
+export const CLASSIFICATION_METRIC_HELP = {
+    f1_macro: 'Calcula F1 por separado para cada clase y después hace una media en la que todas las clases pesan lo mismo, tengan muchas o pocas muestras.',
+    top5_robust_accuracy: 'Porcentaje de imágenes cuya clase real sigue apareciendo entre las cinco predicciones con mayor puntuación después del ataque.',
+    conditional_asr: 'Entre las imágenes que el modelo clasificaba correctamente antes del ataque, indica qué porcentaje pasa a clasificarse incorrectamente después.',
+    true_class_probability_drop: 'Mide cuánto disminuye, de media, la probabilidad asignada a la clase real después del ataque.',
+    linf: 'L∞ es el mayor cambio introducido en un único valor de píxel. Resume la perturbación máxima local.',
+    l2: 'L2 combina todos los cambios de la imagen en una sola magnitud. Resume el tamaño global de la perturbación.',
+    micro: 'Junta las decisiones clase frente al resto de todas las clases antes de calcular la métrica. Resume el comportamiento global sin forzar que cada clase tenga el mismo peso, como sí hace el promedio macro.',
+    macro: 'Calcula la métrica por clase y después hace una media no ponderada: todas las clases aportan el mismo peso.',
+    roc_auc: 'Resume la capacidad de separar una clase del resto al variar el umbral. Un valor más próximo a 1 indica mejor separación.',
+    average_precision: 'Resume la curva Precision–Recall. Un valor mayor indica un mejor equilibrio entre encontrar positivos y evitar falsos positivos a través de los umbrales.',
+}
+
 export const CLASSIFICATION_METRIC_GUIDES = {
     overview: {
         title: 'Cómo leer el resumen de clasificación',
         summary:
-            'Distingue el rendimiento antes y después del ataque y cuantifica cuánto cambia.',
+            'Empieza comparando el rendimiento original y robusto; después utiliza ASR, probabilidad y perturbación para entender cuánto daño produce el ataque y con qué magnitud.',
         items: [
             {
-                term: 'Exactitud original y robusta',
+                term: '1. Compara antes y después',
                 definition:
-                    'Porcentaje de imágenes clasificadas correctamente antes y después del ataque. Un valor mayor es mejor.',
+                    'La exactitud original es la referencia del modelo sin ataque. La exactitud robusta muestra cuánto rendimiento conserva después. Cuanto menor sea la separación entre ambas, mayor resistencia presenta el modelo.',
             },
             {
-                term: 'Caída y ASR condicional',
+                term: '2. Cuantifica el impacto',
                 definition:
-                    'La caída es original menos tras el ataque, en puntos porcentuales. El ASR condicional mide qué proporción de las predicciones originalmente correctas pasa a ser incorrecta.',
+                    'La caída de exactitud indica cuántos puntos porcentuales se pierden. El ASR condicional responde a otra pregunta: de las predicciones que eran correctas, cuántas consigue romper el ataque.',
             },
             {
-                term: 'Precisión, recall y F1',
+                term: '3. Relaciona daño y perturbación',
                 definition:
-                    'La precisión penaliza falsos positivos, el recall penaliza casos reales no recuperados y F1 equilibra ambas. “Macro” da el mismo peso a cada clase; “ponderado” usa su número de muestras.',
-            },
-            {
-                term: 'Probabilidad y perturbación',
-                definition:
-                    'La caída de probabilidad usa la clase real. L∞ es el mayor cambio en un píxel y L2 resume la magnitud total de la perturbación.',
+                    'La caída de probabilidad muestra cuánto pierde confianza el modelo en la clase real. L∞ y L2 describen el tamaño de la perturbación desde dos perspectivas diferentes.',
             },
         ],
-        note: 'Salvo que se indique lo contrario, los deltas se calculan como original − tras el ataque: un valor positivo representa degradación.',
+        note: 'Salvo que se indique lo contrario, los deltas se calculan como valor original − valor tras el ataque. Un delta positivo suele representar degradación.',
     },
     classes: {
         title: 'Cómo leer las métricas por clase',
         summary:
-            'Compara qué categorías conservan el rendimiento y cuáles concentran la degradación.',
+            'Utiliza esta pestaña para descubrir si el ataque afecta a todas las categorías por igual o si concentra la degradación en clases concretas.',
         items: [
             {
-                term: 'Soporte',
+                term: '1. Mira primero el soporte',
                 definition:
-                    'Número de muestras reales de la clase. Con soporte bajo, una sola imagen puede cambiar mucho el resultado.',
+                    'El soporte es el número de muestras reales de la clase. Con muy pocas muestras, una sola imagen puede provocar cambios porcentuales grandes y la comparación debe interpretarse con cautela.',
             },
             {
-                term: 'Precisión, recall y F1',
+                term: '2. Compara la misma métrica',
                 definition:
-                    'Se calculan considerando una clase frente al resto. F1 solo es alto cuando la precisión y el recall son altos.',
+                    'Las barras original y tras el ataque permiten ver rápidamente cuánto cambia F1, recall, precisión, ROC-AUC o AP para cada categoría.',
             },
             {
-                term: 'ROC-AUC y AP (Average Precision)',
+                term: '3. Usa el delta como señal, no aislado',
                 definition:
-                    'ROC-AUC mide la capacidad de ordenar positivos por encima de negativos. AP (Average Precision) resume la curva Precision–Recall y suele ser más informativa con clases poco frecuentes.',
-            },
-            {
-                term: 'Degradación',
-                definition:
-                    'Es el valor original menos el obtenido tras el ataque, expresado en puntos porcentuales. Un valor negativo indica una mejora en esa ejecución, no mayor degradación.',
+                    'Un delta positivo indica degradación porque se calcula como original menos tras el ataque. Contrástalo siempre con el soporte y con el valor absoluto de la métrica.',
             },
         ],
-        note: 'Una métrica puede no estar definida cuando la clase no contiene suficientes positivos o negativos para calcularla.',
+        note: 'Una métrica puede aparecer como no definida cuando faltan predicciones positivas, positivos reales o negativos suficientes para calcularla con sentido.',
     },
     matrices: {
         title: 'Cómo leer las matrices de confusión',
         summary:
-            'Localiza qué clases se confunden entre sí antes y después del ataque.',
+            'Sirven para localizar qué confusiones comete el modelo y comprobar si el ataque desplaza predicciones correctas hacia clases equivocadas.',
         items: [
             {
-                term: 'Filas, columnas y diagonal',
+                term: '1. Localiza la diagonal',
                 definition:
-                    'Cada fila es la clase real y cada columna la predicha. La diagonal contiene aciertos; las celdas fuera de ella muestran confusiones.',
+                    'Cada fila es la clase real y cada columna la predicha. La diagonal contiene aciertos; cuanto más valor se concentre fuera de ella, más confusiones existen.',
             },
             {
-                term: 'Conteos',
+                term: '2. Compara original y adversaria',
                 definition:
-                    'Muestran el número absoluto de imágenes de cada combinación real-predicha y permiten valorar cuántos casos representa una confusión.',
+                    'La matriz original actúa como referencia. Si tras el ataque aparecen nuevos valores fuera de la diagonal puedes identificar exactamente hacia qué clases se desplazan los errores.',
             },
             {
-                term: 'Normalizada por clase real',
+                term: '3. Elige conteos o porcentajes',
                 definition:
-                    'Cada fila se expresa como porcentaje de su clase real. Facilita comparar patrones entre clases con distinto soporte.',
-            },
-            {
-                term: 'Vista compacta y completa',
-                definition:
-                    'La compacta oculta filas sin muestras reales, pero conserva las columnas de clases que el modelo sí predijo. La completa muestra todo el catálogo.',
+                    'Los conteos muestran cuántas imágenes representa cada celda. La versión normalizada facilita comparar clases con tamaños distintos al expresar cada fila respecto a su clase real.',
             },
         ],
-        note: 'Compara las matrices original y tras el ataque: un desplazamiento de masa desde la diagonal hacia otras columnas revela nuevas confusiones.',
+        note: 'La vista compacta oculta filas sin muestras reales para facilitar la exploración; la vista completa conserva todo el catálogo de clases.',
     },
     curves: {
         title: 'Cómo leer las curvas de clasificación',
         summary:
-            'Observa el comportamiento al variar el umbral de decisión, no solo en un umbral fijo.',
+            'Las curvas muestran cómo cambia el comportamiento al variar el umbral de decisión. Compara la serie original con la adversaria y observa si la curva y su puntuación se deterioran.',
         items: [
             {
-                term: 'Ámbito micro global',
+                term: '1. Elige el ámbito',
                 definition:
-                    'El promedio micro agrupa todas las decisiones clase-frente-al-resto de todas las imágenes. Las clases con más decisiones influyen más en la curva.',
+                    'Global (micro) combina las decisiones de todas las clases y ofrece una visión agregada. Elegir una clase permite estudiar esa categoría frente al resto.',
             },
             {
-                term: 'Ámbito de una clase',
+                term: '2. Interpreta la curva adecuada',
                 definition:
-                    'Trata esa clase como positiva y todas las demás como negativas. El soporte “n” indica cuántos positivos reales contiene.',
+                    'ROC relaciona verdaderos y falsos positivos. Precision–Recall muestra el equilibrio entre recuperar positivos y mantener precisión, y suele ser especialmente informativa en clases poco frecuentes.',
             },
             {
-                term: 'Curva ROC y ROC-AUC',
+                term: '3. Compara las puntuaciones',
                 definition:
-                    'ROC enfrenta verdaderos positivos con falsos positivos. El área bajo la curva va de 0 a 1; cuanto mayor, mejor separación.',
-            },
-            {
-                term: 'Precision–Recall (PR) y AP',
-                definition:
-                    'La curva enfrenta precisión con recall. AP (Average Precision) resume su comportamiento: cuanto mayor, mejor equilibrio a través de los umbrales.',
-            },
-            {
-                term: 'Promedio macro',
-                definition:
-                    'Es el promedio no ponderado de la puntuación de cada clase disponible. Todas las clases aportan el mismo peso.',
+                    'ROC-AUC y AP resumen cada curva en un valor. Cuanto mayor sea, mejor. La diferencia original − tras el ataque cuantifica la degradación de esa capacidad.',
             },
         ],
-        note: 'La degradación es la puntuación original menos la obtenida tras el ataque. Las curvas pueden no estar definidas si faltan positivos o negativos.',
+        note: 'Las curvas pueden no estar definidas si una clase no contiene positivos o negativos suficientes. El promedio macro da el mismo peso a todas las clases disponibles.',
     },
     images: {
         title: 'Cómo leer los resultados por imagen',
         summary:
-            'Relaciona las métricas globales con casos concretos y revisa cómo cambian la predicción y la explicación visual.',
+            'Utiliza los casos individuales para conectar las métricas globales con ejemplos concretos: qué predicción cambia, cuánto cae la confianza y dónde se fija el modelo.',
         items: [
             {
-                term: 'Transición de predicción',
+                term: '1. Empieza por la transición',
                 definition:
-                    'Compara la corrección antes y después del ataque: una transición correcta → incorrecta es un éxito adversarial; incorrecta → correcta es una recuperación.',
+                    'Correcta → incorrecta representa un éxito adversarial; incorrecta → correcta es una recuperación. Los filtros permiten localizar rápidamente estos casos.',
             },
             {
-                term: 'Confianza, probabilidad y margen',
+                term: '2. Compara imagen y perturbación',
                 definition:
-                    'La confianza corresponde a la clase predicha. La probabilidad de la clase real sigue esa etiqueta concreta. El margen es la diferencia entre las dos clases con mayor puntuación.',
+                    'La vista original, la adversaria y el mapa de perturbación ayudan a comprobar si el cambio visual es perceptible y a relacionarlo con L∞ y L2.',
             },
             {
-                term: 'Grad-CAM',
+                term: '3. Usa Grad-CAM como apoyo interpretativo',
                 definition:
-                    'Resalta regiones influyentes para la decisión del modelo. Ayuda a interpretar el cambio, pero no demuestra causalidad por sí sola.',
-            },
-            {
-                term: 'Perturbación L∞ y L2',
-                definition:
-                    'L∞ recoge el cambio máximo de un píxel; L2 agrega la energía de todos los cambios. No son porcentajes ni se comparan directamente entre sí.',
+                    'Grad-CAM resalta regiones influyentes antes y después del ataque. Puede ayudar a explicar cambios de atención, pero no demuestra causalidad por sí solo.',
             },
         ],
-        note: 'Los filtros actúan sobre todas las imágenes evaluadas; la paginación solo limita cuántas se muestran a la vez.',
+        note: 'Los filtros se aplican sobre todas las imágenes evaluadas; la paginación solo limita cuántos resultados se muestran simultáneamente.',
     },
 }
 
