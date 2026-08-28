@@ -60,7 +60,7 @@ function MoreIcon() {
     )
 }
 
-function PinIcon() {
+export function PinIcon() {
     return (
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m8 4 8 0-1.5 5 2.5 2.5v1.5H7v-1.5L9.5 9 8 4ZM12 13v7" />
@@ -68,7 +68,7 @@ function PinIcon() {
     )
 }
 
-function TrashIcon() {
+export function TrashIcon() {
     return (
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 7h14M9 7V4h6v3M8 10v8M12 10v8M16 10v8M6.5 7l.8 13h9.4l.8-13" />
@@ -201,7 +201,7 @@ function IndividualAnalysisCopy({ item, datasets, attackCatalog }) {
     )
 }
 
-function HistoryMoreMenu({
+export function HistoryMoreMenu({
     children,
     label = 'Más acciones',
     menuId,
@@ -230,7 +230,7 @@ function HistoryMoreMenu({
     )
 }
 
-function HistoryConfirmationDialog({ confirmation, busy, onCancel, onConfirm }) {
+export function HistoryConfirmationDialog({ confirmation, busy, onCancel, onConfirm }) {
     if (!confirmation) return null
 
     const isDelete = confirmation.type.startsWith('delete')

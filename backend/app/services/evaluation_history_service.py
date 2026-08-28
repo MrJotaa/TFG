@@ -410,17 +410,9 @@ def cleanup_orphaned_evaluation_artifacts(
                 )
 
 
-async def evaluation_artifact_is_accessible(
-    result_id: str,
-    *,
-    owner_id: str,
-) -> bool:
+async def evaluation_artifact_is_accessible(result_id: str) -> bool:
     document = await evaluations_collection.find_one({"_id": result_id})
-    if (
-        document is None
-        or document.get("status") != "completed"
-        or document.get("owner_id") != owner_id
-    ):
+    if document is None or document.get("status") != "completed":
         return False
     if document.get("preserved") is True:
         return True

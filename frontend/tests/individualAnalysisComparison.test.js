@@ -143,8 +143,22 @@ test('explanation control is exposed only when both saved analyses have comparab
 
 test('individual summaries expose persisted classification and detection impact', () => {
     const classification = individualAnalysisComparisonSummary('classification', {
-        original_prediction: { prediction: 'tench' },
-        adversarial_prediction: { prediction: 'crab' },
+        original_prediction: {
+            prediction: 'tench',
+            top_k: [
+                { label: 'tench', probability: 0.8 },
+                { label: 'salmon', probability: 0.12 },
+                { label: 'trout', probability: 0.05 },
+            ],
+        },
+        adversarial_prediction: {
+            prediction: 'crab',
+            top_k: [
+                { label: 'crab', probability: 0.6 },
+                { label: 'tench', probability: 0.2 },
+                { label: 'lobster', probability: 0.1 },
+            ],
+        },
         comparison: {
             prediction_changed: true,
             attack_success: true,
@@ -157,6 +171,16 @@ test('individual summaries expose persisted classification and detection impact'
     })
     assert.equal(classification.primaryLabel, 'tench → crab')
     assert.equal(classification.perturbationLinf, 0.03)
+    assert.deepEqual(classification.originalTopK.map((entry) => entry.label), [
+        'tench',
+        'salmon',
+        'trout',
+    ])
+    assert.deepEqual(classification.adversarialTopK.map((entry) => entry.label), [
+        'crab',
+        'tench',
+        'lobster',
+    ])
 
     const detection = individualAnalysisComparisonSummary('detection', {
         original_detections: [{}, {}, {}],

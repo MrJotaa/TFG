@@ -9,7 +9,6 @@ from services.user_service import (
 )
 from utils.security import (
     create_access_token,
-    create_artifact_access_token,
     decode_access_token,
     verify_password,
 )
@@ -19,23 +18,17 @@ INVALID_TOKEN_MESSAGE = "Token no válido o caducado"
 
 
 def create_auth_response(user: UserResponse) -> AuthResponse:
-    token = create_access_token(_token_identity(user))
+    token = create_access_token(
+        {
+            "sub": user.id,
+            "email": user.email,
+        }
+    )
 
     return AuthResponse(
         access_token=token,
         user=user,
     )
-
-
-def create_artifact_token(user: UserResponse) -> str:
-    return create_artifact_access_token(_token_identity(user))
-
-
-def _token_identity(user: UserResponse) -> dict:
-    return {
-        "sub": user.id,
-        "email": user.email,
-    }
 
 
 async def signup(signup_data: SignupRequest) -> AuthResponse:
@@ -64,27 +57,11 @@ async def login(login_data: LoginRequest) -> AuthResponse:
 
 
 async def get_current_user(token: str) -> UserResponse:
-    payload = _decode_token(token)
-    if payload.get("scope") == "artifacts":
-        raise UnauthorizedError(INVALID_TOKEN_MESSAGE)
-    return await _user_from_token_payload(payload)
-
-
-async def get_artifact_current_user(token: str) -> UserResponse:
-    payload = _decode_token(token)
-    if payload.get("scope") != "artifacts":
-        raise UnauthorizedError(INVALID_TOKEN_MESSAGE)
-    return await _user_from_token_payload(payload)
-
-
-def _decode_token(token: str) -> dict:
     try:
-        return decode_access_token(token)
+        payload = decode_access_token(token)
     except ValueError as error:
         raise UnauthorizedError(INVALID_TOKEN_MESSAGE) from error
 
-
-async def _user_from_token_payload(payload: dict) -> UserResponse:
     user_id = payload.get("sub")
 
     if not user_id:

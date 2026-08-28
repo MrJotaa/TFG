@@ -272,30 +272,3 @@ async def test_saved_analysis_source_is_protected_from_temporary_cleanup(
     )
 
     assert await history.protected_individual_result_ids() == {result_id}
-
-
-@pytest.mark.asyncio
-async def test_saved_analysis_artifact_access_is_owner_scoped(analysis_environment):
-    owner_id, result_id, _analyses = analysis_environment
-    await history.save_individual_analysis(
-        request=IndividualAnalysisSaveRequest(
-            task_type="classification",
-            result_id=result_id,
-        ),
-        owner_id=owner_id,
-    )
-
-    assert (
-        await history.individual_analysis_artifact_is_accessible(
-            result_id,
-            owner_id=owner_id,
-        )
-        is True
-    )
-    assert (
-        await history.individual_analysis_artifact_is_accessible(
-            result_id,
-            owner_id=str(ObjectId()),
-        )
-        is False
-    )

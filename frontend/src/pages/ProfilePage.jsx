@@ -1,15 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+    deleteEvaluation,
     getEvaluationHistory,
     getStoredEvaluation,
+    setEvaluationPreserved,
 } from '../api/evaluationHistory'
 import { getDatasetsByUser } from '../api/datasets'
+import {
+    deleteIndividualAnalysis,
+    getIndividualAnalysisHistory,
+    getStoredIndividualAnalysis,
+} from '../api/individualAnalysisHistory'
 import {
     deleteCurrentUser,
     updateResultRetention,
     updateUser,
 } from '../api/users'
+import {
+    HistoryConfirmationDialog,
+    HistoryMoreMenu,
+    PinIcon,
+    TrashIcon,
+} from '../components/DashboardHistory'
 import PasswordField from '../components/PasswordField'
 import { useAuth } from '../context/AuthContext'
 import { useExperiment } from '../context/ExperimentContext'
@@ -25,6 +38,10 @@ import {
     historySummary,
     isNearExpiration,
 } from '../utils/evaluationHistory'
+import {
+    individualAnalysisOutcome,
+    individualAnalysisSummary,
+} from '../utils/individualAnalysisHistory'
 import {
     buildProfileUpdatePayload,
     getProfilePasswordErrors,
@@ -65,6 +82,7 @@ function ProfilePage() {
         attackCatalog,
         resetExperiment,
         openRecoveredEvaluation,
+        openRecoveredIndividualAnalysis,
     } = useExperiment()
 
     const [name, setName] = useState(user?.name || '')
@@ -85,11 +103,16 @@ function ProfilePage() {
     const [datasetError, setDatasetError] = useState('')
 
     const [history, setHistory] = useState({ items: [], total: 0 })
+    const [historyKind, setHistoryKind] = useState('evaluations')
     const [historyOffset, setHistoryOffset] = useState(0)
     const [historyTask, setHistoryTask] = useState('')
     const [historyLoading, setHistoryLoading] = useState(false)
     const [historyError, setHistoryError] = useState('')
     const [openingResultId, setOpeningResultId] = useState('')
+    const [historyMutationId, setHistoryMutationId] = useState('')
+    const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
+    const [historyConfirmation, setHistoryConfirmation] = useState(null)
+    const [historyOpenMenuId, setHistoryOpenMenuId] = useState(null)
     const [retentionSeconds, setRetentionSeconds] = useState(
         user?.result_retention_seconds ?? 86400,
     )
@@ -116,25 +139,65 @@ function ProfilePage() {
     }, [user])
 
     useEffect(() => {
+        let cancelled = false
+
         async function loadHistory() {
             if (!user) return
             try {
                 setHistoryLoading(true)
                 setHistoryError('')
-                const page = await getEvaluationHistory({
+                const request = historyKind === 'evaluations'
+                    ? getEvaluationHistory
+                    : getIndividualAnalysisHistory
+                const page = await request({
                     limit: HISTORY_PAGE_SIZE,
                     offset: historyOffset,
                     taskType: historyTask,
                 })
-                setHistory(page)
+                if (!cancelled) setHistory(page)
             } catch (requestError) {
-                setHistoryError(requestError.message)
+                if (!cancelled) setHistoryError(requestError.message)
             } finally {
-                setHistoryLoading(false)
+                if (!cancelled) setHistoryLoading(false)
             }
         }
         loadHistory()
-    }, [historyOffset, historyTask, user])
+        return () => {
+            cancelled = true
+        }
+    }, [historyKind, historyOffset, historyTask, historyRefreshKey, user])
+
+    useEffect(() => {
+        if (!historyOpenMenuId) return undefined
+
+        function handlePointerDown(event) {
+            if (!event.target.closest('.dashboard-history-more')) {
+                setHistoryOpenMenuId(null)
+            }
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Escape') setHistoryOpenMenuId(null)
+        }
+
+        document.addEventListener('pointerdown', handlePointerDown)
+        document.addEventListener('keydown', handleKeyDown)
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown)
+            document.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [historyOpenMenuId])
+
+    useEffect(() => {
+        if (!historyConfirmation || historyMutationId) return undefined
+
+        function handleKeyDown(event) {
+            if (event.key === 'Escape') setHistoryConfirmation(null)
+        }
+
+        document.addEventListener('keydown', handleKeyDown)
+        return () => document.removeEventListener('keydown', handleKeyDown)
+    }, [historyConfirmation, historyMutationId])
 
     useEffect(() => {
         if (!deleteDialogOpen) return undefined
@@ -279,6 +342,100 @@ function ProfilePage() {
         }
     }
 
+    async function handleOpenIndividualAnalysis(item) {
+        const dataset = datasets.find((candidate) => candidate.id === item.dataset_id)
+        const image = dataset?.images?.find((candidate) => candidate.id === item.image_id)
+        if (!dataset || !image) {
+            setHistoryError(
+                'La imagen original asociada ya no está disponible y el análisis no puede reabrirse.',
+            )
+            return
+        }
+        try {
+            setOpeningResultId(item.analysis_id)
+            setHistoryError('')
+            const stored = await getStoredIndividualAnalysis(item.analysis_id)
+            openRecoveredIndividualAnalysis({ historyItem: item, stored, dataset, image })
+            navigate('/comparison')
+        } catch (requestError) {
+            setHistoryError(requestError.message)
+        } finally {
+            setOpeningResultId('')
+        }
+    }
+
+    function refreshHistoryAfterDelete() {
+        if (history.items.length === 1 && historyOffset > 0) {
+            setHistoryOffset(Math.max(0, historyOffset - HISTORY_PAGE_SIZE))
+        } else {
+            setHistoryRefreshKey((current) => current + 1)
+        }
+    }
+
+    async function handlePreserveEvaluation(item) {
+        try {
+            setHistoryMutationId(item.result_id)
+            setHistoryError('')
+            const updated = await setEvaluationPreserved(item.result_id, true)
+            setHistory((current) => ({
+                ...current,
+                items: current.items.map((candidate) =>
+                    candidate.result_id === updated.result_id ? updated : candidate),
+            }))
+        } catch (requestError) {
+            setHistoryError(requestError.message)
+        } finally {
+            setHistoryMutationId('')
+        }
+    }
+
+    async function handleConfirmHistoryMutation() {
+        if (!historyConfirmation) return
+
+        const { type, item } = historyConfirmation
+        const id = type === 'delete-individual' ? item.analysis_id : item.result_id
+        try {
+            setHistoryMutationId(id)
+            setHistoryError('')
+            if (type === 'delete-evaluation') {
+                await deleteEvaluation(item.result_id)
+                setHistoryConfirmation(null)
+                refreshHistoryAfterDelete()
+            } else if (type === 'delete-individual') {
+                await deleteIndividualAnalysis(item.analysis_id)
+                setHistoryConfirmation(null)
+                refreshHistoryAfterDelete()
+            } else if (type === 'unpreserve-evaluation') {
+                const updated = await setEvaluationPreserved(item.result_id, false)
+                setHistory((current) => ({
+                    ...current,
+                    items: current.items.map((candidate) =>
+                        candidate.result_id === updated.result_id ? updated : candidate),
+                }))
+                setHistoryConfirmation(null)
+            }
+        } catch (requestError) {
+            setHistoryConfirmation(null)
+            setHistoryError(requestError.message)
+        } finally {
+            setHistoryMutationId('')
+        }
+    }
+
+    function toggleHistoryMoreMenu(menuId) {
+        setHistoryOpenMenuId((current) => current === menuId ? null : menuId)
+    }
+
+    function handleHistoryKind(value) {
+        setHistoryOpenMenuId(null)
+        setHistoryConfirmation(null)
+        setHistoryKind(value)
+        setHistory({ items: [], total: 0 })
+        setHistoryTask('')
+        setHistoryOffset(0)
+        setHistoryError('')
+    }
+
     function openDeleteDialog() {
         setDeletePassword('')
         setDeleteError('')
@@ -336,7 +493,7 @@ function ProfilePage() {
             <header className="profile-page-heading">
                 <span className="profile-eyebrow">Cuenta</span>
                 <h1>Configuración de usuario</h1>
-                <p>Gestiona tus datos, conjuntos de datos y resultados temporales.</p>
+                <p>Gestiona tus datos, conjuntos de datos, preferencias e historial de resultados.</p>
             </header>
 
             <div className="profile-overview-grid">
@@ -518,52 +675,71 @@ function ProfilePage() {
             <section className="profile-section profile-history-section">
                 <header className="profile-history-heading-modern">
                     <div>
-                        <span className="evaluation-eyebrow">Resultados temporales</span>
-                        <h2>Historial de evaluaciones</h2>
+                        <span className="evaluation-eyebrow">Resultados guardados</span>
+                        <h2>Historial de resultados</h2>
                         <p>
-                            Recupera resultados sin repetir el ataque. Cambiar la retención no modifica los vencimientos existentes.
+                            Consulta evaluaciones completas y análisis individuales sin repetir el ataque.
                         </p>
                     </div>
-                    <div className="retention-control profile-retention-control">
-                        <label htmlFor="result-retention">Retención de nuevos resultados</label>
-                        <div>
-                            <select
-                                id="result-retention"
-                                value={retentionSeconds}
-                                onChange={(event) => {
-                                    setRetentionSeconds(Number(event.target.value))
-                                    setRetentionFeedback(null)
-                                }}
-                            >
-                                {RESULT_RETENTION_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <button
-                                type="button"
-                                className="secondary-action"
-                                disabled={
-                                    retentionSaving ||
-                                    retentionSeconds === user.result_retention_seconds
-                                }
-                                onClick={handleRetentionUpdate}
-                            >
-                                {retentionSaving ? 'Aplicando…' : 'Aplicar'}
-                            </button>
+                    {historyKind === 'evaluations' && (
+                        <div className="retention-control profile-retention-control">
+                            <label htmlFor="result-retention">Retención de nuevas evaluaciones</label>
+                            <div>
+                                <select
+                                    id="result-retention"
+                                    value={retentionSeconds}
+                                    onChange={(event) => {
+                                        setRetentionSeconds(Number(event.target.value))
+                                        setRetentionFeedback(null)
+                                    }}
+                                >
+                                    {RESULT_RETENTION_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    className="secondary-action"
+                                    disabled={
+                                        retentionSaving ||
+                                        retentionSeconds === user.result_retention_seconds
+                                    }
+                                    onClick={handleRetentionUpdate}
+                                >
+                                    {retentionSaving ? 'Aplicando…' : 'Aplicar'}
+                                </button>
+                            </div>
+                            <small>Solo afecta a evaluaciones creadas a partir de ahora.</small>
+                            {retentionFeedback && (
+                                <span className={`retention-feedback ${retentionFeedback.type}`}>
+                                    {retentionFeedback.message}
+                                </span>
+                            )}
                         </div>
-                        <small>Solo afecta a evaluaciones creadas a partir de ahora.</small>
-                        {retentionFeedback && (
-                            <span className={`retention-feedback ${retentionFeedback.type}`}>
-                                {retentionFeedback.message}
-                            </span>
-                        )}
-                    </div>
+                    )}
                 </header>
 
+                <nav className="profile-history-kind-tabs" aria-label="Tipo de historial">
+                    {[
+                        ['evaluations', 'Evaluaciones'],
+                        ['individual', 'Análisis individuales'],
+                    ].map(([value, label]) => (
+                        <button
+                            key={value}
+                            type="button"
+                            className={historyKind === value ? 'active' : ''}
+                            aria-pressed={historyKind === value}
+                            onClick={() => handleHistoryKind(value)}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </nav>
+
                 <div className="history-toolbar profile-history-toolbar">
-                    <nav className="profile-history-tabs" aria-label="Filtrar historial">
+                    <nav className="profile-history-tabs" aria-label="Filtrar por tarea">
                         {[
                             ['', 'Todas'],
                             ['classification', 'Clasificación'],
@@ -583,15 +759,23 @@ function ProfilePage() {
                             </button>
                         ))}
                     </nav>
-                    <span>{history.total} resultados vigentes</span>
+                    <span>
+                        {historyKind === 'evaluations'
+                            ? `${history.total} ${history.total === 1 ? 'evaluación vigente' : 'evaluaciones vigentes'}`
+                            : `${history.total} ${history.total === 1 ? 'análisis guardado' : 'análisis guardados'}`}
+                    </span>
                 </div>
 
                 {historyError && <p className="profile-inline-message error">{historyError}</p>}
                 {historyLoading ? (
                     <p className="history-empty">Cargando historial…</p>
                 ) : history.items.length === 0 ? (
-                    <p className="history-empty">Aún no hay evaluaciones recuperables.</p>
-                ) : (
+                    <p className="history-empty">
+                        {historyKind === 'evaluations'
+                            ? 'Aún no hay evaluaciones recuperables con este filtro.'
+                            : 'Aún no hay análisis individuales guardados con este filtro.'}
+                    </p>
+                ) : historyKind === 'evaluations' ? (
                     <div className="profile-history-table-wrapper profile-history-table-modern">
                         <table className="profile-history-table">
                             <thead>
@@ -609,7 +793,7 @@ function ProfilePage() {
                                 {history.items.map((item) => (
                                     <tr key={item.result_id}>
                                         <td data-label="Evaluación">
-                                            <span className={`task-pill ${item.task_type}`}>
+                                            <span className={`dashboard-task-label ${item.task_type}`}>
                                                 {item.task_type === 'detection' ? 'Detección' : 'Clasificación'}
                                             </span>
                                             <strong title={item.dataset_name}>{item.dataset_name}</strong>
@@ -634,7 +818,7 @@ function ProfilePage() {
                                                     : formatRemainingTime(item.expires_at)}
                                         </td>
                                         <td data-label="Estado"><HistoryStatus item={item} /></td>
-                                        <td className="history-open-cell">
+                                        <td className="history-open-cell profile-history-actions-cell">
                                             <button
                                                 type="button"
                                                 className="secondary-action small-inline"
@@ -643,6 +827,126 @@ function ProfilePage() {
                                             >
                                                 {openingResultId === item.result_id ? 'Abriendo…' : 'Abrir'}
                                             </button>
+                                            {item.status === 'completed' && (
+                                                <HistoryMoreMenu
+                                                    label={`Más acciones para ${item.dataset_name}`}
+                                                    menuId={`evaluation-${item.result_id}`}
+                                                    open={historyOpenMenuId === `evaluation-${item.result_id}`}
+                                                    onToggle={toggleHistoryMoreMenu}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        disabled={historyMutationId === item.result_id}
+                                                        onClick={() => {
+                                                            setHistoryOpenMenuId(null)
+                                                            if (item.preserved) {
+                                                                setHistoryConfirmation({
+                                                                    type: 'unpreserve-evaluation',
+                                                                    item,
+                                                                })
+                                                            } else {
+                                                                handlePreserveEvaluation(item)
+                                                            }
+                                                        }}
+                                                    >
+                                                        <PinIcon />
+                                                        <span>
+                                                            {item.preserved
+                                                                ? 'Volver a retención automática'
+                                                                : 'Conservar indefinidamente'}
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="danger"
+                                                        disabled={historyMutationId === item.result_id}
+                                                        onClick={() => {
+                                                            setHistoryOpenMenuId(null)
+                                                            setHistoryConfirmation({
+                                                                type: 'delete-evaluation',
+                                                                item,
+                                                            })
+                                                        }}
+                                                    >
+                                                        <TrashIcon />
+                                                        <span>Eliminar evaluación</span>
+                                                    </button>
+                                                </HistoryMoreMenu>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="profile-history-table-wrapper profile-history-table-modern">
+                        <table className="profile-history-table profile-individual-history-table">
+                            <thead>
+                                <tr>
+                                    <th>Análisis</th>
+                                    <th>Configuración</th>
+                                    <th>Resultado</th>
+                                    <th>Guardado</th>
+                                    <th>Estado</th>
+                                    <th><span className="evaluation-sr-only">Acciones</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {history.items.map((item) => (
+                                    <tr key={item.analysis_id}>
+                                        <td data-label="Análisis">
+                                            <span className={`dashboard-task-label ${item.task_type}`}>
+                                                {item.task_type === 'detection' ? 'Detección' : 'Clasificación'}
+                                            </span>
+                                            <strong title={item.image_filename}>{item.image_filename}</strong>
+                                            <small title={item.dataset_name}>{item.dataset_name} · {item.model_name}</small>
+                                        </td>
+                                        <td data-label="Configuración">
+                                            <strong>{getAttackName(item.attack_type, attackCatalog)}</strong>
+                                            <small>{formatAttackParameters(item.attack_type, item.parameters, attackCatalog)}</small>
+                                        </td>
+                                        <td data-label="Resultado">
+                                            <strong>{individualAnalysisSummary(item)}</strong>
+                                            <small>{individualAnalysisOutcome(item)}</small>
+                                        </td>
+                                        <td data-label="Guardado" title={formatDateTime(item.saved_at)}>
+                                            {formatCreatedAgo(item.saved_at)}
+                                        </td>
+                                        <td data-label="Estado">
+                                            <span className="history-status preserved">Conservado</span>
+                                        </td>
+                                        <td className="history-open-cell profile-history-actions-cell">
+                                            <button
+                                                type="button"
+                                                className="secondary-action small-inline"
+                                                disabled={openingResultId === item.analysis_id}
+                                                onClick={() => handleOpenIndividualAnalysis(item)}
+                                            >
+                                                {openingResultId === item.analysis_id ? 'Abriendo…' : 'Abrir'}
+                                            </button>
+                                            <HistoryMoreMenu
+                                                label={`Más acciones para ${item.image_filename}`}
+                                                menuId={`individual-${item.analysis_id}`}
+                                                open={historyOpenMenuId === `individual-${item.analysis_id}`}
+                                                onToggle={toggleHistoryMoreMenu}
+                                            >
+                                                <button
+                                                    type="button"
+                                                    className="danger"
+                                                    disabled={historyMutationId === item.analysis_id}
+                                                    onClick={() => {
+                                                        setHistoryOpenMenuId(null)
+                                                        setHistoryConfirmation({
+                                                            type: 'delete-individual',
+                                                            item,
+                                                        })
+                                                    }}
+                                                >
+                                                    <TrashIcon />
+                                                    <span>Eliminar análisis</span>
+                                                </button>
+                                            </HistoryMoreMenu>
                                         </td>
                                     </tr>
                                 ))}
@@ -673,6 +977,15 @@ function ProfilePage() {
                     </div>
                 </footer>
             </section>
+
+            <HistoryConfirmationDialog
+                confirmation={historyConfirmation}
+                busy={Boolean(historyMutationId)}
+                onCancel={() => {
+                    if (!historyMutationId) setHistoryConfirmation(null)
+                }}
+                onConfirm={handleConfirmHistoryMutation}
+            />
 
             <section className="profile-danger-section">
                 <div>

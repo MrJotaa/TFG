@@ -30,9 +30,3 @@ export function loginUser({ email, password }) {
 export function getCurrentUser() {
     return apiRequest('/auth/me')
 }
-
-export function logoutUser() {
-    return apiRequest('/auth/logout', {
-        method: 'POST',
-    })
-}

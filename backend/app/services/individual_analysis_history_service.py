@@ -190,13 +190,9 @@ async def delete_individual_analyses_for_image(
     await _delete_matching({"dataset_id": dataset_id, "image_id": image_id})
 
 
-async def individual_analysis_artifact_is_accessible(
-    result_id: str,
-    *,
-    owner_id: str,
-) -> bool:
+async def individual_analysis_artifact_is_accessible(result_id: str) -> bool:
     document = await individual_analyses_collection.find_one(
-        {"source_result_id": result_id, "owner_id": owner_id}
+        {"source_result_id": result_id}
     )
     return document is not None
 

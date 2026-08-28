@@ -61,6 +61,29 @@ function AnalysisIdentity({ side, reference, attackCatalog, saveStatus }) {
     )
 }
 
+function ClassificationTopThree({ title, predictions = [] }) {
+    const topThree = predictions.slice(0, 3)
+
+    return (
+        <section className="individual-comparison-topk-column">
+            <h4>{title}</h4>
+            {topThree.length > 0 ? (
+                <ol>
+                    {topThree.map((prediction, index) => (
+                        <li key={`${prediction.label}-${index}`}>
+                            <span className="individual-comparison-topk-rank">{index + 1}</span>
+                            <span title={prediction.label}>{prediction.label}</span>
+                            <strong>{formatAnalysisProbability(prediction.probability)}</strong>
+                        </li>
+                    ))}
+                </ol>
+            ) : (
+                <p>Top-3 no disponible.</p>
+            )}
+        </section>
+    )
+}
+
 function ClassificationSummary({ side, summary }) {
     return (
         <article className={`individual-comparison-result-card side-${side.toLowerCase()}`}>
@@ -82,6 +105,16 @@ function ClassificationSummary({ side, summary }) {
                     <span>Δ confianza</span>
                     <strong>{formatSignedPercentagePoints(summary.confidenceDifference)}</strong>
                 </div>
+            </div>
+            <div className="individual-comparison-topk">
+                <ClassificationTopThree
+                    title="Top-3 original"
+                    predictions={summary.originalTopK}
+                />
+                <ClassificationTopThree
+                    title="Top-3 tras el ataque"
+                    predictions={summary.adversarialTopK}
+                />
             </div>
         </article>
     )

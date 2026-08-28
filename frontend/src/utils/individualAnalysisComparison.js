@@ -132,6 +132,8 @@ export function individualAnalysisComparisonSummary(taskType, analysis) {
         originalConfidence: comparison.original_confidence,
         adversarialConfidence: comparison.adversarial_confidence,
         confidenceDifference: comparison.confidence_difference,
+        originalTopK: analysis.original_prediction?.top_k ?? [],
+        adversarialTopK: analysis.adversarial_prediction?.top_k ?? [],
         attackSuccess: comparison.attack_success,
         perturbationLinf: comparison.perturbation_linf,
         perturbationL2: comparison.perturbation_l2,
