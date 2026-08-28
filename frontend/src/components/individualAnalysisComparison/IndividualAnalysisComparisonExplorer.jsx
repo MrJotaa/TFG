@@ -29,10 +29,9 @@ function ComparisonViewport({
                 <span className="individual-comparison-side-token">{side}</span>
                 <strong>{label}</strong>
             </figcaption>
-            <div
+            <button
+                type="button"
                 className={`individual-comparison-viewport ${zoom > 1 ? 'is-zoomed' : ''}`}
-                role="group"
-                tabIndex="0"
                 aria-label={`${label}. Usa las flechas para desplazar y más o menos para ampliar.`}
                 {...handlers}
             >
@@ -46,9 +45,9 @@ function ComparisonViewport({
                         }}
                     />
                 ) : (
-                    <div className="individual-comparison-missing">Artefacto no disponible</div>
+                    <span className="individual-comparison-missing">Artefacto no disponible</span>
                 )}
-            </div>
+            </button>
         </figure>
     )
 }
@@ -66,10 +65,9 @@ function ComparisonOverlay({
 
     return (
         <div className="individual-comparison-overlay">
-            <div
+            <button
+                type="button"
                 className={`individual-comparison-viewport overlay ${zoom > 1 ? 'is-zoomed' : ''}`}
-                role="group"
-                tabIndex="0"
                 aria-label="Superposición A y B. Usa las flechas para desplazar y más o menos para ampliar."
                 {...handlers}
             >
@@ -84,7 +82,7 @@ function ComparisonOverlay({
                     />
                 )}
                 {leftSource && (
-                    <div
+                    <span
                         className="individual-comparison-overlay-layer"
                         style={{ clipPath: splitState.originalClipPath }}
                     >
@@ -96,7 +94,7 @@ function ComparisonOverlay({
                                 transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
                             }}
                         />
-                    </div>
+                    </span>
                 )}
                 <span
                     className="individual-comparison-overlay-divider"
@@ -105,7 +103,7 @@ function ComparisonOverlay({
                 />
                 <span className="individual-comparison-overlay-label side-a">A</span>
                 <span className="individual-comparison-overlay-label side-b">B</span>
-            </div>
+            </button>
             <label className="individual-comparison-split-control">
                 <span>A {splitState.originalPercent}%</span>
                 <input

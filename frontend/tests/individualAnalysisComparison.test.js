@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
     buildIndividualAnalysisComparison,
     comparisonExplanationState,
+    formatComparisonMagnitude,
     comparisonLayerOptions,
     individualAnalysisComparisonSummary,
     resolveIndividualAnalysisComparisonSource,
@@ -196,4 +197,13 @@ test('individual summaries expose persisted classification and detection impact'
     })
     assert.equal(detection.primaryLabel, '3 → 1')
     assert.equal(detection.primaryCaption, 'detecciones')
+})
+
+
+test('comparison magnitude formatting avoids regex backtracking and trims decimals', () => {
+    assert.equal(formatComparisonMagnitude('invalid'), '—')
+    assert.equal(formatComparisonMagnitude(0), '0')
+    assert.equal(formatComparisonMagnitude(0.00012), '1.20e-4')
+    assert.equal(formatComparisonMagnitude(1.23), '1.23')
+    assert.equal(formatComparisonMagnitude(4), '4')
 })

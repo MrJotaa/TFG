@@ -154,3 +154,16 @@ export function comparisonLayerOptions(taskType, leftAnalysis, rightAnalysis) {
     }
     return options
 }
+
+export function formatComparisonMagnitude(value) {
+    const numeric = Number(value)
+    if (!Number.isFinite(numeric)) return '—'
+    if (numeric === 0) return '0'
+    if (Math.abs(numeric) < 0.001) return numeric.toExponential(2)
+
+    const fixed = numeric.toFixed(4)
+    let end = fixed.length
+    while (end > 0 && fixed[end - 1] === '0') end -= 1
+    if (end > 0 && fixed[end - 1] === '.') end -= 1
+    return fixed.slice(0, end)
+}

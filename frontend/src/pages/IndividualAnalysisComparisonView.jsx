@@ -14,19 +14,12 @@ import {
 } from '../utils/attackFormatting'
 import {
     buildIndividualAnalysisComparison,
+    formatComparisonMagnitude,
     individualAnalysisComparisonSummary,
 } from '../utils/individualAnalysisComparison'
 import { resolveSaveState } from '../utils/individualAnalysisFlow'
 import { formatAnalysisProbability, formatSignedPercentagePoints } from '../utils/individualAnalysis'
 import { formatCreatedAgo } from '../utils/evaluationHistory'
-
-function formatMagnitude(value) {
-    const numeric = Number(value)
-    if (!Number.isFinite(numeric)) return '—'
-    if (numeric === 0) return '0'
-    if (Math.abs(numeric) < 0.001) return numeric.toExponential(2)
-    return numeric.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
-}
 
 function analysisPersistenceLabel(reference, saveStatus) {
     if (!reference?.temporary) {
@@ -525,13 +518,13 @@ function IndividualAnalysisComparisonView() {
                 <div className="individual-comparison-perturbation-strip">
                     <div className="side-a">
                         <span>A · perturbación</span>
-                        <strong>L∞ {formatMagnitude(summaries.left.perturbationLinf)}</strong>
-                        <small>L2 {formatMagnitude(summaries.left.perturbationL2)}</small>
+                        <strong>L∞ {formatComparisonMagnitude(summaries.left.perturbationLinf)}</strong>
+                        <small>L2 {formatComparisonMagnitude(summaries.left.perturbationL2)}</small>
                     </div>
                     <div className="side-b">
                         <span>B · perturbación</span>
-                        <strong>L∞ {formatMagnitude(summaries.right.perturbationLinf)}</strong>
-                        <small>L2 {formatMagnitude(summaries.right.perturbationL2)}</small>
+                        <strong>L∞ {formatComparisonMagnitude(summaries.right.perturbationLinf)}</strong>
+                        <small>L2 {formatComparisonMagnitude(summaries.right.perturbationL2)}</small>
                     </div>
                 </div>
             </section>

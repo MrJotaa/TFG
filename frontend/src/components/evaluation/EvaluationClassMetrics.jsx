@@ -319,14 +319,14 @@ function EvaluationClassMetrics({ evaluation }) {
 
             <div className="class-metrics-legend" aria-label="Convención de las barras">
                 <span>
-                    <i className="class-metric-series-dot tone-original" aria-hidden="true" />
+                    <i className="class-metric-series-dot tone-original" aria-hidden="true" />{' '}
                     Original
                 </span>
                 <span>
                     <i
                         className="class-metric-series-dot tone-adversarial"
                         aria-hidden="true"
-                    />
+                    />{' '}
                     Tras el ataque
                 </span>
                 <small>La longitud representa el valor de la métrica seleccionada.</small>

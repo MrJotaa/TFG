@@ -57,13 +57,16 @@ function ParameterControl({ parameter, value, onChange }) {
     const isRange = parameter.control === 'range'
 
     if (isRange) {
+        const controlId = `attack-parameter-${parameter.key}`
+
         return (
-            <label className="parameter-field parameter-range" title={parameter.description}>
+            <div className="parameter-field parameter-range" title={parameter.description}>
                 <span className="parameter-field-heading">
-                    <span>{parameter.label}</span>
-                    <output>{String(value)}</output>
+                    <label htmlFor={controlId}>{parameter.label}</label>
+                    <output htmlFor={controlId}>{String(value)}</output>
                 </span>
                 <input
+                    id={controlId}
                     type="range"
                     min={parameter.minimum ?? undefined}
                     max={parameter.maximum ?? undefined}
@@ -71,7 +74,7 @@ function ParameterControl({ parameter, value, onChange }) {
                     value={value}
                     onChange={(event) => onChange(parseParameterValue(parameter, event))}
                 />
-            </label>
+            </div>
         )
     }
 

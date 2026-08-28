@@ -1359,6 +1359,9 @@ html[data-theme='dark'] .adversarial-overlay-divider {
 
 .dashboard-resize-handle {
     width: 10px;
+    padding: 0;
+    border: 0;
+    background: transparent;
 }
 
 .dashboard-resize-handle::after {
@@ -3535,7 +3538,17 @@ html[data-theme='dark'] .profile-retention-control select {
     backdrop-filter: blur(5px);
 }
 
+.profile-delete-backdrop-dismiss {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: transparent;
+    cursor: default;
+}
+
 .profile-delete-dialog {
+    position: relative;
+    z-index: 1;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     gap: 0.85rem 1rem;
@@ -11482,7 +11495,10 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip {
     width: 100%;
     height: min(58vh, 620px);
     min-height: 360px;
+    padding: 0;
     align-items: center;
+    color: inherit;
+    font: inherit;
     justify-content: center;
     overflow: hidden;
     border: 1px solid var(--border);

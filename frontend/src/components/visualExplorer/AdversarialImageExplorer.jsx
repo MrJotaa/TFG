@@ -26,10 +26,9 @@ function ExplorerImage({
     return (
         <figure className="adversarial-explorer-figure">
             <figcaption>{title}</figcaption>
-            <div
+            <button
+                type="button"
                 className={`adversarial-explorer-viewport ${zoom > 1 ? 'is-zoomed' : ''}`}
-                role="group"
-                tabIndex="0"
                 aria-label={`${title}. Usa las flechas para desplazar y las teclas más o menos para ampliar.`}
                 onDoubleClick={() => onKeyDown({ key: '0', preventDefault() {} })}
                 onKeyDown={onKeyDown}
@@ -48,11 +47,11 @@ function ExplorerImage({
                         }}
                     />
                 ) : (
-                    <div className="adversarial-explorer-missing">
+                    <span className="adversarial-explorer-missing">
                         Imagen no disponible
-                    </div>
+                    </span>
                 )}
-            </div>
+            </button>
         </figure>
     )
 }
@@ -70,10 +69,9 @@ function OverlayComparison({
 
     return (
         <div className="adversarial-overlay-comparison">
-            <div
+            <button
+                type="button"
                 className={`adversarial-explorer-viewport overlay ${zoom > 1 ? 'is-zoomed' : ''}`}
-                role="group"
-                tabIndex="0"
                 aria-label="Comparación superpuesta. Usa las flechas para desplazar y las teclas más o menos para ampliar."
                 {...imageHandlers}
             >
@@ -85,7 +83,7 @@ function OverlayComparison({
                         transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
                     }}
                 />
-                <div
+                <span
                     className="adversarial-overlay-layer"
                     style={{ clipPath: splitState.originalClipPath }}
                 >
@@ -97,7 +95,7 @@ function OverlayComparison({
                             transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
                         }}
                     />
-                </div>
+                </span>
                 <span
                     className="adversarial-overlay-divider"
                     style={{ left: `${splitState.originalPercent}%` }}
@@ -107,7 +105,7 @@ function OverlayComparison({
                 <span className="adversarial-overlay-label adversarial">
                     Adversaria
                 </span>
-            </div>
+            </button>
 
             <label className="adversarial-split-control">
                 <span>Original {splitState.originalPercent}%</span>

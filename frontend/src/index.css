@@ -5956,6 +5956,9 @@ button {
     width: 100%;
     min-height: 390px;
     overflow: hidden;
+    padding: 0;
+    color: inherit;
+    font: inherit;
     border: 1px solid #c9d5e5;
     border-radius: 14px;
     background:

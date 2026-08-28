@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getDatasetImages } from '../api/datasets'
+import { filterVisibleImages } from '../utils/imageGallery'
 
 function CheckIcon() {
     return (
@@ -82,7 +83,7 @@ function ImageGallery({
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [previewImage])
 
-    const visibleImages = filterImage ? images.filter(filterImage) : images
+    const visibleImages = filterVisibleImages(images, filterImage)
     const galleryClassName = [
         'image-gallery',
         compact ? 'compact' : '',

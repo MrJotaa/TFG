@@ -1,7 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { getExperimentReadiness, resolveScrollOverflow } from '../src/utils/dashboard.js'
+import {
+    clampDashboardSidebarWidth,
+    getExperimentReadiness,
+    resolveDashboardSidebarWidthKey,
+    resolveScrollOverflow,
+} from '../src/utils/dashboard.js'
 
 test('dashboard requires an active model before enabling experiment actions', () => {
     const readiness = getExperimentReadiness({
@@ -68,4 +73,21 @@ test('scroll overflow exposes only the directions that still contain attacks', (
         resolveScrollOverflow({ scrollTop: 300, scrollHeight: 500, clientHeight: 200 }),
         { canScrollUp: true, canScrollDown: false },
     )
+})
+
+
+test('dashboard sidebar width is clamped to its supported range', () => {
+    assert.equal(clampDashboardSidebarWidth(200), 275)
+    assert.equal(clampDashboardSidebarWidth(340), 340)
+    assert.equal(clampDashboardSidebarWidth(500), 430)
+})
+
+test('dashboard sidebar keyboard resizing resolves arrows and boundaries', () => {
+    assert.equal(resolveDashboardSidebarWidthKey('ArrowLeft', 300), 290)
+    assert.equal(resolveDashboardSidebarWidthKey('ArrowLeft', 275), 275)
+    assert.equal(resolveDashboardSidebarWidthKey('ArrowRight', 420), 430)
+    assert.equal(resolveDashboardSidebarWidthKey('ArrowRight', 430), 430)
+    assert.equal(resolveDashboardSidebarWidthKey('Home', 350), 275)
+    assert.equal(resolveDashboardSidebarWidthKey('End', 350), 430)
+    assert.equal(resolveDashboardSidebarWidthKey('Enter', 350), null)
 })

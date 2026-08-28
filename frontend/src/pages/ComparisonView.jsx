@@ -1043,7 +1043,7 @@ function ComparisonView() {
                                         aria-expanded={contextOpen}
                                         onClick={() => setContextOpen((current) => !current)}
                                     >
-                                        Contexto
+                                        Contexto{' '}
                                         <span aria-hidden="true">{contextOpen ? '▴' : '▾'}</span>
                                     </button>
                                 </div>
@@ -1392,7 +1392,7 @@ function ComparisonView() {
                                     aria-expanded={contextOpen}
                                     onClick={() => setContextOpen((current) => !current)}
                                 >
-                                    Contexto
+                                    Contexto{' '}
                                     <span aria-hidden="true">{contextOpen ? '▴' : '▾'}</span>
                                 </button>
                             </div>

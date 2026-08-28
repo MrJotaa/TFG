@@ -98,7 +98,7 @@ function ModelSelector({ onActiveModelChange }) {
 
                                 {model.active && (
                                     <span className="model-active-indicator">
-                                        <span aria-hidden="true" />
+                                        <span aria-hidden="true" />{' '}
                                         Activo
                                     </span>
                                 )}

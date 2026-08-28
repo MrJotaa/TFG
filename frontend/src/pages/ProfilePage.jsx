@@ -1005,12 +1005,14 @@ function ProfilePage() {
             </section>
 
             {deleteDialogOpen && (
-                <div
-                    className="profile-delete-backdrop"
-                    onMouseDown={(event) => {
-                        if (event.target === event.currentTarget) closeDeleteDialog()
-                    }}
-                >
+                <div className="profile-delete-backdrop">
+                    <button
+                        type="button"
+                        className="profile-delete-backdrop-dismiss"
+                        onClick={closeDeleteDialog}
+                        aria-label="Cerrar diálogo de eliminación de cuenta"
+                        disabled={deletingAccount}
+                    />
                     <section
                         className="profile-delete-dialog"
                         role="dialog"

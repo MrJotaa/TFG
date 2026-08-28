@@ -242,7 +242,6 @@ function EvaluationConfusionMatrices({ evaluation }) {
                         className="confusion-matrix-scroll"
                         role="region"
                         aria-label={`Matriz de confusión ${selectedName}`}
-                        tabIndex="0"
                     >
                         <table
                             className={`confusion-matrix-table ${

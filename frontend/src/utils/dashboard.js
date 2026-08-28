@@ -68,3 +68,15 @@ export function resolveScrollOverflow({
         canScrollDown: maxScrollTop - top > tolerance,
     }
 }
+
+export function clampDashboardSidebarWidth(width) {
+    return Math.min(Math.max(width, 275), 430)
+}
+
+export function resolveDashboardSidebarWidthKey(key, currentWidth) {
+    if (key === 'Home') return 275
+    if (key === 'End') return 430
+    if (key === 'ArrowLeft') return clampDashboardSidebarWidth(currentWidth - 10)
+    if (key === 'ArrowRight') return clampDashboardSidebarWidth(currentWidth + 10)
+    return null
+}
