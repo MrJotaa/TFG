@@ -5,6 +5,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import torch
@@ -27,6 +28,18 @@ from utils.evaluation_artifacts import (
     save_evaluation_model_inputs,
     validate_evaluation_model_inputs,
 )
+
+
+@pytest.fixture(autouse=True)
+def accessible_evaluation_history(monkeypatch):
+    async def fake_get_history_item(*, evaluation_id, owner_id):
+        return SimpleNamespace(result_id=evaluation_id, owner_id=owner_id)
+
+    monkeypatch.setattr(
+        gradcam_service,
+        "get_evaluation_history_item",
+        fake_get_history_item,
+    )
 
 
 class _EvaluationModel:
@@ -979,3 +992,54 @@ def test_evaluation_gradcam_route_is_authenticated_post():
         dependency.call is require_current_user
         for dependency in route.dependant.dependencies
     )
+
+@pytest.mark.asyncio
+async def test_preserved_evaluation_gradcam_ignores_stale_metadata_expiration(
+    monkeypatch,
+    tmp_path,
+):
+    evaluation_id = "evaluation_preserved"
+    image_id = "image-1"
+    result_path, _ = _write_evaluation(
+        tmp_path,
+        evaluation_id=evaluation_id,
+        image_id=image_id,
+    )
+    metadata_path = result_path / "metadata.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata["expires_at"] = "2000-01-01T00:00:00+00:00"
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+    access_checks = []
+
+    async def preserved_history_item(*, evaluation_id, owner_id):
+        access_checks.append((evaluation_id, owner_id))
+        return SimpleNamespace(result_id=evaluation_id, preserved=True)
+
+    monkeypatch.setattr(
+        gradcam_service,
+        "get_evaluation_history_item",
+        preserved_history_item,
+    )
+    monkeypatch.setattr(gradcam_service, "RESULTS_BASE_PATH", str(tmp_path))
+    monkeypatch.setattr(
+        gradcam_service,
+        "get_active_model_instance",
+        lambda: _EvaluationModel(),
+    )
+    monkeypatch.setattr(
+        gradcam_service,
+        "generate_gradcam_from_prepared_input",
+        lambda model_wrapper, model_input, visualization_image: {
+            "gradcam_pil_image": visualization_image.copy()
+        },
+    )
+
+    response = await gradcam_service.generate_evaluation_image_gradcam(
+        evaluation_id=evaluation_id,
+        image_id=image_id,
+        current_user_id="user-1",
+    )
+
+    assert response.evaluation_id == evaluation_id
+    assert access_checks == [(evaluation_id, "user-1")]

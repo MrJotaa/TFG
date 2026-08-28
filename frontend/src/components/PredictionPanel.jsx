@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { predictImage } from '../api/predict'
 import { generateGradCam } from '../api/explainability'
+import { resolveApiUrl } from '../api/client'
 
 function PredictionPanelContent({ selectedDataset, selectedImage }) {
     const [prediction, setPrediction] = useState(null)
@@ -118,7 +119,7 @@ function PredictionPanelContent({ selectedDataset, selectedImage }) {
                         Confianza: <strong>{gradCam.confidence}</strong>
                     </p>
                     <img
-                        src={`http://127.0.0.1:8000${gradCam.gradcam_image_url}`}
+                        src={resolveApiUrl(gradCam.gradcam_image_url)}
                         alt="Grad-CAM"
                         width={300}
                     />

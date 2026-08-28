@@ -92,3 +92,27 @@ async def test_unpreserve_evaluation_restarts_retention_from_now(monkeypatch, tm
     assert item.retention_seconds == 7200
     assert item.expires_at is not None
     assert item.expires_at >= before + timedelta(seconds=7199)
+
+
+@pytest.mark.asyncio
+async def test_preserved_evaluation_artifact_access_is_owner_scoped(monkeypatch):
+    document = _document()
+    document["preserved"] = True
+    document["expires_at"] = None
+    collection = _Collection(document)
+    monkeypatch.setattr(history, "evaluations_collection", collection)
+
+    assert (
+        await history.evaluation_artifact_is_accessible(
+            document["_id"],
+            owner_id="user-1",
+        )
+        is True
+    )
+    assert (
+        await history.evaluation_artifact_is_accessible(
+            document["_id"],
+            owner_id="user-2",
+        )
+        is False
+    )

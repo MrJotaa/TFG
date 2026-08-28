@@ -12030,3 +12030,10 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip {
 .individual-analysis-saved-candidates .individual-comparison-side-token {
     color: var(--comparison-b);
 }
+
+/* Preserved evaluation state in the profile history. */
+.history-status.preserved {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+}

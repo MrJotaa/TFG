@@ -14,7 +14,7 @@ from schemas.detection_evaluation import (
     DetectionEvaluationImageResult,
 )
 from services.dataset_service import get_image_from_dataset
-from services.detection_evaluation_persistence import get_detection_evaluation
+from services.evaluation_history_service import get_stored_evaluation
 from services.detection_model_execution import run_detection_model_operation
 from services.model_service import get_active_model_instance
 from utils.detection_evaluation_artifacts import (
@@ -33,10 +33,13 @@ async def generate_detection_evaluation_image_eigencam(
     image_id: str,
     current_user_id: str,
 ) -> DetectionEvaluationEigenCamResponse:
-    evaluation = await get_detection_evaluation(
+    stored = await get_stored_evaluation(
         evaluation_id=evaluation_id,
         owner_id=current_user_id,
     )
+    if stored.task_type != "detection":
+        raise BadRequestError("La evaluación solicitada no es de detección")
+    evaluation = stored.evaluation
     image_result = _resolve_image_result(evaluation.results, image_id)
 
     async with _generation_lock:

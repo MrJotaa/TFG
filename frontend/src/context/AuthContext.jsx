@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { getCurrentUser, loginUser, signupUser } from '../api/auth'
+import { getCurrentUser, loginUser, logoutUser, signupUser } from '../api/auth'
 import { removeStoredToken, setStoredToken } from '../api/client'
 
 const AuthContext = createContext(null)
@@ -49,6 +49,7 @@ export function AuthProvider({ children }) {
     }
 
     function logout() {
+        void logoutUser().catch(() => {})
         removeStoredToken()
         setUser(null)
     }

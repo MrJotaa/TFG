@@ -84,7 +84,7 @@ async def test_detection_eigencam_reuses_evaluation_inputs_and_caches(
     async def fake_get_evaluation(*, evaluation_id, owner_id):
         assert evaluation_id == EVALUATION_ID
         assert owner_id == "user-1"
-        return evaluation
+        return SimpleNamespace(task_type="detection", evaluation=evaluation)
 
     async def fake_get_image(*, dataset_id, image_id):
         nonlocal original_loads
@@ -100,7 +100,7 @@ async def test_detection_eigencam_reuses_evaluation_inputs_and_caches(
 
     monkeypatch.setattr(
         eigencam_service,
-        "get_detection_evaluation",
+        "get_stored_evaluation",
         fake_get_evaluation,
     )
     monkeypatch.setattr(
@@ -158,11 +158,11 @@ async def test_detection_eigencam_requires_persisted_adversarial_source(
     )
 
     async def fake_get_evaluation(**kwargs):
-        return evaluation
+        return SimpleNamespace(task_type="detection", evaluation=evaluation)
 
     monkeypatch.setattr(
         eigencam_service,
-        "get_detection_evaluation",
+        "get_stored_evaluation",
         fake_get_evaluation,
     )
 
@@ -192,11 +192,11 @@ async def test_detection_eigencam_requires_the_evaluation_model(
     )
 
     async def fake_get_evaluation(**kwargs):
-        return evaluation
+        return SimpleNamespace(task_type="detection", evaluation=evaluation)
 
     monkeypatch.setattr(
         eigencam_service,
-        "get_detection_evaluation",
+        "get_stored_evaluation",
         fake_get_evaluation,
     )
     monkeypatch.setattr(

@@ -3,7 +3,6 @@ import logging
 import os
 import pickle
 import threading
-import time
 import uuid
 
 import torch
@@ -21,12 +20,13 @@ from core.task_compatibility import (
 )
 from ml.explainability.gradcam import generate_gradcam_from_prepared_input
 from schemas.evaluation import EvaluationGradCamResponse
+from services.evaluation_history_service import get_evaluation_history_item
 from services.model_service import get_active_model_instance
 from utils.evaluation_artifacts import (
     load_evaluation_model_inputs,
     validate_evaluation_model_inputs,
 )
-from utils.result_files import RESULTS_BASE_PATH, read_result_expiration
+from utils.result_files import RESULTS_BASE_PATH
 
 _generation_lock = threading.Lock()
 logger = logging.getLogger(__name__)
@@ -38,6 +38,10 @@ async def generate_evaluation_image_gradcam(
     image_id: str,
     current_user_id: str,
 ) -> EvaluationGradCamResponse:
+    await get_evaluation_history_item(
+        evaluation_id=evaluation_id,
+        owner_id=current_user_id,
+    )
     result_path = _resolve_evaluation_path(evaluation_id)
 
     with _generation_lock:
@@ -46,7 +50,6 @@ async def generate_evaluation_image_gradcam(
             metadata=metadata,
             evaluation_id=evaluation_id,
             current_user_id=current_user_id,
-            result_path=result_path,
         )
         image_entry = _resolve_image_entry(metadata, image_id)
 
@@ -172,7 +175,6 @@ def _validate_access_and_state(
     metadata: dict,
     evaluation_id: str,
     current_user_id: str,
-    result_path: str,
 ) -> None:
     if (
         metadata.get("result_id") != evaluation_id
@@ -183,8 +185,6 @@ def _validate_access_and_state(
         raise ForbiddenError("La evaluación pertenece a otro usuario")
     if metadata.get("status") != "completed":
         raise BadRequestError("La evaluación no está completada")
-    if read_result_expiration(result_path) <= time.time():
-        raise GoneError("La evaluación ha caducado")
 
 
 def _resolve_image_entry(metadata: dict, image_id: str) -> dict:

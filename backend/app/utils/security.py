@@ -27,13 +27,21 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(data: dict) -> str:
+    return _create_token(data, scope="api")
+
+
+def create_artifact_access_token(data: dict) -> str:
+    return _create_token(data, scope="artifacts")
+
+
+def _create_token(data: dict, *, scope: str) -> str:
     payload = data.copy()
 
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES,
     )
 
-    payload.update({"exp": expires_at})
+    payload.update({"exp": expires_at, "scope": scope})
 
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 

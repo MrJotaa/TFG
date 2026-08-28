@@ -452,6 +452,12 @@ async def delete_image_from_dataset(
         }
     )
 
+    from services.individual_analysis_history_service import (
+        delete_individual_analyses_for_image,
+    )
+
+    await delete_individual_analyses_for_image(dataset_id, image_id)
+
 
 async def delete_dataset(dataset_id: str) -> None:
     object_id, dataset = await _get_dataset_document(dataset_id)

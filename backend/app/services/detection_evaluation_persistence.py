@@ -16,9 +16,6 @@ from schemas.detection_evaluation import (
     DetectionEvaluationRequest,
     DetectionEvaluationResponse,
 )
-from utils.detection_evaluation_artifacts import (
-    remove_detection_evaluation_visual_artifacts,
-)
 from utils.result_files import RESULTS_TTL_SECONDS
 
 DETECTION_EVALUATION_RESULT_PREFIX = "detection_evaluation_"
@@ -50,7 +47,6 @@ async def persist_detection_evaluation(
     created_at = datetime.now(timezone.utc)
     expires_at = created_at + timedelta(seconds=RESULTS_TTL_SECONDS)
 
-    await asyncio.to_thread(cleanup_expired_detection_evaluation_artifacts)
     await asyncio.to_thread(
         _write_response_artifact,
         result_path,
@@ -113,7 +109,13 @@ async def list_detection_evaluations(
             {
                 "owner_id": owner_id,
                 "status": "completed",
-                "expires_at": {"$gt": datetime.now(timezone.utc)},
+                "$or": [
+                    {"preserved": True},
+                    {
+                        "preserved": {"$ne": True},
+                        "expires_at": {"$gt": datetime.now(timezone.utc)},
+                    },
+                ],
             }
         )
         .sort([("created_at", -1), ("_id", -1)])
@@ -141,9 +143,10 @@ async def get_detection_evaluation(
     ):
         raise BadRequestError("La versión de almacenamiento de la evaluación de detección no es compatible")
 
-    expires_at = _utc_datetime(document.get("expires_at"), "expires_at")
-    if expires_at <= datetime.now(timezone.utc):
-        raise GoneError("La evaluación de detección ha caducado")
+    if document.get("preserved") is not True:
+        expires_at = _utc_datetime(document.get("expires_at"), "expires_at")
+        if expires_at <= datetime.now(timezone.utc):
+            raise GoneError("La evaluación de detección ha caducado")
 
     result_path = _result_path(evaluation_id)
     artifact_filename = document.get("artifact_filename")
@@ -185,7 +188,12 @@ def _history_item(document: dict) -> DetectionEvaluationHistoryItem:
             metrics_schema_version=document["metrics_schema_version"],
             delta_convention=document["delta_convention"],
             created_at=_utc_datetime(document.get("created_at"), "created_at"),
-            expires_at=_utc_datetime(document.get("expires_at"), "expires_at"),
+            expires_at=(
+                _utc_datetime(document.get("expires_at"), "expires_at")
+                if document.get("expires_at") is not None
+                else None
+            ),
+            preserved=bool(document.get("preserved")),
         )
     except (KeyError, TypeError, ValueError, ValidationError) as error:
         raise BadRequestError("El índice de la evaluación de detección no es válido") from error
@@ -211,26 +219,6 @@ def _is_valid_result_id(result_id) -> bool:
 
 def _result_path(result_id: str) -> Path:
     return Path(DETECTION_EVALUATIONS_BASE_PATH) / result_id
-
-
-def cleanup_expired_detection_evaluation_artifacts() -> None:
-    base_path = Path(DETECTION_EVALUATIONS_BASE_PATH)
-    base_path.mkdir(parents=True, exist_ok=True)
-    expiration_timestamp = datetime.now(timezone.utc).timestamp() - (
-        RESULTS_TTL_SECONDS
-    )
-    for entry in base_path.iterdir():
-        if not entry.is_dir() or not _is_valid_result_id(entry.name):
-            continue
-        try:
-            if entry.stat().st_mtime <= expiration_timestamp:
-                _remove_result_directory(entry)
-                remove_detection_evaluation_visual_artifacts(entry.name)
-        except OSError:
-            logger.exception(
-                "expired_detection_evaluation_artifact_cleanup_failed result_id=%s",
-                entry.name,
-            )
 
 
 def _write_response_artifact(

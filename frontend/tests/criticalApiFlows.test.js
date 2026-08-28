@@ -130,10 +130,24 @@ test('authenticated session sends bearer token and logout removes it', async () 
 
     assert.equal(calls[0].url, 'http://127.0.0.1:8000/auth/me')
     assert.equal(calls[0].options.headers.Authorization, 'Bearer session-token')
+    assert.equal(calls[0].options.credentials, 'include')
     assert.equal(client.getStoredToken(), 'session-token')
 
     client.removeStoredToken()
     assert.equal(client.getStoredToken(), null)
+})
+
+
+test('logout asks the backend to clear the artifact session cookie', async () => {
+    client.setStoredToken('session-token')
+    const calls = captureFetch(() => new Response(null, { status: 204 }))
+
+    await auth.logoutUser()
+
+    assert.equal(calls[0].url, 'http://127.0.0.1:8000/auth/logout')
+    assert.equal(calls[0].options.method, 'POST')
+    assert.equal(calls[0].options.credentials, 'include')
+    assert.equal(calls[0].options.headers.Authorization, 'Bearer session-token')
 })
 
 test('login and API errors preserve the backend contract', async () => {

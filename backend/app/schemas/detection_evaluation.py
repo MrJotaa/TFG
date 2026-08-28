@@ -109,7 +109,8 @@ class DetectionEvaluationHistoryItem(DetectionMetricsContract):
     supervised_available: bool
     supervised_reason: DetectionSupervisedUnavailableReason | None = None
     created_at: datetime
-    expires_at: datetime
+    expires_at: datetime | None = None
+    preserved: bool = False
 
 
 class DetectionEvaluationEigenCamResponse(BaseModel):

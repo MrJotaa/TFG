@@ -39,6 +39,9 @@ function HistoryStatus({ item }) {
     if (item.status === 'running') {
         return <span className="history-status running">En curso</span>
     }
+    if (item.preserved) {
+        return <span className="history-status preserved">Conservada</span>
+    }
     if (isNearExpiration(item)) {
         return <span className="history-status expiring">Próxima a caducar</span>
     }
@@ -620,8 +623,15 @@ function ProfilePage() {
                                         <td data-label="Creada" title={formatDateTime(item.created_at)}>
                                             {formatCreatedAgo(item.created_at)}
                                         </td>
-                                        <td data-label="Caducidad" title={formatDateTime(item.expires_at)}>
-                                            {item.status === 'running' ? 'Al finalizar' : formatRemainingTime(item.expires_at)}
+                                        <td
+                                            data-label="Caducidad"
+                                            title={item.preserved ? 'Conservación indefinida' : formatDateTime(item.expires_at)}
+                                        >
+                                            {item.status === 'running'
+                                                ? 'Al finalizar'
+                                                : item.preserved
+                                                    ? 'Indefinida'
+                                                    : formatRemainingTime(item.expires_at)}
                                         </td>
                                         <td data-label="Estado"><HistoryStatus item={item} /></td>
                                         <td className="history-open-cell">

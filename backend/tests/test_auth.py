@@ -129,3 +129,38 @@ def test_delete_current_user_with_valid_password_deletes_account(
 
     assert me_response.status_code == 401
     assert me_response.json()["detail"] == "Usuario no encontrado"
+
+
+def test_authentication_sets_http_only_artifact_cookie(client, test_user_payload):
+    response = client.post("/auth/signup", json=test_user_payload)
+
+    assert response.status_code == 200
+    cookie = response.headers["set-cookie"]
+    assert "artifact_session=" in cookie
+    assert "HttpOnly" in cookie
+    assert "Path=/results" in cookie
+    assert "SameSite=lax" in cookie
+
+
+def test_logout_clears_artifact_cookie(client, registered_user):
+    response = client.post("/auth/logout")
+
+    assert response.status_code == 204
+    cookie = response.headers["set-cookie"]
+    assert "artifact_session=" in cookie
+    assert "Max-Age=0" in cookie
+    assert "Path=/results" in cookie
+
+
+def test_artifact_cookie_token_cannot_be_used_as_api_bearer(client, test_user_payload):
+    signup = client.post("/auth/signup", json=test_user_payload)
+    assert signup.status_code == 200
+    artifact_token = signup.cookies.get("artifact_session")
+    assert artifact_token
+
+    response = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {artifact_token}"},
+    )
+
+    assert response.status_code == 401
