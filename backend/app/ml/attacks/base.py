@@ -157,6 +157,17 @@ class BaseAdversarialAttack(ABC):
     requires_exclusive_model_execution = False
     evaluation_micro_batch_size = 1
 
+    @staticmethod
+    def _perturbation_norms(perturbation: torch.Tensor) -> tuple[float, float]:
+        perturbation_linf = torch.max(torch.abs(perturbation)).item()
+        perturbation_l2 = torch.linalg.vector_norm(
+            perturbation.reshape(-1),
+            ord=2,
+            dim=0,
+        ).item()
+
+        return perturbation_linf, perturbation_l2
+
     def supports_task_type(self, task_type: str) -> bool:
         return task_type in self.supported_task_types
 

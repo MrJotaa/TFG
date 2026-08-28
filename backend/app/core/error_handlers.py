@@ -8,8 +8,8 @@ from core.errors import ApplicationError
 logger = logging.getLogger(__name__)
 
 
-async def application_error_handler(
-    request: Request,
+def application_error_handler(
+    _request: Request,
     error: ApplicationError,
 ) -> JSONResponse:
     """
@@ -26,7 +26,7 @@ async def application_error_handler(
     )
 
 
-async def unexpected_error_handler(
+def unexpected_error_handler(
     request: Request,
     error: Exception,
 ) -> JSONResponse:

@@ -30,11 +30,28 @@ def test_detection_color_distinguishes_common_classes():
 
 
 def test_detection_color_falls_back_to_class_id_without_a_name():
-    assert detection_color(_detection(class_id=7, class_name=None)) == detection_color(
-        _detection(class_id=7, class_name=None)
+    first_detection = Detection(
+        class_id=7,
+        class_name=None,
+        confidence=0.91,
+        box=DetectionBox(4, 6, 32, 30),
     )
-    assert detection_color(_detection(class_id=7, class_name=None)) != detection_color(
-        _detection(class_id=8, class_name=None)
+    same_class_different_detection = Detection(
+        class_id=7,
+        class_name=None,
+        confidence=0.42,
+        box=DetectionBox(8, 10, 40, 36),
+    )
+    different_class = _detection(
+        class_id=8,
+        class_name=None,
+    )
+
+    assert detection_color(first_detection) == detection_color(
+        same_class_different_detection
+    )
+    assert detection_color(first_detection) != detection_color(
+        different_class
     )
 
 

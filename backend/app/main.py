@@ -12,10 +12,10 @@ from api.routes.detection_attack import router as detection_attack_router
 from api.routes.detection_evaluate import router as detection_evaluate_router
 from api.routes.evaluate import router as evaluate_router
 from api.routes.evaluation_history import router as evaluation_history_router
+from api.routes.explainability import router as explainability_router
 from api.routes.individual_analysis_history import (
     router as individual_analysis_history_router,
 )
-from api.routes.explainability import router as explainability_router
 from api.routes.models import router as models_router
 from api.routes.predict import router as predict_router
 from api.routes.results import router as results_router
