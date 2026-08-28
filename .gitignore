@@ -35,3 +35,9 @@ dist/
 
 # SonarQube Scanner
 /backend/.scannerwork/
+
+# Frontend test coverage
+/frontend/coverage/
+
+# SonarQube Scanner
+/frontend/.scannerwork/
