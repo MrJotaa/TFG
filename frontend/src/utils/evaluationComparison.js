@@ -416,22 +416,17 @@ function classificationCorrect(result) {
     return String(result.ground_truth_label) === String(result.adversarial_label)
 }
 
-export function matchesComparisonImageFilter(taskType, pair, filter = 'all') {
-    if (filter === 'all') return true
-    const left = pair?.left
-    const right = pair?.right
-    if (!left || !right) return false
+function matchesDetectionImageFilter(left, right, filter) {
+    const leftCount = Number(left.adversarial_detection_count ?? 0)
+    const rightCount = Number(right.adversarial_detection_count ?? 0)
+    if (filter === 'left_more') return leftCount > rightCount
+    if (filter === 'right_more') return rightCount > leftCount
+    if (filter === 'different') return leftCount !== rightCount
+    if (filter === 'equal') return leftCount === rightCount
+    return true
+}
 
-    if (taskType === 'detection') {
-        const leftCount = Number(left.adversarial_detection_count ?? 0)
-        const rightCount = Number(right.adversarial_detection_count ?? 0)
-        if (filter === 'left_more') return leftCount > rightCount
-        if (filter === 'right_more') return rightCount > leftCount
-        if (filter === 'different') return leftCount !== rightCount
-        if (filter === 'equal') return leftCount === rightCount
-        return true
-    }
-
+function matchesClassificationImageFilter(left, right, filter) {
     const leftCorrect = classificationCorrect(left)
     const rightCorrect = classificationCorrect(right)
     if (leftCorrect == null || rightCorrect == null) return false
@@ -440,6 +435,17 @@ export function matchesComparisonImageFilter(taskType, pair, filter = 'all') {
     if (filter === 'both_fail') return !leftCorrect && !rightCorrect
     if (filter === 'both_correct') return leftCorrect && rightCorrect
     return true
+}
+
+export function matchesComparisonImageFilter(taskType, pair, filter = 'all') {
+    if (filter === 'all') return true
+    const left = pair?.left
+    const right = pair?.right
+    if (!left || !right) return false
+
+    return taskType === 'detection'
+        ? matchesDetectionImageFilter(left, right, filter)
+        : matchesClassificationImageFilter(left, right, filter)
 }
 
 export function getComparisonImagePairs(leftEvaluation, rightEvaluation) {
@@ -460,48 +466,107 @@ export function getDetectionObjectComparisonPairs(leftEvaluation, rightEvaluatio
         .filter((pair) => pair.right)
 }
 
+function robustComparisonInsight(taskType, metricValue) {
+    if (metricValue?.delta == null || Math.abs(metricValue.delta) < 1e-12) return null
+    const favored = metricValue.delta > 0 ? 'B' : 'A'
+    const metricLabel = taskType === 'detection' ? 'mAP' : 'exactitud'
+    return {
+        key: 'robust',
+        side: favored.toLowerCase(),
+        value: Math.abs(metricValue.delta),
+        text: `${favored} conserva ${Math.abs(metricValue.delta * 100).toFixed(1)} pp más de ${metricLabel} tras el ataque.`,
+    }
+}
+
+function dropComparisonInsight(metricValue) {
+    if (metricValue?.delta == null || Math.abs(metricValue.delta) < 1e-12) return null
+    const lowerSide = metricValue.delta > 0 ? 'A' : 'B'
+    return {
+        key: 'drop',
+        side: lowerSide.toLowerCase(),
+        value: Math.abs(metricValue.delta),
+        text: `${lowerSide} sufre ${Math.abs(metricValue.delta * 100).toFixed(1)} pp menos de degradación respecto a su referencia original.`,
+    }
+}
+
+function strongestClassComparisonInsight(classRows) {
+    const strongestClass = [...(classRows ?? [])]
+        .filter((row) => Number.isFinite(row.delta))
+        .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta))[0]
+    if (!strongestClass || Math.abs(strongestClass.delta) < 1e-12) return null
+    const favored = strongestClass.delta > 0 ? 'B' : 'A'
+    return {
+        key: 'class',
+        side: favored.toLowerCase(),
+        value: Math.abs(strongestClass.delta),
+        text: `La mayor separación por clase aparece en «${strongestClass.label}»: ${favored} queda ${Math.abs(strongestClass.delta * 100).toFixed(1)} pp por encima.`,
+    }
+}
+
+
+export function buildClassificationCurveSeries(left, right, sameModel) {
+    const series = []
+    if (sameModel && left?.original?.available) {
+        series.push({
+            key: 'reference',
+            label: 'Referencia original común',
+            color: 'var(--comparison-reference)',
+            reference: true,
+            points: left.original.points,
+            score: left.original.score,
+        })
+    }
+    if (!sameModel && left?.original?.available) {
+        series.push({
+            key: 'a-original',
+            label: 'A · original',
+            color: 'var(--comparison-a)',
+            reference: true,
+            points: left.original.points,
+            score: left.original.score,
+        })
+    }
+    if (!sameModel && right?.original?.available) {
+        series.push({
+            key: 'b-original',
+            label: 'B · original',
+            color: 'var(--comparison-b)',
+            reference: true,
+            points: right.original.points,
+            score: right.original.score,
+        })
+    }
+    if (left?.adversarial?.available) {
+        series.push({
+            key: 'a',
+            label: 'A · robusta',
+            color: 'var(--comparison-a)',
+            points: left.adversarial.points,
+            score: left.adversarial.score,
+        })
+    }
+    if (right?.adversarial?.available) {
+        series.push({
+            key: 'b',
+            label: 'B · robusta',
+            color: 'var(--comparison-b)',
+            points: right.adversarial.points,
+            score: right.adversarial.score,
+        })
+    }
+    return series
+}
+
 export function getComparisonInsights(taskType, metrics, classRows = []) {
     const byKey = new Map((metrics ?? []).map((entry) => [entry.key, entry]))
     const robustKey = taskType === 'detection' ? 'robust_map' : 'robust_accuracy'
     const dropKey = taskType === 'detection' ? 'map_drop' : 'accuracy_drop'
-    const robust = byKey.get(robustKey)
-    const drop = byKey.get(dropKey)
-    const insights = []
 
-    if (robust?.delta != null && Math.abs(robust.delta) >= 1e-12) {
-        const favored = robust.delta > 0 ? 'B' : 'A'
-        insights.push({
-            key: 'robust',
-            side: favored.toLowerCase(),
-            value: Math.abs(robust.delta),
-            text: `${favored} conserva ${Math.abs(robust.delta * 100).toFixed(1)} pp más de ${taskType === 'detection' ? 'mAP' : 'exactitud'} tras el ataque.`,
-        })
-    }
-
-    if (drop?.delta != null && Math.abs(drop.delta) >= 1e-12) {
-        const lowerSide = drop.delta > 0 ? 'A' : 'B'
-        insights.push({
-            key: 'drop',
-            side: lowerSide.toLowerCase(),
-            value: Math.abs(drop.delta),
-            text: `${lowerSide} sufre ${Math.abs(drop.delta * 100).toFixed(1)} pp menos de degradación respecto a su referencia original.`,
-        })
-    }
-
-    const strongestClass = [...(classRows ?? [])]
-        .filter((row) => Number.isFinite(row.delta))
-        .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta))[0]
-    if (strongestClass && Math.abs(strongestClass.delta) >= 1e-12) {
-        const favored = strongestClass.delta > 0 ? 'B' : 'A'
-        insights.push({
-            key: 'class',
-            side: favored.toLowerCase(),
-            value: Math.abs(strongestClass.delta),
-            text: `La mayor separación por clase aparece en «${strongestClass.label}»: ${favored} queda ${Math.abs(strongestClass.delta * 100).toFixed(1)} pp por encima.`,
-        })
-    }
-
-    return insights.slice(0, 3)
+    return [
+        robustComparisonInsight(taskType, byKey.get(robustKey)),
+        dropComparisonInsight(byKey.get(dropKey)),
+        strongestClassComparisonInsight(classRows),
+    ].filter(Boolean).slice(0, 3)
 }
 
 function exactTwoSidedBinomialP(leftCount, rightCount) {

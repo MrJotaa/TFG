@@ -15,6 +15,7 @@ import { resolveApiUrl } from '../../api/client'
 import { generateEvaluationGradCam } from '../../api/evaluation'
 import { generateDetectionEvaluationEigenCam } from '../../api/detectionEvaluation'
 import {
+    buildClassificationCurveSeries,
     getClassificationClassComparison,
     getClassificationComparisonCaseSummary,
     getComparisonImagePairs,
@@ -459,13 +460,7 @@ function ClassificationCurveComparison({ leftEvaluation, rightEvaluation, sameMo
     const [curveType, setCurveType] = useState('roc')
     const left = getClassificationCurve(leftEvaluation, curveType)
     const right = getClassificationCurve(rightEvaluation, curveType)
-    const series = [
-        ...(sameModel && left?.original?.available ? [{ key: 'reference', label: 'Referencia original común', color: 'var(--comparison-reference)', reference: true, points: left.original.points, score: left.original.score }] : []),
-        ...(!sameModel && left?.original?.available ? [{ key: 'a-original', label: 'A · original', color: 'var(--comparison-a)', reference: true, points: left.original.points, score: left.original.score }] : []),
-        ...(!sameModel && right?.original?.available ? [{ key: 'b-original', label: 'B · original', color: 'var(--comparison-b)', reference: true, points: right.original.points, score: right.original.score }] : []),
-        ...(left?.adversarial?.available ? [{ key: 'a', label: 'A · robusta', color: 'var(--comparison-a)', points: left.adversarial.points, score: left.adversarial.score }] : []),
-        ...(right?.adversarial?.available ? [{ key: 'b', label: 'B · robusta', color: 'var(--comparison-b)', points: right.adversarial.points, score: right.adversarial.score }] : []),
-    ]
+    const series = buildClassificationCurveSeries(left, right, sameModel)
 
     return (
         <section className="evaluation-comparison-detail-section">
@@ -898,6 +893,117 @@ function ComparisonImageFigure({ label, url, caption, onExpand, tone, detections
 
 function imageExplanationKey(side, imageId) { return `${side}:${imageId}` }
 
+function ComparisonCaseImageGrid({ taskType, left, right, leftEvaluation, rightEvaluation, onExpand }) {
+    if (taskType === 'detection') {
+        return (
+            <div className="evaluation-comparison-image-grid detection">
+                <ComparisonImageFigure label="A · Original" url={`/datasets/${leftEvaluation.dataset_id}/images/${left.image_id}`} caption={`${left.original_detection_count} cajas`} detections={left.original_detections} onExpand={onExpand} tone="side-a" />
+                <ComparisonImageFigure label="A · Tras el ataque" url={left.adversarial_image_url} caption={`${left.adversarial_detection_count} cajas`} detections={left.adversarial_detections} onExpand={onExpand} tone="side-a" />
+                <ComparisonImageFigure label="B · Original" url={`/datasets/${rightEvaluation.dataset_id}/images/${right.image_id}`} caption={`${right.original_detection_count} cajas`} detections={right.original_detections} onExpand={onExpand} tone="side-b" />
+                <ComparisonImageFigure label="B · Tras el ataque" url={right.adversarial_image_url} caption={`${right.adversarial_detection_count} cajas`} detections={right.adversarial_detections} onExpand={onExpand} tone="side-b" />
+            </div>
+        )
+    }
+
+    return (
+        <div className="evaluation-comparison-image-grid">
+            <ComparisonImageFigure label="Original" url={left.original_image_url} caption={left.ground_truth_label} onExpand={onExpand} tone="reference" />
+            <ComparisonImageFigure label="Evaluación A" url={left.adversarial_image_url} caption={`${left.original_label} → ${left.adversarial_label} · ${formatPercent(left.original_confidence)} → ${formatPercent(left.adversarial_confidence)}`} onExpand={onExpand} tone="side-a" />
+            <ComparisonImageFigure label="Evaluación B" url={right.adversarial_image_url} caption={`${right.original_label} → ${right.adversarial_label} · ${formatPercent(right.original_confidence)} → ${formatPercent(right.adversarial_confidence)}`} onExpand={onExpand} tone="side-b" />
+        </div>
+    )
+}
+
+function ComparisonPerturbation({ taskType, left, right, onExpand }) {
+    const classification = taskType === 'classification'
+    return (
+        <details className="evaluation-comparison-image-extra">
+            <summary>Perturbación <span>comparar magnitud{classification ? ' y mapa' : ''}</span></summary>
+            <div className={`evaluation-comparison-perturbation-grid${classification ? '' : ' metrics-only'}`}>
+                {classification ? (
+                    <>
+                        <ComparisonImageFigure label="Perturbación A" url={left.perturbation_image_url} caption={`L∞ ${formatNumber(left.perturbation_linf, 4)} · L2 ${formatNumber(left.perturbation_l2, 4)}`} onExpand={onExpand} tone="side-a" />
+                        <ComparisonImageFigure label="Perturbación B" url={right.perturbation_image_url} caption={`L∞ ${formatNumber(right.perturbation_linf, 4)} · L2 ${formatNumber(right.perturbation_l2, 4)}`} onExpand={onExpand} tone="side-b" />
+                    </>
+                ) : (
+                    <>
+                        <div className="side-a"><strong>A</strong><span>L∞ {formatNumber(left.perturbation_linf, 4)}</span><span>L2 {formatNumber(left.perturbation_l2, 4)}</span></div>
+                        <div className="side-b"><strong>B</strong><span>L∞ {formatNumber(right.perturbation_linf, 4)}</span><span>L2 {formatNumber(right.perturbation_l2, 4)}</span></div>
+                    </>
+                )}
+            </div>
+        </details>
+    )
+}
+
+function explanationButtonText(state, label, side) {
+    if (state.status === 'loading') return `Generando ${label} ${side}…`
+    if (state.status === 'success') return `${label} ${side} generado`
+    return `Generar ${label} ${side}`
+}
+
+function ComparisonExplanationArtifacts({ taskType, side, state, label, onExpand }) {
+    if (state.status !== 'success') return null
+    const tone = side === 'A' ? 'side-a' : 'side-b'
+    if (taskType === 'detection') {
+        return (
+            <>
+                <ComparisonImageFigure label={`${label} ${side} · original`} url={state.data.original_eigencam_image_url} onExpand={onExpand} tone={tone} />
+                <ComparisonImageFigure label={`${label} ${side} · ataque`} url={state.data.adversarial_eigencam_image_url} onExpand={onExpand} tone={tone} />
+            </>
+        )
+    }
+    return (
+        <>
+            <ComparisonImageFigure label={`${label} ${side} · original`} url={state.data.original_gradcam_image_url} onExpand={onExpand} tone={tone} />
+            <ComparisonImageFigure label={`${label} ${side} · ataque`} url={state.data.adversarial_gradcam_image_url} onExpand={onExpand} tone={tone} />
+        </>
+    )
+}
+
+function ComparisonExplanation({ taskType, label, leftState, rightState, leftItem, rightItem, left, right, onRequest, onExpand }) {
+    const hasError = leftState.error || rightState.error
+    return (
+        <details className="evaluation-comparison-image-extra">
+            <summary>{label} <span>explicabilidad bajo demanda</span></summary>
+            <div className="evaluation-comparison-explain-actions">
+                <button type="button" disabled={leftState.status === 'loading' || leftState.status === 'success'} onClick={() => onRequest('a', leftItem, left)}>{explanationButtonText(leftState, label, 'A')}</button>
+                <button type="button" disabled={rightState.status === 'loading' || rightState.status === 'success'} onClick={() => onRequest('b', rightItem, right)}>{explanationButtonText(rightState, label, 'B')}</button>
+            </div>
+            {hasError && (
+                <div className="evaluation-comparison-explain-errors">
+                    {leftState.error && <p><strong>A:</strong> {leftState.error}</p>}
+                    {rightState.error && <p><strong>B:</strong> {rightState.error}</p>}
+                </div>
+            )}
+            <div className="evaluation-comparison-explain-grid">
+                <ComparisonExplanationArtifacts taskType={taskType} side="A" state={leftState} label={label} onExpand={onExpand} />
+                <ComparisonExplanationArtifacts taskType={taskType} side="B" state={rightState} label={label} onExpand={onExpand} />
+            </div>
+        </details>
+    )
+}
+
+function ComparisonImageCase({ taskType, leftItem, rightItem, leftEvaluation, rightEvaluation, left, right, explanations, sameModel, explanationLabel, onRequestExplanation, onExpand }) {
+    const leftExplanation = explanations[imageExplanationKey('a', left.image_id)] ?? { status: 'idle' }
+    const rightExplanation = explanations[imageExplanationKey('b', right.image_id)] ?? { status: 'idle' }
+    const leftOutcome = taskType === 'detection'
+        ? `${left.adversarial_detection_count} detecciones`
+        : `${left.adversarial_label} · ${formatPercent(left.adversarial_confidence)}`
+    const rightOutcome = taskType === 'detection'
+        ? `${right.adversarial_detection_count} detecciones`
+        : `${right.adversarial_label} · ${formatPercent(right.adversarial_confidence)}`
+
+    return (
+        <article className="evaluation-comparison-image-case">
+            <header><div><strong>{left.filename ?? left.image_id}</strong><small>{left.image_id}</small></div><div className="evaluation-comparison-image-outcomes"><span className="side-a">A · {leftOutcome}</span><span className="side-b">B · {rightOutcome}</span></div></header>
+            <ComparisonCaseImageGrid taskType={taskType} left={left} right={right} leftEvaluation={leftEvaluation} rightEvaluation={rightEvaluation} onExpand={onExpand} />
+            <ComparisonPerturbation taskType={taskType} left={left} right={right} onExpand={onExpand} />
+            {sameModel && <ComparisonExplanation taskType={taskType} label={explanationLabel} leftState={leftExplanation} rightState={rightExplanation} leftItem={leftItem} rightItem={rightItem} left={left} right={right} onRequest={onRequestExplanation} onExpand={onExpand} />}
+        </article>
+    )
+}
+
 function ComparisonImages({ taskType, leftItem, rightItem, leftEvaluation, rightEvaluation }) {
     const pairs = useMemo(() => getComparisonImagePairs(leftEvaluation, rightEvaluation), [leftEvaluation, rightEvaluation])
     const [visible, setVisible] = useState(8)
@@ -967,47 +1073,23 @@ function ComparisonImages({ taskType, leftItem, rightItem, leftEvaluation, right
                 ))}
             </div>
             {classificationSummary && <p className="evaluation-comparison-stat-note"><strong>Cómo leer McNemar:</strong> un p pequeño aporta evidencia de que los desacuerdos favorecen sistemáticamente a una evaluación en estas mismas imágenes. No mide el tamaño ni la importancia práctica de la diferencia.</p>}
-            {shown.map(({ left, right }) => {
-                const leftExplanation = explanations[imageExplanationKey('a', left.image_id)] ?? { status: 'idle' }
-                const rightExplanation = explanations[imageExplanationKey('b', right.image_id)] ?? { status: 'idle' }
-                return (
-                    <article key={left.image_id} className="evaluation-comparison-image-case">
-                        <header><div><strong>{left.filename ?? left.image_id}</strong><small>{left.image_id}</small></div><div className="evaluation-comparison-image-outcomes"><span className="side-a">A · {taskType === 'detection' ? `${left.adversarial_detection_count} detecciones` : `${left.adversarial_label} · ${formatPercent(left.adversarial_confidence)}`}</span><span className="side-b">B · {taskType === 'detection' ? `${right.adversarial_detection_count} detecciones` : `${right.adversarial_label} · ${formatPercent(right.adversarial_confidence)}`}</span></div></header>
-                        <div className={`evaluation-comparison-image-grid${taskType === 'detection' ? ' detection' : ''}`}>
-                            {taskType === 'detection' ? <>
-                                <ComparisonImageFigure label="A · Original" url={`/datasets/${leftEvaluation.dataset_id}/images/${left.image_id}`} caption={`${left.original_detection_count} cajas`} detections={left.original_detections} onExpand={setPreview} tone="side-a" />
-                                <ComparisonImageFigure label="A · Tras el ataque" url={left.adversarial_image_url} caption={`${left.adversarial_detection_count} cajas`} detections={left.adversarial_detections} onExpand={setPreview} tone="side-a" />
-                                <ComparisonImageFigure label="B · Original" url={`/datasets/${rightEvaluation.dataset_id}/images/${right.image_id}`} caption={`${right.original_detection_count} cajas`} detections={right.original_detections} onExpand={setPreview} tone="side-b" />
-                                <ComparisonImageFigure label="B · Tras el ataque" url={right.adversarial_image_url} caption={`${right.adversarial_detection_count} cajas`} detections={right.adversarial_detections} onExpand={setPreview} tone="side-b" />
-                            </> : <>
-                                <ComparisonImageFigure label="Original" url={left.original_image_url} caption={left.ground_truth_label} onExpand={setPreview} tone="reference" />
-                                <ComparisonImageFigure label="Evaluación A" url={left.adversarial_image_url} caption={`${left.original_label} → ${left.adversarial_label} · ${formatPercent(left.original_confidence)} → ${formatPercent(left.adversarial_confidence)}`} onExpand={setPreview} tone="side-a" />
-                                <ComparisonImageFigure label="Evaluación B" url={right.adversarial_image_url} caption={`${right.original_label} → ${right.adversarial_label} · ${formatPercent(right.original_confidence)} → ${formatPercent(right.adversarial_confidence)}`} onExpand={setPreview} tone="side-b" />
-                            </>}
-                        </div>
-                        <details className="evaluation-comparison-image-extra">
-                            <summary>Perturbación <span>comparar magnitud{taskType === 'classification' ? ' y mapa' : ''}</span></summary>
-                            <div className={`evaluation-comparison-perturbation-grid${taskType === 'classification' ? '' : ' metrics-only'}`}>
-                                {taskType === 'classification' && <ComparisonImageFigure label="Perturbación A" url={left.perturbation_image_url} caption={`L∞ ${formatNumber(left.perturbation_linf, 4)} · L2 ${formatNumber(left.perturbation_l2, 4)}`} onExpand={setPreview} tone="side-a" />}
-                                {taskType === 'classification' && <ComparisonImageFigure label="Perturbación B" url={right.perturbation_image_url} caption={`L∞ ${formatNumber(right.perturbation_linf, 4)} · L2 ${formatNumber(right.perturbation_l2, 4)}`} onExpand={setPreview} tone="side-b" />}
-                                {taskType === 'detection' && <><div className="side-a"><strong>A</strong><span>L∞ {formatNumber(left.perturbation_linf, 4)}</span><span>L2 {formatNumber(left.perturbation_l2, 4)}</span></div><div className="side-b"><strong>B</strong><span>L∞ {formatNumber(right.perturbation_linf, 4)}</span><span>L2 {formatNumber(right.perturbation_l2, 4)}</span></div></>}
-                            </div>
-                        </details>
-                        {sameModel && <details className="evaluation-comparison-image-extra">
-                            <summary>{explanationLabel} <span>explicabilidad bajo demanda</span></summary>
-                            <div className="evaluation-comparison-explain-actions">
-                                <button type="button" disabled={leftExplanation.status === 'loading' || leftExplanation.status === 'success'} onClick={() => requestExplanation('a', leftItem, left)}>{leftExplanation.status === 'loading' ? `Generando ${explanationLabel} A…` : leftExplanation.status === 'success' ? `${explanationLabel} A generado` : `Generar ${explanationLabel} A`}</button>
-                                <button type="button" disabled={rightExplanation.status === 'loading' || rightExplanation.status === 'success'} onClick={() => requestExplanation('b', rightItem, right)}>{rightExplanation.status === 'loading' ? `Generando ${explanationLabel} B…` : rightExplanation.status === 'success' ? `${explanationLabel} B generado` : `Generar ${explanationLabel} B`}</button>
-                            </div>
-                            {(leftExplanation.error || rightExplanation.error) && <div className="evaluation-comparison-explain-errors">{leftExplanation.error && <p><strong>A:</strong> {leftExplanation.error}</p>}{rightExplanation.error && <p><strong>B:</strong> {rightExplanation.error}</p>}</div>}
-                            <div className="evaluation-comparison-explain-grid">
-                                {leftExplanation.status === 'success' && (taskType === 'detection' ? <><ComparisonImageFigure label={`${explanationLabel} A · original`} url={leftExplanation.data.original_eigencam_image_url} onExpand={setPreview} tone="side-a" /><ComparisonImageFigure label={`${explanationLabel} A · ataque`} url={leftExplanation.data.adversarial_eigencam_image_url} onExpand={setPreview} tone="side-a" /></> : <><ComparisonImageFigure label={`${explanationLabel} A · original`} url={leftExplanation.data.original_gradcam_image_url} onExpand={setPreview} tone="side-a" /><ComparisonImageFigure label={`${explanationLabel} A · ataque`} url={leftExplanation.data.adversarial_gradcam_image_url} onExpand={setPreview} tone="side-a" /></>)}
-                                {rightExplanation.status === 'success' && (taskType === 'detection' ? <><ComparisonImageFigure label={`${explanationLabel} B · original`} url={rightExplanation.data.original_eigencam_image_url} onExpand={setPreview} tone="side-b" /><ComparisonImageFigure label={`${explanationLabel} B · ataque`} url={rightExplanation.data.adversarial_eigencam_image_url} onExpand={setPreview} tone="side-b" /></> : <><ComparisonImageFigure label={`${explanationLabel} B · original`} url={rightExplanation.data.original_gradcam_image_url} onExpand={setPreview} tone="side-b" /><ComparisonImageFigure label={`${explanationLabel} B · ataque`} url={rightExplanation.data.adversarial_gradcam_image_url} onExpand={setPreview} tone="side-b" /></>)}
-                            </div>
-                        </details>}
-                    </article>
-                )
-            })}
+            {shown.map(({ left, right }) => (
+                <ComparisonImageCase
+                    key={left.image_id}
+                    taskType={taskType}
+                    leftItem={leftItem}
+                    rightItem={rightItem}
+                    leftEvaluation={leftEvaluation}
+                    rightEvaluation={rightEvaluation}
+                    left={left}
+                    right={right}
+                    explanations={explanations}
+                    sameModel={sameModel}
+                    explanationLabel={explanationLabel}
+                    onRequestExplanation={requestExplanation}
+                    onExpand={setPreview}
+                />
+            ))}
             {!shown.length && <EmptyComparison title="No hay casos para este filtro">Selecciona otro criterio para explorar las imágenes compartidas por A y B.</EmptyComparison>}
             {filteredPairs.length > 8 && <div className="evaluation-comparison-more"><span>{Math.min(visible, filteredPairs.length)} / {filteredPairs.length}</span>{visible < filteredPairs.length ? <button type="button" onClick={() => setVisible((current) => Math.min(filteredPairs.length, current + 8))}>Ver 8 más</button> : <button type="button" onClick={() => setVisible(8)}>Mostrar menos</button>}</div>}
             {preview && <ComparisonImageLightbox preview={preview} onClose={() => setPreview(null)} />}

@@ -13,9 +13,9 @@ import {
     getAttackName,
 } from '../utils/attackFormatting'
 import {
-    buildIndividualAnalysisComparison,
     formatComparisonMagnitude,
     individualAnalysisComparisonSummary,
+    loadIndividualAnalysisComparison,
 } from '../utils/individualAnalysisComparison'
 import { resolveSaveState } from '../utils/individualAnalysisFlow'
 import { formatAnalysisProbability, formatSignedPercentagePoints } from '../utils/individualAnalysis'
@@ -178,17 +178,6 @@ function PersistenceAction({ side, reference, status, saving, onSave }) {
     )
 }
 
-function buildSavedReference(stored, dataset, image) {
-    return {
-        item: stored.item,
-        analysis: stored.analysis,
-        dataset,
-        image,
-        temporary: false,
-        resultId: stored.analysis?.result_id ?? stored.item?.source_result_id ?? null,
-    }
-}
-
 function IndividualAnalysisComparisonView() {
     const navigate = useNavigate()
     const location = useLocation()
@@ -209,68 +198,15 @@ function IndividualAnalysisComparisonView() {
         async function load() {
             try {
                 setSaveStatuses({ A: null, B: null })
-
-                if (transientPair) {
-                    const left = transientPair.left
-                    const right = transientPair.right
-                    if (!left?.item || !right?.item || !left?.analysis || !right?.analysis) {
-                        throw new Error('La comparación temporal ya no contiene los dos resultados necesarios.')
-                    }
-                    const comparison = buildIndividualAnalysisComparison(left.item, right.item)
-                    if (!comparison.compatible) throw new Error(comparison.reason)
-
-                    const dataset = transientPair.dataset ?? left.dataset ?? right.dataset
-                    const image = transientPair.image ?? left.image ?? right.image
-                    if (!dataset || !image) {
-                        throw new Error('No se pudo recuperar el contexto visual de la imagen comparada.')
-                    }
-
-                    if (!cancelled) {
-                        setState({
-                            status: 'ready',
-                            left,
-                            right,
-                            comparison,
-                            dataset,
-                            image,
-                        })
-                    }
-                    return
-                }
-
-                if (!leftId || !rightId || leftId === rightId) {
-                    throw new Error('Selecciona dos análisis individuales diferentes desde el historial.')
-                }
-
-                setState({ status: 'loading' })
-                const [leftStored, rightStored] = await Promise.all([
-                    getStoredIndividualAnalysis(leftId),
-                    getStoredIndividualAnalysis(rightId),
-                ])
-                const comparison = buildIndividualAnalysisComparison(
-                    leftStored.item,
-                    rightStored.item,
-                )
-                if (!comparison.compatible) throw new Error(comparison.reason)
-
-                const dataset = await getDatasetById(leftStored.item.dataset_id)
-                const image = dataset?.images?.find(
-                    (candidate) => candidate.id === leftStored.item.image_id,
-                )
-                if (!image) {
-                    throw new Error('La imagen original asociada ya no está disponible en el dataset.')
-                }
-
-                if (!cancelled) {
-                    setState({
-                        status: 'ready',
-                        left: buildSavedReference(leftStored, dataset, image),
-                        right: buildSavedReference(rightStored, dataset, image),
-                        comparison,
-                        dataset,
-                        image,
-                    })
-                }
+                if (!transientPair) setState({ status: 'loading' })
+                const nextState = await loadIndividualAnalysisComparison({
+                    transientPair,
+                    leftId,
+                    rightId,
+                    getStoredIndividualAnalysis,
+                    getDatasetById,
+                })
+                if (!cancelled) setState(nextState)
             } catch (error) {
                 if (!cancelled) {
                     setState({

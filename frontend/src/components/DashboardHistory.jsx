@@ -290,6 +290,171 @@ export function HistoryConfirmationDialog({ confirmation, busy, onCancel, onConf
     )
 }
 
+function DashboardHistoryHeader({ isEvaluationHistory, onNavigateToProfile }) {
+    return (
+        <header className="dashboard-history-header dashboard-unified-history-header">
+            <div>
+                <span className="dashboard-section-eyebrow">Actividad conservada</span>
+                <h1>Historial</h1>
+                <p>{isEvaluationHistory
+                    ? 'Recupera evaluaciones anteriores, conserva resultados importantes o compara ejecuciones compatibles.'
+                    : 'Reabre o compara los análisis de una sola imagen que hayas decidido guardar explícitamente.'}</p>
+            </div>
+            {isEvaluationHistory && <button type="button" className="dashboard-text-action" onClick={onNavigateToProfile}>Gestionar retención automática</button>}
+        </header>
+    )
+}
+
+function DashboardHistoryControls({ comparisonMode, historyKind, taskType, historyTotal, isEvaluationHistory, onHistoryKind, onTaskFilter }) {
+    if (comparisonMode) return null
+    return (
+        <>
+            <nav className="dashboard-history-kinds" aria-label="Tipo de historial">
+                <button type="button" className={historyKind === 'evaluations' ? 'active' : ''} onClick={() => onHistoryKind('evaluations')}><span>Evaluaciones</span><small>Dataset completo</small></button>
+                <button type="button" className={historyKind === 'individual' ? 'active' : ''} onClick={() => onHistoryKind('individual')}><span>Análisis individuales</span><small>Una sola imagen</small></button>
+            </nav>
+            <div className="dashboard-history-toolbar">
+                <div className="dashboard-history-filters" aria-label="Filtrar historial">
+                    {[['', 'Todas'], ['classification', 'Clasificación'], ['detection', 'Detección']].map(([value, label]) => (
+                        <button key={value || 'all'} type="button" className={taskType === value ? 'active' : ''} onClick={() => onTaskFilter(value)}>{label}</button>
+                    ))}
+                </div>
+                <span>{historyTotal} {isEvaluationHistory ? 'evaluaciones disponibles' : 'análisis guardados'}</span>
+            </div>
+        </>
+    )
+}
+
+function DashboardComparisonPicker({
+    isEvaluationHistory,
+    comparisonBase,
+    comparisonCandidates,
+    comparisonLoading,
+    comparisonVisibleCount,
+    attackCatalog,
+    datasets,
+    onClose,
+    onCompare,
+    onShowLess,
+    onShowMore,
+}) {
+    let candidateContent
+    if (comparisonLoading) {
+        candidateContent = <div className="dashboard-empty-state dashboard-history-loading"><strong>Buscando comparaciones válidas…</strong><span>Comprobando el historial completo de esta tarea.</span></div>
+    } else if (comparisonCandidates.length === 0) {
+        candidateContent = <div className="dashboard-empty-state dashboard-comparison-empty"><strong>No hay otro {isEvaluationHistory ? 'resultado' : 'análisis'} compatible</strong><span>Necesitas otro resultado sobre la misma revisión, y en análisis individuales también sobre la misma imagen, donde cambie solo el modelo, el ataque o su configuración.</span></div>
+    } else {
+        candidateContent = (
+            <div className="dashboard-comparison-candidates">
+                {comparisonCandidates.slice(0, comparisonVisibleCount).map(({ item, comparison }) => (
+                    <article key={isEvaluationHistory ? item.result_id : item.analysis_id} className="dashboard-comparison-candidate">
+                        <span className="dashboard-comparison-side side-b">B</span>
+                        {isEvaluationHistory
+                            ? <EvaluationCopy item={item} attackCatalog={attackCatalog} />
+                            : <IndividualAnalysisCopy item={item} datasets={datasets} attackCatalog={attackCatalog} />}
+                        <div className="dashboard-comparison-candidate-action">
+                            <span className={`dashboard-comparison-kind kind-${comparison.kind}`}>{comparison.label}</span>
+                            <button type="button" className="dashboard-history-compare primary" onClick={() => onCompare(item)}>Comparar<ArrowIcon /></button>
+                        </div>
+                    </article>
+                ))}
+            </div>
+        )
+    }
+
+    const showFooter = !comparisonLoading && comparisonCandidates.length > COMPARISON_CANDIDATE_STEP
+    return (
+        <div className="dashboard-comparison-picker">
+            <header className="dashboard-comparison-picker-heading">
+                <div><span className="dashboard-section-eyebrow">Comparación controlada</span><h2>Selecciona {isEvaluationHistory ? 'la evaluación' : 'el análisis'} B</h2><p>Solo mostramos resultados donde cambia una única variable: modelo, ataque o configuración del ataque.</p></div>
+                <button type="button" className="dashboard-text-action" onClick={onClose}>Cancelar</button>
+            </header>
+            <article className="dashboard-comparison-base" aria-label={`${isEvaluationHistory ? 'Evaluación' : 'Análisis'} A seleccionado`}>
+                <span className="dashboard-comparison-side side-a">A</span>
+                <div className="dashboard-comparison-base-copy">
+                    <strong>{comparisonBase.model_name}</strong>
+                    <span>{getAttackName(comparisonBase.attack_type, attackCatalog)} · {formatAttackParameters(comparisonBase.attack_type, comparisonBase.parameters, attackCatalog)}</span>
+                    <small>{comparisonBase.dataset_name} · revisión {comparisonBase.dataset_revision}{!isEvaluationHistory && ` · ${comparisonBase.image_filename}`}</small>
+                </div>
+            </article>
+            {candidateContent}
+            {showFooter && (
+                <footer className="dashboard-comparison-candidate-footer">
+                    <span>{Math.min(comparisonVisibleCount, comparisonCandidates.length)} de {comparisonCandidates.length} compatibles</span>
+                    <div>
+                        {comparisonVisibleCount > COMPARISON_CANDIDATE_STEP && <button type="button" onClick={onShowLess}>Mostrar menos</button>}
+                        {comparisonVisibleCount < comparisonCandidates.length && <button type="button" onClick={onShowMore}>Ver {Math.min(COMPARISON_CANDIDATE_STEP, comparisonCandidates.length - comparisonVisibleCount)} más</button>}
+                    </div>
+                </footer>
+            )}
+        </div>
+    )
+}
+
+function EvaluationHistoryList({ history, attackCatalog, openingResultId, mutationResultId, openMenuId, onStartComparison, onOpen, onToggleMenu, onRetentionAction, onDelete }) {
+    return (
+        <div className="dashboard-history-list">
+            {history.items.map((item) => (
+                <article key={item.result_id} className="dashboard-history-row">
+                    <EvaluationCopy item={item} attackCatalog={attackCatalog} />
+                    <div className="dashboard-history-actions">
+                        <HistoryStatus item={item} />
+                        <button type="button" className="dashboard-history-compare" disabled={item.status !== 'completed'} onClick={() => onStartComparison(item)} title="Seleccionar como evaluación A"><CompareIcon /><span>Comparar</span></button>
+                        <button type="button" className="dashboard-history-open" disabled={item.status !== 'completed' || openingResultId === item.result_id} onClick={() => onOpen(item)}><span>{openingResultId === item.result_id ? 'Abriendo…' : 'Abrir'}</span><ArrowIcon /></button>
+                        {item.status === 'completed' && (
+                            <HistoryMoreMenu label={`Más acciones para ${item.dataset_name}`} menuId={`evaluation-${item.result_id}`} open={openMenuId === `evaluation-${item.result_id}`} onToggle={onToggleMenu}>
+                                <button type="button" disabled={mutationResultId === item.result_id} onClick={() => onRetentionAction(item)}><PinIcon /><span>{item.preserved ? 'Volver a retención automática' : 'Conservar indefinidamente'}</span></button>
+                                <button type="button" className="danger" disabled={mutationResultId === item.result_id} onClick={() => onDelete(item)}><TrashIcon /><span>Eliminar evaluación</span></button>
+                            </HistoryMoreMenu>
+                        )}
+                    </div>
+                </article>
+            ))}
+        </div>
+    )
+}
+
+function IndividualHistoryList({ history, datasets, attackCatalog, openingResultId, mutationResultId, openMenuId, onStartComparison, onOpen, onToggleMenu, onDelete }) {
+    return (
+        <div className="dashboard-history-list dashboard-individual-history-list">
+            {history.items.map((item) => (
+                <article key={item.analysis_id} className="dashboard-history-row dashboard-individual-history-row">
+                    <IndividualAnalysisCopy item={item} datasets={datasets} attackCatalog={attackCatalog} />
+                    <div className="dashboard-history-actions">
+                        <span className="dashboard-history-status preserved">Conservado</span>
+                        <button type="button" className="dashboard-history-compare" onClick={() => onStartComparison(item)} title="Seleccionar como análisis A"><CompareIcon /><span>Comparar</span></button>
+                        <button type="button" className="dashboard-history-open" disabled={openingResultId === item.analysis_id} onClick={() => onOpen(item)}><span>{openingResultId === item.analysis_id ? 'Abriendo…' : 'Abrir'}</span><ArrowIcon /></button>
+                        <HistoryMoreMenu label={`Más acciones para ${item.image_filename}`} menuId={`individual-${item.analysis_id}`} open={openMenuId === `individual-${item.analysis_id}`} onToggle={onToggleMenu}>
+                            <button type="button" className="danger" disabled={mutationResultId === item.analysis_id} onClick={() => onDelete(item)}><TrashIcon /><span>Eliminar análisis</span></button>
+                        </HistoryMoreMenu>
+                    </div>
+                </article>
+            ))}
+        </div>
+    )
+}
+
+function DashboardHistoryBody(props) {
+    if (props.comparisonMode) return <DashboardComparisonPicker {...props.comparisonProps} />
+    if (props.loading) return <div className="dashboard-empty-state dashboard-history-loading"><strong>Cargando historial…</strong><span>{props.isEvaluationHistory ? 'Recuperando tus evaluaciones vigentes.' : 'Recuperando los análisis que has guardado.'}</span></div>
+    if (props.history.items.length === 0) return <div className="dashboard-empty-state dashboard-history-empty"><strong>{props.isEvaluationHistory ? 'Aún no hay evaluaciones recuperables' : 'Todavía no has guardado ningún análisis individual'}</strong><span>{props.isEvaluationHistory ? 'Las evaluaciones aparecerán aquí mientras sigan vigentes o cuando decidas conservarlas.' : 'Los análisis de imagen seguirán siendo temporales hasta que utilices Guardar análisis desde su vista.'}</span></div>
+    if (props.isEvaluationHistory) return <EvaluationHistoryList {...props.evaluationListProps} />
+    return <IndividualHistoryList {...props.individualListProps} />
+}
+
+function DashboardHistoryPagination({ comparisonMode, history, currentPage, pageCount, offset, loading, onOffsetChange }) {
+    if (comparisonMode || history.total <= HISTORY_PAGE_SIZE) return null
+    return (
+        <footer className="dashboard-history-pagination">
+            <span>Página {currentPage} de {pageCount}</span>
+            <div>
+                <button type="button" disabled={offset === 0 || loading} onClick={() => onOffsetChange(Math.max(0, offset - HISTORY_PAGE_SIZE))}>Anterior</button>
+                <button type="button" disabled={offset + HISTORY_PAGE_SIZE >= history.total || loading} onClick={() => onOffsetChange(offset + HISTORY_PAGE_SIZE)}>Siguiente</button>
+            </div>
+        </footer>
+    )
+}
+
 function DashboardHistory({
     datasets,
     attackCatalog,
@@ -537,6 +702,30 @@ function DashboardHistory({
         setOpenMenuId((current) => current === menuId ? null : menuId)
     }
 
+    function handleRetentionAction(item) {
+        setOpenMenuId(null)
+        if (item.preserved) {
+            setConfirmation({ type: 'unpreserve-evaluation', item })
+            return
+        }
+        handlePreserveEvaluation(item)
+    }
+
+    function handleDeleteEvaluationAction(item) {
+        setOpenMenuId(null)
+        setConfirmation({ type: 'delete-evaluation', item })
+    }
+
+    function handleDeleteIndividualAction(item) {
+        setOpenMenuId(null)
+        setConfirmation({ type: 'delete-individual', item })
+    }
+
+    function handleComparisonCandidate(item) {
+        if (isEvaluationHistory) onNavigateToComparison(comparisonBase, item)
+        else onNavigateToIndividualComparison(comparisonBase, item)
+    }
+
     const currentPage = Math.floor(offset / HISTORY_PAGE_SIZE) + 1
     const pageCount = Math.max(1, Math.ceil(history.total / HISTORY_PAGE_SIZE))
     const comparisonMode = Boolean(comparisonBase)
@@ -544,396 +733,26 @@ function DashboardHistory({
 
     return (
         <section className="dashboard-history-view">
-            <header className="dashboard-history-header dashboard-unified-history-header">
-                <div>
-                    <span className="dashboard-section-eyebrow">Actividad conservada</span>
-                    <h1>Historial</h1>
-                    <p>
-                        {isEvaluationHistory
-                            ? 'Recupera evaluaciones anteriores, conserva resultados importantes o compara ejecuciones compatibles.'
-                            : 'Reabre o compara los análisis de una sola imagen que hayas decidido guardar explícitamente.'}
-                    </p>
-                </div>
-                {isEvaluationHistory && (
-                    <button
-                        type="button"
-                        className="dashboard-text-action"
-                        onClick={onNavigateToProfile}
-                    >
-                        Gestionar retención automática
-                    </button>
-                )}
-            </header>
-
-            {!comparisonMode && (
-                <nav className="dashboard-history-kinds" aria-label="Tipo de historial">
-                    <button
-                        type="button"
-                        className={historyKind === 'evaluations' ? 'active' : ''}
-                        onClick={() => handleHistoryKind('evaluations')}
-                    >
-                        <span>Evaluaciones</span>
-                        <small>Dataset completo</small>
-                    </button>
-                    <button
-                        type="button"
-                        className={historyKind === 'individual' ? 'active' : ''}
-                        onClick={() => handleHistoryKind('individual')}
-                    >
-                        <span>Análisis individuales</span>
-                        <small>Una sola imagen</small>
-                    </button>
-                </nav>
-            )}
-
-            {!comparisonMode && (
-                <div className="dashboard-history-toolbar">
-                    <div className="dashboard-history-filters" aria-label="Filtrar historial">
-                        {[
-                            ['', 'Todas'],
-                            ['classification', 'Clasificación'],
-                            ['detection', 'Detección'],
-                        ].map(([value, label]) => (
-                            <button
-                                key={value || 'all'}
-                                type="button"
-                                className={taskType === value ? 'active' : ''}
-                                onClick={() => handleTaskFilter(value)}
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-                    <span>
-                        {history.total}{' '}
-                        {isEvaluationHistory ? 'evaluaciones disponibles' : 'análisis guardados'}
-                    </span>
-                </div>
-            )}
-
+            <DashboardHistoryHeader isEvaluationHistory={isEvaluationHistory} onNavigateToProfile={onNavigateToProfile} />
+            <DashboardHistoryControls comparisonMode={comparisonMode} historyKind={historyKind} taskType={taskType} historyTotal={history.total} isEvaluationHistory={isEvaluationHistory} onHistoryKind={handleHistoryKind} onTaskFilter={handleTaskFilter} />
             {error && <p className="error dashboard-history-error">{error}</p>}
-
-            {comparisonMode ? (
-                <div className="dashboard-comparison-picker">
-                    <header className="dashboard-comparison-picker-heading">
-                        <div>
-                            <span className="dashboard-section-eyebrow">Comparación controlada</span>
-                            <h2>Selecciona {isEvaluationHistory ? 'la evaluación' : 'el análisis'} B</h2>
-                            <p>
-                                Solo mostramos resultados donde cambia una única variable:
-                                modelo, ataque o configuración del ataque.
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            className="dashboard-text-action"
-                            onClick={closeComparisonPicker}
-                        >
-                            Cancelar
-                        </button>
-                    </header>
-
-                    <article className="dashboard-comparison-base" aria-label={`${isEvaluationHistory ? 'Evaluación' : 'Análisis'} A seleccionado`}>
-                        <span className="dashboard-comparison-side side-a">A</span>
-                        <div className="dashboard-comparison-base-copy">
-                            <strong>{comparisonBase.model_name}</strong>
-                            <span>
-                                {getAttackName(comparisonBase.attack_type, attackCatalog)} ·{' '}
-                                {formatAttackParameters(
-                                    comparisonBase.attack_type,
-                                    comparisonBase.parameters,
-                                    attackCatalog,
-                                )}
-                            </span>
-                            <small>
-                                {comparisonBase.dataset_name} · revisión{' '}
-                                {comparisonBase.dataset_revision}
-                                {!isEvaluationHistory && ` · ${comparisonBase.image_filename}`}
-                            </small>
-                        </div>
-                    </article>
-
-                    {comparisonLoading ? (
-                        <div className="dashboard-empty-state dashboard-history-loading">
-                            <strong>Buscando comparaciones válidas…</strong>
-                            <span>Comprobando el historial completo de esta tarea.</span>
-                        </div>
-                    ) : comparisonCandidates.length === 0 ? (
-                        <div className="dashboard-empty-state dashboard-comparison-empty">
-                            <strong>No hay otro {isEvaluationHistory ? 'resultado' : 'análisis'} compatible</strong>
-                            <span>
-                                Necesitas otro resultado sobre la misma revisión, y en análisis individuales también sobre la misma imagen, donde cambie solo el modelo, el ataque o su configuración.
-                            </span>
-                        </div>
-                    ) : (
-                        <div className="dashboard-comparison-candidates">
-                            {comparisonCandidates
-                                .slice(0, comparisonVisibleCount)
-                                .map(({ item, comparison }) => (
-                                    <article
-                                        key={isEvaluationHistory ? item.result_id : item.analysis_id}
-                                        className="dashboard-comparison-candidate"
-                                    >
-                                        <span className="dashboard-comparison-side side-b">B</span>
-                                        {isEvaluationHistory ? (
-                                            <EvaluationCopy item={item} attackCatalog={attackCatalog} />
-                                        ) : (
-                                            <IndividualAnalysisCopy
-                                                item={item}
-                                                datasets={datasets}
-                                                attackCatalog={attackCatalog}
-                                            />
-                                        )}
-                                        <div className="dashboard-comparison-candidate-action">
-                                            <span className={`dashboard-comparison-kind kind-${comparison.kind}`}>
-                                                {comparison.label}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                className="dashboard-history-compare primary"
-                                                onClick={() => {
-                                                    if (isEvaluationHistory) {
-                                                        onNavigateToComparison(comparisonBase, item)
-                                                    } else {
-                                                        onNavigateToIndividualComparison(comparisonBase, item)
-                                                    }
-                                                }}
-                                            >
-                                                Comparar
-                                                <ArrowIcon />
-                                            </button>
-                                        </div>
-                                    </article>
-                                ))}
-                        </div>
-                    )}
-
-                    {!comparisonLoading
-                    && comparisonCandidates.length > COMPARISON_CANDIDATE_STEP && (
-                        <footer className="dashboard-comparison-candidate-footer">
-                            <span>
-                                {Math.min(comparisonVisibleCount, comparisonCandidates.length)} de{' '}
-                                {comparisonCandidates.length} compatibles
-                            </span>
-                            <div>
-                                {comparisonVisibleCount > COMPARISON_CANDIDATE_STEP && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setComparisonVisibleCount(COMPARISON_CANDIDATE_STEP)}
-                                    >
-                                        Mostrar menos
-                                    </button>
-                                )}
-                                {comparisonVisibleCount < comparisonCandidates.length && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setComparisonVisibleCount((current) =>
-                                            Math.min(
-                                                current + COMPARISON_CANDIDATE_STEP,
-                                                comparisonCandidates.length,
-                                            ))}
-                                    >
-                                        Ver {Math.min(
-                                            COMPARISON_CANDIDATE_STEP,
-                                            comparisonCandidates.length - comparisonVisibleCount,
-                                        )} más
-                                    </button>
-                                )}
-                            </div>
-                        </footer>
-                    )}
-                </div>
-            ) : loading ? (
-                <div className="dashboard-empty-state dashboard-history-loading">
-                    <strong>Cargando historial…</strong>
-                    <span>
-                        {isEvaluationHistory
-                            ? 'Recuperando tus evaluaciones vigentes.'
-                            : 'Recuperando los análisis que has guardado.'}
-                    </span>
-                </div>
-            ) : history.items.length === 0 ? (
-                <div className="dashboard-empty-state dashboard-history-empty">
-                    <strong>
-                        {isEvaluationHistory
-                            ? 'Aún no hay evaluaciones recuperables'
-                            : 'Todavía no has guardado ningún análisis individual'}
-                    </strong>
-                    <span>
-                        {isEvaluationHistory
-                            ? 'Las evaluaciones aparecerán aquí mientras sigan vigentes o cuando decidas conservarlas.'
-                            : 'Los análisis de imagen seguirán siendo temporales hasta que utilices Guardar análisis desde su vista.'}
-                    </span>
-                </div>
-            ) : isEvaluationHistory ? (
-                <div className="dashboard-history-list">
-                    {history.items.map((item) => (
-                        <article key={item.result_id} className="dashboard-history-row">
-                            <EvaluationCopy item={item} attackCatalog={attackCatalog} />
-
-                            <div className="dashboard-history-actions">
-                                <HistoryStatus item={item} />
-                                <button
-                                    type="button"
-                                    className="dashboard-history-compare"
-                                    disabled={item.status !== 'completed'}
-                                    onClick={() => handleStartComparison(item)}
-                                    title="Seleccionar como evaluación A"
-                                >
-                                    <CompareIcon />
-                                    <span>Comparar</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="dashboard-history-open"
-                                    disabled={
-                                        item.status !== 'completed'
-                                        || openingResultId === item.result_id
-                                    }
-                                    onClick={() => handleOpenEvaluation(item)}
-                                >
-                                    <span>
-                                        {openingResultId === item.result_id ? 'Abriendo…' : 'Abrir'}
-                                    </span>
-                                    <ArrowIcon />
-                                </button>
-                                {item.status === 'completed' && (
-                                    <HistoryMoreMenu
-                                        label={`Más acciones para ${item.dataset_name}`}
-                                        menuId={`evaluation-${item.result_id}`}
-                                        open={openMenuId === `evaluation-${item.result_id}`}
-                                        onToggle={toggleMoreMenu}
-                                    >
-                                        <button
-                                            type="button"
-                                            disabled={mutationResultId === item.result_id}
-                                            onClick={() => {
-                                                setOpenMenuId(null)
-                                                if (item.preserved) {
-                                                    setConfirmation({
-                                                        type: 'unpreserve-evaluation',
-                                                        item,
-                                                    })
-                                                } else {
-                                                    handlePreserveEvaluation(item)
-                                                }
-                                            }}
-                                        >
-                                            <PinIcon />
-                                            <span>
-                                                {item.preserved
-                                                    ? 'Volver a retención automática'
-                                                    : 'Conservar indefinidamente'}
-                                            </span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="danger"
-                                            disabled={mutationResultId === item.result_id}
-                                            onClick={() => {
-                                                setOpenMenuId(null)
-                                                setConfirmation({ type: 'delete-evaluation', item })
-                                            }}
-                                        >
-                                            <TrashIcon />
-                                            <span>Eliminar evaluación</span>
-                                        </button>
-                                    </HistoryMoreMenu>
-                                )}
-                            </div>
-                        </article>
-                    ))}
-                </div>
-            ) : (
-                <div className="dashboard-history-list dashboard-individual-history-list">
-                    {history.items.map((item) => (
-                        <article
-                            key={item.analysis_id}
-                            className="dashboard-history-row dashboard-individual-history-row"
-                        >
-                            <IndividualAnalysisCopy
-                                item={item}
-                                datasets={datasets}
-                                attackCatalog={attackCatalog}
-                            />
-
-                            <div className="dashboard-history-actions">
-                                <span className="dashboard-history-status preserved">Conservado</span>
-                                <button
-                                    type="button"
-                                    className="dashboard-history-compare"
-                                    onClick={() => handleStartComparison(item)}
-                                    title="Seleccionar como análisis A"
-                                >
-                                    <CompareIcon />
-                                    <span>Comparar</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="dashboard-history-open"
-                                    disabled={openingResultId === item.analysis_id}
-                                    onClick={() => handleOpenIndividualAnalysis(item)}
-                                >
-                                    <span>
-                                        {openingResultId === item.analysis_id ? 'Abriendo…' : 'Abrir'}
-                                    </span>
-                                    <ArrowIcon />
-                                </button>
-                                <HistoryMoreMenu
-                                    label={`Más acciones para ${item.image_filename}`}
-                                    menuId={`individual-${item.analysis_id}`}
-                                    open={openMenuId === `individual-${item.analysis_id}`}
-                                    onToggle={toggleMoreMenu}
-                                >
-                                    <button
-                                        type="button"
-                                        className="danger"
-                                        disabled={mutationResultId === item.analysis_id}
-                                        onClick={() => {
-                                            setOpenMenuId(null)
-                                            setConfirmation({ type: 'delete-individual', item })
-                                        }}
-                                    >
-                                        <TrashIcon />
-                                        <span>Eliminar análisis</span>
-                                    </button>
-                                </HistoryMoreMenu>
-                            </div>
-                        </article>
-                    ))}
-                </div>
-            )}
-
-            {!comparisonMode && history.total > HISTORY_PAGE_SIZE && (
-                <footer className="dashboard-history-pagination">
-                    <span>Página {currentPage} de {pageCount}</span>
-                    <div>
-                        <button
-                            type="button"
-                            disabled={offset === 0 || loading}
-                            onClick={() => setOffset(Math.max(0, offset - HISTORY_PAGE_SIZE))}
-                        >
-                            Anterior
-                        </button>
-                        <button
-                            type="button"
-                            disabled={offset + HISTORY_PAGE_SIZE >= history.total || loading}
-                            onClick={() => setOffset(offset + HISTORY_PAGE_SIZE)}
-                        >
-                            Siguiente
-                        </button>
-                    </div>
-                </footer>
-            )}
-
-            <HistoryConfirmationDialog
-                confirmation={confirmation}
-                busy={Boolean(mutationResultId)}
-                onCancel={() => {
-                    if (!mutationResultId) setConfirmation(null)
+            <DashboardHistoryBody
+                comparisonMode={comparisonMode}
+                loading={loading}
+                history={history}
+                isEvaluationHistory={isEvaluationHistory}
+                comparisonProps={{
+                    isEvaluationHistory, comparisonBase, comparisonCandidates, comparisonLoading, comparisonVisibleCount, attackCatalog, datasets,
+                    onClose: closeComparisonPicker,
+                    onCompare: handleComparisonCandidate,
+                    onShowLess: () => setComparisonVisibleCount(COMPARISON_CANDIDATE_STEP),
+                    onShowMore: () => setComparisonVisibleCount((current) => Math.min(current + COMPARISON_CANDIDATE_STEP, comparisonCandidates.length)),
                 }}
-                onConfirm={handleConfirmMutation}
+                evaluationListProps={{ history, attackCatalog, openingResultId, mutationResultId, openMenuId, onStartComparison: handleStartComparison, onOpen: handleOpenEvaluation, onToggleMenu: toggleMoreMenu, onRetentionAction: handleRetentionAction, onDelete: handleDeleteEvaluationAction }}
+                individualListProps={{ history, datasets, attackCatalog, openingResultId, mutationResultId, openMenuId, onStartComparison: handleStartComparison, onOpen: handleOpenIndividualAnalysis, onToggleMenu: toggleMoreMenu, onDelete: handleDeleteIndividualAction }}
             />
+            <DashboardHistoryPagination comparisonMode={comparisonMode} history={history} currentPage={currentPage} pageCount={pageCount} offset={offset} loading={loading} onOffsetChange={setOffset} />
+            <HistoryConfirmationDialog confirmation={confirmation} busy={Boolean(mutationResultId)} onCancel={() => { if (!mutationResultId) setConfirmation(null) }} onConfirm={handleConfirmMutation} />
         </section>
     )
 }

@@ -63,6 +63,28 @@ export function comparisonExplanationState(taskType, leftAnalysis, rightAnalysis
     }
 }
 
+function resolveComparisonExplanationSource(taskType, analysis, stage) {
+    if (taskType === 'detection') {
+        return stage === 'original'
+            ? analysis.original_explanation_image_url ?? null
+            : analysis.adversarial_explanation_image_url ?? null
+    }
+    return stage === 'original'
+        ? analysis.original_gradcam_image_url ?? null
+        : analysis.adversarial_gradcam_image_url ?? null
+}
+
+function resolveDetectionComparisonImageSource(analysis, image, stage, showAnnotations) {
+    if (stage === 'original') {
+        return showAnnotations
+            ? analysis.original_annotated_image_url ?? image?.url ?? null
+            : image?.url ?? null
+    }
+    return showAnnotations
+        ? analysis.adversarial_annotated_image_url ?? analysis.adversarial_image_url ?? null
+        : analysis.adversarial_image_url ?? null
+}
+
 export function resolveIndividualAnalysisComparisonSource({
     taskType,
     analysis,
@@ -72,38 +94,14 @@ export function resolveIndividualAnalysisComparisonSource({
     showAnnotations = true,
 }) {
     if (!analysis) return null
-
-    if (layer === 'perturbation') {
-        return analysis.perturbation_image_url ?? null
-    }
-
+    if (layer === 'perturbation') return analysis.perturbation_image_url ?? null
     if (layer === 'explanation') {
-        if (taskType === 'detection') {
-            return stage === 'original'
-                ? analysis.original_explanation_image_url ?? null
-                : analysis.adversarial_explanation_image_url ?? null
-        }
-        return stage === 'original'
-            ? analysis.original_gradcam_image_url ?? null
-            : analysis.adversarial_gradcam_image_url ?? null
+        return resolveComparisonExplanationSource(taskType, analysis, stage)
     }
-
     if (taskType === 'detection') {
-        if (stage === 'original') {
-            return showAnnotations
-                ? analysis.original_annotated_image_url ?? image?.url ?? null
-                : image?.url ?? null
-        }
-        return showAnnotations
-            ? analysis.adversarial_annotated_image_url
-                ?? analysis.adversarial_image_url
-                ?? null
-            : analysis.adversarial_image_url ?? null
+        return resolveDetectionComparisonImageSource(analysis, image, stage, showAnnotations)
     }
-
-    return stage === 'original'
-        ? image?.url ?? null
-        : analysis.adversarial_image_url ?? null
+    return stage === 'original' ? image?.url ?? null : analysis.adversarial_image_url ?? null
 }
 
 export function individualAnalysisComparisonSummary(taskType, analysis) {
@@ -166,4 +164,114 @@ export function formatComparisonMagnitude(value) {
     while (end > 0 && fixed[end - 1] === '0') end -= 1
     if (end > 0 && fixed[end - 1] === '.') end -= 1
     return fixed.slice(0, end)
+}
+
+
+function buildTransientComparisonState(transientPair) {
+    const left = transientPair?.left
+    const right = transientPair?.right
+    if (!left?.item || !right?.item || !left?.analysis || !right?.analysis) {
+        throw new Error('La comparación temporal ya no contiene los dos resultados necesarios.')
+    }
+
+    const comparison = buildIndividualAnalysisComparison(left.item, right.item)
+    if (!comparison.compatible) throw new Error(comparison.reason)
+
+    const dataset = transientPair.dataset ?? left.dataset ?? right.dataset
+    const image = transientPair.image ?? left.image ?? right.image
+    if (!dataset || !image) {
+        throw new Error('No se pudo recuperar el contexto visual de la imagen comparada.')
+    }
+
+    return { status: 'ready', left, right, comparison, dataset, image }
+}
+
+function buildSavedReference(stored, dataset, image) {
+    return {
+        item: stored.item,
+        analysis: stored.analysis,
+        dataset,
+        image,
+        temporary: false,
+        resultId: stored.analysis?.result_id ?? stored.item?.source_result_id ?? null,
+    }
+}
+
+async function buildStoredComparisonState(leftId, rightId, dependencies) {
+    if (!leftId || !rightId || leftId === rightId) {
+        throw new Error('Selecciona dos análisis individuales diferentes desde el historial.')
+    }
+
+    const [leftStored, rightStored] = await Promise.all([
+        dependencies.getStoredIndividualAnalysis(leftId),
+        dependencies.getStoredIndividualAnalysis(rightId),
+    ])
+    const comparison = buildIndividualAnalysisComparison(leftStored.item, rightStored.item)
+    if (!comparison.compatible) throw new Error(comparison.reason)
+
+    const dataset = await dependencies.getDatasetById(leftStored.item.dataset_id)
+    const image = dataset?.images?.find((candidate) => candidate.id === leftStored.item.image_id)
+    if (!image) {
+        throw new Error('La imagen original asociada ya no está disponible en el dataset.')
+    }
+
+    return {
+        status: 'ready',
+        left: buildSavedReference(leftStored, dataset, image),
+        right: buildSavedReference(rightStored, dataset, image),
+        comparison,
+        dataset,
+        image,
+    }
+}
+
+export async function loadIndividualAnalysisComparison({
+    transientPair,
+    leftId,
+    rightId,
+    getStoredIndividualAnalysis,
+    getDatasetById,
+}) {
+    if (transientPair) return buildTransientComparisonState(transientPair)
+    return buildStoredComparisonState(leftId, rightId, {
+        getStoredIndividualAnalysis,
+        getDatasetById,
+    })
+}
+
+export function getComparisonLayerCaption(layer, taskType, stage) {
+    if (layer === 'perturbation') return 'Mapa amplificado de la perturbación'
+    if (layer === 'explanation') {
+        return taskType === 'detection' ? 'Eigen-CAM persistido' : 'Grad-CAM persistido'
+    }
+    return stage === 'original' ? 'Resultado original' : 'Resultado tras el ataque'
+}
+
+export function getComparisonExplanationMessage({
+    taskType,
+    comparisonKind,
+    explanationState,
+}) {
+    const explanationName = taskType === 'detection' ? 'Eigen-CAM' : 'Grad-CAM'
+    if (comparisonKind === 'model') {
+        return `la capa solo aparece si ambos análisis conservaron su ${explanationName} al ejecutarse. Si falta alguno no se regenera, porque la explicación depende del modelo activo y el historial no cambia ese estado global.`
+    }
+    if (explanationState.left || explanationState.right) {
+        return `solo uno de los análisis conserva ${explanationName}; la capa se oculta para evitar una comparación incompleta.`
+    }
+    return `ninguno de los dos análisis conserva ${explanationName}; el historial no recalcula explicaciones al abrir una comparación.`
+}
+
+export function getComparisonKeyboardAction(key, zoom, minimumZoom) {
+    const movements = {
+        ArrowLeft: { type: 'pan', x: 24, y: 0 },
+        ArrowRight: { type: 'pan', x: -24, y: 0 },
+        ArrowUp: { type: 'pan', x: 0, y: 24 },
+        ArrowDown: { type: 'pan', x: 0, y: -24 },
+    }
+    if (movements[key] && zoom > minimumZoom) return movements[key]
+    if (key === '+' || key === '=') return { type: 'zoom', direction: 1 }
+    if (key === '-') return { type: 'zoom', direction: -1 }
+    if (key === '0') return { type: 'reset' }
+    return null
 }

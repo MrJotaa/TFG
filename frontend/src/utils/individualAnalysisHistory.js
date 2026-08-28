@@ -24,79 +24,58 @@ export function individualAnalysisOutcome(item) {
     return 'Resultado guardado'
 }
 
-export function classifyIndividualAnalysisComparison(left, right) {
-    if (!left || !right) return { compatible: false, code: 'missing_result' }
-    if (left.analysis_id === right.analysis_id) {
-        return { compatible: false, code: 'same_result' }
-    }
-    if (left.task_type !== right.task_type) {
-        return { compatible: false, code: 'different_task' }
-    }
-    if (left.dataset_id !== right.dataset_id) {
-        return { compatible: false, code: 'different_dataset' }
-    }
-    if (left.dataset_revision !== right.dataset_revision) {
-        return { compatible: false, code: 'different_dataset_revision' }
-    }
-    if (left.image_id !== right.image_id) {
-        return { compatible: false, code: 'different_image' }
-    }
+function incompatibleComparison(code) {
+    return { compatible: false, code }
+}
 
-    if (
-        left.pipeline_version
-        && right.pipeline_version
-        && left.pipeline_version !== right.pipeline_version
-    ) {
-        return { compatible: false, code: 'different_pipeline_version' }
+function comparisonContextMismatch(left, right) {
+    if (!left || !right) return 'missing_result'
+    if (left.analysis_id === right.analysis_id) return 'same_result'
+    if (left.task_type !== right.task_type) return 'different_task'
+    if (left.dataset_id !== right.dataset_id) return 'different_dataset'
+    if (left.dataset_revision !== right.dataset_revision) return 'different_dataset_revision'
+    if (left.image_id !== right.image_id) return 'different_image'
+    if (left.pipeline_version && right.pipeline_version && left.pipeline_version !== right.pipeline_version) {
+        return 'different_pipeline_version'
     }
+    return null
+}
+
+function implementationRevisionMismatch(left, right, sameModel, sameAttack) {
+    if (sameModel && left.model_revision && right.model_revision && left.model_revision !== right.model_revision) {
+        return 'different_model_revision'
+    }
+    if (sameAttack && left.attack_revision && right.attack_revision && left.attack_revision !== right.attack_revision) {
+        return 'different_attack_revision'
+    }
+    return null
+}
+
+function controlledIndividualComparison(sameModel, sameAttack, sameParameters) {
+    if (!sameModel && sameAttack && sameParameters) {
+        return { compatible: true, kind: 'model', label: 'Modelos' }
+    }
+    if (sameModel && !sameAttack) {
+        return { compatible: true, kind: 'attack', label: 'Ataques' }
+    }
+    if (sameModel && sameAttack && !sameParameters) {
+        return { compatible: true, kind: 'attack_configuration', label: 'Configuración' }
+    }
+    if (sameModel && sameAttack && sameParameters) return incompatibleComparison('identical_configuration')
+    return incompatibleComparison('multiple_variables')
+}
+
+export function classifyIndividualAnalysisComparison(left, right) {
+    const contextMismatch = comparisonContextMismatch(left, right)
+    if (contextMismatch) return incompatibleComparison(contextMismatch)
 
     const sameModel = left.model_id === right.model_id
     const sameAttack = left.attack_type === right.attack_type
-    const sameParameters = stableComparisonKey(left.parameters)
-        === stableComparisonKey(right.parameters)
+    const sameParameters = stableComparisonKey(left.parameters) === stableComparisonKey(right.parameters)
+    const revisionMismatch = implementationRevisionMismatch(left, right, sameModel, sameAttack)
+    if (revisionMismatch) return incompatibleComparison(revisionMismatch)
 
-    if (
-        sameModel
-        && left.model_revision
-        && right.model_revision
-        && left.model_revision !== right.model_revision
-    ) {
-        return { compatible: false, code: 'different_model_revision' }
-    }
-    if (
-        sameAttack
-        && left.attack_revision
-        && right.attack_revision
-        && left.attack_revision !== right.attack_revision
-    ) {
-        return { compatible: false, code: 'different_attack_revision' }
-    }
-
-    if (!sameModel && sameAttack && sameParameters) {
-        return {
-            compatible: true,
-            kind: 'model',
-            label: 'Modelos',
-        }
-    }
-    if (sameModel && !sameAttack) {
-        return {
-            compatible: true,
-            kind: 'attack',
-            label: 'Ataques',
-        }
-    }
-    if (sameModel && sameAttack && !sameParameters) {
-        return {
-            compatible: true,
-            kind: 'attack_configuration',
-            label: 'Configuración',
-        }
-    }
-    if (sameModel && sameAttack && sameParameters) {
-        return { compatible: false, code: 'identical_configuration' }
-    }
-    return { compatible: false, code: 'multiple_variables' }
+    return controlledIndividualComparison(sameModel, sameAttack, sameParameters)
 }
 
 export function getCompatibleIndividualAnalysisCandidates(base, items = []) {
