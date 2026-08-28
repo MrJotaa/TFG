@@ -6829,6 +6829,12 @@ html[data-theme='dark'] {
     background: transparent;
 }
 
+.evaluation-image-topk-comparison {
+    padding-inline: 0;
+    border-top-color: var(--border-subtle);
+    background: transparent;
+}
+
 .evaluation-image-lightbox {
     max-width: min(1100px, calc(100vw - 2rem));
 }

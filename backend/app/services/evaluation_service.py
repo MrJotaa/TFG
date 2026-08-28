@@ -607,6 +607,20 @@ async def _evaluate_dataset(
                 original_confidence=original_confidence,
                 adversarial_confidence=(adversarial_confidence),
                 confidence_difference=(confidence_difference),
+                original_top_k=[
+                    {
+                        "label": score.label,
+                        "probability": score.probability,
+                    }
+                    for score in original_prediction.top_k[:3]
+                ],
+                adversarial_top_k=[
+                    {
+                        "label": score.label,
+                        "probability": score.probability,
+                    }
+                    for score in adversarial_prediction.top_k[:3]
+                ],
                 prediction_changed=prediction_changed,
                 # Legacy field. The new UI uses
                 # diagnostics.transition and Conditional ASR.

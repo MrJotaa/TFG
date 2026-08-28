@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import ClassificationTopK from '../classification/ClassificationTopK'
 import {
     formatDecimal,
     formatInteger,
@@ -573,6 +574,20 @@ function EvaluationImageCard({
                         <strong>{formatDecimal(result.perturbation_l2)}</strong>
                     </div>
                 </div>
+
+            <div
+                className="classification-topk-comparison evaluation-image-topk-comparison"
+                hidden={!expanded}
+            >
+                <ClassificationTopK
+                    title="Top-3 original"
+                    predictions={result.original_top_k}
+                />
+                <ClassificationTopK
+                    title="Top-3 tras el ataque"
+                    predictions={result.adversarial_top_k}
+                />
+            </div>
 
             {diagnostics.label_resolution_reason && (
                 <div className="evaluation-image-warning">

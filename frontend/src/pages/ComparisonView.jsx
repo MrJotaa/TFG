@@ -11,6 +11,7 @@ import {
     saveIndividualAnalysis,
 } from '../api/individualAnalysisHistory'
 import { predictImage } from '../api/predict'
+import ClassificationTopK from '../components/classification/ClassificationTopK'
 import AdversarialImageExplorer from '../components/visualExplorer/AdversarialImageExplorer'
 import {
     DuplicateAnalysisDialog,
@@ -73,34 +74,6 @@ function DetectionList({ detections = [], title }) {
                 )) : (
                     <p className="detection-result-empty">No hay detecciones en esta condición.</p>
                 )}
-            </div>
-        </section>
-    )
-}
-
-function ClassificationTopK({ title, predictions = [] }) {
-    return (
-        <section className="classification-topk-column">
-            <h4>{title}</h4>
-            <div className="classification-topk-list">
-                {predictions.map((prediction) => {
-                    const probability = Number(prediction.probability)
-                    const width = Number.isFinite(probability)
-                        ? `${Math.max(0, Math.min(100, probability * 100))}%`
-                        : '0%'
-
-                    return (
-                        <div key={prediction.label} className="classification-topk-row">
-                            <div>
-                                <span>{prediction.label}</span>
-                                <strong>{formatAnalysisProbability(prediction.probability)}</strong>
-                            </div>
-                            <span className="classification-topk-track" aria-hidden="true">
-                                <span style={{ width }} />
-                            </span>
-                        </div>
-                    )
-                })}
             </div>
         </section>
     )
