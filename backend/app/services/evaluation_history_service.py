@@ -36,6 +36,7 @@ from schemas.evaluation_history import (
     EvaluationTaskType,
     StoredEvaluationResponse,
 )
+from services.evaluation_cancellation import request_evaluation_cancellation
 from services.model_service import get_active_model, get_active_model_revision
 from utils.detection_evaluation_artifacts import (
     remove_detection_evaluation_visual_artifacts,
@@ -338,6 +339,29 @@ async def update_evaluation_preservation(
     return _history_item(document)
 
 
+async def cancel_running_evaluation(*, evaluation_id: str, owner_id: str) -> None:
+    await _get_owned_running_document(evaluation_id, owner_id)
+    active_execution = request_evaluation_cancellation(evaluation_id)
+    result = await evaluations_collection.delete_one(
+        {
+            "_id": evaluation_id,
+            "owner_id": owner_id,
+            "status": "running",
+        }
+    )
+    if result.deleted_count == 0:
+        raise BadRequestError("La evaluación ya no está en curso")
+
+    if not active_execution:
+        try:
+            await asyncio.to_thread(_remove_evaluation_artifacts, evaluation_id)
+        except OSError:
+            logger.exception(
+                "cancelled_evaluation_artifact_cleanup_failed result_id=%s",
+                evaluation_id,
+            )
+
+
 async def delete_evaluation_result(*, evaluation_id: str, owner_id: str) -> None:
     await _get_owned_completed_document(evaluation_id, owner_id)
     await _delete_matching_evaluations({"_id": evaluation_id, "owner_id": owner_id})
@@ -551,6 +575,19 @@ async def _find_compatible_document(*, owner_id: str, signature: str) -> dict | 
         if _artifact_path(document["_id"], _document_task_type(document)).is_file():
             return document
     return None
+
+
+async def _get_owned_running_document(evaluation_id: str, owner_id: str) -> dict:
+    if not _valid_result_id(evaluation_id):
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
+    document = await evaluations_collection.find_one({"_id": evaluation_id})
+    if document is None:
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
+    if document.get("owner_id") != owner_id:
+        raise ForbiddenError("La evaluación pertenece a otro usuario")
+    if document.get("status") != "running":
+        raise BadRequestError("La evaluación no está en curso")
+    return document
 
 
 async def _get_owned_completed_document(evaluation_id: str, owner_id: str) -> dict:

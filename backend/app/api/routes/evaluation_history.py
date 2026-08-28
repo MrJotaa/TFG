@@ -12,6 +12,7 @@ from schemas.evaluation_history import (
 )
 from schemas.users import UserResponse
 from services.evaluation_history_service import (
+    cancel_running_evaluation,
     delete_evaluation_result,
     find_compatible_evaluation,
     get_stored_evaluation,
@@ -77,6 +78,21 @@ async def change_evaluation_preservation(
         update=update,
         retention_seconds=current_user.result_retention_seconds,
     )
+
+
+@router.post(
+    "/evaluations/{evaluation_id}/cancel",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def cancel_evaluation_history_result(
+    evaluation_id: str,
+    current_user: UserResponse = Depends(require_current_user),
+) -> Response:
+    await cancel_running_evaluation(
+        evaluation_id=evaluation_id,
+        owner_id=current_user.id,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete(

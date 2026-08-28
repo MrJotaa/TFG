@@ -46,6 +46,10 @@ from services.detection_supervised_evaluation import (
     prepare_detection_supervised_evaluation,
     requires_detection_supervised_catalog,
 )
+from services.evaluation_cancellation import (
+    register_evaluation_cancellation,
+    unregister_evaluation_cancellation,
+)
 from services.evaluation_history_service import (
     EvaluationExecution,
     abort_evaluation_execution,
@@ -103,6 +107,11 @@ async def evaluate_detection_dataset(
     result_id = (
         execution.result_id if execution is not None else new_detection_evaluation_id()
     )
+    if execution is not None and cancellation_token is None:
+        cancellation_token = CancellationToken()
+    if execution is not None:
+        register_evaluation_cancellation(execution.result_id, cancellation_token)
+
     completed = False
     try:
         with dataset_read_snapshot(request.dataset_id):
@@ -117,17 +126,24 @@ async def evaluate_detection_dataset(
         completed = True
         return response
     finally:
-        if not completed:
+        try:
+            if not completed:
+                if execution is not None:
+                    await abort_evaluation_execution(execution)
+                else:
+                    try:
+                        remove_detection_evaluation_visual_artifacts(result_id)
+                    except OSError:
+                        logger.exception(
+                            "detection_evaluation_visual_cleanup_failed result_id=%s",
+                            result_id,
+                        )
+        finally:
             if execution is not None:
-                await abort_evaluation_execution(execution)
-            else:
-                try:
-                    remove_detection_evaluation_visual_artifacts(result_id)
-                except OSError:
-                    logger.exception(
-                        "detection_evaluation_visual_cleanup_failed result_id=%s",
-                        result_id,
-                    )
+                unregister_evaluation_cancellation(
+                    execution.result_id,
+                    cancellation_token,
+                )
 
 
 def _raise_if_cancelled(cancellation_token: CancellationToken | None) -> None:
@@ -522,6 +538,7 @@ async def _evaluate_detection_dataset(
             owner_id=dataset.owner_id,
         )
     else:
+        cancellation_token.raise_if_cancelled()
         await complete_evaluation_execution(
             execution=execution,
             response=response,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { resolveApiUrl } from '../api/client'
 import {
+    cancelEvaluation,
     deleteEvaluation,
     getAllEvaluationHistory,
     getEvaluationHistory,
@@ -230,19 +231,54 @@ export function HistoryMoreMenu({
     )
 }
 
+function getHistoryConfirmationCopy(confirmation, busy) {
+    if (confirmation.type === 'cancel-evaluation') {
+        return {
+            eyebrow: 'Ejecución en curso',
+            title: 'Cancelar evaluación',
+            description: 'Se solicitará la cancelación del cálculo y la evaluación se retirará del historial. Los resultados parciales no se conservarán.',
+            dismissLabel: 'Volver',
+            actionClassName: 'danger-action',
+            actionLabel: busy ? 'Cancelando…' : 'Cancelar evaluación',
+        }
+    }
+
+    if (confirmation.type === 'delete-individual') {
+        return {
+            eyebrow: 'Acción irreversible',
+            title: 'Eliminar análisis individual',
+            description: 'El análisis guardado y sus artefactos persistidos se eliminarán de forma permanente. El dataset y el modelo no se modificarán.',
+            dismissLabel: 'Cancelar',
+            actionClassName: 'danger-action',
+            actionLabel: busy ? 'Eliminando…' : 'Eliminar',
+        }
+    }
+
+    if (confirmation.type === 'delete-evaluation') {
+        return {
+            eyebrow: 'Acción irreversible',
+            title: 'Eliminar evaluación',
+            description: 'La evaluación y sus artefactos almacenados se eliminarán de forma permanente. El dataset, el modelo y otras evaluaciones no se modificarán.',
+            dismissLabel: 'Cancelar',
+            actionClassName: 'danger-action',
+            actionLabel: busy ? 'Eliminando…' : 'Eliminar',
+        }
+    }
+
+    return {
+        eyebrow: 'Retención',
+        title: 'Dejar de conservar la evaluación',
+        description: 'La evaluación volverá a estar sujeta a tu política de retención actual y recibirá una nueva fecha de caducidad a partir de ahora.',
+        dismissLabel: 'Cancelar',
+        actionClassName: 'primary-action',
+        actionLabel: busy ? 'Aplicando…' : 'Aplicar retención',
+    }
+}
+
 export function HistoryConfirmationDialog({ confirmation, busy, onCancel, onConfirm }) {
     if (!confirmation) return null
 
-    const isDelete = confirmation.type.startsWith('delete')
-    const isIndividual = confirmation.type === 'delete-individual'
-    const title = isDelete
-        ? `Eliminar ${isIndividual ? 'análisis individual' : 'evaluación'}`
-        : 'Dejar de conservar la evaluación'
-    const description = isDelete
-        ? isIndividual
-            ? 'El análisis guardado y sus artefactos persistidos se eliminarán de forma permanente. El dataset y el modelo no se modificarán.'
-            : 'La evaluación y sus artefactos almacenados se eliminarán de forma permanente. El dataset, el modelo y otras evaluaciones no se modificarán.'
-        : 'La evaluación volverá a estar sujeta a tu política de retención actual y recibirá una nueva fecha de caducidad a partir de ahora.'
+    const copy = getHistoryConfirmationCopy(confirmation, busy)
 
     return (
         <div
@@ -258,11 +294,9 @@ export function HistoryConfirmationDialog({ confirmation, busy, onCancel, onConf
                 aria-modal="true"
                 aria-labelledby="history-confirmation-title"
             >
-                <span className="dashboard-section-eyebrow">
-                    {isDelete ? 'Acción irreversible' : 'Retención'}
-                </span>
-                <h2 id="history-confirmation-title">{title}</h2>
-                <p>{description}</p>
+                <span className="dashboard-section-eyebrow">{copy.eyebrow}</span>
+                <h2 id="history-confirmation-title">{copy.title}</h2>
+                <p>{copy.description}</p>
                 <div className="dashboard-history-dialog-actions">
                     <button
                         type="button"
@@ -270,19 +304,15 @@ export function HistoryConfirmationDialog({ confirmation, busy, onCancel, onConf
                         disabled={busy}
                         onClick={onCancel}
                     >
-                        Cancelar
+                        {copy.dismissLabel}
                     </button>
                     <button
                         type="button"
-                        className={isDelete ? 'danger-action' : 'primary-action'}
+                        className={copy.actionClassName}
                         disabled={busy}
                         onClick={onConfirm}
                     >
-                        {busy
-                            ? isDelete ? 'Eliminando…' : 'Aplicando…'
-                            : isDelete
-                                ? 'Eliminar'
-                                : 'Aplicar retención'}
+                        {copy.actionLabel}
                     </button>
                 </div>
             </section>
@@ -391,7 +421,7 @@ function DashboardComparisonPicker({
     )
 }
 
-function EvaluationHistoryList({ history, attackCatalog, openingResultId, mutationResultId, openMenuId, onStartComparison, onOpen, onToggleMenu, onRetentionAction, onDelete }) {
+function EvaluationHistoryList({ history, attackCatalog, openingResultId, mutationResultId, openMenuId, onStartComparison, onOpen, onCancelEvaluation, onToggleMenu, onRetentionAction, onDelete }) {
     return (
         <div className="dashboard-history-list">
             {history.items.map((item) => (
@@ -399,6 +429,16 @@ function EvaluationHistoryList({ history, attackCatalog, openingResultId, mutati
                     <EvaluationCopy item={item} attackCatalog={attackCatalog} />
                     <div className="dashboard-history-actions">
                         <HistoryStatus item={item} />
+                        {item.status === 'running' && (
+                            <button
+                                type="button"
+                                className="dashboard-history-compare dashboard-history-cancel"
+                                disabled={mutationResultId === item.result_id}
+                                onClick={() => onCancelEvaluation(item)}
+                            >
+                                {mutationResultId === item.result_id ? 'Cancelando…' : 'Cancelar'}
+                            </button>
+                        )}
                         <button type="button" className="dashboard-history-compare" disabled={item.status !== 'completed'} onClick={() => onStartComparison(item)} title="Seleccionar como evaluación A"><CompareIcon /><span>Comparar</span></button>
                         <button type="button" className="dashboard-history-open" disabled={item.status !== 'completed' || openingResultId === item.result_id} onClick={() => onOpen(item)}><span>{openingResultId === item.result_id ? 'Abriendo…' : 'Abrir'}</span><ArrowIcon /></button>
                         {item.status === 'completed' && (
@@ -645,7 +685,11 @@ function DashboardHistory({
         try {
             setMutationResultId(id)
             setError('')
-            if (type === 'delete-evaluation') {
+            if (type === 'cancel-evaluation') {
+                await cancelEvaluation(item.result_id)
+                setConfirmation(null)
+                refreshAfterDelete()
+            } else if (type === 'delete-evaluation') {
                 await deleteEvaluation(item.result_id)
                 setConfirmation(null)
                 refreshAfterDelete()
@@ -702,6 +746,11 @@ function DashboardHistory({
         setOpenMenuId((current) => current === menuId ? null : menuId)
     }
 
+    function handleCancelEvaluationAction(item) {
+        setOpenMenuId(null)
+        setConfirmation({ type: 'cancel-evaluation', item })
+    }
+
     function handleRetentionAction(item) {
         setOpenMenuId(null)
         if (item.preserved) {
@@ -748,7 +797,7 @@ function DashboardHistory({
                     onShowLess: () => setComparisonVisibleCount(COMPARISON_CANDIDATE_STEP),
                     onShowMore: () => setComparisonVisibleCount((current) => Math.min(current + COMPARISON_CANDIDATE_STEP, comparisonCandidates.length)),
                 }}
-                evaluationListProps={{ history, attackCatalog, openingResultId, mutationResultId, openMenuId, onStartComparison: handleStartComparison, onOpen: handleOpenEvaluation, onToggleMenu: toggleMoreMenu, onRetentionAction: handleRetentionAction, onDelete: handleDeleteEvaluationAction }}
+                evaluationListProps={{ history, attackCatalog, openingResultId, mutationResultId, openMenuId, onStartComparison: handleStartComparison, onOpen: handleOpenEvaluation, onCancelEvaluation: handleCancelEvaluationAction, onToggleMenu: toggleMoreMenu, onRetentionAction: handleRetentionAction, onDelete: handleDeleteEvaluationAction }}
                 individualListProps={{ history, datasets, attackCatalog, openingResultId, mutationResultId, openMenuId, onStartComparison: handleStartComparison, onOpen: handleOpenIndividualAnalysis, onToggleMenu: toggleMoreMenu, onDelete: handleDeleteIndividualAction }}
             />
             <DashboardHistoryPagination comparisonMode={comparisonMode} history={history} currentPage={currentPage} pageCount={pageCount} offset={offset} loading={loading} onOffsetChange={setOffset} />

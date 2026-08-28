@@ -432,17 +432,22 @@ test('individual analysis persistence and duplicate lookup use stable history co
     })
 })
 
-test('evaluation history exposes preserve and delete operations', async () => {
-    const calls = captureFetch(() => jsonResponse({ preserved: true }))
+test('evaluation history exposes cancel, preserve and delete operations', async () => {
+    const calls = captureFetch((_url, _options, index) =>
+        index === 1 ? jsonResponse({ preserved: true }) : new Response(null, { status: 204 }),
+    )
 
+    await evaluationHistory.cancelEvaluation('evaluation-1')
     await evaluationHistory.setEvaluationPreserved('evaluation-1', true)
     await evaluationHistory.deleteEvaluation('evaluation-1')
 
-    assert.equal(calls[0].url, 'http://127.0.0.1:8000/evaluations/evaluation-1/preservation')
-    assert.equal(calls[0].options.method, 'PATCH')
-    assert.deepEqual(requestBody(calls[0]), { preserved: true })
-    assert.equal(calls[1].url, 'http://127.0.0.1:8000/evaluations/evaluation-1')
-    assert.equal(calls[1].options.method, 'DELETE')
+    assert.equal(calls[0].url, 'http://127.0.0.1:8000/evaluations/evaluation-1/cancel')
+    assert.equal(calls[0].options.method, 'POST')
+    assert.equal(calls[1].url, 'http://127.0.0.1:8000/evaluations/evaluation-1/preservation')
+    assert.equal(calls[1].options.method, 'PATCH')
+    assert.deepEqual(requestBody(calls[1]), { preserved: true })
+    assert.equal(calls[2].url, 'http://127.0.0.1:8000/evaluations/evaluation-1')
+    assert.equal(calls[2].options.method, 'DELETE')
 })
 
 test('individual analysis history supports paged recovery and manual deletion', async () => {

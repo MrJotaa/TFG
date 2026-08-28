@@ -42,6 +42,10 @@ from services.dataset_service import (
     get_dataset,
     get_image_from_dataset,
 )
+from services.evaluation_cancellation import (
+    register_evaluation_cancellation,
+    unregister_evaluation_cancellation,
+)
 from services.evaluation_history_service import (
     EvaluationExecution,
     abort_evaluation_execution,
@@ -108,6 +112,11 @@ async def evaluate_dataset(
             retention_seconds=retention_seconds,
         )
 
+    if execution is not None and cancellation_token is None:
+        cancellation_token = CancellationToken()
+    if execution is not None:
+        register_evaluation_cancellation(execution.result_id, cancellation_token)
+
     completed = False
     try:
         with dataset_read_snapshot(request.dataset_id):
@@ -121,8 +130,15 @@ async def evaluate_dataset(
         completed = True
         return response
     finally:
-        if execution is not None and not completed:
-            await abort_evaluation_execution(execution)
+        try:
+            if execution is not None and not completed:
+                await abort_evaluation_execution(execution)
+        finally:
+            if execution is not None:
+                unregister_evaluation_cancellation(
+                    execution.result_id,
+                    cancellation_token,
+                )
 
 
 async def _iter_attacked_evaluation_images(
@@ -809,6 +825,7 @@ async def _evaluate_dataset(
     )
     expires_at = provisional_expires_at
     if execution is not None:
+        cancellation_token.raise_if_cancelled()
         expires_at = await complete_evaluation_execution(
             execution=execution,
             response=response,

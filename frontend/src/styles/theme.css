@@ -12214,3 +12214,12 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip {
         margin-left: 0;
     }
 }
+
+.dashboard-history-cancel {
+    color: var(--danger-text);
+}
+
+.dashboard-history-cancel:hover:not(:disabled) {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
