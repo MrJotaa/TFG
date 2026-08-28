@@ -43,6 +43,7 @@ from utils.detection_evaluation_artifacts import (
 from utils.result_files import RESULTS_BASE_PATH
 
 logger = logging.getLogger(__name__)
+_EVALUATION_NOT_FOUND = "Evaluación no encontrada"
 
 EVALUATION_STORAGE_SCHEMA_VERSION = 2
 CLASSIFICATION_PIPELINE_VERSION = "classification-evaluation-v2"
@@ -554,10 +555,10 @@ async def _find_compatible_document(*, owner_id: str, signature: str) -> dict | 
 
 async def _get_owned_completed_document(evaluation_id: str, owner_id: str) -> dict:
     if not _valid_result_id(evaluation_id):
-        raise NotFoundError("Evaluación no encontrada")
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
     document = await evaluations_collection.find_one({"_id": evaluation_id})
     if document is None:
-        raise NotFoundError("Evaluación no encontrada")
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
     if document.get("owner_id") != owner_id:
         raise ForbiddenError("La evaluación pertenece a otro usuario")
     if document.get("status") != "completed":
@@ -567,10 +568,10 @@ async def _get_owned_completed_document(evaluation_id: str, owner_id: str) -> di
 
 async def _get_accessible_document(evaluation_id: str, owner_id: str) -> dict:
     if not _valid_result_id(evaluation_id):
-        raise NotFoundError("Evaluación no encontrada")
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
     document = await evaluations_collection.find_one({"_id": evaluation_id})
     if document is None:
-        raise NotFoundError("Evaluación no encontrada")
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
     if document.get("owner_id") != owner_id:
         raise ForbiddenError("La evaluación pertenece a otro usuario")
     if document.get("status") != "completed":

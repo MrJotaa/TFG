@@ -238,6 +238,55 @@ def _build_annotation_coverage(
     )
 
 
+def _annotation_counts(snapshot) -> tuple[dict[str, int], dict[str, int]]:
+    annotations_per_image: dict[str, int] = {}
+    annotations_per_category: dict[str, int] = {}
+    for annotation in snapshot.annotations:
+        annotations_per_image[annotation.image_id] = (
+            annotations_per_image.get(annotation.image_id, 0) + 1
+        )
+        annotations_per_category[annotation.category_internal_id] = (
+            annotations_per_category.get(annotation.category_internal_id, 0) + 1
+        )
+    return annotations_per_image, annotations_per_category
+
+
+def _updated_images_for_snapshot(
+    dataset: dict,
+    image_identities: tuple[DatasetImageIdentity, ...],
+    reviewed_image_ids: set[str] | frozenset[str],
+    annotations_per_image: dict[str, int],
+) -> list[dict]:
+    dimensions_by_id = {
+        identity.image_id: (identity.width, identity.height)
+        for identity in image_identities
+    }
+    updated_images = []
+    for image_metadata in dataset.get("images", []):
+        image_id = image_metadata["id"]
+        width, height = dimensions_by_id[image_id]
+        review_status = "unreviewed"
+        if image_id in reviewed_image_ids:
+            review_status = (
+                "reviewed_with_objects"
+                if annotations_per_image.get(image_id, 0) > 0
+                else "reviewed_empty"
+            )
+        updated_images.append(
+            {
+                **image_metadata,
+                "original_file_name": image_metadata.get(
+                    "original_file_name",
+                    image_metadata["filename"],
+                ),
+                "width": width,
+                "height": height,
+                "annotation_review_status": review_status,
+            }
+        )
+    return updated_images
+
+
 async def import_coco_annotations(
     dataset_id: str,
     file: UploadFile,
@@ -288,41 +337,13 @@ async def import_coco_annotations(
         for annotation in snapshot.annotations
     ]
 
-    annotations_per_image: dict[str, int] = {}
-    annotations_per_category: dict[str, int] = {}
-    for annotation in snapshot.annotations:
-        annotations_per_image[annotation.image_id] = (
-            annotations_per_image.get(annotation.image_id, 0) + 1
-        )
-        annotations_per_category[annotation.category_internal_id] = (
-            annotations_per_category.get(annotation.category_internal_id, 0) + 1
-        )
-
-    dimensions_by_id = {
-        identity.image_id: (identity.width, identity.height)
-        for identity in image_identities
-    }
-    updated_images = []
-    for image_metadata in dataset.get("images", []):
-        image_id = image_metadata["id"]
-        width, height = dimensions_by_id[image_id]
-        updated_image = {
-            **image_metadata,
-            "original_file_name": image_metadata.get(
-                "original_file_name",
-                image_metadata["filename"],
-            ),
-            "width": width,
-            "height": height,
-            "annotation_review_status": "unreviewed",
-        }
-        if image_id in snapshot.reviewed_image_ids:
-            updated_image["annotation_review_status"] = (
-                "reviewed_with_objects"
-                if annotations_per_image.get(image_id, 0) > 0
-                else "reviewed_empty"
-            )
-        updated_images.append(updated_image)
+    annotations_per_image, annotations_per_category = _annotation_counts(snapshot)
+    updated_images = _updated_images_for_snapshot(
+        dataset,
+        image_identities,
+        snapshot.reviewed_image_ids,
+        annotations_per_image,
+    )
 
     import_coverage = _build_annotation_coverage(
         object_id,

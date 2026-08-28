@@ -9,6 +9,8 @@ from PIL import Image
 
 RESULTS_BASE_PATH = "uploads/results"
 RESULTS_TTL_SECONDS = 24 * 60 * 60  # 24 horas
+_METADATA_FILENAME = "metadata.json"
+_INVALID_RESULT_IDENTITY = "Result identity is invalid"
 
 
 def ensure_results_directory() -> (
@@ -49,7 +51,7 @@ def read_result_expiration(
     *,
     ttl_seconds: int = RESULTS_TTL_SECONDS,
 ) -> float:
-    metadata_path = os.path.join(result_path, "metadata.json")
+    metadata_path = os.path.join(result_path, _METADATA_FILENAME)
     try:
         with open(metadata_path, encoding="utf-8") as metadata_file:
             metadata = json.load(metadata_file)
@@ -89,7 +91,7 @@ def create_result_directory(
     """
     result_id = result_id or f"{prefix}_{uuid.uuid4()}"
     if os.path.basename(result_id) != result_id:
-        raise ValueError("Result identity is invalid")
+        raise ValueError(_INVALID_RESULT_IDENTITY)
     result_path = os.path.join(RESULTS_BASE_PATH, result_id)
 
     os.makedirs(result_path, exist_ok=True)
@@ -117,7 +119,7 @@ def save_result_metadata(
     result_path: str,
     metadata: dict,
 ) -> str:
-    metadata_path = os.path.join(result_path, "metadata.json")
+    metadata_path = os.path.join(result_path, _METADATA_FILENAME)
 
     metadata_with_timestamp = {
         **metadata,
@@ -157,8 +159,8 @@ def save_result_payload(
 
 def read_result_metadata(result_id: str) -> dict:
     if not isinstance(result_id, str) or os.path.basename(result_id) != result_id:
-        raise ValueError("Result identity is invalid")
-    metadata_path = os.path.join(RESULTS_BASE_PATH, result_id, "metadata.json")
+        raise ValueError(_INVALID_RESULT_IDENTITY)
+    metadata_path = os.path.join(RESULTS_BASE_PATH, result_id, _METADATA_FILENAME)
     with open(metadata_path, encoding="utf-8") as file:
         return json.load(file)
 
@@ -169,7 +171,7 @@ def read_result_payload(
     filename: str = "analysis.json",
 ) -> dict:
     if not isinstance(result_id, str) or os.path.basename(result_id) != result_id:
-        raise ValueError("Result identity is invalid")
+        raise ValueError(_INVALID_RESULT_IDENTITY)
     payload_path = os.path.join(RESULTS_BASE_PATH, result_id, filename)
     with open(payload_path, encoding="utf-8") as file:
         return json.load(file)

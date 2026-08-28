@@ -11,6 +11,8 @@ from ml.attacks.base import (
 )
 from ml.attacks.presentation import perturbation_to_visualization
 
+_MODEL_NOT_LOADED = "Model is not loaded"
+
 
 class PGDAttack(BaseAdversarialAttack):
     id = "pgd"
@@ -71,7 +73,7 @@ class PGDAttack(BaseAdversarialAttack):
     ) -> AdversarialAttackResult:
         """Aplica PGD y construye también las visualizaciones interactivas."""
         if not model_wrapper.is_loaded():
-            raise ValueError("Model is not loaded")
+            raise ValueError(_MODEL_NOT_LOADED)
         prepared_input = model_wrapper.prepare_attack_input(image).detach()
         tensor_result = self._apply_prepared_input(
             model_wrapper=model_wrapper,
@@ -155,7 +157,7 @@ class PGDAttack(BaseAdversarialAttack):
         original_class_indices,
     ) -> tuple[AdversarialEvaluationResult, ...]:
         if not model_wrapper.is_loaded():
-            raise ValueError("Model is not loaded")
+            raise ValueError(_MODEL_NOT_LOADED)
 
         model = model_wrapper.get_torch_model()
         model.eval()
@@ -286,7 +288,7 @@ class PGDAttack(BaseAdversarialAttack):
     ) -> AdversarialEvaluationResult:
         """Ejecuta PGD reutilizando una entrada ya preparada en [0, 1]."""
         if not model_wrapper.is_loaded():
-            raise ValueError("Model is not loaded")
+            raise ValueError(_MODEL_NOT_LOADED)
 
         epsilon = parameters.epsilon
         alpha = parameters.alpha

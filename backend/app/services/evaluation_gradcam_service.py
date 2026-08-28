@@ -30,6 +30,7 @@ from utils.result_files import RESULTS_BASE_PATH
 
 _generation_lock = threading.Lock()
 logger = logging.getLogger(__name__)
+_EVALUATION_NOT_FOUND = "Evaluación no encontrada"
 
 
 async def generate_evaluation_image_gradcam(
@@ -146,11 +147,11 @@ def _resolve_evaluation_path(evaluation_id: str) -> str:
         not evaluation_id.startswith("evaluation_")
         or os.path.basename(evaluation_id) != evaluation_id
     ):
-        raise NotFoundError("Evaluación no encontrada")
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
 
     result_path = os.path.join(RESULTS_BASE_PATH, evaluation_id)
     if not os.path.isdir(result_path):
-        raise NotFoundError("Evaluación no encontrada")
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
     return result_path
 
 
@@ -180,7 +181,7 @@ def _validate_access_and_state(
         metadata.get("result_id") != evaluation_id
         or metadata.get("result_type") != "evaluation"
     ):
-        raise NotFoundError("Evaluación no encontrada")
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
     if metadata.get("owner_id") != current_user_id:
         raise ForbiddenError("La evaluación pertenece a otro usuario")
     if metadata.get("status") != "completed":

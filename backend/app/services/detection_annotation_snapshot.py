@@ -22,6 +22,7 @@ from services.dataset_service import (
 )
 
 DETECTION_SNAPSHOT_MAX_READ_ATTEMPTS = 3
+_DATASET_DOCUMENT_CONTEXT = "dataset document"
 _REVIEW_STATUSES = {
     "unreviewed",
     "reviewed_empty",
@@ -180,7 +181,7 @@ def _state(dataset: Mapping) -> tuple[int, str | None]:
 
 
 def _materialize_images(dataset: Mapping) -> tuple[DetectionSnapshotImage, ...]:
-    raw_images = _required_field(dataset, "images", context="dataset document")
+    raw_images = _required_field(dataset, "images", context=_DATASET_DOCUMENT_CONTEXT)
     if not isinstance(raw_images, Sequence) or isinstance(
         raw_images, (str, bytes, bytearray)
     ):
@@ -403,95 +404,23 @@ def _build_snapshot(
     category_documents: list[dict],
     annotation_documents: list[dict],
 ) -> MaterializedDetectionAnnotationSnapshot:
-    dataset = _require_mapping(dataset, context="dataset document")
-    if _required_field(dataset, "_id", context="dataset document") != dataset_id:
+    dataset = _require_mapping(dataset, context=_DATASET_DOCUMENT_CONTEXT)
+    if _required_field(dataset, "_id", context=_DATASET_DOCUMENT_CONTEXT) != dataset_id:
         raise DetectionAnnotationSnapshotError(
             "dataset document has an unexpected identifier"
         )
+
     revision, snapshot_id = _state(dataset)
     images = _materialize_images(dataset)
-
-    categories = tuple(
-        _materialize_category(
-            document,
-            index=index,
-        )
-        for index, document in enumerate(category_documents)
+    categories = _materialize_categories(category_documents)
+    annotations = _materialize_annotations(annotation_documents)
+    annotation_count_by_image = _validate_snapshot_annotations(
+        images=images,
+        categories=categories,
+        annotations=annotations,
     )
-    category_ids = {category.internal_id for category in categories}
-    if len(category_ids) != len(categories):
-        raise DetectionAnnotationSnapshotError(
-            "annotation snapshot contains duplicate category IDs"
-        )
-
-    annotations = tuple(
-        _materialize_annotation(
-            document,
-            index=index,
-        )
-        for index, document in enumerate(annotation_documents)
-    )
-
-    image_by_id = {image.image_id: image for image in images}
-    annotation_count_by_image: dict[str, int] = {}
-    for annotation in annotations:
-        image = image_by_id.get(annotation.image_id)
-        if image is None:
-            raise DetectionAnnotationSnapshotError(
-                f"annotation {annotation.external_id} references an unknown image"
-            )
-        if annotation.category_internal_id not in category_ids:
-            raise DetectionAnnotationSnapshotError(
-                f"annotation {annotation.external_id} references an unknown category"
-            )
-        if image.review_status == "unreviewed":
-            raise DetectionAnnotationSnapshotError(
-                f"unreviewed image '{image.image_id}' contains annotations"
-            )
-        if image.width is None or image.height is None:
-            raise DetectionAnnotationSnapshotError(
-                f"reviewed image '{image.image_id}' has no authoritative dimensions"
-            )
-        if (
-            annotation.bbox_x1 < 0
-            or annotation.bbox_y1 < 0
-            or annotation.bbox_x1 >= annotation.bbox_x2
-            or annotation.bbox_y1 >= annotation.bbox_y2
-            or annotation.bbox_x2 > image.width
-            or annotation.bbox_y2 > image.height
-        ):
-            raise DetectionAnnotationSnapshotError(
-                f"annotation {annotation.external_id} has incompatible geometry"
-            )
-        if annotation.area <= 0:
-            raise DetectionAnnotationSnapshotError(
-                f"annotation {annotation.external_id} has non-positive area"
-            )
-        if annotation.iscrowd not in (0, 1):
-            raise DetectionAnnotationSnapshotError(
-                f"annotation {annotation.external_id} has invalid iscrowd"
-            )
-        annotation_count_by_image[image.image_id] = (
-            annotation_count_by_image.get(image.image_id, 0) + 1
-        )
-
     if snapshot_id is not None:
-        for image in images:
-            if image.review_status != "unreviewed" and (
-                image.width is None or image.height is None
-            ):
-                raise DetectionAnnotationSnapshotError(
-                    f"reviewed image '{image.image_id}' has no authoritative dimensions"
-                )
-            object_count = annotation_count_by_image.get(image.image_id, 0)
-            if image.review_status == "reviewed_empty" and object_count:
-                raise DetectionAnnotationSnapshotError(
-                    f"reviewed-empty image '{image.image_id}' contains annotations"
-                )
-            if image.review_status == "reviewed_with_objects" and not object_count:
-                raise DetectionAnnotationSnapshotError(
-                    f"reviewed image '{image.image_id}' has no annotations"
-                )
+        _validate_reviewed_images(images, annotation_count_by_image)
 
     return MaterializedDetectionAnnotationSnapshot(
         dataset_id=str(dataset_id),
@@ -521,6 +450,133 @@ def _build_snapshot(
     )
 
 
+def _materialize_categories(
+    category_documents: list[dict],
+) -> tuple[CanonicalCategory, ...]:
+    categories = tuple(
+        _materialize_category(document, index=index)
+        for index, document in enumerate(category_documents)
+    )
+    category_ids = {category.internal_id for category in categories}
+    if len(category_ids) != len(categories):
+        raise DetectionAnnotationSnapshotError(
+            "annotation snapshot contains duplicate category IDs"
+        )
+    return categories
+
+
+def _materialize_annotations(
+    annotation_documents: list[dict],
+) -> tuple[CanonicalObjectAnnotation, ...]:
+    return tuple(
+        _materialize_annotation(document, index=index)
+        for index, document in enumerate(annotation_documents)
+    )
+
+
+def _validate_snapshot_annotations(
+    *,
+    images: tuple[DetectionSnapshotImage, ...],
+    categories: tuple[CanonicalCategory, ...],
+    annotations: tuple[CanonicalObjectAnnotation, ...],
+) -> dict[str, int]:
+    image_by_id = {image.image_id: image for image in images}
+    category_ids = {category.internal_id for category in categories}
+    annotation_count_by_image: dict[str, int] = {}
+    for annotation in annotations:
+        image = image_by_id.get(annotation.image_id)
+        _validate_snapshot_annotation(
+            annotation=annotation,
+            image=image,
+            category_ids=category_ids,
+        )
+        annotation_count_by_image[annotation.image_id] = (
+            annotation_count_by_image.get(annotation.image_id, 0) + 1
+        )
+    return annotation_count_by_image
+
+
+def _validate_snapshot_annotation(
+    *,
+    annotation: CanonicalObjectAnnotation,
+    image: DetectionSnapshotImage | None,
+    category_ids: set[str],
+) -> None:
+    if image is None:
+        raise DetectionAnnotationSnapshotError(
+            f"annotation {annotation.external_id} references an unknown image"
+        )
+    if annotation.category_internal_id not in category_ids:
+        raise DetectionAnnotationSnapshotError(
+            f"annotation {annotation.external_id} references an unknown category"
+        )
+    if image.review_status == "unreviewed":
+        raise DetectionAnnotationSnapshotError(
+            f"unreviewed image '{image.image_id}' contains annotations"
+        )
+    if image.width is None or image.height is None:
+        raise DetectionAnnotationSnapshotError(
+            f"reviewed image '{image.image_id}' has no authoritative dimensions"
+        )
+    if not _annotation_geometry_is_valid(annotation, image):
+        raise DetectionAnnotationSnapshotError(
+            f"annotation {annotation.external_id} has incompatible geometry"
+        )
+    if annotation.area <= 0:
+        raise DetectionAnnotationSnapshotError(
+            f"annotation {annotation.external_id} has non-positive area"
+        )
+    if annotation.iscrowd not in (0, 1):
+        raise DetectionAnnotationSnapshotError(
+            f"annotation {annotation.external_id} has invalid iscrowd"
+        )
+
+
+def _annotation_geometry_is_valid(
+    annotation: CanonicalObjectAnnotation,
+    image: DetectionSnapshotImage,
+) -> bool:
+    return (
+        annotation.bbox_x1 >= 0
+        and annotation.bbox_y1 >= 0
+        and annotation.bbox_x1 < annotation.bbox_x2
+        and annotation.bbox_y1 < annotation.bbox_y2
+        and annotation.bbox_x2 <= image.width
+        and annotation.bbox_y2 <= image.height
+    )
+
+
+def _validate_reviewed_images(
+    images: tuple[DetectionSnapshotImage, ...],
+    annotation_count_by_image: dict[str, int],
+) -> None:
+    for image in images:
+        _validate_reviewed_image(
+            image,
+            annotation_count_by_image.get(image.image_id, 0),
+        )
+
+
+def _validate_reviewed_image(
+    image: DetectionSnapshotImage,
+    object_count: int,
+) -> None:
+    if image.review_status != "unreviewed" and (
+        image.width is None or image.height is None
+    ):
+        raise DetectionAnnotationSnapshotError(
+            f"reviewed image '{image.image_id}' has no authoritative dimensions"
+        )
+    if image.review_status == "reviewed_empty" and object_count:
+        raise DetectionAnnotationSnapshotError(
+            f"reviewed-empty image '{image.image_id}' contains annotations"
+        )
+    if image.review_status == "reviewed_with_objects" and not object_count:
+        raise DetectionAnnotationSnapshotError(
+            f"reviewed image '{image.image_id}' has no annotations"
+        )
+
+
 async def read_detection_annotation_snapshot(
     dataset_id: str,
     *,
@@ -528,36 +584,18 @@ async def read_detection_annotation_snapshot(
 ) -> MaterializedDetectionAnnotationSnapshot:
     """Materializa categorías, objetos e imágenes desde un único estado activo."""
     object_id = _validate_dataset_id(dataset_id)
-    if isinstance(max_attempts, bool) or not isinstance(max_attempts, Integral):
-        raise ValueError("max_attempts must be an integer")
-    if int(max_attempts) <= 0:
-        raise ValueError("max_attempts must be positive")
+    attempts = _validated_max_attempts(max_attempts)
 
     dataset = None
     try:
-        for _attempt in range(int(max_attempts)):
-            if dataset is None:
-                dataset = await datasets_collection.find_one({"_id": object_id})
-            if dataset is None:
-                raise NotFoundError(DATASET_NOT_FOUND_MESSAGE)
-
+        for _attempt in range(attempts):
+            dataset = await _load_dataset_if_needed(object_id, dataset)
             observed_state = _state(dataset)
-            snapshot_id = observed_state[1]
-            category_documents = []
-            annotation_documents = []
-            if snapshot_id is not None:
-                category_documents = await _read_category_documents(
-                    object_id,
-                    snapshot_id,
-                )
-                annotation_documents = await _read_annotation_documents(
-                    object_id,
-                    snapshot_id,
-                )
-
-            latest_dataset = await datasets_collection.find_one({"_id": object_id})
-            if latest_dataset is None:
-                raise NotFoundError(DATASET_NOT_FOUND_MESSAGE)
+            category_documents, annotation_documents = await _snapshot_documents(
+                object_id,
+                observed_state[1],
+            )
+            latest_dataset = await _require_dataset(object_id)
             if _state(latest_dataset) == observed_state:
                 return _build_snapshot(
                     dataset_id=object_id,
@@ -580,4 +618,39 @@ async def read_detection_annotation_snapshot(
                 "Dataset annotations changed repeatedly during evaluation; retry"
             ),
         }
+    )
+
+
+def _validated_max_attempts(max_attempts: int) -> int:
+    if isinstance(max_attempts, bool) or not isinstance(max_attempts, Integral):
+        raise ValueError("max_attempts must be an integer")
+    attempts = int(max_attempts)
+    if attempts <= 0:
+        raise ValueError("max_attempts must be positive")
+    return attempts
+
+
+async def _require_dataset(object_id: ObjectId) -> dict:
+    dataset = await datasets_collection.find_one({"_id": object_id})
+    if dataset is None:
+        raise NotFoundError(DATASET_NOT_FOUND_MESSAGE)
+    return dataset
+
+
+async def _load_dataset_if_needed(
+    object_id: ObjectId,
+    dataset: dict | None,
+) -> dict:
+    return dataset if dataset is not None else await _require_dataset(object_id)
+
+
+async def _snapshot_documents(
+    object_id: ObjectId,
+    snapshot_id: str | None,
+) -> tuple[list[dict], list[dict]]:
+    if snapshot_id is None:
+        return [], []
+    return (
+        await _read_category_documents(object_id, snapshot_id),
+        await _read_annotation_documents(object_id, snapshot_id),
     )

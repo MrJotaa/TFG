@@ -47,6 +47,18 @@ class ClassificationEvaluationSample:
     perturbation_l2: float
 
 
+@dataclass(frozen=True, slots=True)
+class _SupervisedMetricResult:
+    clean_accuracy: MetricValue
+    robust_accuracy: MetricValue
+    accuracy_drop: MetricValue
+    conditional_asr: MetricValue
+    corrected_by_attack_rate: MetricValue
+    average_true_class_probability_drop: MetricValue
+    status: AvailabilityStatus
+    analysis: SupervisedClassificationAnalysis | None
+
+
 def _round_metric(value: float) -> float:
     return round(float(value), 4)
 
@@ -475,6 +487,225 @@ def _calculate_confusion_matrices(
     )
 
 
+def _ratio_metric_or_unavailable(
+    numerator: int,
+    denominator: int,
+    *,
+    unavailable_reason: str,
+) -> MetricValue:
+    if denominator:
+        return _available_metric(numerator / denominator)
+    return _unavailable_metric(unavailable_reason)
+
+
+def _unavailable_supervised_metrics(
+    label_resolution: LabelResolutionSummary,
+) -> _SupervisedMetricResult:
+    reason = (
+        "El conjunto de datos no contiene imágenes etiquetadas"
+        if not label_resolution.labeled_images
+        else (
+            "Ninguna etiqueta del conjunto de datos coincide con las "
+            "clases del modelo activo"
+        )
+    )
+    unavailable = _unavailable_metric(reason)
+    return _SupervisedMetricResult(
+        clean_accuracy=unavailable,
+        robust_accuracy=unavailable,
+        accuracy_drop=unavailable,
+        conditional_asr=unavailable,
+        corrected_by_attack_rate=unavailable,
+        average_true_class_probability_drop=unavailable,
+        status=AvailabilityStatus(available=False, reason=reason),
+        analysis=None,
+    )
+
+
+def _build_supervised_analysis(
+    resolved_samples: Sequence[ClassificationEvaluationSample],
+    class_labels: tuple[str, ...],
+) -> SupervisedClassificationAnalysis:
+    y_true = [sample.ground_truth.index for sample in resolved_samples]
+    original_detailed_predictions = [sample.original for sample in resolved_samples]
+    adversarial_detailed_predictions = [sample.adversarial for sample in resolved_samples]
+    original_predictions = [sample.original.class_index for sample in resolved_samples]
+    adversarial_predictions = [
+        sample.adversarial.class_index for sample in resolved_samples
+    ]
+    original_top_5 = [
+        any(score.index == sample.ground_truth.index for score in sample.original.top_k)
+        for sample in resolved_samples
+    ]
+    adversarial_top_5 = [
+        any(
+            score.index == sample.ground_truth.index
+            for score in sample.adversarial.top_k
+        )
+        for sample in resolved_samples
+    ]
+    metric_labels = sorted(set(y_true))
+    curve_metrics = calculate_classification_curves(
+        y_true=y_true,
+        original_predictions=original_detailed_predictions,
+        adversarial_predictions=adversarial_detailed_predictions,
+        metric_labels=metric_labels,
+        class_labels=class_labels,
+    )
+    original_aggregate = _calculate_aggregate_snapshot(
+        y_true=y_true,
+        y_pred=original_predictions,
+        top_5_correct=original_top_5,
+        metric_labels=metric_labels,
+    )
+    adversarial_aggregate = _calculate_aggregate_snapshot(
+        y_true=y_true,
+        y_pred=adversarial_predictions,
+        top_5_correct=adversarial_top_5,
+        metric_labels=metric_labels,
+    )
+    aggregate_comparison = AggregateMetricsComparison(
+        original=original_aggregate,
+        adversarial=adversarial_aggregate,
+        delta=_calculate_aggregate_delta(
+            original_aggregate,
+            adversarial_aggregate,
+        ),
+    )
+    return SupervisedClassificationAnalysis(
+        aggregate=aggregate_comparison,
+        per_class=_calculate_per_class_metrics(
+            y_true=y_true,
+            original_predictions=original_predictions,
+            adversarial_predictions=adversarial_predictions,
+            metric_labels=metric_labels,
+            class_labels=class_labels,
+            curve_metrics_by_class=curve_metrics.per_class_metrics,
+        ),
+        confusion_matrices=_calculate_confusion_matrices(
+            y_true=y_true,
+            original_predictions=original_predictions,
+            adversarial_predictions=adversarial_predictions,
+            class_labels=class_labels,
+        ),
+        roc=curve_metrics.roc,
+        precision_recall=curve_metrics.precision_recall,
+    )
+
+
+def _available_supervised_metrics(
+    resolved_samples: Sequence[ClassificationEvaluationSample],
+    label_resolution: LabelResolutionSummary,
+    class_labels: tuple[str, ...],
+    *,
+    correct_to_incorrect: int,
+    incorrect_to_correct: int,
+) -> _SupervisedMetricResult:
+    correct_original = sum(
+        sample.original.class_index == sample.ground_truth.index
+        for sample in resolved_samples
+    )
+    correct_adversarial = sum(
+        sample.adversarial.class_index == sample.ground_truth.index
+        for sample in resolved_samples
+    )
+    incorrect_original = len(resolved_samples) - correct_original
+    clean_accuracy_value = correct_original / len(resolved_samples)
+    robust_accuracy_value = correct_adversarial / len(resolved_samples)
+    true_class_probability_drops = [
+        (
+            sample.original.probabilities[sample.ground_truth.index]
+            - sample.adversarial.probabilities[sample.ground_truth.index]
+        )
+        for sample in resolved_samples
+    ]
+    warning = (
+        "Imágenes etiquetadas excluidas por etiquetas no resueltas: "
+        f"{label_resolution.unresolved_labels}"
+        if label_resolution.unresolved_labels
+        else None
+    )
+    return _SupervisedMetricResult(
+        clean_accuracy=_available_metric(clean_accuracy_value),
+        robust_accuracy=_available_metric(robust_accuracy_value),
+        accuracy_drop=_available_metric(
+            clean_accuracy_value - robust_accuracy_value
+        ),
+        conditional_asr=_ratio_metric_or_unavailable(
+            correct_to_incorrect,
+            correct_original,
+            unavailable_reason=(
+                "La tasa de éxito condicional del ataque requiere "
+                "al menos una predicción original correcta"
+            ),
+        ),
+        corrected_by_attack_rate=_ratio_metric_or_unavailable(
+            incorrect_to_correct,
+            incorrect_original,
+            unavailable_reason=(
+                "La tasa de corrección tras el ataque requiere "
+                "al menos una predicción original incorrecta"
+            ),
+        ),
+        average_true_class_probability_drop=_available_metric(
+            _average(true_class_probability_drops)
+        ),
+        status=AvailabilityStatus(available=True, warning=warning),
+        analysis=_build_supervised_analysis(resolved_samples, class_labels),
+    )
+
+
+def _supervised_metrics(
+    resolved_samples: Sequence[ClassificationEvaluationSample],
+    label_resolution: LabelResolutionSummary,
+    class_labels: tuple[str, ...],
+    *,
+    correct_to_incorrect: int,
+    incorrect_to_correct: int,
+) -> _SupervisedMetricResult:
+    if not resolved_samples:
+        return _unavailable_supervised_metrics(label_resolution)
+    return _available_supervised_metrics(
+        resolved_samples,
+        label_resolution,
+        class_labels,
+        correct_to_incorrect=correct_to_incorrect,
+        incorrect_to_correct=incorrect_to_correct,
+    )
+
+
+def _transition_counts(
+    resolved_samples: Sequence[ClassificationEvaluationSample],
+) -> tuple[int, int]:
+    correct_to_incorrect = sum(
+        sample.original.class_index == sample.ground_truth.index
+        and sample.adversarial.class_index != sample.ground_truth.index
+        for sample in resolved_samples
+    )
+    incorrect_to_correct = sum(
+        sample.original.class_index != sample.ground_truth.index
+        and sample.adversarial.class_index == sample.ground_truth.index
+        for sample in resolved_samples
+    )
+    return correct_to_incorrect, incorrect_to_correct
+
+
+def _average_margin_drop(
+    samples: Sequence[ClassificationEvaluationSample],
+) -> MetricValue:
+    margin_drops = [
+        sample.original.prediction_margin - sample.adversarial.prediction_margin
+        for sample in samples
+        if sample.original.prediction_margin is not None
+        and sample.adversarial.prediction_margin is not None
+    ]
+    if margin_drops:
+        return _available_metric(_average(margin_drops))
+    return _unavailable_metric(
+        "El margen de predicción requiere al menos dos clases del modelo"
+    )
+
+
 def calculate_advanced_classification_metrics(
     samples: Sequence[ClassificationEvaluationSample],
     label_resolution: LabelResolutionSummary,
@@ -501,210 +732,20 @@ def calculate_advanced_classification_metrics(
             "Resolved sample count does not match label resolution summary"
         )
 
-    correct_to_incorrect = sum(
-        sample.original.class_index == sample.ground_truth.index
-        and sample.adversarial.class_index != sample.ground_truth.index
-        for sample in resolved_samples
+    correct_to_incorrect, incorrect_to_correct = _transition_counts(
+        resolved_samples
     )
-
-    incorrect_to_correct = sum(
-        sample.original.class_index != sample.ground_truth.index
-        and sample.adversarial.class_index == sample.ground_truth.index
-        for sample in resolved_samples
-    )
-
     average_linf = _average([sample.perturbation_linf for sample in samples])
-
     average_l2 = _average([sample.perturbation_l2 for sample in samples])
+    average_margin_drop = _average_margin_drop(samples)
 
-    margin_drops = [
-        (sample.original.prediction_margin - sample.adversarial.prediction_margin)
-        for sample in samples
-        if (
-            sample.original.prediction_margin is not None
-            and sample.adversarial.prediction_margin is not None
-        )
-    ]
-
-    if margin_drops:
-        average_margin_drop = _available_metric(_average(margin_drops))
-    else:
-        average_margin_drop = _unavailable_metric(
-            "El margen de predicción requiere al menos dos clases del modelo"
-        )
-
-    supervised = None
-
-    if resolved_samples:
-        correct_original = sum(
-            sample.original.class_index == sample.ground_truth.index
-            for sample in resolved_samples
-        )
-
-        correct_adversarial = sum(
-            sample.adversarial.class_index == sample.ground_truth.index
-            for sample in resolved_samples
-        )
-
-        incorrect_original = len(resolved_samples) - correct_original
-
-        clean_accuracy_value = correct_original / len(resolved_samples)
-        robust_accuracy_value = correct_adversarial / len(resolved_samples)
-
-        clean_accuracy = _available_metric(clean_accuracy_value)
-        robust_accuracy = _available_metric(robust_accuracy_value)
-        accuracy_drop = _available_metric(clean_accuracy_value - robust_accuracy_value)
-
-        if correct_original:
-            conditional_asr = _available_metric(correct_to_incorrect / correct_original)
-        else:
-            conditional_asr = _unavailable_metric(
-                "La tasa de éxito condicional del ataque requiere "
-                "al menos una predicción original correcta"
-            )
-
-        if incorrect_original:
-            corrected_by_attack_rate = _available_metric(
-                incorrect_to_correct / incorrect_original
-            )
-        else:
-            corrected_by_attack_rate = _unavailable_metric(
-                "La tasa de corrección tras el ataque requiere "
-                "al menos una predicción original incorrecta"
-            )
-
-        true_class_probability_drops = [
-            (
-                sample.original.probabilities[sample.ground_truth.index]
-                - sample.adversarial.probabilities[sample.ground_truth.index]
-            )
-            for sample in resolved_samples
-        ]
-
-        average_true_class_probability_drop = _available_metric(
-            _average(true_class_probability_drops)
-        )
-
-        y_true = [sample.ground_truth.index for sample in resolved_samples]
-
-        original_detailed_predictions = [sample.original for sample in resolved_samples]
-
-        adversarial_detailed_predictions = [
-            sample.adversarial for sample in resolved_samples
-        ]
-
-        original_predictions = [
-            sample.original.class_index for sample in resolved_samples
-        ]
-
-        adversarial_predictions = [
-            sample.adversarial.class_index for sample in resolved_samples
-        ]
-
-        original_top_5 = [
-            any(
-                score.index == sample.ground_truth.index
-                for score in sample.original.top_k
-            )
-            for sample in resolved_samples
-        ]
-
-        adversarial_top_5 = [
-            any(
-                score.index == sample.ground_truth.index
-                for score in sample.adversarial.top_k
-            )
-            for sample in resolved_samples
-        ]
-
-        metric_labels = sorted(set(y_true))
-
-        curve_metrics = calculate_classification_curves(
-            y_true=y_true,
-            original_predictions=(original_detailed_predictions),
-            adversarial_predictions=(adversarial_detailed_predictions),
-            metric_labels=metric_labels,
-            class_labels=class_labels,
-        )
-
-        original_aggregate = _calculate_aggregate_snapshot(
-            y_true=y_true,
-            y_pred=original_predictions,
-            top_5_correct=original_top_5,
-            metric_labels=metric_labels,
-        )
-
-        adversarial_aggregate = _calculate_aggregate_snapshot(
-            y_true=y_true,
-            y_pred=adversarial_predictions,
-            top_5_correct=adversarial_top_5,
-            metric_labels=metric_labels,
-        )
-
-        aggregate_comparison = AggregateMetricsComparison(
-            original=original_aggregate,
-            adversarial=(adversarial_aggregate),
-            delta=_calculate_aggregate_delta(
-                original_aggregate,
-                adversarial_aggregate,
-            ),
-        )
-
-        supervised = SupervisedClassificationAnalysis(
-            aggregate=aggregate_comparison,
-            per_class=_calculate_per_class_metrics(
-                y_true=y_true,
-                original_predictions=(original_predictions),
-                adversarial_predictions=(adversarial_predictions),
-                metric_labels=metric_labels,
-                class_labels=class_labels,
-                curve_metrics_by_class=(curve_metrics.per_class_metrics),
-            ),
-            confusion_matrices=(
-                _calculate_confusion_matrices(
-                    y_true=y_true,
-                    original_predictions=(original_predictions),
-                    adversarial_predictions=(adversarial_predictions),
-                    class_labels=class_labels,
-                )
-            ),
-            roc=curve_metrics.roc,
-            precision_recall=(curve_metrics.precision_recall),
-        )
-
-        warning = None
-
-        if label_resolution.unresolved_labels:
-            warning = (
-                "Imágenes etiquetadas excluidas por etiquetas no resueltas: "
-                f"{label_resolution.unresolved_labels}"
-            )
-
-        supervised_status = AvailabilityStatus(
-            available=True,
-            warning=warning,
-        )
-    else:
-        no_labels_reason = (
-            "El conjunto de datos no contiene imágenes etiquetadas"
-            if not label_resolution.labeled_images
-            else (
-                "Ninguna etiqueta del conjunto de datos coincide con las "
-                "clases del modelo activo"
-            )
-        )
-
-        clean_accuracy = _unavailable_metric(no_labels_reason)
-        robust_accuracy = _unavailable_metric(no_labels_reason)
-        accuracy_drop = _unavailable_metric(no_labels_reason)
-        conditional_asr = _unavailable_metric(no_labels_reason)
-        corrected_by_attack_rate = _unavailable_metric(no_labels_reason)
-        average_true_class_probability_drop = _unavailable_metric(no_labels_reason)
-
-        supervised_status = AvailabilityStatus(
-            available=False,
-            reason=no_labels_reason,
-        )
+    supervised_metrics = _supervised_metrics(
+        resolved_samples,
+        label_resolution,
+        class_labels,
+        correct_to_incorrect=correct_to_incorrect,
+        incorrect_to_correct=incorrect_to_correct,
+    )
 
     robustness = RobustnessMetrics(
         total_images=total_images,
@@ -713,12 +754,14 @@ def calculate_advanced_classification_metrics(
         prediction_flip_rate=_round_metric(changed_predictions / total_images),
         correct_to_incorrect=(correct_to_incorrect),
         incorrect_to_correct=(incorrect_to_correct),
-        clean_accuracy=clean_accuracy,
-        robust_accuracy=robust_accuracy,
-        accuracy_drop=accuracy_drop,
-        conditional_attack_success_rate=(conditional_asr),
-        corrected_by_attack_rate=(corrected_by_attack_rate),
-        average_true_class_probability_drop=(average_true_class_probability_drop),
+        clean_accuracy=supervised_metrics.clean_accuracy,
+        robust_accuracy=supervised_metrics.robust_accuracy,
+        accuracy_drop=supervised_metrics.accuracy_drop,
+        conditional_attack_success_rate=supervised_metrics.conditional_asr,
+        corrected_by_attack_rate=supervised_metrics.corrected_by_attack_rate,
+        average_true_class_probability_drop=(
+            supervised_metrics.average_true_class_probability_drop
+        ),
         average_prediction_margin_drop=(average_margin_drop),
         average_perturbation_linf=_round_metric(average_linf),
         average_perturbation_l2=_round_metric(average_l2),
@@ -727,6 +770,6 @@ def calculate_advanced_classification_metrics(
     return AdvancedClassificationMetrics(
         label_resolution=label_resolution,
         robustness=robustness,
-        supervised_status=supervised_status,
-        supervised=supervised,
+        supervised_status=supervised_metrics.status,
+        supervised=supervised_metrics.analysis,
     )

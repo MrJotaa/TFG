@@ -130,6 +130,93 @@ async def evaluate_detection_dataset(
                     )
 
 
+def _raise_if_cancelled(cancellation_token: CancellationToken | None) -> None:
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+
+
+async def _yield_progress(callback: EvaluationProgressCallback | None) -> None:
+    if callback is not None:
+        await asyncio.sleep(0)
+
+
+async def _detection_results_for_image(
+    *,
+    model,
+    image,
+    adversarial_image,
+    supervised_context,
+    inference_configuration,
+    image_id: str,
+    original_supervised_results: dict,
+    adversarial_supervised_results: dict,
+    model_device,
+):
+    if supervised_context.available:
+        original_scientific_result, original_seconds = await _timed_detection_operation(
+            model.detect_for_evaluation,
+            image,
+            inference_configuration,
+            model_device=model_device,
+        )
+        adversarial_scientific_result, adversarial_seconds = (
+            await _timed_detection_operation(
+                model.detect_for_evaluation,
+                adversarial_image,
+                inference_configuration,
+                model_device=model_device,
+            )
+        )
+        if image_id in supervised_context.snapshot.reviewed_image_ids:
+            original_supervised_results[image_id] = original_scientific_result
+            adversarial_supervised_results[image_id] = adversarial_scientific_result
+        return (
+            build_legacy_detection_result(original_scientific_result),
+            build_legacy_detection_result(adversarial_scientific_result),
+            original_seconds,
+            adversarial_seconds,
+        )
+
+    original_result, original_seconds = await _timed_detection_operation(
+        model.detect,
+        image,
+        model_device=model_device,
+    )
+    adversarial_result, adversarial_seconds = await _timed_detection_operation(
+        model.detect,
+        adversarial_image,
+        model_device=model_device,
+    )
+    return (
+        original_result,
+        adversarial_result,
+        original_seconds,
+        adversarial_seconds,
+    )
+
+
+async def _timed_detection_operation(
+    operation,
+    *args,
+    model_device,
+):
+    started = start_profile_stage(model_device)
+    result = await run_detection_model_operation(operation, *args)
+    return result, finish_profile_stage(started, model_device)
+
+
+def _attack_outcome_counts(metrics) -> tuple[int, int, int]:
+    return (
+        int(metrics.adversarial_count < metrics.original_count),
+        int(metrics.adversarial_count == 0 and metrics.original_count > 0),
+        int(metrics.attack_success),
+    )
+
+
+def _safe_rate(numerator: int, denominator: int) -> float:
+    return round(numerator / denominator, 4) if denominator else 0.0
+
+
 async def _evaluate_detection_dataset(
     request: DetectionEvaluationRequest,
     *,
@@ -233,8 +320,7 @@ async def _evaluate_detection_dataset(
         profile_totals["image_load"] += image_load_seconds
 
         stage_started = start_profile_stage(model_device)
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
+        _raise_if_cancelled(cancellation_token)
         attack_result = await run_detection_attack_operation(
             attack_runner,
             model_wrapper=model,
@@ -245,8 +331,7 @@ async def _evaluate_detection_dataset(
                 image_id=image_metadata.id,
             ),
         )
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
+        _raise_if_cancelled(cancellation_token)
         attack_seconds = finish_profile_stage(stage_started, model_device)
         profile_totals["attack"] += attack_seconds
 
@@ -261,62 +346,22 @@ async def _evaluate_detection_dataset(
         artifact_persistence_seconds = perf_counter() - stage_started
         profile_totals["artifact_persistence"] += artifact_persistence_seconds
 
-        if supervised_context.available:
-            stage_started = start_profile_stage(model_device)
-            original_scientific_result = await run_detection_model_operation(
-                model.detect_for_evaluation,
-                image,
-                inference_configuration,
-            )
-            original_inference_seconds = finish_profile_stage(
-                stage_started,
-                model_device,
-            )
-
-            stage_started = start_profile_stage(model_device)
-            adversarial_scientific_result = await run_detection_model_operation(
-                model.detect_for_evaluation,
-                adversarial_image,
-                inference_configuration,
-            )
-            adversarial_inference_seconds = finish_profile_stage(
-                stage_started,
-                model_device,
-            )
-            if image_metadata.id in supervised_context.snapshot.reviewed_image_ids:
-                original_supervised_results[image_metadata.id] = (
-                    original_scientific_result
-                )
-                adversarial_supervised_results[image_metadata.id] = (
-                    adversarial_scientific_result
-                )
-
-            original_detection_result = build_legacy_detection_result(
-                original_scientific_result
-            )
-            adversarial_detection_result = build_legacy_detection_result(
-                adversarial_scientific_result
-            )
-        else:
-            stage_started = start_profile_stage(model_device)
-            original_detection_result = await run_detection_model_operation(
-                model.detect,
-                image,
-            )
-            original_inference_seconds = finish_profile_stage(
-                stage_started,
-                model_device,
-            )
-
-            stage_started = start_profile_stage(model_device)
-            adversarial_detection_result = await run_detection_model_operation(
-                model.detect,
-                adversarial_image,
-            )
-            adversarial_inference_seconds = finish_profile_stage(
-                stage_started,
-                model_device,
-            )
+        (
+            original_detection_result,
+            adversarial_detection_result,
+            original_inference_seconds,
+            adversarial_inference_seconds,
+        ) = await _detection_results_for_image(
+            model=model,
+            image=image,
+            adversarial_image=adversarial_image,
+            supervised_context=supervised_context,
+            inference_configuration=inference_configuration,
+            image_id=image_metadata.id,
+            original_supervised_results=original_supervised_results,
+            adversarial_supervised_results=adversarial_supervised_results,
+            model_device=model_device,
+        )
 
         profile_totals["original_inference"] += original_inference_seconds
         profile_totals["adversarial_inference"] += adversarial_inference_seconds
@@ -330,14 +375,10 @@ async def _evaluate_detection_dataset(
             adversarial_detections=adversarial_detections,
         )
 
-        if metrics.adversarial_count < metrics.original_count:
-            images_with_reduced_detections += 1
-
-        if metrics.adversarial_count == 0 and metrics.original_count > 0:
-            images_with_no_adversarial_detections += 1
-
-        if metrics.attack_success:
-            successful_attacks += 1
+        reduced_count, empty_count, successful_count = _attack_outcome_counts(metrics)
+        images_with_reduced_detections += reduced_count
+        images_with_no_adversarial_detections += empty_count
+        successful_attacks += successful_count
 
         total_original_detections += metrics.original_count
         total_adversarial_detections += metrics.adversarial_count
@@ -407,8 +448,7 @@ async def _evaluate_detection_dataset(
             processed=image_index,
             total=progress_total,
         )
-        if progress_callback is not None:
-            await asyncio.sleep(0)
+        await _yield_progress(progress_callback)
 
     report_evaluation_progress(
         progress_callback,
@@ -416,8 +456,7 @@ async def _evaluate_detection_dataset(
         total=progress_total,
         phase="metrics",
     )
-    if progress_callback is not None:
-        await asyncio.sleep(0)
+    await _yield_progress(progress_callback)
 
     summary_started = perf_counter()
     total_images = len(image_results)
@@ -429,26 +468,20 @@ async def _evaluate_detection_dataset(
         detections_difference=(
             total_original_detections - total_adversarial_detections
         ),
-        average_original_detections_per_image=round(
-            total_original_detections / total_images,
-            4,
-        )
-        if total_images
-        else 0.0,
-        average_adversarial_detections_per_image=round(
-            total_adversarial_detections / total_images,
-            4,
-        )
-        if total_images
-        else 0.0,
+        average_original_detections_per_image=_safe_rate(
+            total_original_detections,
+            total_images,
+        ),
+        average_adversarial_detections_per_image=_safe_rate(
+            total_adversarial_detections,
+            total_images,
+        ),
         average_original_confidence=average(original_confidences),
         average_adversarial_confidence=average(adversarial_confidences),
         average_confidence_difference=average(confidence_differences),
         images_with_reduced_detections=images_with_reduced_detections,
         images_with_no_adversarial_detections=images_with_no_adversarial_detections,
-        attack_success_rate=round(successful_attacks / total_images, 4)
-        if total_images
-        else 0.0,
+        attack_success_rate=_safe_rate(successful_attacks, total_images),
         average_perturbation_linf=average(perturbation_linf_values),
         average_perturbation_l2=average(perturbation_l2_values),
     )

@@ -9,6 +9,8 @@ from db.collections import (
     object_annotations_collection,
 )
 
+_IF_NULL_OPERATOR = "$ifNull"
+
 
 def _collections(database=None):
     if database is None:
@@ -40,11 +42,11 @@ async def upgrade_coco_annotations_schema(database=None) -> None:
             {
                 "$set": {
                     "dataset_revision": {
-                        "$ifNull": ["$dataset_revision", 0],
+                        _IF_NULL_OPERATOR: ["$dataset_revision", 0],
                     },
                     "images": {
                         "$map": {
-                            "input": {"$ifNull": ["$images", []]},
+                            "input": {_IF_NULL_OPERATOR: ["$images", []]},
                             "as": "image",
                             "in": {
                                 "$mergeObjects": [
@@ -139,7 +141,7 @@ async def downgrade_coco_annotations_schema(database=None) -> None:
                 "$set": {
                     "images": {
                         "$map": {
-                            "input": {"$ifNull": ["$images", []]},
+                            "input": {_IF_NULL_OPERATOR: ["$images", []]},
                             "as": "image",
                             "in": {
                                 "$arrayToObject": {

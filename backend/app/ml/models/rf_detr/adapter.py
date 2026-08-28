@@ -27,6 +27,37 @@ class RfDetrDetectionAdapter:
         source_height: int,
         id2label: Mapping[int, str],
     ) -> DetectionResult:
+        scores, labels, boxes = self._validated_tensors(native_result)
+        if len(scores) == 0:
+            return DetectionResult(
+                source_width=source_width,
+                source_height=source_height,
+            )
+
+        detections = tuple(
+            detection
+            for row_index, row in enumerate(self._rows(scores, labels, boxes))
+            if (
+                detection := self._adapt_row(
+                    row,
+                    row_index=row_index,
+                    source_width=source_width,
+                    source_height=source_height,
+                    id2label=id2label,
+                )
+            )
+            is not None
+        )
+        return DetectionResult(
+            source_width=source_width,
+            source_height=source_height,
+            detections=detections,
+        )
+
+    @staticmethod
+    def _validated_tensors(
+        native_result: Mapping[str, torch.Tensor],
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if not isinstance(native_result, Mapping):
             raise RfDetrDetectionAdapterError(
                 "RF-DETR postprocessed result must be a mapping"
@@ -35,7 +66,21 @@ class RfDetrDetectionAdapter:
         scores = native_result.get("scores")
         labels = native_result.get("labels")
         boxes = native_result.get("boxes")
+        RfDetrDetectionAdapter._validate_scores(scores)
+        RfDetrDetectionAdapter._validate_labels(labels)
+        RfDetrDetectionAdapter._validate_boxes(boxes)
+        if not (len(scores) == len(labels) == len(boxes)):
+            raise RfDetrDetectionAdapterError(
+                "RF-DETR scores, labels and boxes must have the same length"
+            )
+        if scores.device != boxes.device or labels.device != boxes.device:
+            raise RfDetrDetectionAdapterError(
+                "RF-DETR scores, labels and boxes must share the same device"
+            )
+        return scores, labels, boxes
 
+    @staticmethod
+    def _validate_scores(scores: object) -> None:
         if not isinstance(scores, torch.Tensor) or scores.ndim != 1:
             raise RfDetrDetectionAdapterError(
                 "RF-DETR scores must be a one-dimensional tensor"
@@ -44,6 +89,9 @@ class RfDetrDetectionAdapter:
             raise RfDetrDetectionAdapterError(
                 "RF-DETR scores must use a floating-point dtype"
             )
+
+    @staticmethod
+    def _validate_labels(labels: object) -> None:
         if not isinstance(labels, torch.Tensor) or labels.ndim != 1:
             raise RfDetrDetectionAdapterError(
                 "RF-DETR labels must be a one-dimensional tensor"
@@ -52,6 +100,9 @@ class RfDetrDetectionAdapter:
             raise RfDetrDetectionAdapterError(
                 "RF-DETR labels must use an integer dtype"
             )
+
+    @staticmethod
+    def _validate_boxes(boxes: object) -> None:
         if (
             not isinstance(boxes, torch.Tensor)
             or boxes.ndim != 2
@@ -62,22 +113,14 @@ class RfDetrDetectionAdapter:
             raise RfDetrDetectionAdapterError(
                 "RF-DETR boxes must use a floating-point dtype"
             )
-        if not (len(scores) == len(labels) == len(boxes)):
-            raise RfDetrDetectionAdapterError(
-                "RF-DETR scores, labels and boxes must have the same length"
-            )
-        if scores.device != boxes.device or labels.device != boxes.device:
-            raise RfDetrDetectionAdapterError(
-                "RF-DETR scores, labels and boxes must share the same device"
-            )
 
-        if len(scores) == 0:
-            return DetectionResult(
-                source_width=source_width,
-                source_height=source_height,
-            )
-
-        rows = (
+    @staticmethod
+    def _rows(
+        scores: torch.Tensor,
+        labels: torch.Tensor,
+        boxes: torch.Tensor,
+    ) -> list[list[float]]:
+        return (
             torch.cat(
                 (
                     boxes,
@@ -89,24 +132,6 @@ class RfDetrDetectionAdapter:
             .detach()
             .to(device="cpu", dtype=torch.float64)
             .tolist()
-        )
-
-        detections = []
-        for row_index, row in enumerate(rows):
-            detection = self._adapt_row(
-                row,
-                row_index=row_index,
-                source_width=source_width,
-                source_height=source_height,
-                id2label=id2label,
-            )
-            if detection is not None:
-                detections.append(detection)
-
-        return DetectionResult(
-            source_width=source_width,
-            source_height=source_height,
-            detections=tuple(detections),
         )
 
     def _adapt_row(

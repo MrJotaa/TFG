@@ -241,6 +241,109 @@ async def _iter_attacked_evaluation_images(
             }
 
 
+async def _yield_progress(callback: EvaluationProgressCallback | None) -> None:
+    if callback is not None:
+        await asyncio.sleep(0)
+
+
+def _evaluation_storage_context(execution, dataset):
+    if execution is None:
+        result_id, result_path = create_result_directory(prefix="evaluation")
+        return (
+            result_id,
+            result_path,
+            RESULTS_TTL_SECONDS,
+            int(getattr(dataset, "dataset_revision", 0)),
+        )
+    result_id, result_path = create_result_directory(
+        prefix="evaluation",
+        result_id=execution.result_id,
+    )
+    return (
+        result_id,
+        result_path,
+        execution.retention_seconds,
+        execution.dataset_revision,
+    )
+
+
+def _attack_result_components(attack_result, model, image):
+    structured = isinstance(
+        attack_result,
+        (AdversarialAttackResult, AdversarialEvaluationResult),
+    )
+    if structured:
+        adversarial_model_input = attack_result.adversarial_model_input
+        reconstruction = reconstruct_attack_in_source_geometry(
+            source_image=image,
+            model_space_delta=attack_result.model_space_delta,
+        )
+        if isinstance(attack_result, AdversarialAttackResult):
+            attack_width, attack_height = attack_result.adversarial_image.size
+        else:
+            attack_height = int(adversarial_model_input.shape[-2])
+            attack_width = int(adversarial_model_input.shape[-1])
+        return (
+            adversarial_model_input,
+            attack_result.perturbation_linf,
+            attack_result.perturbation_l2,
+            attack_width,
+            attack_height,
+            reconstruction.adversarial_image,
+            reconstruction.perturbation_visualization,
+        )
+
+    adversarial_image = attack_result["adversarial_image"]
+    adversarial_model_input = model.prepare_attack_input(adversarial_image).detach()
+    attack_width, attack_height = adversarial_image.size
+    return (
+        adversarial_model_input,
+        attack_result["perturbation_linf"],
+        attack_result["perturbation_l2"],
+        attack_width,
+        attack_height,
+        adversarial_image,
+        attack_result["perturbation_image"],
+    )
+
+
+def _label_context(
+    *,
+    image_id: str,
+    resolved_by_image_id: dict,
+    unresolved_by_image_id: dict,
+    original_prediction,
+    adversarial_prediction,
+):
+    resolved_label = resolved_by_image_id.get(image_id)
+    ground_truth = (
+        resolved_label.class_reference if resolved_label is not None else None
+    )
+    unresolved_label = unresolved_by_image_id.get(image_id)
+    reason = None
+    if ground_truth is None:
+        reason = (
+            unresolved_label.reason
+            if unresolved_label is not None
+            else "La imagen no tiene una etiqueta de referencia"
+        )
+        return ground_truth, reason, None, None
+    return (
+        ground_truth,
+        reason,
+        original_prediction.class_index == ground_truth.index,
+        adversarial_prediction.class_index == ground_truth.index,
+    )
+
+
+def _metric_value_or_none(metric):
+    return metric.value if metric.available else None
+
+
+def _count_or_none(value: int, has_resolved_results: bool) -> int | None:
+    return value if has_resolved_results else None
+
+
 async def _evaluate_dataset(
     request: EvaluationRequest,
     *,
@@ -298,21 +401,12 @@ async def _evaluate_dataset(
         for unresolved in label_resolution.summary.unresolved
     }
 
-    if execution is None:
-        result_id, result_path = create_result_directory(prefix="evaluation")
-    else:
-        result_id, result_path = create_result_directory(
-            prefix="evaluation",
-            result_id=execution.result_id,
-        )
-    result_retention_seconds = (
-        execution.retention_seconds if execution is not None else RESULTS_TTL_SECONDS
-    )
-    dataset_revision = (
-        execution.dataset_revision
-        if execution is not None
-        else int(getattr(dataset, "dataset_revision", 0))
-    )
+    (
+        result_id,
+        result_path,
+        result_retention_seconds,
+        dataset_revision,
+    ) = _evaluation_storage_context(execution, dataset)
     evaluation_images_manifest: dict[str, dict] = {}
 
     save_result_metadata(
@@ -383,88 +477,48 @@ async def _evaluate_dataset(
         attack_seconds = prepared_item["attack_seconds"]
         attack_batch_size = prepared_item["attack_batch_size"]
 
-        structured_attack_result = isinstance(
-            attack_result,
-            (AdversarialAttackResult, AdversarialEvaluationResult),
-        )
-        if structured_attack_result:
-            adversarial_model_input = attack_result.adversarial_model_input
-            perturbation_linf = attack_result.perturbation_linf
-            perturbation_l2 = attack_result.perturbation_l2
-            if isinstance(attack_result, AdversarialAttackResult):
-                attack_width, attack_height = attack_result.adversarial_image.size
-            else:
-                attack_height = int(adversarial_model_input.shape[-2])
-                attack_width = int(adversarial_model_input.shape[-1])
-        else:
-            adversarial_image = attack_result["adversarial_image"]
-            adversarial_model_input = model.prepare_attack_input(
-                adversarial_image
-            ).detach()
-            perturbation_linf = attack_result["perturbation_linf"]
-            perturbation_l2 = attack_result["perturbation_l2"]
-            attack_width, attack_height = adversarial_image.size
+        (
+            adversarial_model_input,
+            perturbation_linf,
+            perturbation_l2,
+            attack_width,
+            attack_height,
+            adversarial_image_to_persist,
+            perturbation_image_to_persist,
+        ) = _attack_result_components(attack_result, model, image)
 
         stage_started = start_profile_stage(model_device)
-
         adversarial_prediction = model.predict_detailed_from_prepared_input(
             prepared_input=adversarial_model_input,
             top_k=5,
         )
-
         adversarial_prediction_seconds = finish_profile_stage(
             stage_started,
             model_device,
         )
         profile_totals["adversarial_prediction"] += adversarial_prediction_seconds
 
-        if structured_attack_result:
-            reconstruction = reconstruct_attack_in_source_geometry(
-                source_image=image,
-                model_space_delta=attack_result.model_space_delta,
-            )
-            adversarial_image_to_persist = reconstruction.adversarial_image
-            perturbation_image_to_persist = reconstruction.perturbation_visualization
-            del reconstruction
-        else:
-            adversarial_image_to_persist = adversarial_image
-            perturbation_image_to_persist = attack_result["perturbation_image"]
-
         del attack_result
 
-        resolved_label = resolved_by_image_id.get(image_id)
-
-        ground_truth = (
-            resolved_label.class_reference if resolved_label is not None else None
+        (
+            ground_truth,
+            label_resolution_reason,
+            original_correct,
+            adversarial_correct,
+        ) = _label_context(
+            image_id=image_id,
+            resolved_by_image_id=resolved_by_image_id,
+            unresolved_by_image_id=unresolved_by_image_id,
+            original_prediction=original_prediction,
+            adversarial_prediction=adversarial_prediction,
         )
-
-        unresolved_label = unresolved_by_image_id.get(image_id)
-
-        label_resolution_reason = None
-
-        if ground_truth is None:
-            if unresolved_label is not None:
-                label_resolution_reason = unresolved_label.reason
-            else:
-                label_resolution_reason = (
-                    "La imagen no tiene una etiqueta de referencia"
-                )
 
         diagnostics = build_evaluation_image_diagnostics(
             ground_truth=ground_truth,
             original=original_prediction,
             adversarial=adversarial_prediction,
-            label_resolution_reason=(label_resolution_reason),
+            label_resolution_reason=label_resolution_reason,
         )
-
-        original_correct = None
-        adversarial_correct = None
-
-        if ground_truth is not None:
-            original_correct = original_prediction.class_index == ground_truth.index
-            adversarial_correct = (
-                adversarial_prediction.class_index == ground_truth.index
-            )
 
         prediction_changed = (
             original_prediction.class_index != adversarial_prediction.class_index
@@ -611,8 +665,6 @@ async def _evaluate_dataset(
 
         del adversarial_image_to_persist
         del perturbation_image_to_persist
-        if not structured_attack_result:
-            del adversarial_image
         del clean_model_input
         del adversarial_model_input
         del image
@@ -622,8 +674,7 @@ async def _evaluate_dataset(
             processed=image_index,
             total=progress_total,
         )
-        if progress_callback is not None:
-            await asyncio.sleep(0)
+        await _yield_progress(progress_callback)
 
     report_evaluation_progress(
         progress_callback,
@@ -631,8 +682,7 @@ async def _evaluate_dataset(
         total=progress_total,
         phase="metrics",
     )
-    if progress_callback is not None:
-        await asyncio.sleep(0)
+    await _yield_progress(progress_callback)
 
     metrics_started = perf_counter()
     advanced_metrics = calculate_advanced_classification_metrics(
@@ -687,25 +737,20 @@ async def _evaluate_dataset(
         # Legacy summary uses only resolved labels so the
         # denominator remains coherent.
         labeled_images=(label_resolution.summary.resolved_labels),
-        original_accuracy=(
-            robustness.clean_accuracy.value
-            if robustness.clean_accuracy.available
-            else None
+        original_accuracy=_metric_value_or_none(robustness.clean_accuracy),
+        adversarial_accuracy=_metric_value_or_none(robustness.robust_accuracy),
+        accuracy_drop=_metric_value_or_none(robustness.accuracy_drop),
+        correct_before_attack=_count_or_none(
+            correct_before_attack,
+            bool(resolved_results),
         ),
-        adversarial_accuracy=(
-            robustness.robust_accuracy.value
-            if robustness.robust_accuracy.available
-            else None
+        correct_after_attack=_count_or_none(
+            correct_after_attack,
+            bool(resolved_results),
         ),
-        accuracy_drop=(
-            robustness.accuracy_drop.value
-            if robustness.accuracy_drop.available
-            else None
-        ),
-        correct_before_attack=(correct_before_attack if resolved_results else None),
-        correct_after_attack=(correct_after_attack if resolved_results else None),
-        correct_before_wrong_after=(
-            robustness.correct_to_incorrect if resolved_results else None
+        correct_before_wrong_after=_count_or_none(
+            robustness.correct_to_incorrect,
+            bool(resolved_results),
         ),
     )
 

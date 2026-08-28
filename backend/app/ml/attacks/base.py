@@ -56,42 +56,51 @@ class AttackParameterSpec:
         return value
 
     def _coerce(self, raw_value: Any) -> str | int | float | bool:
-        if self.value_type == "float":
-            if isinstance(raw_value, bool):
-                raise ValueError(f"El parámetro '{self.key}' debe ser numérico")
-            try:
-                return float(raw_value)
-            except (TypeError, ValueError) as error:
-                raise ValueError(
-                    f"El parámetro '{self.key}' debe ser numérico"
-                ) from error
+        coercers = {
+            "float": self._coerce_float,
+            "integer": self._coerce_integer,
+            "boolean": self._coerce_boolean,
+            "string": self._coerce_string,
+        }
+        coercer = coercers.get(self.value_type)
+        if coercer is None:
+            raise ValueError(f"Tipo de parámetro no compatible: '{self.value_type}'")
+        return coercer(raw_value)
 
-        if self.value_type == "integer":
-            if isinstance(raw_value, bool):
-                raise ValueError(f"El parámetro '{self.key}' debe ser un entero")
-            try:
-                numeric_value = float(raw_value)
-            except (TypeError, ValueError) as error:
-                raise ValueError(
-                    f"El parámetro '{self.key}' debe ser un entero"
-                ) from error
-            if not numeric_value.is_integer():
-                raise ValueError(f"El parámetro '{self.key}' debe ser un entero")
-            return int(numeric_value)
+    def _coerce_float(self, raw_value: Any) -> float:
+        if isinstance(raw_value, bool):
+            raise ValueError(f"El parámetro '{self.key}' debe ser numérico")
+        try:
+            return float(raw_value)
+        except (TypeError, ValueError) as error:
+            raise ValueError(
+                f"El parámetro '{self.key}' debe ser numérico"
+            ) from error
 
-        if self.value_type == "boolean":
-            if not isinstance(raw_value, bool):
-                raise ValueError(f"El parámetro '{self.key}' debe ser booleano")
-            return raw_value
+    def _coerce_integer(self, raw_value: Any) -> int:
+        if isinstance(raw_value, bool):
+            raise ValueError(f"El parámetro '{self.key}' debe ser un entero")
+        try:
+            numeric_value = float(raw_value)
+        except (TypeError, ValueError) as error:
+            raise ValueError(
+                f"El parámetro '{self.key}' debe ser un entero"
+            ) from error
+        if not numeric_value.is_integer():
+            raise ValueError(f"El parámetro '{self.key}' debe ser un entero")
+        return int(numeric_value)
 
-        if self.value_type == "string":
-            if not isinstance(raw_value, str):
-                raise ValueError(
-                    f"El parámetro '{self.key}' debe ser una cadena de texto"
-                )
-            return raw_value
+    def _coerce_boolean(self, raw_value: Any) -> bool:
+        if not isinstance(raw_value, bool):
+            raise ValueError(f"El parámetro '{self.key}' debe ser booleano")
+        return raw_value
 
-        raise ValueError(f"Tipo de parámetro no compatible: '{self.value_type}'")
+    def _coerce_string(self, raw_value: Any) -> str:
+        if not isinstance(raw_value, str):
+            raise ValueError(
+                f"El parámetro '{self.key}' debe ser una cadena de texto"
+            )
+        return raw_value
 
     def as_catalog_dict(self) -> dict[str, Any]:
         return {

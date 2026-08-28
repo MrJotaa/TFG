@@ -784,21 +784,28 @@ class DetectionObjectAdversarialAnalysis(DetectionMetricModel):
 
     @model_validator(mode="after")
     def validate_analysis(self):
+        self._validate_summary_contract()
+        self._validate_class_dimension()
+        self._validate_size_dimension()
+        self._validate_image_dimension()
+        self._validate_object_details()
+        return self
+
+    def _validate_summary_contract(self) -> None:
         if self.total_evaluable_objects != self.summary.total_objects:
             raise ValueError("total_evaluable_objects must match summary")
         if self.details_included != (
             self.by_image is not None and self.objects is not None
         ):
             raise ValueError("detail collections must follow details_included")
+
+    def _validate_class_dimension(self) -> None:
         class_keys = tuple(
             _class_reference_key(item.category) for item in self.by_class
         )
         if len(set(class_keys)) != len(self.by_class):
             raise ValueError("by_class categories must be unique")
-        if tuple(
-            (item.category.model_class_id, item.category.category_internal_id)
-            for item in self.by_class
-        ) != tuple(
+        canonical_order = tuple(
             sorted(
                 (
                     item.category.model_class_id,
@@ -806,8 +813,20 @@ class DetectionObjectAdversarialAnalysis(DetectionMetricModel):
                 )
                 for item in self.by_class
             )
-        ):
+        )
+        actual_order = tuple(
+            (item.category.model_class_id, item.category.category_internal_id)
+            for item in self.by_class
+        )
+        if actual_order != canonical_order:
             raise ValueError("by_class must use canonical order")
+        _validate_object_dimension(
+            dimension_name="by_class",
+            values=self.by_class,
+            summary=self.summary,
+        )
+
+    def _validate_size_dimension(self) -> None:
         if tuple(item.size_bucket for item in self.by_size) != (
             DetectionObjectSizeBucket.SMALL,
             DetectionObjectSizeBucket.MEDIUM,
@@ -815,97 +834,132 @@ class DetectionObjectAdversarialAnalysis(DetectionMetricModel):
         ):
             raise ValueError("by_size must contain small, medium and large in order")
         _validate_object_dimension(
-            dimension_name="by_class",
-            values=self.by_class,
-            summary=self.summary,
-        )
-        _validate_object_dimension(
             dimension_name="by_size",
             values=self.by_size,
             summary=self.summary,
         )
-        if self.by_image is not None:
-            image_ids = tuple(item.image_id for item in self.by_image)
-            if image_ids != tuple(sorted(image_ids)) or len(set(image_ids)) != len(
-                image_ids
+
+    def _validate_image_dimension(self) -> None:
+        if self.by_image is None:
+            return
+        image_ids = tuple(item.image_id for item in self.by_image)
+        if image_ids != tuple(sorted(image_ids)) or len(set(image_ids)) != len(
+            image_ids
+        ):
+            raise ValueError("by_image IDs must be unique and sorted")
+        _validate_object_dimension(
+            dimension_name="by_image",
+            values=self.by_image,
+            summary=self.summary,
+        )
+
+    def _validate_object_details(self) -> None:
+        if self.objects is None:
+            return
+
+        self._validate_object_identity_and_operating_point()
+        (
+            objects_by_class,
+            objects_by_size,
+            objects_by_image,
+        ) = self._group_objects_by_dimension()
+        self._validate_dimension_aggregates(
+            objects_by_class=objects_by_class,
+            objects_by_size=objects_by_size,
+            objects_by_image=objects_by_image,
+        )
+
+    def _validate_object_identity_and_operating_point(self) -> None:
+        object_keys = tuple(
+            (item.image_id, item.object_id) for item in self.objects
+        )
+        if object_keys != tuple(sorted(object_keys)) or len(
+            {item.object_id for item in self.objects}
+        ) != len(self.objects):
+            raise ValueError("objects must have unique IDs and canonical order")
+        if len(self.objects) != self.total_evaluable_objects:
+            raise ValueError("objects must contain every evaluable object")
+
+        for item in self.objects:
+            self._validate_object_observations(item)
+
+    def _validate_object_observations(self, item: DetectionObjectResult) -> None:
+        for observation in (
+            item.original_observation,
+            item.adversarial_observation,
+        ):
+            if observation is None:
+                continue
+            if (
+                observation.confidence
+                < self.operating_point_configuration.confidence_threshold
+                - PUBLIC_DETECTION_METRIC_TOLERANCE
+                or observation.iou_with_ground_truth
+                < self.operating_point_configuration.iou_threshold
+                - PUBLIC_DETECTION_METRIC_TOLERANCE
             ):
-                raise ValueError("by_image IDs must be unique and sorted")
-            _validate_object_dimension(
-                dimension_name="by_image",
-                values=self.by_image,
-                summary=self.summary,
-            )
-        if self.objects is not None:
-            object_keys = tuple(
-                (item.image_id, item.object_id) for item in self.objects
-            )
-            if object_keys != tuple(sorted(object_keys)) or len(
-                {item.object_id for item in self.objects}
-            ) != len(self.objects):
-                raise ValueError("objects must have unique IDs and canonical order")
-            if len(self.objects) != self.total_evaluable_objects:
-                raise ValueError("objects must contain every evaluable object")
-            for item in self.objects:
-                for observation in (
-                    item.original_observation,
-                    item.adversarial_observation,
-                ):
-                    if observation is None:
-                        continue
-                    if (
-                        observation.confidence
-                        < self.operating_point_configuration.confidence_threshold
-                        - PUBLIC_DETECTION_METRIC_TOLERANCE
-                        or observation.iou_with_ground_truth
-                        < self.operating_point_configuration.iou_threshold
-                        - PUBLIC_DETECTION_METRIC_TOLERANCE
-                    ):
-                        raise ValueError(
-                            "matched object observation is below the operating point"
-                        )
-            class_references = {
-                _class_reference_key(item.category) for item in self.by_class
-            }
-            image_ids = {item.image_id for item in self.by_image}
-            objects_by_class = {key: [] for key in class_references}
-            objects_by_size = {item.size_bucket: [] for item in self.by_size}
-            objects_by_image = {image_id: [] for image_id in image_ids}
-            for item in self.objects:
-                class_key = _class_reference_key(item.category)
-                if class_key not in objects_by_class:
-                    raise ValueError(
-                        "object references a category absent from by_class"
-                    )
-                if item.image_id not in objects_by_image:
-                    raise ValueError("object references an image absent from by_image")
-                objects_by_class[class_key].append(item)
-                objects_by_size[item.size_bucket].append(item)
-                objects_by_image[item.image_id].append(item)
+                raise ValueError(
+                    "matched object observation is below the operating point"
+                )
+
+    def _group_objects_by_dimension(
+        self,
+    ) -> tuple[dict, dict, dict]:
+        class_references = {
+            _class_reference_key(item.category) for item in self.by_class
+        }
+        image_ids = {
+            item.image_id for item in (self.by_image or ())
+        }
+        objects_by_class = {key: [] for key in class_references}
+        objects_by_size = {item.size_bucket: [] for item in self.by_size}
+        objects_by_image = {image_id: [] for image_id in image_ids}
+
+        for item in self.objects:
+            class_key = _class_reference_key(item.category)
+            if class_key not in objects_by_class:
+                raise ValueError(
+                    "object references a category absent from by_class"
+                )
+            if item.image_id not in objects_by_image:
+                raise ValueError("object references an image absent from by_image")
+            objects_by_class[class_key].append(item)
+            objects_by_size[item.size_bucket].append(item)
+            objects_by_image[item.image_id].append(item)
+        return objects_by_class, objects_by_size, objects_by_image
+
+    def _validate_dimension_aggregates(
+        self,
+        *,
+        objects_by_class: dict,
+        objects_by_size: dict,
+        objects_by_image: dict,
+    ) -> None:
+        _validate_aggregate_against_objects(
+            aggregate_name="summary",
+            aggregate=self.summary,
+            objects=self.objects,
+        )
+        for value in self.by_class:
+            key = _class_reference_key(value.category)
             _validate_aggregate_against_objects(
-                aggregate_name="summary",
-                aggregate=self.summary,
-                objects=self.objects,
+                aggregate_name=f"by_class[{key}]",
+                aggregate=value,
+                objects=tuple(objects_by_class[key]),
             )
-            for value in self.by_class:
-                key = _class_reference_key(value.category)
-                _validate_aggregate_against_objects(
-                    aggregate_name=f"by_class[{key}]",
-                    aggregate=value,
-                    objects=tuple(objects_by_class[key]),
-                )
-            for value in self.by_size:
-                _validate_aggregate_against_objects(
-                    aggregate_name=f"by_size[{value.size_bucket}]",
-                    aggregate=value,
-                    objects=tuple(objects_by_size[value.size_bucket]),
-                )
-            for value in self.by_image:
-                _validate_aggregate_against_objects(
-                    aggregate_name=f"by_image[{value.image_id}]",
-                    aggregate=value,
-                    objects=tuple(objects_by_image[value.image_id]),
-                )
-        return self
+        for value in self.by_size:
+            _validate_aggregate_against_objects(
+                aggregate_name=f"by_size[{value.size_bucket}]",
+                aggregate=value,
+                objects=tuple(objects_by_size[value.size_bucket]),
+            )
+        for value in self.by_image or ():
+            _validate_aggregate_against_objects(
+                aggregate_name=f"by_image[{value.image_id}]",
+                aggregate=value,
+                objects=tuple(objects_by_image[value.image_id]),
+            )
+
 
 
 class DetectionMetricDelta(DetectionMetricModel):

@@ -15,6 +15,8 @@ from ml.models.classification import (
 )
 from schemas.predict import PredictResponse, TopKPrediction
 
+_MODEL_NOT_LOADED = "Model is not loaded"
+
 
 class TorchvisionImageClassificationModel(BaseImageClassificationModel):
     """
@@ -127,7 +129,7 @@ class TorchvisionImageClassificationModel(BaseImageClassificationModel):
     def get_class_labels(self) -> tuple[str, ...]:
         """Devuelve el catálogo ordenado asociado a los logits del modelo."""
         if not self.is_loaded():
-            raise ValueError("Model is not loaded")
+            raise ValueError(_MODEL_NOT_LOADED)
 
         return tuple(self.categories)
 
@@ -174,7 +176,7 @@ class TorchvisionImageClassificationModel(BaseImageClassificationModel):
 
     def _validate_prediction_request(self, *, top_k: int) -> None:
         if not self.is_loaded():
-            raise ValueError("Model is not loaded")
+            raise ValueError(_MODEL_NOT_LOADED)
 
         if top_k <= 0:
             raise ValueError("top_k must be greater than zero")
@@ -290,7 +292,7 @@ class TorchvisionImageClassificationModel(BaseImageClassificationModel):
 
     def get_torch_model(self) -> torch.nn.Module:
         if not self.is_loaded():
-            raise ValueError("Model is not loaded")
+            raise ValueError(_MODEL_NOT_LOADED)
 
         return self.model
 

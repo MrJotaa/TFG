@@ -179,6 +179,20 @@ class DetectionCategoryMatch:
     candidate_classes: tuple[DetectionClass, ...] = ()
 
     def __post_init__(self) -> None:
+        self._validate_identity()
+        candidates = self._validated_candidates()
+        self._validate_state(candidates)
+
+        object.__setattr__(
+            self,
+            "category_internal_id",
+            self.category_internal_id.strip(),
+        )
+        object.__setattr__(self, "coco_category_id", int(self.coco_category_id))
+        object.__setattr__(self, "category_name", self.category_name.strip())
+        object.__setattr__(self, "candidate_classes", candidates)
+
+    def _validate_identity(self) -> None:
         if (
             not isinstance(self.category_internal_id, str)
             or not self.category_internal_id.strip()
@@ -207,6 +221,7 @@ class DetectionCategoryMatch:
                 "status must be a DetectionCategoryResolutionStatus"
             )
 
+    def _validated_candidates(self) -> tuple[DetectionClass, ...]:
         candidates = tuple(self.candidate_classes)
         if any(not isinstance(candidate, DetectionClass) for candidate in candidates):
             raise DetectionCategoryResolutionError(
@@ -217,66 +232,80 @@ class DetectionCategoryMatch:
             raise DetectionCategoryResolutionError(
                 "candidate_classes must contain unique class IDs"
             )
+        return candidates
 
+    def _validate_state(self, candidates: tuple[DetectionClass, ...]) -> None:
         if self.status is DetectionCategoryResolutionStatus.RESOLVED:
-            if not isinstance(self.resolved_class, DetectionClass):
-                raise DetectionCategoryResolutionError(
-                    "resolved match must reference one DetectionClass"
-                )
-            if self.reason is not None or candidates:
-                raise DetectionCategoryResolutionError(
-                    "resolved match must not contain a reason or candidates"
-                )
-        else:
-            if self.resolved_class is not None or self.reason is None:
-                raise DetectionCategoryResolutionError(
-                    "unresolved match must contain a reason and no resolved class"
-                )
-            if self.status is DetectionCategoryResolutionStatus.UNRESOLVED:
-                if (
-                    self.reason
-                    is not DetectionCategoryResolutionReason.NO_MATCHING_MODEL_CLASS
-                ):
-                    raise DetectionCategoryResolutionError(
-                        "unknown category has an invalid reason"
-                    )
-                if candidates:
-                    raise DetectionCategoryResolutionError(
-                        "unknown category must not contain candidates"
-                    )
-            elif self.status is DetectionCategoryResolutionStatus.AMBIGUOUS:
-                if (
-                    self.reason
-                    is not DetectionCategoryResolutionReason.AMBIGUOUS_MODEL_CLASS_NAME
-                ):
-                    raise DetectionCategoryResolutionError(
-                        "ambiguous category has an invalid reason"
-                    )
-                if len(candidates) < 2:
-                    raise DetectionCategoryResolutionError(
-                        "ambiguous category must contain multiple candidates"
-                    )
-            elif self.status is DetectionCategoryResolutionStatus.CONFLICT:
-                if (
-                    self.reason
-                    is not DetectionCategoryResolutionReason.MODEL_CLASS_CLAIMED_BY_MULTIPLE_CATEGORIES
-                ):
-                    raise DetectionCategoryResolutionError(
-                        "conflicting category has an invalid reason"
-                    )
-                if len(candidates) != 1:
-                    raise DetectionCategoryResolutionError(
-                        "conflicting category must contain its single candidate"
-                    )
+            self._validate_resolved_state(candidates)
+            return
+        if self.resolved_class is not None or self.reason is None:
+            raise DetectionCategoryResolutionError(
+                "unresolved match must contain a reason and no resolved class"
+            )
+        validators = {
+            DetectionCategoryResolutionStatus.UNRESOLVED: self._validate_unresolved_state,
+            DetectionCategoryResolutionStatus.AMBIGUOUS: self._validate_ambiguous_state,
+            DetectionCategoryResolutionStatus.CONFLICT: self._validate_conflict_state,
+        }
+        validators[self.status](candidates)
 
-        object.__setattr__(
-            self,
-            "category_internal_id",
-            self.category_internal_id.strip(),
-        )
-        object.__setattr__(self, "coco_category_id", int(self.coco_category_id))
-        object.__setattr__(self, "category_name", self.category_name.strip())
-        object.__setattr__(self, "candidate_classes", candidates)
+    def _validate_resolved_state(
+        self,
+        candidates: tuple[DetectionClass, ...],
+    ) -> None:
+        if not isinstance(self.resolved_class, DetectionClass):
+            raise DetectionCategoryResolutionError(
+                "resolved match must reference one DetectionClass"
+            )
+        if self.reason is not None or candidates:
+            raise DetectionCategoryResolutionError(
+                "resolved match must not contain a reason or candidates"
+            )
+
+    def _validate_unresolved_state(
+        self,
+        candidates: tuple[DetectionClass, ...],
+    ) -> None:
+        if self.reason is not DetectionCategoryResolutionReason.NO_MATCHING_MODEL_CLASS:
+            raise DetectionCategoryResolutionError(
+                "unknown category has an invalid reason"
+            )
+        if candidates:
+            raise DetectionCategoryResolutionError(
+                "unknown category must not contain candidates"
+            )
+
+    def _validate_ambiguous_state(
+        self,
+        candidates: tuple[DetectionClass, ...],
+    ) -> None:
+        if (
+            self.reason
+            is not DetectionCategoryResolutionReason.AMBIGUOUS_MODEL_CLASS_NAME
+        ):
+            raise DetectionCategoryResolutionError(
+                "ambiguous category has an invalid reason"
+            )
+        if len(candidates) < 2:
+            raise DetectionCategoryResolutionError(
+                "ambiguous category must contain multiple candidates"
+            )
+
+    def _validate_conflict_state(
+        self,
+        candidates: tuple[DetectionClass, ...],
+    ) -> None:
+        if (
+            self.reason
+            is not DetectionCategoryResolutionReason.MODEL_CLASS_CLAIMED_BY_MULTIPLE_CATEGORIES
+        ):
+            raise DetectionCategoryResolutionError(
+                "conflicting category has an invalid reason"
+            )
+        if len(candidates) != 1:
+            raise DetectionCategoryResolutionError(
+                "conflicting category must contain its single candidate"
+            )
 
     @property
     def resolved(self) -> bool:
@@ -298,87 +327,8 @@ class DetectionCategoryResolution:
     resolved_category_class_pairs: tuple[tuple[str, int], ...] = field(init=False)
 
     def __post_init__(self) -> None:
-        if not isinstance(self.catalog, DetectionClassCatalog):
-            raise DetectionCategoryResolutionError(
-                "catalog must be a DetectionClassCatalog"
-            )
-
-        matches = tuple(self.matches)
-        if any(not isinstance(match, DetectionCategoryMatch) for match in matches):
-            raise DetectionCategoryResolutionError(
-                "matches must contain only DetectionCategoryMatch values"
-            )
-        internal_ids = [match.category_internal_id for match in matches]
-        if len(internal_ids) != len(set(internal_ids)):
-            raise DetectionCategoryResolutionError(
-                "matches must contain unique category_internal_id values"
-            )
-
-        catalog_classes = self.catalog.class_by_id
-        resolved_class_ids: set[int] = set()
-        validated_candidate_groups: set[tuple[int, str]] = set()
-
-        for match in matches:
-            resolved_class = match.resolved_class
-            if resolved_class is not None:
-                catalog_class = catalog_classes.get(resolved_class.class_id)
-                if catalog_class != resolved_class:
-                    raise DetectionCategoryResolutionError(
-                        f"resolved class ID {resolved_class.class_id} for category "
-                        f"'{match.category_internal_id}' is not present in catalog "
-                        f"'{self.catalog.model_id}'"
-                    )
-                if (
-                    normalize_detection_category_name(resolved_class.name)
-                    != match.normalized_category_name
-                ):
-                    raise DetectionCategoryResolutionError(
-                        f"resolved class ID {resolved_class.class_id} name does not "
-                        f"match category '{match.category_internal_id}'"
-                    )
-                if resolved_class.class_id in resolved_class_ids:
-                    raise DetectionCategoryResolutionError(
-                        f"resolved class ID {resolved_class.class_id} is claimed by "
-                        "multiple dataset categories"
-                    )
-                resolved_class_ids.add(resolved_class.class_id)
-
-            if not match.candidate_classes:
-                continue
-
-            candidate_group_key = (
-                id(match.candidate_classes),
-                match.normalized_category_name,
-            )
-            if candidate_group_key in validated_candidate_groups:
-                continue
-
-            candidate_ids: set[int] = set()
-            for candidate in match.candidate_classes:
-                if candidate.class_id in candidate_ids:
-                    raise DetectionCategoryResolutionError(
-                        f"candidate class ID {candidate.class_id} is duplicated for "
-                        f"category '{match.category_internal_id}'"
-                    )
-                candidate_ids.add(candidate.class_id)
-
-                catalog_class = catalog_classes.get(candidate.class_id)
-                if catalog_class != candidate:
-                    raise DetectionCategoryResolutionError(
-                        f"candidate class ID {candidate.class_id} for category "
-                        f"'{match.category_internal_id}' is not present in catalog "
-                        f"'{self.catalog.model_id}'"
-                    )
-                if (
-                    normalize_detection_category_name(candidate.name)
-                    != match.normalized_category_name
-                ):
-                    raise DetectionCategoryResolutionError(
-                        f"candidate class ID {candidate.class_id} name does not "
-                        f"match category '{match.category_internal_id}'"
-                    )
-
-            validated_candidate_groups.add(candidate_group_key)
+        matches = self._validated_matches()
+        self._validate_match_classes(matches)
 
         total_categories = len(matches)
         resolved_count = sum(match.resolved for match in matches)
@@ -416,6 +366,132 @@ class DetectionCategoryResolution:
             "resolved_category_class_pairs",
             resolved_pairs,
         )
+
+    def _validated_matches(self) -> tuple[DetectionCategoryMatch, ...]:
+        if not isinstance(self.catalog, DetectionClassCatalog):
+            raise DetectionCategoryResolutionError(
+                "catalog must be a DetectionClassCatalog"
+            )
+
+        matches = tuple(self.matches)
+        if any(not isinstance(match, DetectionCategoryMatch) for match in matches):
+            raise DetectionCategoryResolutionError(
+                "matches must contain only DetectionCategoryMatch values"
+            )
+        internal_ids = [match.category_internal_id for match in matches]
+        if len(internal_ids) != len(set(internal_ids)):
+            raise DetectionCategoryResolutionError(
+                "matches must contain unique category_internal_id values"
+            )
+        return matches
+
+    def _validate_match_classes(
+        self,
+        matches: tuple[DetectionCategoryMatch, ...],
+    ) -> None:
+        catalog_classes = self.catalog.class_by_id
+        resolved_class_ids: set[int] = set()
+        validated_candidate_groups: set[tuple[int, str]] = set()
+
+        for match in matches:
+            self._validate_resolved_class(
+                match,
+                catalog_classes,
+                resolved_class_ids,
+            )
+            self._validate_candidate_group(
+                match,
+                catalog_classes,
+                validated_candidate_groups,
+            )
+
+    def _validate_resolved_class(
+        self,
+        match: DetectionCategoryMatch,
+        catalog_classes: dict[int, DetectionClass],
+        resolved_class_ids: set[int],
+    ) -> None:
+        resolved_class = match.resolved_class
+        if resolved_class is None:
+            return
+
+        catalog_class = catalog_classes.get(resolved_class.class_id)
+        if catalog_class != resolved_class:
+            raise DetectionCategoryResolutionError(
+                f"resolved class ID {resolved_class.class_id} for category "
+                f"'{match.category_internal_id}' is not present in catalog "
+                f"'{self.catalog.model_id}'"
+            )
+        if (
+            normalize_detection_category_name(resolved_class.name)
+            != match.normalized_category_name
+        ):
+            raise DetectionCategoryResolutionError(
+                f"resolved class ID {resolved_class.class_id} name does not "
+                f"match category '{match.category_internal_id}'"
+            )
+        if resolved_class.class_id in resolved_class_ids:
+            raise DetectionCategoryResolutionError(
+                f"resolved class ID {resolved_class.class_id} is claimed by "
+                "multiple dataset categories"
+            )
+        resolved_class_ids.add(resolved_class.class_id)
+
+    def _validate_candidate_group(
+        self,
+        match: DetectionCategoryMatch,
+        catalog_classes: dict[int, DetectionClass],
+        validated_candidate_groups: set[tuple[int, str]],
+    ) -> None:
+        if not match.candidate_classes:
+            return
+
+        candidate_group_key = (
+            id(match.candidate_classes),
+            match.normalized_category_name,
+        )
+        if candidate_group_key in validated_candidate_groups:
+            return
+
+        candidate_ids: set[int] = set()
+        for candidate in match.candidate_classes:
+            self._validate_candidate(
+                match,
+                candidate,
+                catalog_classes,
+                candidate_ids,
+            )
+        validated_candidate_groups.add(candidate_group_key)
+
+    def _validate_candidate(
+        self,
+        match: DetectionCategoryMatch,
+        candidate: DetectionClass,
+        catalog_classes: dict[int, DetectionClass],
+        candidate_ids: set[int],
+    ) -> None:
+        if candidate.class_id in candidate_ids:
+            raise DetectionCategoryResolutionError(
+                f"candidate class ID {candidate.class_id} is duplicated for "
+                f"category '{match.category_internal_id}'"
+            )
+        candidate_ids.add(candidate.class_id)
+
+        catalog_class = catalog_classes.get(candidate.class_id)
+        if catalog_class != candidate:
+            raise DetectionCategoryResolutionError(
+                f"candidate class ID {candidate.class_id} for category "
+                f"'{match.category_internal_id}' is not present in catalog "
+                f"'{self.catalog.model_id}'"
+            )
+        if (
+            normalize_detection_category_name(candidate.name)
+            != match.normalized_category_name
+        ):
+            raise DetectionCategoryResolutionError(
+                f"candidate class ID {candidate.class_id} name does not "
+                f"match category '{match.category_internal_id}'"
+            )
 
     @property
     def class_id_by_category_internal_id(self) -> dict[str, int]:
