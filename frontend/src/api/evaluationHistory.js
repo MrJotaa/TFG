@@ -59,6 +59,12 @@ export function setEvaluationPreserved(evaluationId, preserved) {
     })
 }
 
+export function cancelEvaluation(evaluationId) {
+    return apiRequest(`/evaluations/${encodeURIComponent(evaluationId)}/cancel`, {
+        method: 'POST',
+    })
+}
+
 export function deleteEvaluation(evaluationId) {
     return apiRequest(`/evaluations/${encodeURIComponent(evaluationId)}`, {
         method: 'DELETE',

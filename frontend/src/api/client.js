@@ -54,7 +54,7 @@ export async function apiRequest(path, options = {}) {
     const isFormData = options.body instanceof FormData
 
     const headers = {
-        ...(options.headers || {}),
+        ...options.headers,
     }
 
     if (token) {

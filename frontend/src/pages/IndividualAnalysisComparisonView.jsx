@@ -13,20 +13,13 @@ import {
     getAttackName,
 } from '../utils/attackFormatting'
 import {
-    buildIndividualAnalysisComparison,
+    formatComparisonMagnitude,
     individualAnalysisComparisonSummary,
+    loadIndividualAnalysisComparison,
 } from '../utils/individualAnalysisComparison'
 import { resolveSaveState } from '../utils/individualAnalysisFlow'
 import { formatAnalysisProbability, formatSignedPercentagePoints } from '../utils/individualAnalysis'
 import { formatCreatedAgo } from '../utils/evaluationHistory'
-
-function formatMagnitude(value) {
-    const numeric = Number(value)
-    if (!Number.isFinite(numeric)) return '—'
-    if (numeric === 0) return '0'
-    if (Math.abs(numeric) < 0.001) return numeric.toExponential(2)
-    return numeric.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
-}
 
 function analysisPersistenceLabel(reference, saveStatus) {
     if (!reference?.temporary) {
@@ -162,6 +155,10 @@ function PersistenceAction({ side, reference, status, saving, onSave }) {
     }
 
     const equivalent = status === 'equivalent'
+    let saveButtonLabel = `Guardar ${side}`
+    if (saving) saveButtonLabel = 'Guardando…'
+    else if (equivalent) saveButtonLabel = 'Ya existe'
+
     return (
         <div className={`individual-comparison-save-state side-${side.toLowerCase()} temporary`}>
             <span>{side}</span>
@@ -179,21 +176,10 @@ function PersistenceAction({ side, reference, status, saving, onSave }) {
                 onClick={onSave}
                 disabled={saving || equivalent}
             >
-                {saving ? 'Guardando…' : equivalent ? 'Ya existe' : `Guardar ${side}`}
+                {saveButtonLabel}
             </button>
         </div>
     )
-}
-
-function buildSavedReference(stored, dataset, image) {
-    return {
-        item: stored.item,
-        analysis: stored.analysis,
-        dataset,
-        image,
-        temporary: false,
-        resultId: stored.analysis?.result_id ?? stored.item?.source_result_id ?? null,
-    }
 }
 
 function IndividualAnalysisComparisonView() {
@@ -216,68 +202,15 @@ function IndividualAnalysisComparisonView() {
         async function load() {
             try {
                 setSaveStatuses({ A: null, B: null })
-
-                if (transientPair) {
-                    const left = transientPair.left
-                    const right = transientPair.right
-                    if (!left?.item || !right?.item || !left?.analysis || !right?.analysis) {
-                        throw new Error('La comparación temporal ya no contiene los dos resultados necesarios.')
-                    }
-                    const comparison = buildIndividualAnalysisComparison(left.item, right.item)
-                    if (!comparison.compatible) throw new Error(comparison.reason)
-
-                    const dataset = transientPair.dataset ?? left.dataset ?? right.dataset
-                    const image = transientPair.image ?? left.image ?? right.image
-                    if (!dataset || !image) {
-                        throw new Error('No se pudo recuperar el contexto visual de la imagen comparada.')
-                    }
-
-                    if (!cancelled) {
-                        setState({
-                            status: 'ready',
-                            left,
-                            right,
-                            comparison,
-                            dataset,
-                            image,
-                        })
-                    }
-                    return
-                }
-
-                if (!leftId || !rightId || leftId === rightId) {
-                    throw new Error('Selecciona dos análisis individuales diferentes desde el historial.')
-                }
-
-                setState({ status: 'loading' })
-                const [leftStored, rightStored] = await Promise.all([
-                    getStoredIndividualAnalysis(leftId),
-                    getStoredIndividualAnalysis(rightId),
-                ])
-                const comparison = buildIndividualAnalysisComparison(
-                    leftStored.item,
-                    rightStored.item,
-                )
-                if (!comparison.compatible) throw new Error(comparison.reason)
-
-                const dataset = await getDatasetById(leftStored.item.dataset_id)
-                const image = dataset?.images?.find(
-                    (candidate) => candidate.id === leftStored.item.image_id,
-                )
-                if (!image) {
-                    throw new Error('La imagen original asociada ya no está disponible en el dataset.')
-                }
-
-                if (!cancelled) {
-                    setState({
-                        status: 'ready',
-                        left: buildSavedReference(leftStored, dataset, image),
-                        right: buildSavedReference(rightStored, dataset, image),
-                        comparison,
-                        dataset,
-                        image,
-                    })
-                }
+                if (!transientPair) setState({ status: 'loading' })
+                const nextState = await loadIndividualAnalysisComparison({
+                    transientPair,
+                    leftId,
+                    rightId,
+                    getStoredIndividualAnalysis,
+                    getDatasetById,
+                })
+                if (!cancelled) setState(nextState)
             } catch (error) {
                 if (!cancelled) {
                     setState({
@@ -525,13 +458,13 @@ function IndividualAnalysisComparisonView() {
                 <div className="individual-comparison-perturbation-strip">
                     <div className="side-a">
                         <span>A · perturbación</span>
-                        <strong>L∞ {formatMagnitude(summaries.left.perturbationLinf)}</strong>
-                        <small>L2 {formatMagnitude(summaries.left.perturbationL2)}</small>
+                        <strong>L∞ {formatComparisonMagnitude(summaries.left.perturbationLinf)}</strong>
+                        <small>L2 {formatComparisonMagnitude(summaries.left.perturbationL2)}</small>
                     </div>
                     <div className="side-b">
                         <span>B · perturbación</span>
-                        <strong>L∞ {formatMagnitude(summaries.right.perturbationLinf)}</strong>
-                        <small>L2 {formatMagnitude(summaries.right.perturbationL2)}</small>
+                        <strong>L∞ {formatComparisonMagnitude(summaries.right.perturbationLinf)}</strong>
+                        <small>L2 {formatComparisonMagnitude(summaries.right.perturbationL2)}</small>
                     </div>
                 </div>
             </section>

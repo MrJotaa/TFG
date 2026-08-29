@@ -29,3 +29,15 @@ mongo_data/
 node_modules/
 dist/
 .env.local
+
+# Test coverage
+/backend/coverage/
+
+# SonarQube Scanner
+/backend/.scannerwork/
+
+# Frontend test coverage
+/frontend/coverage/
+
+# SonarQube Scanner
+/frontend/.scannerwork/

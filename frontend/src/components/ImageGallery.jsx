@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getDatasetImages } from '../api/datasets'
+import { filterVisibleImages } from '../utils/imageGallery'
 
 function CheckIcon() {
     return (
@@ -27,6 +28,64 @@ function CloseIcon() {
 
 function imageSource(image) {
     return `http://127.0.0.1:8000${image.url}`
+}
+
+
+function GalleryEmptyState({ workspace, title, copy, fallback }) {
+    if (workspace) {
+        return (
+            <div className="dashboard-empty-state">
+                <strong>{title}</strong>
+                <span>{copy}</span>
+            </div>
+        )
+    }
+    return <p>{fallback}</p>
+}
+
+function GalleryImageCard({ image, selectedImage, onSelectImage, workspace, compact, allowPreview, onPreview }) {
+    const isSelected = selectedImage?.id === image.id
+    let caption = null
+    if (workspace) {
+        caption = <p className="workspace-image-name" title={image.filename}>{image.filename}</p>
+    } else if (!compact) {
+        caption = <p className="image-filename">{image.filename}</p>
+    }
+
+    return (
+        <div className={`image-card${isSelected ? ' selected' : ''}`}>
+            <div className="image-card-visual">
+                <button type="button" className="image-button" onClick={() => onSelectImage(image)} aria-pressed={isSelected} title={`Seleccionar ${image.filename}`}>
+                    <img src={imageSource(image)} alt={image.filename} />
+                </button>
+                {workspace && isSelected && <span className="image-selection-mark" aria-label="Imagen seleccionada"><CheckIcon /></span>}
+                {allowPreview && (
+                    <button type="button" className="image-preview-button" onClick={() => onPreview(image)} title={`Ampliar ${image.filename}`} aria-label={`Ampliar ${image.filename}`}>
+                        <ExpandIcon />
+                    </button>
+                )}
+            </div>
+            {caption}
+        </div>
+    )
+}
+
+function GalleryContent(props) {
+    const { selectedDataset, images, visibleImages, workspace } = props
+    if (!selectedDataset) {
+        return <GalleryEmptyState workspace={workspace} title="Selecciona un conjunto de datos" copy="Sus imágenes aparecerán aquí para comenzar el análisis." fallback="Selecciona un conjunto de datos para ver sus imágenes." />
+    }
+    if (images.length === 0) {
+        return <GalleryEmptyState workspace={workspace} title="Conjunto vacío" copy="Este conjunto de datos todavía no contiene imágenes." fallback="Este conjunto de datos no tiene imágenes." />
+    }
+    if (visibleImages.length === 0) {
+        return <div className="dashboard-empty-state"><strong>No hay imágenes en este filtro</strong><span>Prueba otra vista para seguir gestionando el conjunto de datos.</span></div>
+    }
+    return (
+        <div className="image-grid">
+            {visibleImages.map((image) => <GalleryImageCard key={image.id} image={image} {...props} onPreview={props.setPreviewImage} />)}
+        </div>
+    )
 }
 
 function ImageGallery({
@@ -82,7 +141,7 @@ function ImageGallery({
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [previewImage])
 
-    const visibleImages = filterImage ? images.filter(filterImage) : images
+    const visibleImages = filterVisibleImages(images, filterImage)
     const galleryClassName = [
         'image-gallery',
         compact ? 'compact' : '',
@@ -94,92 +153,30 @@ function ImageGallery({
             {!compact && !workspace && <h2>Imágenes</h2>}
             {error && <p className="error">{error}</p>}
 
-            {!selectedDataset ? (
-                workspace ? (
-                    <div className="dashboard-empty-state">
-                        <strong>Selecciona un conjunto de datos</strong>
-                        <span>Sus imágenes aparecerán aquí para comenzar el análisis.</span>
-                    </div>
-                ) : (
-                    <p>Selecciona un conjunto de datos para ver sus imágenes.</p>
-                )
-            ) : images.length === 0 ? (
-                workspace ? (
-                    <div className="dashboard-empty-state">
-                        <strong>Conjunto vacío</strong>
-                        <span>Este conjunto de datos todavía no contiene imágenes.</span>
-                    </div>
-                ) : (
-                    <p>Este conjunto de datos no tiene imágenes.</p>
-                )
-            ) : visibleImages.length === 0 ? (
-                <div className="dashboard-empty-state">
-                    <strong>No hay imágenes en este filtro</strong>
-                    <span>Prueba otra vista para seguir gestionando el conjunto de datos.</span>
-                </div>
-            ) : (
-                <div className="image-grid">
-                    {visibleImages.map((image) => {
-                        const isSelected = selectedImage?.id === image.id
-                        return (
-                            <div
-                                key={image.id}
-                                className={`image-card${isSelected ? ' selected' : ''}`}
-                            >
-                                <div className="image-card-visual">
-                                    <button
-                                        type="button"
-                                        className="image-button"
-                                        onClick={() => onSelectImage(image)}
-                                        aria-pressed={isSelected}
-                                        title={`Seleccionar ${image.filename}`}
-                                    >
-                                        <img src={imageSource(image)} alt={image.filename} />
-                                    </button>
-
-                                    {workspace && isSelected && (
-                                        <span className="image-selection-mark" aria-label="Imagen seleccionada">
-                                            <CheckIcon />
-                                        </span>
-                                    )}
-
-                                    {allowPreview && (
-                                        <button
-                                            type="button"
-                                            className="image-preview-button"
-                                            onClick={() => setPreviewImage(image)}
-                                            title={`Ampliar ${image.filename}`}
-                                            aria-label={`Ampliar ${image.filename}`}
-                                        >
-                                            <ExpandIcon />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {workspace ? (
-                                    <p className="workspace-image-name" title={image.filename}>
-                                        {image.filename}
-                                    </p>
-                                ) : !compact ? (
-                                    <p className="image-filename">{image.filename}</p>
-                                ) : null}
-                            </div>
-                        )
-                    })}
-                </div>
-            )}
+            <GalleryContent
+                selectedDataset={selectedDataset}
+                images={images}
+                visibleImages={visibleImages}
+                workspace={workspace}
+                compact={compact}
+                allowPreview={allowPreview}
+                selectedImage={selectedImage}
+                onSelectImage={onSelectImage}
+                setPreviewImage={setPreviewImage}
+            />
 
             {previewImage && (
-                <div
-                    className="image-lightbox-backdrop"
-                    role="presentation"
-                    onMouseDown={(event) => {
-                        if (event.target === event.currentTarget) setPreviewImage(null)
-                    }}
-                >
-                    <section
+                <div className="image-lightbox-backdrop">
+                    <button
+                        type="button"
+                        className="modal-backdrop-dismiss"
+                        tabIndex={-1}
+                        aria-label="Cerrar vista ampliada"
+                        onClick={() => setPreviewImage(null)}
+                    />
+                    <dialog
+                        open
                         className="image-lightbox"
-                        role="dialog"
                         aria-modal="true"
                         aria-label={`Vista ampliada de ${previewImage.filename}`}
                     >
@@ -206,7 +203,7 @@ function ImageGallery({
                                 <strong>{previewImage.label}</strong>
                             </footer>
                         )}
-                    </section>
+                    </dialog>
                 </div>
             )}
         </div>

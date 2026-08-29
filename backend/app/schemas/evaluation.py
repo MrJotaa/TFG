@@ -5,6 +5,7 @@ from schemas.classification_metrics import (
     AdvancedClassificationMetrics,
     EvaluationImageDiagnostics,
 )
+from schemas.predict import TopKPrediction
 
 
 class EvaluationRequest(BaseModel):
@@ -30,6 +31,9 @@ class EvaluationImageResult(BaseModel):
     original_confidence: float
     adversarial_confidence: float
     confidence_difference: float
+
+    original_top_k: list[TopKPrediction] = Field(default_factory=list)
+    adversarial_top_k: list[TopKPrediction] = Field(default_factory=list)
 
     prediction_changed: bool
     attack_success: bool

@@ -214,37 +214,62 @@ def _validate_inputs(
     ground_truths: tuple[CocoGroundTruth, ...],
     predictions: tuple[CocoPrediction, ...],
 ) -> None:
+    image_by_id = _validate_images(images)
+    class_by_id = _validate_classes(classes)
+    _validate_ground_truths(ground_truths, image_by_id, class_by_id)
+    _validate_predictions(predictions, image_by_id, class_by_id)
+
+
+def _validate_images(
+    images: tuple[CocoEvaluationImage, ...],
+) -> dict[str, CocoEvaluationImage]:
     if not images:
         raise CocoDetectionMetricsInputError(
             "COCO evaluation requires at least one reviewed image"
         )
+
+    image_by_id: dict[str, CocoEvaluationImage] = {}
+    for image in images:
+        _validate_image(image)
+        if image.image_id in image_by_id:
+            raise CocoDetectionMetricsInputError(
+                "evaluation image IDs must be unique"
+            )
+        image_by_id[image.image_id] = image
+    return image_by_id
+
+
+def _validate_image(image: object) -> None:
+    if not isinstance(image, CocoEvaluationImage):
+        raise CocoDetectionMetricsInputError(
+            "images must contain CocoEvaluationImage values"
+        )
+    if (
+        not isinstance(image.image_id, str)
+        or not image.image_id
+        or not _positive_integral(image.width)
+        or not _positive_integral(image.height)
+    ):
+        raise CocoDetectionMetricsInputError("evaluation image is invalid")
+
+
+def _positive_integral(value: object) -> bool:
+    return (
+        not isinstance(value, bool)
+        and isinstance(value, Integral)
+        and int(value) > 0
+    )
+
+
+def _validate_classes(
+    classes: tuple[CocoEvaluationClass, ...],
+) -> dict[int, CocoEvaluationClass]:
     if not classes:
         raise CocoDetectionMetricsInputError(
             "COCO evaluation requires at least one resolved class"
         )
 
-    image_by_id = {}
-    for image in images:
-        if not isinstance(image, CocoEvaluationImage):
-            raise CocoDetectionMetricsInputError(
-                "images must contain CocoEvaluationImage values"
-            )
-        if (
-            not isinstance(image.image_id, str)
-            or not image.image_id
-            or isinstance(image.width, bool)
-            or not isinstance(image.width, Integral)
-            or image.width <= 0
-            or isinstance(image.height, bool)
-            or not isinstance(image.height, Integral)
-            or image.height <= 0
-        ):
-            raise CocoDetectionMetricsInputError("evaluation image is invalid")
-        if image.image_id in image_by_id:
-            raise CocoDetectionMetricsInputError("evaluation image IDs must be unique")
-        image_by_id[image.image_id] = image
-
-    class_by_id = {}
+    class_by_id: dict[int, CocoEvaluationClass] = {}
     for model_class in classes:
         if not isinstance(model_class, CocoEvaluationClass):
             raise CocoDetectionMetricsInputError(
@@ -255,86 +280,132 @@ def _validate_inputs(
                 "evaluation model class IDs must be unique"
             )
         class_by_id[model_class.model_class_id] = model_class
+    return class_by_id
 
-    annotation_ids = set()
-    object_internal_ids = set()
+
+def _validate_ground_truths(
+    ground_truths: tuple[CocoGroundTruth, ...],
+    image_by_id: dict[str, CocoEvaluationImage],
+    class_by_id: dict[int, CocoEvaluationClass],
+) -> None:
+    annotation_ids: set[int] = set()
+    object_internal_ids: set[str] = set()
     for ground_truth in ground_truths:
-        if not isinstance(ground_truth, CocoGroundTruth):
-            raise CocoDetectionMetricsInputError(
-                "ground_truths must contain CocoGroundTruth values"
-            )
-        if ground_truth.annotation_id in annotation_ids:
-            raise CocoDetectionMetricsInputError(
-                "ground-truth annotation IDs must be unique"
-            )
-        annotation_ids.add(ground_truth.annotation_id)
-        object_internal_id = ground_truth.object_internal_id
-        if not isinstance(object_internal_id, str) or not object_internal_id.strip():
-            raise CocoDetectionMetricsInputError(
-                "ground-truth object internal IDs must be non-empty strings"
-            )
-        if object_internal_id in object_internal_ids:
-            raise CocoDetectionMetricsInputError(
-                "ground-truth object internal IDs must be unique"
-            )
-        object_internal_ids.add(object_internal_id)
-        image = image_by_id.get(ground_truth.image_id)
-        if image is None:
-            raise CocoDetectionMetricsInputError(
-                "ground truth references an unknown image"
-            )
-        if ground_truth.model_class_id not in class_by_id:
-            raise CocoDetectionMetricsInputError(
-                "ground truth references an unknown model class"
-            )
-        if not isinstance(ground_truth.box, DetectionBox):
-            raise CocoDetectionMetricsInputError(
-                "ground-truth box must be a DetectionBox"
-            )
-        if (
-            ground_truth.box.x_max > image.width
-            or ground_truth.box.y_max > image.height
-        ):
-            raise CocoDetectionMetricsInputError(
-                "ground-truth box exceeds source geometry"
-            )
-        if (
-            isinstance(ground_truth.area, bool)
-            or not isinstance(ground_truth.area, Real)
-            or not math.isfinite(float(ground_truth.area))
-            or ground_truth.area <= 0
-        ):
-            raise CocoDetectionMetricsInputError(
-                "ground-truth area must be finite and positive"
-            )
-        if ground_truth.iscrowd not in (0, 1):
-            raise CocoDetectionMetricsInputError("ground-truth iscrowd must be 0 or 1")
+        _validate_ground_truth(
+            ground_truth,
+            image_by_id,
+            class_by_id,
+            annotation_ids,
+            object_internal_ids,
+        )
 
+
+def _validate_ground_truth(
+    ground_truth: object,
+    image_by_id: dict[str, CocoEvaluationImage],
+    class_by_id: dict[int, CocoEvaluationClass],
+    annotation_ids: set[int],
+    object_internal_ids: set[str],
+) -> None:
+    if not isinstance(ground_truth, CocoGroundTruth):
+        raise CocoDetectionMetricsInputError(
+            "ground_truths must contain CocoGroundTruth values"
+        )
+    if ground_truth.annotation_id in annotation_ids:
+        raise CocoDetectionMetricsInputError(
+            "ground-truth annotation IDs must be unique"
+        )
+    annotation_ids.add(ground_truth.annotation_id)
+
+    object_internal_id = ground_truth.object_internal_id
+    if not isinstance(object_internal_id, str) or not object_internal_id.strip():
+        raise CocoDetectionMetricsInputError(
+            "ground-truth object internal IDs must be non-empty strings"
+        )
+    if object_internal_id in object_internal_ids:
+        raise CocoDetectionMetricsInputError(
+            "ground-truth object internal IDs must be unique"
+        )
+    object_internal_ids.add(object_internal_id)
+
+    image = image_by_id.get(ground_truth.image_id)
+    if image is None:
+        raise CocoDetectionMetricsInputError(
+            "ground truth references an unknown image"
+        )
+    if ground_truth.model_class_id not in class_by_id:
+        raise CocoDetectionMetricsInputError(
+            "ground truth references an unknown model class"
+        )
+    _validate_ground_truth_geometry(ground_truth, image)
+
+
+def _validate_ground_truth_geometry(
+    ground_truth: CocoGroundTruth,
+    image: CocoEvaluationImage,
+) -> None:
+    if not isinstance(ground_truth.box, DetectionBox):
+        raise CocoDetectionMetricsInputError(
+            "ground-truth box must be a DetectionBox"
+        )
+    if (
+        ground_truth.box.x_max > image.width
+        or ground_truth.box.y_max > image.height
+    ):
+        raise CocoDetectionMetricsInputError(
+            "ground-truth box exceeds source geometry"
+        )
+    if (
+        isinstance(ground_truth.area, bool)
+        or not isinstance(ground_truth.area, Real)
+        or not math.isfinite(float(ground_truth.area))
+        or ground_truth.area <= 0
+    ):
+        raise CocoDetectionMetricsInputError(
+            "ground-truth area must be finite and positive"
+        )
+    if ground_truth.iscrowd not in (0, 1):
+        raise CocoDetectionMetricsInputError("ground-truth iscrowd must be 0 or 1")
+
+
+def _validate_predictions(
+    predictions: tuple[CocoPrediction, ...],
+    image_by_id: dict[str, CocoEvaluationImage],
+    class_by_id: dict[int, CocoEvaluationClass],
+) -> None:
     for prediction in predictions:
-        if not isinstance(prediction, CocoPrediction):
-            raise CocoDetectionMetricsInputError(
-                "predictions must contain CocoPrediction values"
-            )
-        image = image_by_id.get(prediction.image_id)
-        if image is None:
-            raise CocoDetectionMetricsInputError(
-                "prediction references an unknown image"
-            )
-        if not isinstance(prediction.detection, Detection):
-            raise CocoDetectionMetricsInputError(
-                "prediction must contain a canonical Detection"
-            )
-        if prediction.detection.class_id not in class_by_id:
-            raise CocoDetectionMetricsInputError(
-                "prediction references an unknown evaluation class"
-            )
-        if (
-            prediction.detection.box.x_max > image.width
-            or prediction.detection.box.y_max > image.height
-        ):
-            raise CocoDetectionMetricsInputError(
-                "prediction box exceeds source geometry"
-            )
+        _validate_prediction(prediction, image_by_id, class_by_id)
+
+
+def _validate_prediction(
+    prediction: object,
+    image_by_id: dict[str, CocoEvaluationImage],
+    class_by_id: dict[int, CocoEvaluationClass],
+) -> None:
+    if not isinstance(prediction, CocoPrediction):
+        raise CocoDetectionMetricsInputError(
+            "predictions must contain CocoPrediction values"
+        )
+    image = image_by_id.get(prediction.image_id)
+    if image is None:
+        raise CocoDetectionMetricsInputError(
+            "prediction references an unknown image"
+        )
+    if not isinstance(prediction.detection, Detection):
+        raise CocoDetectionMetricsInputError(
+            "prediction must contain a canonical Detection"
+        )
+    if prediction.detection.class_id not in class_by_id:
+        raise CocoDetectionMetricsInputError(
+            "prediction references an unknown evaluation class"
+        )
+    if (
+        prediction.detection.box.x_max > image.width
+        or prediction.detection.box.y_max > image.height
+    ):
+        raise CocoDetectionMetricsInputError(
+            "prediction box exceeds source geometry"
+        )
 
 
 def _xywh(box: DetectionBox) -> list[float]:
@@ -587,120 +658,234 @@ def _extract_operating_point(
     class_by_id = {model_class.model_class_id: model_class for model_class in classes}
     observations: dict[str, GroundTruthMatchObservation] = {}
     iou_axes_by_key: dict[tuple[int, int], _OfficialIouAxes] = {}
+
     for evaluation_image in evaluator.evalImgs:
-        if evaluation_image is None:
+        if not _is_operating_point_image(evaluation_image, all_range):
             continue
-        if evaluation_image["aRng"] != all_range:
-            continue
-        category_id = int(evaluation_image["category_id"])
-        if category_id not in counts:
-            raise CocoDetectionMetricsError(
-                "COCOeval returned an unexpected category at the operating point"
+        category_id, observation_inputs = _accumulate_operating_counts(
+            evaluation_image=evaluation_image,
+            iou_index=iou_index,
+            confidence_threshold=confidence_threshold,
+            counts=counts,
+        )
+        _collect_ground_truth_observations(
+            evaluator=evaluator,
+            evaluation_image=evaluation_image,
+            category_id=category_id,
+            class_by_id=class_by_id,
+            observations=observations,
+            iou_axes_by_key=iou_axes_by_key,
+            **observation_inputs,
+        )
+
+    _validate_observation_coverage(evaluator, observations)
+    aggregate_counts = [
+        sum(values[index] for values in counts.values()) for index in range(3)
+    ]
+    return _OperatingPointExtraction(
+        aggregate=_operating_metrics(*aggregate_counts),
+        by_category_id={
+            category_id: _operating_metrics(*category_counts)
+            for category_id, category_counts in counts.items()
+        },
+        observations=tuple(
+            sorted(
+                observations.values(),
+                key=lambda item: (item.image_id, item.object_internal_id),
             )
+        ),
+    )
 
-        scores = np.asarray(evaluation_image["dtScores"], dtype=np.float64)
-        selected = scores >= confidence_threshold
-        matches = np.asarray(evaluation_image["dtMatches"])[iou_index]
-        ignored_detections = np.asarray(
-            evaluation_image["dtIgnore"],
-            dtype=bool,
-        )[iou_index]
-        true_positive_mask = selected & ~ignored_detections & (matches > 0)
-        false_positive_mask = selected & ~ignored_detections & (matches == 0)
-        counts[category_id][0] += int(np.count_nonzero(true_positive_mask))
-        counts[category_id][1] += int(np.count_nonzero(false_positive_mask))
 
-        ground_truth_matches = np.asarray(evaluation_image["gtMatches"])[iou_index]
-        ignored_ground_truths = np.asarray(
-            evaluation_image["gtIgnore"],
-            dtype=bool,
-        )
-        selected_detection_ids = np.asarray(
-            evaluation_image["dtIds"],
-            dtype=np.int64,
-        )[selected]
-        matched_by_selected_detection = np.isin(
-            ground_truth_matches,
-            selected_detection_ids,
-        )
-        counts[category_id][2] += int(
-            np.count_nonzero(~ignored_ground_truths & ~matched_by_selected_detection)
+def _is_operating_point_image(
+    evaluation_image: dict | None,
+    all_range: list[float],
+) -> bool:
+    return evaluation_image is not None and evaluation_image["aRng"] == all_range
+
+
+def _accumulate_operating_counts(
+    *,
+    evaluation_image: dict,
+    iou_index: int,
+    confidence_threshold: float,
+    counts: dict[int, list[int]],
+) -> tuple[int, dict[str, np.ndarray]]:
+    category_id = int(evaluation_image["category_id"])
+    if category_id not in counts:
+        raise CocoDetectionMetricsError(
+            "COCOeval returned an unexpected category at the operating point"
         )
 
-        ground_truth_ids = np.asarray(
-            evaluation_image["gtIds"],
-            dtype=np.int64,
+    scores = np.asarray(evaluation_image["dtScores"], dtype=np.float64)
+    selected = scores >= confidence_threshold
+    matches = np.asarray(evaluation_image["dtMatches"])[iou_index]
+    ignored_detections = np.asarray(
+        evaluation_image["dtIgnore"],
+        dtype=bool,
+    )[iou_index]
+    counts[category_id][0] += int(
+        np.count_nonzero(selected & ~ignored_detections & (matches > 0))
+    )
+    counts[category_id][1] += int(
+        np.count_nonzero(selected & ~ignored_detections & (matches == 0))
+    )
+
+    ground_truth_matches = np.asarray(evaluation_image["gtMatches"])[iou_index]
+    ignored_ground_truths = np.asarray(
+        evaluation_image["gtIgnore"],
+        dtype=bool,
+    )
+    selected_detection_ids = np.asarray(
+        evaluation_image["dtIds"],
+        dtype=np.int64,
+    )[selected]
+    counts[category_id][2] += int(
+        np.count_nonzero(
+            ~ignored_ground_truths
+            & ~np.isin(ground_truth_matches, selected_detection_ids)
         )
-        if ground_truth_ids.shape != ground_truth_matches.shape:
-            raise CocoDetectionMetricsError(
-                "COCOeval ground-truth match axes are inconsistent"
-            )
-        selected_id_set = {int(value) for value in selected_detection_ids}
-        for ground_truth_index, ground_truth_id_value in enumerate(ground_truth_ids):
-            if ignored_ground_truths[ground_truth_index]:
-                continue
-            ground_truth_id = int(ground_truth_id_value)
-            ground_truth = evaluator.cocoGt.anns.get(ground_truth_id)
-            if ground_truth is None:
-                raise CocoDetectionMetricsError(
-                    "COCOeval referenced an unknown ground-truth annotation"
-                )
-            object_internal_id = ground_truth.get("object_internal_id")
-            if not isinstance(object_internal_id, str) or not object_internal_id:
-                raise CocoDetectionMetricsError(
-                    "COCOeval ground truth lost its persisted object identity"
-                )
-            if object_internal_id in observations:
-                raise CocoDetectionMetricsError(
-                    "COCOeval produced duplicate observations for a ground truth"
-                )
-
-            matched_detection_id = int(ground_truth_matches[ground_truth_index])
-            matched = matched_detection_id in selected_id_set
-            confidence = None
-            iou = None
-            detection_box = None
-            if matched:
-                detection = evaluator.cocoDt.anns.get(matched_detection_id)
-                if detection is None:
-                    raise CocoDetectionMetricsError(
-                        "COCOeval referenced an unknown matched detection"
-                    )
-                confidence = float(detection["score"])
-                if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
-                    raise CocoDetectionMetricsError(
-                        "COCOeval returned an invalid matched confidence"
-                    )
-                iou_key = (int(evaluation_image["image_id"]), category_id)
-                axes = iou_axes_by_key.get(iou_key)
-                if axes is None:
-                    axes = _official_iou_axes(
-                        evaluator=evaluator,
-                        image_id=iou_key[0],
-                        category_id=iou_key[1],
-                    )
-                    iou_axes_by_key[iou_key] = axes
-                iou = _official_match_iou(
-                    axes=axes,
-                    detection_id=matched_detection_id,
-                    ground_truth_id=ground_truth_id,
-                )
-                detection_box = _box_from_xywh(detection["bbox"])
-
-            observations[object_internal_id] = GroundTruthMatchObservation(
-                object_internal_id=object_internal_id,
-                image_id=str(ground_truth["source_image_id"]),
-                category_reference=class_by_id[category_id],
-                matched=matched,
-                matched_detection_confidence=confidence,
-                matched_detection_iou=iou,
-                matched_detection_box=detection_box,
-            )
-
-    by_category_id = {
-        category_id: _operating_metrics(*category_counts)
-        for category_id, category_counts in counts.items()
+    )
+    return category_id, {
+        "ground_truth_matches": ground_truth_matches,
+        "ignored_ground_truths": ignored_ground_truths,
+        "selected_detection_ids": selected_detection_ids,
     }
+
+
+def _collect_ground_truth_observations(
+    *,
+    evaluator: COCOeval,
+    evaluation_image: dict,
+    category_id: int,
+    class_by_id: dict[int, CocoEvaluationClass],
+    observations: dict[str, GroundTruthMatchObservation],
+    iou_axes_by_key: dict[tuple[int, int], _OfficialIouAxes],
+    ground_truth_matches: np.ndarray,
+    ignored_ground_truths: np.ndarray,
+    selected_detection_ids: np.ndarray,
+) -> None:
+    ground_truth_ids = np.asarray(
+        evaluation_image["gtIds"],
+        dtype=np.int64,
+    )
+    if ground_truth_ids.shape != ground_truth_matches.shape:
+        raise CocoDetectionMetricsError(
+            "COCOeval ground-truth match axes are inconsistent"
+        )
+
+    selected_id_set = {int(value) for value in selected_detection_ids}
+    for ground_truth_index, ground_truth_id_value in enumerate(ground_truth_ids):
+        if ignored_ground_truths[ground_truth_index]:
+            continue
+        object_internal_id, observation = _ground_truth_observation(
+            evaluator=evaluator,
+            evaluation_image=evaluation_image,
+            category_id=category_id,
+            class_by_id=class_by_id,
+            iou_axes_by_key=iou_axes_by_key,
+            ground_truth_id=int(ground_truth_id_value),
+            matched_detection_id=int(ground_truth_matches[ground_truth_index]),
+            selected_id_set=selected_id_set,
+        )
+        if object_internal_id in observations:
+            raise CocoDetectionMetricsError(
+                "COCOeval produced duplicate observations for a ground truth"
+            )
+        observations[object_internal_id] = observation
+
+
+def _ground_truth_observation(
+    *,
+    evaluator: COCOeval,
+    evaluation_image: dict,
+    category_id: int,
+    class_by_id: dict[int, CocoEvaluationClass],
+    iou_axes_by_key: dict[tuple[int, int], _OfficialIouAxes],
+    ground_truth_id: int,
+    matched_detection_id: int,
+    selected_id_set: set[int],
+) -> tuple[str, GroundTruthMatchObservation]:
+    ground_truth = evaluator.cocoGt.anns.get(ground_truth_id)
+    if ground_truth is None:
+        raise CocoDetectionMetricsError(
+            "COCOeval referenced an unknown ground-truth annotation"
+        )
+    object_internal_id = ground_truth.get("object_internal_id")
+    if not isinstance(object_internal_id, str) or not object_internal_id:
+        raise CocoDetectionMetricsError(
+            "COCOeval ground truth lost its persisted object identity"
+        )
+
+    matched = matched_detection_id in selected_id_set
+    confidence = None
+    iou = None
+    detection_box = None
+    if matched:
+        confidence, iou, detection_box = _matched_detection_details(
+            evaluator=evaluator,
+            evaluation_image=evaluation_image,
+            category_id=category_id,
+            iou_axes_by_key=iou_axes_by_key,
+            ground_truth_id=ground_truth_id,
+            matched_detection_id=matched_detection_id,
+        )
+
+    return object_internal_id, GroundTruthMatchObservation(
+        object_internal_id=object_internal_id,
+        image_id=str(ground_truth["source_image_id"]),
+        category_reference=class_by_id[category_id],
+        matched=matched,
+        matched_detection_confidence=confidence,
+        matched_detection_iou=iou,
+        matched_detection_box=detection_box,
+    )
+
+
+def _matched_detection_details(
+    *,
+    evaluator: COCOeval,
+    evaluation_image: dict,
+    category_id: int,
+    iou_axes_by_key: dict[tuple[int, int], _OfficialIouAxes],
+    ground_truth_id: int,
+    matched_detection_id: int,
+) -> tuple[float, float, DetectionBox]:
+    detection = evaluator.cocoDt.anns.get(matched_detection_id)
+    if detection is None:
+        raise CocoDetectionMetricsError(
+            "COCOeval referenced an unknown matched detection"
+        )
+    confidence = float(detection["score"])
+    if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+        raise CocoDetectionMetricsError(
+            "COCOeval returned an invalid matched confidence"
+        )
+
+    iou_key = (int(evaluation_image["image_id"]), category_id)
+    axes = iou_axes_by_key.get(iou_key)
+    if axes is None:
+        axes = _official_iou_axes(
+            evaluator=evaluator,
+            image_id=iou_key[0],
+            category_id=iou_key[1],
+        )
+        iou_axes_by_key[iou_key] = axes
+    return (
+        confidence,
+        _official_match_iou(
+            axes=axes,
+            detection_id=matched_detection_id,
+            ground_truth_id=ground_truth_id,
+        ),
+        _box_from_xywh(detection["bbox"]),
+    )
+
+
+def _validate_observation_coverage(
+    evaluator: COCOeval,
+    observations: dict[str, GroundTruthMatchObservation],
+) -> None:
     expected_object_ids = {
         annotation["object_internal_id"]
         for annotation in evaluator.cocoGt.anns.values()
@@ -710,19 +895,6 @@ def _extract_operating_point(
         raise CocoDetectionMetricsError(
             "COCOeval observations do not cover exactly the evaluable GT universe"
         )
-    aggregate_counts = [
-        sum(values[index] for values in counts.values()) for index in range(3)
-    ]
-    return _OperatingPointExtraction(
-        aggregate=_operating_metrics(*aggregate_counts),
-        by_category_id=by_category_id,
-        observations=tuple(
-            sorted(
-                observations.values(),
-                key=lambda item: (item.image_id, item.object_internal_id),
-            )
-        ),
-    )
 
 
 def evaluate_coco_detections(

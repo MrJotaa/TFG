@@ -36,7 +36,7 @@ from services.dataset_service import (
 router = APIRouter()
 
 
-@router.post("/datasets", response_model=DatasetResponse)
+@router.post("/datasets")
 async def upload_dataset(
     user_id: str = Form(...),
     name: str = Form(...),
@@ -46,17 +46,17 @@ async def upload_dataset(
     return await create_dataset_from_images(user_id, name, files, task_type)
 
 
-@router.get("/datasets", response_model=list[DatasetResponse])
+@router.get("/datasets")
 async def get_datasets() -> list[DatasetResponse]:
     return await list_datasets()
 
 
-@router.get("/datasets/{dataset_id}", response_model=DatasetResponse)
+@router.get("/datasets/{dataset_id}")
 async def get_dataset_by_id(dataset_id: str) -> DatasetResponse:
     return await get_dataset(dataset_id)
 
 
-@router.patch("/datasets/{dataset_id}", response_model=DatasetResponse)
+@router.patch("/datasets/{dataset_id}")
 async def update_dataset_by_id(
     dataset_id: str,
     metadata: DatasetMetadataUpdate,
@@ -66,7 +66,6 @@ async def update_dataset_by_id(
 
 @router.get(
     "/datasets/{dataset_id}/label-resolution",
-    response_model=DatasetLabelResolutionResponse,
 )
 async def get_dataset_label_resolution(
     dataset_id: str,
@@ -76,7 +75,6 @@ async def get_dataset_label_resolution(
 
 @router.get(
     "/datasets/{dataset_id}/annotations/coverage",
-    response_model=DatasetAnnotationCoverage,
 )
 async def get_dataset_annotation_coverage(
     dataset_id: str,
@@ -87,7 +85,6 @@ async def get_dataset_annotation_coverage(
 
 @router.post(
     "/datasets/{dataset_id}/annotations/coco",
-    response_model=CocoAnnotationImportResponse,
 )
 async def import_dataset_coco_annotations(
     dataset_id: str,
@@ -105,7 +102,6 @@ async def delete_dataset_by_id(dataset_id: str) -> dict:
 
 @router.get(
     "/datasets/{dataset_id}/images",
-    response_model=list[DatasetImage],
 )
 async def get_dataset_images(
     dataset_id: str,
@@ -115,7 +111,6 @@ async def get_dataset_images(
 
 @router.post(
     "/datasets/{dataset_id}/images",
-    response_model=list[DatasetImage],
 )
 async def add_images_to_existing_dataset(
     dataset_id: str,
@@ -143,7 +138,6 @@ async def delete_dataset_image(
 
 @router.patch(
     "/datasets/{dataset_id}/images/{image_id}/label",
-    response_model=DatasetImage,
 )
 async def update_dataset_image_label(
     dataset_id: str,

@@ -209,6 +209,17 @@ class RfDetrDetectionModel(BaseObjectDetectionModel):
             raise RuntimeError("RF-DETR image processor did not finish loading")
 
         processor = self.image_processor
+        self._validate_attack_preprocessing_flags(processor)
+        height, width = self._attack_processor_dimensions(processor)
+        mean, std = self._attack_normalization_stats(processor)
+
+        device, dtype = self._torch_model_device_and_dtype()
+        mean_tensor = torch.tensor(mean, device=device, dtype=dtype).view(1, 3, 1, 1)
+        std_tensor = torch.tensor(std, device=device, dtype=dtype).view(1, 3, 1, 1)
+        return (height, width), mean_tensor, std_tensor
+
+    @staticmethod
+    def _validate_attack_preprocessing_flags(processor) -> None:
         required_flags = {
             "do_resize": True,
             "do_rescale": True,
@@ -220,6 +231,8 @@ class RfDetrDetectionModel(BaseObjectDetectionModel):
                     f"RF-DETR attack preprocessing requires {attribute}={expected}"
                 )
 
+    @staticmethod
+    def _attack_processor_dimensions(processor) -> tuple[int, int]:
         size = getattr(processor, "size", None)
         if isinstance(size, Mapping):
             height = size.get("height")
@@ -227,6 +240,7 @@ class RfDetrDetectionModel(BaseObjectDetectionModel):
         else:
             height = getattr(size, "height", None)
             width = getattr(size, "width", None)
+
         if not isinstance(height, int) or not isinstance(width, int):
             raise NotImplementedError(
                 "RF-DETR differentiable attacks require an exact "
@@ -234,7 +248,10 @@ class RfDetrDetectionModel(BaseObjectDetectionModel):
             )
         if height <= 0 or width <= 0:
             raise RuntimeError("RF-DETR image processor exposes an invalid size")
+        return height, width
 
+    @staticmethod
+    def _attack_normalization_stats(processor) -> tuple[tuple[float, ...], tuple[float, ...]]:
         mean = getattr(processor, "image_mean", None)
         std = getattr(processor, "image_std", None)
         if not isinstance(mean, (list, tuple)) or len(mean) != 3:
@@ -247,11 +264,7 @@ class RfDetrDetectionModel(BaseObjectDetectionModel):
             )
         if any(float(value) <= 0 for value in std):
             raise RuntimeError("RF-DETR image processor exposes an invalid image std")
-
-        device, dtype = self._torch_model_device_and_dtype()
-        mean_tensor = torch.tensor(mean, device=device, dtype=dtype).view(1, 3, 1, 1)
-        std_tensor = torch.tensor(std, device=device, dtype=dtype).view(1, 3, 1, 1)
-        return (height, width), mean_tensor, std_tensor
+        return tuple(float(value) for value in mean), tuple(float(value) for value in std)
 
     def _differentiable_attack_model_input(
         self,

@@ -35,19 +35,17 @@ export function getProfilePasswordErrors({
         }
     }
 
+    let confirmPasswordError = ''
+    if ((attempted || confirmationTouched) && !confirmPassword) {
+        confirmPasswordError = CONFIRM_PASSWORD_REQUIRED_MESSAGE
+    } else if (confirmPassword && !passwordsMatch(newPassword, confirmPassword)) {
+        confirmPasswordError = PROFILE_PASSWORD_MISMATCH_MESSAGE
+    }
+
     return {
-        currentPassword:
-            attempted && !currentPassword
-                ? CURRENT_PASSWORD_REQUIRED_MESSAGE
-                : '',
-        newPassword:
-            attempted && !newPassword ? NEW_PASSWORD_REQUIRED_MESSAGE : '',
-        confirmPassword:
-            (attempted || confirmationTouched) && !confirmPassword
-                ? CONFIRM_PASSWORD_REQUIRED_MESSAGE
-                : confirmPassword && !passwordsMatch(newPassword, confirmPassword)
-                  ? PROFILE_PASSWORD_MISMATCH_MESSAGE
-                  : '',
+        currentPassword: attempted && !currentPassword ? CURRENT_PASSWORD_REQUIRED_MESSAGE : '',
+        newPassword: attempted && !newPassword ? NEW_PASSWORD_REQUIRED_MESSAGE : '',
+        confirmPassword: confirmPasswordError,
     }
 }
 

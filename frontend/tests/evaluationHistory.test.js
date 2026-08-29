@@ -2,8 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+    evaluationExpirationLabel,
     formatRemainingTime,
     historySummary,
+    historyTotalLabel,
     isNearExpiration,
 } from '../src/utils/evaluationHistory.js'
 
@@ -56,4 +58,22 @@ test('history summaries distinguish classification and detection', () => {
         }),
         '42 → 31 detecciones',
     )
+})
+
+
+test('evaluation expiration labels distinguish running, preserved and expiring results', () => {
+    const now = Date.parse('2026-08-03T10:00:00Z')
+    assert.equal(evaluationExpirationLabel({ status: 'running' }, now), 'Al finalizar')
+    assert.equal(evaluationExpirationLabel({ preserved: true }, now), 'Indefinida')
+    assert.equal(
+        evaluationExpirationLabel({ expires_at: '2026-08-03T11:30:00Z' }, now),
+        '2 h',
+    )
+})
+
+test('history total labels use the correct singular and plural nouns', () => {
+    assert.equal(historyTotalLabel('evaluations', 1), '1 evaluación vigente')
+    assert.equal(historyTotalLabel('evaluations', 2), '2 evaluaciones vigentes')
+    assert.equal(historyTotalLabel('individual', 1), '1 análisis guardado')
+    assert.equal(historyTotalLabel('individual', 3), '3 análisis guardados')
 })

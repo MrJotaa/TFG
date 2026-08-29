@@ -18,6 +18,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
+_APPLICATION_JSON = "application/json"
+
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkRun:
@@ -77,10 +79,10 @@ def _request_json(
     timeout: float,
 ) -> dict:
     body = None
-    headers = {"Accept": "application/json"}
+    headers = {"Accept": _APPLICATION_JSON}
     if payload is not None:
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-        headers["Content-Type"] = "application/json"
+        headers["Content-Type"] = _APPLICATION_JSON
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
@@ -181,11 +183,52 @@ def _run_once(
         headers={
             "Accept": "application/x-ndjson",
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
+            "Content-Type": _APPLICATION_JSON,
         },
         method="POST",
     )
+    (
+        terminal_event,
+        elapsed_seconds,
+        response_bytes,
+        progress_events,
+        first_progress_seconds,
+        metrics_phase_seconds,
+    ) = _read_evaluation_stream(
+        request=request,
+        endpoint=endpoint,
+        timeout=args.timeout,
+    )
+    data = _validated_result_payload(terminal_event)
+    total_images = data["summary"]["total_images"]
+    throughput = total_images / elapsed_seconds if elapsed_seconds > 0 else 0.0
 
+    return BenchmarkRun(
+        kind=kind,
+        index=index,
+        result_id=data["result_id"],
+        total_images=total_images,
+        elapsed_seconds=round(elapsed_seconds, 6),
+        throughput_images_per_second=round(throughput, 6),
+        response_bytes=response_bytes,
+        progress_events=progress_events,
+        time_to_first_progress_seconds=_round_optional(first_progress_seconds),
+        time_to_metrics_phase_seconds=_round_optional(metrics_phase_seconds),
+        resolved_parameters=data["parameters"],
+        effective_supervised_configuration=(
+            _effective_supervised_configuration(data)
+            if args.task == "detection"
+            else None
+        ),
+    )
+
+
+def _read_evaluation_stream(
+    *,
+    request: Request,
+    endpoint: str,
+    timeout: float,
+) -> tuple[dict | None, float, int, int, float | None, float | None]:
     started_at = perf_counter()
     response_bytes = 0
     progress_events = 0
@@ -194,7 +237,7 @@ def _run_once(
     terminal_event = None
 
     try:
-        with urlopen(request, timeout=args.timeout) as response:
+        with urlopen(request, timeout=timeout) as response:
             for raw_line in response:
                 response_bytes += len(raw_line)
                 if not raw_line.strip():
@@ -203,14 +246,17 @@ def _run_once(
                 event_type = event.get("type")
                 elapsed = perf_counter() - started_at
                 if event_type == "progress":
-                    progress_events += 1
-                    if first_progress_seconds is None:
-                        first_progress_seconds = elapsed
-                    if (
-                        event.get("phase") == "metrics"
-                        and metrics_phase_seconds is None
-                    ):
-                        metrics_phase_seconds = elapsed
+                    (
+                        progress_events,
+                        first_progress_seconds,
+                        metrics_phase_seconds,
+                    ) = _record_progress_event(
+                        event=event,
+                        elapsed=elapsed,
+                        progress_events=progress_events,
+                        first_progress_seconds=first_progress_seconds,
+                        metrics_phase_seconds=metrics_phase_seconds,
+                    )
                 elif event_type in {"result", "error", "cancelled"}:
                     terminal_event = event
                     break
@@ -224,7 +270,33 @@ def _run_once(
             f"Connection failed while benchmarking {endpoint}: {error.reason}"
         ) from error
 
-    elapsed_seconds = perf_counter() - started_at
+    return (
+        terminal_event,
+        perf_counter() - started_at,
+        response_bytes,
+        progress_events,
+        first_progress_seconds,
+        metrics_phase_seconds,
+    )
+
+
+def _record_progress_event(
+    *,
+    event: dict,
+    elapsed: float,
+    progress_events: int,
+    first_progress_seconds: float | None,
+    metrics_phase_seconds: float | None,
+) -> tuple[int, float | None, float | None]:
+    progress_events += 1
+    if first_progress_seconds is None:
+        first_progress_seconds = elapsed
+    if event.get("phase") == "metrics" and metrics_phase_seconds is None:
+        metrics_phase_seconds = elapsed
+    return progress_events, first_progress_seconds, metrics_phase_seconds
+
+
+def _validated_result_payload(terminal_event: dict | None) -> dict:
     if terminal_event is None:
         raise RuntimeError("Evaluation stream ended without a terminal event")
     if terminal_event.get("type") != "result":
@@ -238,50 +310,29 @@ def _run_once(
     summary = data.get("summary")
     if not isinstance(summary, dict):
         raise RuntimeError("Evaluation result did not contain a summary")
-    total_images = summary.get("total_images")
-    if not isinstance(total_images, int):
+    if not isinstance(summary.get("total_images"), int):
         raise RuntimeError("Evaluation summary did not contain total_images")
-    result_id = data.get("result_id")
-    if not isinstance(result_id, str):
+    if not isinstance(data.get("result_id"), str):
         raise RuntimeError("Evaluation result did not contain result_id")
-    resolved_parameters = data.get("parameters")
-    if not isinstance(resolved_parameters, dict):
+    if not isinstance(data.get("parameters"), dict):
         raise RuntimeError("Evaluation result did not contain resolved parameters")
+    return data
 
-    effective_supervised_configuration = None
-    if args.task == "detection":
-        supervised = data.get("supervised")
-        if not isinstance(supervised, dict):
-            raise RuntimeError("Detection result did not contain supervised metrics")
-        effective_supervised_configuration = supervised.get("configuration")
-        if not isinstance(effective_supervised_configuration, dict):
-            raise RuntimeError(
-                "Detection result did not contain effective supervised configuration"
-            )
 
-    throughput = total_images / elapsed_seconds if elapsed_seconds > 0 else 0.0
-    return BenchmarkRun(
-        kind=kind,
-        index=index,
-        result_id=result_id,
-        total_images=total_images,
-        elapsed_seconds=round(elapsed_seconds, 6),
-        throughput_images_per_second=round(throughput, 6),
-        response_bytes=response_bytes,
-        progress_events=progress_events,
-        time_to_first_progress_seconds=(
-            round(first_progress_seconds, 6)
-            if first_progress_seconds is not None
-            else None
-        ),
-        time_to_metrics_phase_seconds=(
-            round(metrics_phase_seconds, 6)
-            if metrics_phase_seconds is not None
-            else None
-        ),
-        resolved_parameters=resolved_parameters,
-        effective_supervised_configuration=effective_supervised_configuration,
-    )
+def _effective_supervised_configuration(data: dict) -> dict:
+    supervised = data.get("supervised")
+    if not isinstance(supervised, dict):
+        raise RuntimeError("Detection result did not contain supervised metrics")
+    configuration = supervised.get("configuration")
+    if not isinstance(configuration, dict):
+        raise RuntimeError(
+            "Detection result did not contain effective supervised configuration"
+        )
+    return configuration
+
+
+def _round_optional(value: float | None) -> float | None:
+    return round(value, 6) if value is not None else None
 
 
 def _summary(runs: list[BenchmarkRun]) -> dict:
@@ -536,7 +587,7 @@ def main() -> int:
         print(json.dumps(summary, indent=2, sort_keys=True))
         print(f"Saved benchmark to {args.output}")
         return 0
-    except (RuntimeError, OSError, ValueError, json.JSONDecodeError) as error:
+    except (RuntimeError, OSError, ValueError) as error:
         print(f"benchmark failed: {error}", file=sys.stderr)
         return 1
 

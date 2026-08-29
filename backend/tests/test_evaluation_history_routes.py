@@ -121,6 +121,27 @@ def test_preserve_evaluation_uses_authenticated_owner_and_user_retention(
     )
 
 
+def test_cancel_evaluation_uses_authenticated_owner(
+    client, auth_headers, registered_user, monkeypatch
+):
+    captured = {}
+
+    async def fake_cancel(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(history_route, "cancel_running_evaluation", fake_cancel)
+    response = client.post(
+        "/evaluations/evaluation_00000000-0000-4000-8000-000000000001/cancel",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 204
+    assert captured["owner_id"] == registered_user["user"]["id"]
+    assert captured["evaluation_id"] == (
+        "evaluation_00000000-0000-4000-8000-000000000001"
+    )
+
+
 def test_delete_evaluation_uses_authenticated_owner(
     client, auth_headers, registered_user, monkeypatch
 ):

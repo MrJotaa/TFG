@@ -11,7 +11,11 @@ import { useAuth } from '../context/AuthContext'
 import { useNavigationGuard } from '../context/NavigationGuardContext'
 import { getAttackName } from '../utils/attackFormatting'
 import { isAttackSupportedForTask } from '../utils/attackCatalog'
-import { getExperimentReadiness } from '../utils/dashboard'
+import {
+    clampDashboardSidebarWidth,
+    getExperimentReadiness,
+    resolveDashboardSidebarWidthKey,
+} from '../utils/dashboard'
 import {
     individualComparisonKindCopy,
     pendingComparisonReadiness,
@@ -115,7 +119,7 @@ function Dashboard() {
 
         function handleMouseMove(moveEvent) {
             const nextWidth = startWidth + (moveEvent.clientX - startX)
-            setLeftWidth(Math.min(Math.max(nextWidth, 275), 430))
+            setLeftWidth(clampDashboardSidebarWidth(nextWidth))
         }
 
         function handleMouseUp() {
@@ -125,6 +129,13 @@ function Dashboard() {
 
         window.addEventListener('mousemove', handleMouseMove)
         window.addEventListener('mouseup', handleMouseUp)
+    }
+
+    function handleLeftResizeKeyDown(event) {
+        const nextWidth = resolveDashboardSidebarWidthKey(event.key, leftWidth)
+        if (nextWidth === null) return
+        event.preventDefault()
+        setLeftWidth(nextWidth)
     }
 
     const attackSupported = Boolean(
@@ -222,12 +233,12 @@ function Dashboard() {
                 />
             </aside>
 
-            <div
+            <button
+                type="button"
                 className="resize-handle resize-handle-left dashboard-resize-handle"
                 onMouseDown={startLeftResize}
-                role="separator"
-                aria-label="Redimensionar configuración"
-                aria-orientation="vertical"
+                onKeyDown={handleLeftResizeKeyDown}
+                aria-label={`Redimensionar configuración. Ancho actual: ${leftWidth} píxeles`}
             />
 
             <section className="dashboard-workspace-shell">

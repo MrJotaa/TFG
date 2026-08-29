@@ -8,12 +8,12 @@ from services.request_cancellation import run_cancellable_request
 router = APIRouter()
 
 
-@router.get("/attacks", response_model=list[AttackCatalogItem])
+@router.get("/attacks")
 async def get_attacks() -> list[AttackCatalogItem]:
     return list_attack_catalog()
 
 
-@router.post("/attack", response_model=AttackResponse)
+@router.post("/attack")
 async def attack(
     request: AttackRequest,
     http_request: Request,

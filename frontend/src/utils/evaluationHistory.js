@@ -30,6 +30,23 @@ export function formatRemainingTime(expiresAt, now = Date.now()) {
     return `${Math.ceil(remainingHours / 24)} días`
 }
 
+
+export function evaluationExpirationLabel(item, now = Date.now()) {
+    if (item?.status === 'running') return 'Al finalizar'
+    if (item?.preserved) return 'Indefinida'
+    return formatRemainingTime(item?.expires_at, now)
+}
+
+export function historyTotalLabel(kind, total) {
+    if (kind === 'evaluations') {
+        const noun = total === 1 ? 'evaluación vigente' : 'evaluaciones vigentes'
+        return `${total} ${noun}`
+    }
+
+    const noun = total === 1 ? 'análisis guardado' : 'análisis guardados'
+    return `${total} ${noun}`
+}
+
 export function formatCreatedAgo(createdAt, now = Date.now()) {
     const elapsedSeconds = Math.round((new Date(createdAt).getTime() - now) / 1000)
     if (!Number.isFinite(elapsedSeconds)) return 'fecha desconocida'

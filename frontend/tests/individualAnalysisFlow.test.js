@@ -95,3 +95,41 @@ test('dashboard readiness blocks a dataset revision changed after A', () => {
     assert.equal(status.ready, false)
     assert.match(status.message, /misma revisión/i)
 })
+
+
+test('dashboard readiness explains each controlled comparison requirement', () => {
+    const base = baseItem()
+    const common = {
+        baseItem: base,
+        selectedDataset: { id: 'dataset-1', dataset_revision: 3 },
+        selectedImage: { id: 'image-1' },
+        activeModel: { id: 'resnet18', task_type: 'classification' },
+        selectedAttack: 'fgsm',
+        attackParameters: { epsilon: 0.03 },
+    }
+    const cases = [
+        [{ ...common, expectedKind: 'model' }, /modelo diferente/i],
+        [{ ...common, expectedKind: 'model', activeModel: { id: 'swin', task_type: 'classification' }, selectedAttack: 'pgd' }, /conservar el ataque/i],
+        [{ ...common, expectedKind: 'attack' }, /ataque diferente/i],
+        [{ ...common, expectedKind: 'attack_configuration', activeModel: { id: 'swin', task_type: 'classification' } }, /comparar configuraciones/i],
+        [{ ...common, expectedKind: 'attack_configuration', selectedAttack: 'pgd' }, /mismo ataque/i],
+        [{ ...common, expectedKind: 'attack_configuration' }, /modifica al menos un parámetro/i],
+    ]
+
+    for (const [input, expectedMessage] of cases) {
+        const result = pendingComparisonReadiness(input)
+        assert.equal(result.ready, false)
+        assert.match(result.message, expectedMessage)
+    }
+
+    assert.equal(pendingComparisonReadiness({
+        ...common,
+        expectedKind: 'model',
+        activeModel: { id: 'swin', task_type: 'classification' },
+    }).ready, true)
+    assert.equal(pendingComparisonReadiness({
+        ...common,
+        expectedKind: 'attack_configuration',
+        attackParameters: { epsilon: 0.08 },
+    }).ready, true)
+})

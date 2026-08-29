@@ -16,19 +16,18 @@ from services.model_service import (
 router = APIRouter()
 
 
-@router.get("/models", response_model=list[ModelInfo])
+@router.get("/models")
 async def get_models() -> list[ModelInfo]:
     return list_models()
 
 
-@router.get("/models/active", response_model=ModelInfo)
+@router.get("/models/active")
 async def get_current_model() -> ModelInfo:
     return get_active_model()
 
 
 @router.get(
     "/models/active/classes",
-    response_model=ModelClassCatalog,
 )
 async def get_active_model_classes() -> ModelClassCatalog:
     return get_active_model_class_catalog()
@@ -36,7 +35,6 @@ async def get_active_model_classes() -> ModelClassCatalog:
 
 @router.post(
     "/models/{model_id}/select",
-    response_model=ModelInfo,
 )
 async def select_current_model(model_id: str) -> ModelInfo:
     return select_model(model_id)

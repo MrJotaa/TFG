@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 
 from api.dependencies.auth import require_current_user
@@ -25,21 +27,20 @@ router = APIRouter()
 
 @router.patch(
     "/users/me/retention",
-    response_model=UserResponse,
 )
 async def update_current_user_retention(
     retention: UserRetentionUpdate,
-    current_user: UserResponse = Depends(require_current_user),
+    current_user: Annotated[UserResponse, Depends(require_current_user)],
 ) -> UserResponse:
     return await update_user_retention(current_user.id, retention)
 
 
-@router.get("/users", response_model=list[UserResponse])
+@router.get("/users")
 async def get_users() -> list[UserResponse]:
     return await list_users()
 
 
-@router.post("/users", response_model=UserResponse)
+@router.post("/users")
 async def register_user(
     user: UserCreate,
 ) -> UserResponse:
@@ -48,7 +49,6 @@ async def register_user(
 
 @router.get(
     "/users/{user_id}",
-    response_model=UserResponse,
 )
 async def get_user_by_id(
     user_id: str,
@@ -58,7 +58,6 @@ async def get_user_by_id(
 
 @router.patch(
     "/users/{user_id}",
-    response_model=UserResponse,
 )
 async def update_user_by_id(
     user_id: str,
@@ -70,7 +69,7 @@ async def update_user_by_id(
 @router.delete("/users/me")
 async def delete_current_user_account(
     delete_request: UserDeleteRequest,
-    current_user: UserResponse = Depends(require_current_user),
+    current_user: Annotated[UserResponse, Depends(require_current_user)],
 ) -> dict:
     await delete_user_with_password(
         user_id=current_user.id,
@@ -95,7 +94,6 @@ async def delete_user_by_id(
 
 @router.get(
     "/users/{user_id}/datasets",
-    response_model=list[DatasetResponse],
 )
 async def get_user_datasets(
     user_id: str,

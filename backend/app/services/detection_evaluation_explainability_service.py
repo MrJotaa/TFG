@@ -14,8 +14,8 @@ from schemas.detection_evaluation import (
     DetectionEvaluationImageResult,
 )
 from services.dataset_service import get_image_from_dataset
-from services.evaluation_history_service import get_stored_evaluation
 from services.detection_model_execution import run_detection_model_operation
+from services.evaluation_history_service import get_stored_evaluation
 from services.model_service import get_active_model_instance
 from utils.detection_evaluation_artifacts import (
     detection_eigencam_pair_is_available,

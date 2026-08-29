@@ -24,37 +24,44 @@ def normalize_rf_detr_id2label(
 
     normalized: dict[int, str] = {}
     for raw_class_id, raw_name in id2label.items():
-        if isinstance(raw_class_id, bool):
-            raise RfDetrClassCatalogError("RF-DETR class IDs must be integers")
-        if isinstance(raw_class_id, Integral):
-            class_id = int(raw_class_id)
-        elif isinstance(raw_class_id, str):
-            try:
-                class_id = int(raw_class_id.strip())
-            except ValueError as error:
-                raise RfDetrClassCatalogError(
-                    f"invalid RF-DETR class id {raw_class_id!r}"
-                ) from error
-        else:
-            raise RfDetrClassCatalogError(f"invalid RF-DETR class id {raw_class_id!r}")
-
-        if class_id < 0:
-            raise RfDetrClassCatalogError("RF-DETR class IDs must not be negative")
+        class_id = _normalize_class_id(raw_class_id)
         if class_id in normalized:
             raise RfDetrClassCatalogError(
                 f"duplicate RF-DETR class id after normalization: {class_id}"
             )
-        if not isinstance(raw_name, str) or not raw_name.strip():
-            raise RfDetrClassCatalogError(
-                f"invalid RF-DETR class name for id {class_id}"
-            )
-
-        normalized[class_id] = raw_name.strip()
+        normalized[class_id] = _normalize_class_name(raw_name, class_id)
 
     if not normalized:
         raise RfDetrClassCatalogError("RF-DETR id2label must not be empty")
-
     return normalized
+
+
+def _normalize_class_id(raw_class_id: object) -> int:
+    if isinstance(raw_class_id, bool):
+        raise RfDetrClassCatalogError("RF-DETR class IDs must be integers")
+    if isinstance(raw_class_id, Integral):
+        class_id = int(raw_class_id)
+    elif isinstance(raw_class_id, str):
+        try:
+            class_id = int(raw_class_id.strip())
+        except ValueError as error:
+            raise RfDetrClassCatalogError(
+                f"invalid RF-DETR class id {raw_class_id!r}"
+            ) from error
+    else:
+        raise RfDetrClassCatalogError(f"invalid RF-DETR class id {raw_class_id!r}")
+
+    if class_id < 0:
+        raise RfDetrClassCatalogError("RF-DETR class IDs must not be negative")
+    return class_id
+
+
+def _normalize_class_name(raw_name: object, class_id: int) -> str:
+    if not isinstance(raw_name, str) or not raw_name.strip():
+        raise RfDetrClassCatalogError(
+            f"invalid RF-DETR class name for id {class_id}"
+        )
+    return raw_name.strip()
 
 
 def is_rf_detr_placeholder_label(label: str) -> bool:

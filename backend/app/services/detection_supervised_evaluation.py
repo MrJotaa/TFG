@@ -118,6 +118,53 @@ def prepare_detection_supervised_evaluation(
     snapshot: MaterializedDetectionAnnotationSnapshot,
     catalog: DetectionClassCatalog | None,
 ) -> PreparedDetectionSupervisedEvaluation:
+    _validate_object_identities(snapshot)
+    status_counts = _review_status_counts(snapshot)
+    reviewed_images = (
+        status_counts["reviewed_empty"] + status_counts["reviewed_with_objects"]
+    )
+    resolution, class_id_by_category, resolved_matches = _category_resolution(
+        snapshot,
+        catalog,
+    )
+    coverage = _annotation_coverage(
+        snapshot=snapshot,
+        status_counts=status_counts,
+        reviewed_images=reviewed_images,
+        resolution=resolution,
+        class_id_by_category=class_id_by_category,
+        resolved_matches=resolved_matches,
+    )
+    unavailable_reason = _supervised_unavailable_reason(
+        snapshot=snapshot,
+        reviewed_images=reviewed_images,
+        resolved_matches=resolved_matches,
+        evaluable_objects=coverage.evaluable_objects,
+    )
+    warning = _supervised_warning(
+        status_counts=status_counts,
+        resolution=resolution,
+        objects_excluded_by_resolution=coverage.objects_excluded_by_resolution,
+    )
+    classes, images, ground_truths = _coco_inputs(
+        snapshot=snapshot,
+        resolved_matches=resolved_matches,
+        class_id_by_category=class_id_by_category,
+    )
+    return PreparedDetectionSupervisedEvaluation(
+        snapshot=snapshot,
+        coverage=coverage,
+        classes=classes,
+        images=images,
+        ground_truths=ground_truths,
+        unavailable_reason=unavailable_reason,
+        warning=warning,
+    )
+
+
+def _validate_object_identities(
+    snapshot: MaterializedDetectionAnnotationSnapshot,
+) -> None:
     for annotation in snapshot.annotations:
         if (
             not isinstance(annotation.object_internal_id, str)
@@ -128,6 +175,10 @@ def prepare_detection_supervised_evaluation(
                 "a persisted internal ID"
             )
 
+
+def _review_status_counts(
+    snapshot: MaterializedDetectionAnnotationSnapshot,
+) -> dict[str, int]:
     status_counts = {
         "unreviewed": 0,
         "reviewed_empty": 0,
@@ -135,30 +186,46 @@ def prepare_detection_supervised_evaluation(
     }
     for image in snapshot.images:
         status_counts[image.review_status] += 1
-    reviewed_images = (
-        status_counts["reviewed_empty"] + status_counts["reviewed_with_objects"]
+    return status_counts
+
+
+def _category_resolution(
+    snapshot: MaterializedDetectionAnnotationSnapshot,
+    catalog: DetectionClassCatalog | None,
+):
+    if not requires_detection_supervised_catalog(snapshot):
+        return None, {}, ()
+
+    if catalog is None:
+        raise DetectionSupervisedEvaluationError(
+            "a reviewed active annotation snapshot requires a detection "
+            "class catalog"
+        )
+    resolution = resolve_detection_categories(
+        catalog=catalog,
+        categories=snapshot.categories,
+    )
+    resolved_matches = tuple(
+        match
+        for match in resolution.matches
+        if match.status is DetectionCategoryResolutionStatus.RESOLVED
+    )
+    return (
+        resolution,
+        resolution.class_id_by_category_internal_id,
+        resolved_matches,
     )
 
-    resolution = None
-    class_id_by_category: dict[str, int] = {}
-    resolved_matches = ()
-    if requires_detection_supervised_catalog(snapshot):
-        if catalog is None:
-            raise DetectionSupervisedEvaluationError(
-                "a reviewed active annotation snapshot requires a detection "
-                "class catalog"
-            )
-        resolution = resolve_detection_categories(
-            catalog=catalog,
-            categories=snapshot.categories,
-        )
-        class_id_by_category = resolution.class_id_by_category_internal_id
-        resolved_matches = tuple(
-            match
-            for match in resolution.matches
-            if match.status is DetectionCategoryResolutionStatus.RESOLVED
-        )
 
+def _annotation_coverage(
+    *,
+    snapshot: MaterializedDetectionAnnotationSnapshot,
+    status_counts: dict[str, int],
+    reviewed_images: int,
+    resolution,
+    class_id_by_category: dict[str, int],
+    resolved_matches: tuple,
+) -> DetectionAnnotationCoverage:
     annotations_by_category: dict[str, list] = {}
     for annotation in snapshot.annotations:
         annotations_by_category.setdefault(
@@ -167,7 +234,7 @@ def prepare_detection_supervised_evaluation(
         ).append(annotation)
 
     total_objects = len(snapshot.annotations)
-    objects_excluded_by_resolution = sum(
+    excluded_objects = sum(
         len(annotations)
         for category_id, annotations in annotations_by_category.items()
         if category_id not in class_id_by_category
@@ -178,73 +245,95 @@ def prepare_detection_supervised_evaluation(
         if annotation.category_internal_id in class_id_by_category
         and not annotation.iscrowd
     )
-    iscrowd_objects = sum(
-        bool(annotation.iscrowd) for annotation in snapshot.annotations
-    )
-
-    total_categories = len(snapshot.categories)
-    unresolved_categories = 0
-    ambiguous_categories = 0
-    conflicting_categories = 0
-    if resolution is not None:
-        unresolved_categories = sum(
+    unresolved_categories = (
+        sum(
             match.status is DetectionCategoryResolutionStatus.UNRESOLVED
             for match in resolution.matches
         )
-        ambiguous_categories = resolution.ambiguity_count
-        conflicting_categories = resolution.conflict_count
-
-    coverage = DetectionAnnotationCoverage(
+        if resolution is not None
+        else 0
+    )
+    ambiguous_categories = resolution.ambiguity_count if resolution is not None else 0
+    conflicting_categories = resolution.conflict_count if resolution is not None else 0
+    return DetectionAnnotationCoverage(
         total_images=len(snapshot.images),
         reviewed_images=reviewed_images,
         unreviewed_images=status_counts["unreviewed"],
         reviewed_empty_images=status_counts["reviewed_empty"],
         reviewed_with_objects_images=status_counts["reviewed_with_objects"],
         coverage_percentage=_percentage(reviewed_images, len(snapshot.images)),
-        total_categories=total_categories,
+        total_categories=len(snapshot.categories),
         resolved_categories=len(resolved_matches),
         unresolved_categories=unresolved_categories,
         ambiguous_categories=ambiguous_categories,
         conflicting_categories=conflicting_categories,
         total_objects=total_objects,
         evaluable_objects=evaluable_objects,
-        objects_excluded_by_resolution=objects_excluded_by_resolution,
-        iscrowd_objects=iscrowd_objects,
-        object_coverage_percentage=_percentage(
-            evaluable_objects,
-            total_objects,
-        ),
+        objects_excluded_by_resolution=excluded_objects,
+        iscrowd_objects=sum(bool(item.iscrowd) for item in snapshot.annotations),
+        object_coverage_percentage=_percentage(evaluable_objects, total_objects),
     )
 
-    unavailable_reason = None
-    if not snapshot.has_active_snapshot:
-        unavailable_reason = DetectionSupervisedUnavailableReason.NO_ANNOTATION_SNAPSHOT
-    elif reviewed_images == 0:
-        unavailable_reason = DetectionSupervisedUnavailableReason.NO_REVIEWED_IMAGES
-    elif not resolved_matches:
-        unavailable_reason = DetectionSupervisedUnavailableReason.NO_RESOLVED_CATEGORIES
-    elif evaluable_objects == 0:
-        unavailable_reason = (
-            DetectionSupervisedUnavailableReason.NO_RESOLVED_GROUND_TRUTH_OBJECTS
-        )
 
+def _supervised_unavailable_reason(
+    *,
+    snapshot: MaterializedDetectionAnnotationSnapshot,
+    reviewed_images: int,
+    resolved_matches: tuple,
+    evaluable_objects: int,
+) -> DetectionSupervisedUnavailableReason | None:
+    if not snapshot.has_active_snapshot:
+        return DetectionSupervisedUnavailableReason.NO_ANNOTATION_SNAPSHOT
+    if reviewed_images == 0:
+        return DetectionSupervisedUnavailableReason.NO_REVIEWED_IMAGES
+    if not resolved_matches:
+        return DetectionSupervisedUnavailableReason.NO_RESOLVED_CATEGORIES
+    if evaluable_objects == 0:
+        return DetectionSupervisedUnavailableReason.NO_RESOLVED_GROUND_TRUTH_OBJECTS
+    return None
+
+
+def _supervised_warning(
+    *,
+    status_counts: dict[str, int],
+    resolution,
+    objects_excluded_by_resolution: int,
+) -> str | None:
     warnings = []
     if status_counts["unreviewed"]:
         warnings.append(
             f"Imágenes sin revisar excluidas: {status_counts['unreviewed']}"
         )
-    unresolved_total = (
-        unresolved_categories + ambiguous_categories + conflicting_categories
-    )
+    unresolved_total = 0
+    if resolution is not None:
+        unresolved_total = (
+            sum(
+                match.status is DetectionCategoryResolutionStatus.UNRESOLVED
+                for match in resolution.matches
+            )
+            + resolution.ambiguity_count
+            + resolution.conflict_count
+        )
     if unresolved_total:
         warnings.append(f"Categorías sin resolver excluidas: {unresolved_total}")
     if objects_excluded_by_resolution:
         warnings.append(
-            f"Objetos excluidos por resolución de categorías: "
+            "Objetos excluidos por resolución de categorías: "
             f"{objects_excluded_by_resolution}"
         )
-    warning = "; ".join(warnings) if warnings else None
+    return "; ".join(warnings) if warnings else None
 
+
+def _coco_inputs(
+    *,
+    snapshot: MaterializedDetectionAnnotationSnapshot,
+    resolved_matches: tuple,
+    class_id_by_category: dict[str, int],
+) -> tuple[
+    tuple[CocoEvaluationClass, ...],
+    tuple[CocoEvaluationImage, ...],
+    tuple[CocoGroundTruth, ...],
+]:
     classes = tuple(
         CocoEvaluationClass(
             category_internal_id=match.category_internal_id,
@@ -292,16 +381,8 @@ def prepare_detection_supervised_evaluation(
         if annotation.image_id in reviewed_ids
         and annotation.category_internal_id in class_id_by_category
     )
+    return classes, images, ground_truths
 
-    return PreparedDetectionSupervisedEvaluation(
-        snapshot=snapshot,
-        coverage=coverage,
-        classes=classes,
-        images=images,
-        ground_truths=ground_truths,
-        unavailable_reason=unavailable_reason,
-        warning=warning,
-    )
 
 
 def _predictions_for_context(

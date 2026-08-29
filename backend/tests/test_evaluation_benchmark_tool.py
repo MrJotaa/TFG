@@ -69,10 +69,12 @@ def test_benchmark_comparison_rejects_different_scenarios(tmp_path):
         encoding="utf-8",
     )
 
+    _prepared_arg_2 = _configuration()
+
     with pytest.raises(RuntimeError, match="dataset_id"):
         _comparison(
             {"mean_seconds": 8.0},
-            _configuration(),
+            _prepared_arg_2,
             baseline_path,
         )
 

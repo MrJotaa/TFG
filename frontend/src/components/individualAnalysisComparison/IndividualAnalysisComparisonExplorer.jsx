@@ -9,11 +9,13 @@ import {
 } from '../../utils/adversarialExplorer'
 import {
     comparisonExplanationState,
+    getComparisonExplanationMessage,
+    getComparisonKeyboardAction,
+    getComparisonLayerCaption,
     comparisonLayerOptions,
     resolveIndividualAnalysisComparisonSource,
 } from '../../utils/individualAnalysisComparison'
 
-const PAN_STEP = 24
 
 function ComparisonViewport({
     label,
@@ -29,10 +31,9 @@ function ComparisonViewport({
                 <span className="individual-comparison-side-token">{side}</span>
                 <strong>{label}</strong>
             </figcaption>
-            <div
+            <button
+                type="button"
                 className={`individual-comparison-viewport ${zoom > 1 ? 'is-zoomed' : ''}`}
-                role="group"
-                tabIndex="0"
                 aria-label={`${label}. Usa las flechas para desplazar y más o menos para ampliar.`}
                 {...handlers}
             >
@@ -46,9 +47,9 @@ function ComparisonViewport({
                         }}
                     />
                 ) : (
-                    <div className="individual-comparison-missing">Artefacto no disponible</div>
+                    <span className="individual-comparison-missing">Artefacto no disponible</span>
                 )}
-            </div>
+            </button>
         </figure>
     )
 }
@@ -66,10 +67,9 @@ function ComparisonOverlay({
 
     return (
         <div className="individual-comparison-overlay">
-            <div
+            <button
+                type="button"
                 className={`individual-comparison-viewport overlay ${zoom > 1 ? 'is-zoomed' : ''}`}
-                role="group"
-                tabIndex="0"
                 aria-label="Superposición A y B. Usa las flechas para desplazar y más o menos para ampliar."
                 {...handlers}
             >
@@ -84,7 +84,7 @@ function ComparisonOverlay({
                     />
                 )}
                 {leftSource && (
-                    <div
+                    <span
                         className="individual-comparison-overlay-layer"
                         style={{ clipPath: splitState.originalClipPath }}
                     >
@@ -96,7 +96,7 @@ function ComparisonOverlay({
                                 transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
                             }}
                         />
-                    </div>
+                    </span>
                 )}
                 <span
                     className="individual-comparison-overlay-divider"
@@ -105,7 +105,7 @@ function ComparisonOverlay({
                 />
                 <span className="individual-comparison-overlay-label side-a">A</span>
                 <span className="individual-comparison-overlay-label side-b">B</span>
-            </div>
+            </button>
             <label className="individual-comparison-split-control">
                 <span>A {splitState.originalPercent}%</span>
                 <input
@@ -119,6 +119,89 @@ function ComparisonOverlay({
                 <output>{splitState.adversarialPercent}% B</output>
             </label>
         </div>
+    )
+}
+
+function ComparisonToolbar({
+    layout,
+    setLayout,
+    layer,
+    setLayer,
+    layerOptions,
+    stage,
+    setStage,
+    taskType,
+    showAnnotations,
+    setShowAnnotations,
+    zoom,
+    changeZoom,
+    resetView,
+}) {
+    return (
+        <div className="individual-comparison-toolbar">
+            <div className="individual-comparison-control-group">
+                <span>Disposición</span>
+                <fieldset className="individual-comparison-segmented semantic-fieldset-reset" aria-label="Disposición de la comparación">
+                    <button type="button" className={layout === 'parallel' ? 'active' : ''} onClick={() => setLayout('parallel')}>Paralelo</button>
+                    <button type="button" className={layout === 'overlay' ? 'active' : ''} onClick={() => setLayout('overlay')}>Superpuesto</button>
+                </fieldset>
+            </div>
+
+            <div className="individual-comparison-control-group">
+                <span>Capa</span>
+                <fieldset className="individual-comparison-segmented semantic-fieldset-reset" aria-label="Capa visual">
+                    {layerOptions.map((option) => (
+                        <button key={option.id} type="button" className={layer === option.id ? 'active' : ''} onClick={() => setLayer(option.id)}>{option.label}</button>
+                    ))}
+                </fieldset>
+            </div>
+
+            {layer !== 'perturbation' && (
+                <div className="individual-comparison-control-group">
+                    <span>Estado</span>
+                    <fieldset className="individual-comparison-segmented semantic-fieldset-reset" aria-label="Estado de la imagen">
+                        <button type="button" className={stage === 'original' ? 'active' : ''} onClick={() => setStage('original')}>Original</button>
+                        <button type="button" className={stage === 'adversarial' ? 'active' : ''} onClick={() => setStage('adversarial')}>Tras ataque</button>
+                    </fieldset>
+                </div>
+            )}
+
+            {taskType === 'detection' && layer === 'image' && (
+                <label className="individual-comparison-toggle">
+                    <input type="checkbox" checked={showAnnotations} onChange={(event) => setShowAnnotations(event.target.checked)} />
+                    <span>Mostrar cajas</span>
+                </label>
+            )}
+
+            <fieldset className="individual-comparison-zoom semantic-fieldset-reset" aria-label="Zoom sincronizado">
+                <button type="button" disabled={zoom === EXPLORER_MIN_ZOOM} onClick={() => changeZoom(zoom - EXPLORER_ZOOM_STEP)} aria-label="Reducir">−</button>
+                <output>{Math.round(zoom * 100)}%</output>
+                <button type="button" disabled={zoom === EXPLORER_MAX_ZOOM} onClick={() => changeZoom(zoom + EXPLORER_ZOOM_STEP)} aria-label="Ampliar">+</button>
+                <button type="button" onClick={resetView}>Restablecer</button>
+            </fieldset>
+        </div>
+    )
+}
+
+function ComparisonCanvas({ layout, leftLabel, rightLabel, leftSource, rightSource, zoom, pan, split, handlers, onSplitChange }) {
+    if (layout === 'overlay') {
+        return <ComparisonOverlay leftSource={leftSource} rightSource={rightSource} zoom={zoom} pan={pan} split={split} handlers={handlers} onSplitChange={onSplitChange} />
+    }
+    return (
+        <div className="individual-comparison-grid">
+            <ComparisonViewport side="A" label={leftLabel} source={leftSource} zoom={zoom} pan={pan} handlers={handlers} />
+            <ComparisonViewport side="B" label={rightLabel} source={rightSource} zoom={zoom} pan={pan} handlers={handlers} />
+        </div>
+    )
+}
+
+function ComparisonExplanationNote({ comparable, taskType, comparisonKind, explanationState }) {
+    if (comparable) return null
+    return (
+        <p className="individual-comparison-explanation-note">
+            <strong>Explicabilidad:</strong>{' '}
+            {getComparisonExplanationMessage({ taskType, comparisonKind, explanationState })}
+        </p>
     )
 }
 
@@ -204,30 +287,18 @@ function IndividualAnalysisComparisonExplorer({
     }
 
     function handleKeyDown(event) {
-        const movements = {
-            ArrowLeft: { x: PAN_STEP, y: 0 },
-            ArrowRight: { x: -PAN_STEP, y: 0 },
-            ArrowUp: { x: 0, y: PAN_STEP },
-            ArrowDown: { x: 0, y: -PAN_STEP },
-        }
-        if (movements[event.key] && zoom > EXPLORER_MIN_ZOOM) {
-            event.preventDefault()
-            setPan((current) => ({
-                x: current.x + movements[event.key].x,
-                y: current.y + movements[event.key].y,
-            }))
+        const action = getComparisonKeyboardAction(event.key, zoom, EXPLORER_MIN_ZOOM)
+        if (!action) return
+        event.preventDefault()
+        if (action.type === 'pan') {
+            setPan((current) => ({ x: current.x + action.x, y: current.y + action.y }))
             return
         }
-        if (event.key === '+' || event.key === '=') {
-            event.preventDefault()
-            changeZoom(zoom + EXPLORER_ZOOM_STEP)
-        } else if (event.key === '-') {
-            event.preventDefault()
-            changeZoom(zoom - EXPLORER_ZOOM_STEP)
-        } else if (event.key === '0') {
-            event.preventDefault()
-            resetView()
+        if (action.type === 'zoom') {
+            changeZoom(zoom + action.direction * EXPLORER_ZOOM_STEP)
+            return
         }
+        resetView()
     }
 
     const handlers = {
@@ -238,11 +309,7 @@ function IndividualAnalysisComparisonExplorer({
         onPointerCancel: handlePointerUp,
     }
 
-    const layerCaption = layer === 'perturbation'
-        ? 'Mapa amplificado de la perturbación'
-        : layer === 'explanation'
-            ? taskType === 'detection' ? 'Eigen-CAM persistido' : 'Grad-CAM persistido'
-            : stage === 'original' ? 'Resultado original' : 'Resultado tras el ataque'
+    const layerCaption = getComparisonLayerCaption(layer, taskType, stage)
 
     return (
         <section className="individual-comparison-explorer" aria-labelledby="individual-comparison-explorer-title">
@@ -261,144 +328,46 @@ function IndividualAnalysisComparisonExplorer({
                 </div>
             </header>
 
-            <div className="individual-comparison-toolbar">
-                <div className="individual-comparison-control-group">
-                    <span>Disposición</span>
-                    <div className="individual-comparison-segmented" role="group" aria-label="Disposición de la comparación">
-                        <button
-                            type="button"
-                            className={layout === 'parallel' ? 'active' : ''}
-                            onClick={() => setLayout('parallel')}
-                        >
-                            Paralelo
-                        </button>
-                        <button
-                            type="button"
-                            className={layout === 'overlay' ? 'active' : ''}
-                            onClick={() => setLayout('overlay')}
-                        >
-                            Superpuesto
-                        </button>
-                    </div>
-                </div>
+            <ComparisonToolbar
+                layout={layout}
+                setLayout={setLayout}
+                layer={layer}
+                setLayer={setLayer}
+                layerOptions={layerOptions}
+                stage={stage}
+                setStage={setStage}
+                taskType={taskType}
+                showAnnotations={showAnnotations}
+                setShowAnnotations={setShowAnnotations}
+                zoom={zoom}
+                changeZoom={changeZoom}
+                resetView={resetView}
+            />
 
-                <div className="individual-comparison-control-group">
-                    <span>Capa</span>
-                    <div className="individual-comparison-segmented" role="group" aria-label="Capa visual">
-                        {layerOptions.map((option) => (
-                            <button
-                                key={option.id}
-                                type="button"
-                                className={layer === option.id ? 'active' : ''}
-                                onClick={() => setLayer(option.id)}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {layer !== 'perturbation' && (
-                    <div className="individual-comparison-control-group">
-                        <span>Estado</span>
-                        <div className="individual-comparison-segmented" role="group" aria-label="Estado de la imagen">
-                            <button
-                                type="button"
-                                className={stage === 'original' ? 'active' : ''}
-                                onClick={() => setStage('original')}
-                            >
-                                Original
-                            </button>
-                            <button
-                                type="button"
-                                className={stage === 'adversarial' ? 'active' : ''}
-                                onClick={() => setStage('adversarial')}
-                            >
-                                Tras ataque
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {taskType === 'detection' && layer === 'image' && (
-                    <label className="individual-comparison-toggle">
-                        <input
-                            type="checkbox"
-                            checked={showAnnotations}
-                            onChange={(event) => setShowAnnotations(event.target.checked)}
-                        />
-                        <span>Mostrar cajas</span>
-                    </label>
-                )}
-
-                <div className="individual-comparison-zoom" role="group" aria-label="Zoom sincronizado">
-                    <button
-                        type="button"
-                        disabled={zoom === EXPLORER_MIN_ZOOM}
-                        onClick={() => changeZoom(zoom - EXPLORER_ZOOM_STEP)}
-                        aria-label="Reducir"
-                    >
-                        −
-                    </button>
-                    <output>{Math.round(zoom * 100)}%</output>
-                    <button
-                        type="button"
-                        disabled={zoom === EXPLORER_MAX_ZOOM}
-                        onClick={() => changeZoom(zoom + EXPLORER_ZOOM_STEP)}
-                        aria-label="Ampliar"
-                    >
-                        +
-                    </button>
-                    <button type="button" onClick={resetView}>Restablecer</button>
-                </div>
-            </div>
-
-            {layout === 'parallel' ? (
-                <div className="individual-comparison-grid">
-                    <ComparisonViewport
-                        side="A"
-                        label={leftLabel}
-                        source={leftSource}
-                        zoom={zoom}
-                        pan={pan}
-                        handlers={handlers}
-                    />
-                    <ComparisonViewport
-                        side="B"
-                        label={rightLabel}
-                        source={rightSource}
-                        zoom={zoom}
-                        pan={pan}
-                        handlers={handlers}
-                    />
-                </div>
-            ) : (
-                <ComparisonOverlay
-                    leftSource={leftSource}
-                    rightSource={rightSource}
-                    zoom={zoom}
-                    pan={pan}
-                    split={split}
-                    handlers={handlers}
-                    onSplitChange={(event) => setSplit(Number(event.target.value))}
-                />
-            )}
+            <ComparisonCanvas
+                layout={layout}
+                leftLabel={leftLabel}
+                rightLabel={rightLabel}
+                leftSource={leftSource}
+                rightSource={rightSource}
+                zoom={zoom}
+                pan={pan}
+                split={split}
+                handlers={handlers}
+                onSplitChange={(event) => setSplit(Number(event.target.value))}
+            />
 
             <div className="individual-comparison-explorer-footer">
                 <span>Con zoom activo puedes arrastrar cualquiera de las vistas.</span>
                 <span>Teclado: flechas · + / − · 0 para restablecer</span>
             </div>
 
-            {!explanationState.comparable && (
-                <p className="individual-comparison-explanation-note">
-                    <strong>Explicabilidad:</strong>{' '}
-                    {comparisonKind === 'model'
-                        ? `la capa solo aparece si ambos análisis conservaron su ${taskType === 'detection' ? 'Eigen-CAM' : 'Grad-CAM'} al ejecutarse. Si falta alguno no se regenera, porque la explicación depende del modelo activo y el historial no cambia ese estado global.`
-                        : explanationState.left || explanationState.right
-                            ? `solo uno de los análisis conserva ${taskType === 'detection' ? 'Eigen-CAM' : 'Grad-CAM'}; la capa se oculta para evitar una comparación incompleta.`
-                            : `ninguno de los dos análisis conserva ${taskType === 'detection' ? 'Eigen-CAM' : 'Grad-CAM'}; el historial no recalcula explicaciones al abrir una comparación.`}
-                </p>
-            )}
+            <ComparisonExplanationNote
+                comparable={explanationState.comparable}
+                taskType={taskType}
+                comparisonKind={comparisonKind}
+                explanationState={explanationState}
+            />
         </section>
     )
 }

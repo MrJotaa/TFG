@@ -713,17 +713,21 @@ def test_pair_publication_rolls_back_if_publish_fails(
 
     monkeypatch.setattr(gradcam_service.os, "replace", fail_selected_publish)
 
+    _prepared_result_path = str(tmp_path)
+    _prepared_original_gradcam = Image.new("RGB", (5, 3), color=(10, 20, 30))
+    _prepared_adversarial_gradcam = Image.new(
+        "RGB",
+        (5, 3),
+        color=(40, 50, 60),
+    )
+
     with pytest.raises(OSError, match="publish failed"):
         gradcam_service._persist_gradcam_pair(
-            result_path=str(tmp_path),
+            result_path=_prepared_result_path,
             original_filename=original_filename,
             adversarial_filename=adversarial_filename,
-            original_gradcam=Image.new("RGB", (5, 3), color=(10, 20, 30)),
-            adversarial_gradcam=Image.new(
-                "RGB",
-                (5, 3),
-                color=(40, 50, 60),
-            ),
+            original_gradcam=_prepared_original_gradcam,
+            adversarial_gradcam=_prepared_adversarial_gradcam,
         )
 
     with Image.open(original_path) as original:
@@ -817,17 +821,21 @@ def test_pair_publication_preserves_primary_error_if_restore_also_fails(
     )
 
     with caplog.at_level("ERROR", logger=gradcam_service.__name__):
+        _prepared_result_path_2 = str(tmp_path)
+        _prepared_original_gradcam_2 = Image.new("RGB", (5, 3), color=(10, 20, 30))
+        _prepared_adversarial_gradcam_2 = Image.new(
+            "RGB",
+            (5, 3),
+            color=(40, 50, 60),
+        )
+
         with pytest.raises(OSError) as captured_error:
             gradcam_service._persist_gradcam_pair(
-                result_path=str(tmp_path),
+                result_path=_prepared_result_path_2,
                 original_filename=original_path.name,
                 adversarial_filename=adversarial_path.name,
-                original_gradcam=Image.new("RGB", (5, 3), color=(10, 20, 30)),
-                adversarial_gradcam=Image.new(
-                    "RGB",
-                    (5, 3),
-                    color=(40, 50, 60),
-                ),
+                original_gradcam=_prepared_original_gradcam_2,
+                adversarial_gradcam=_prepared_adversarial_gradcam_2,
             )
 
     assert captured_error.value is primary_error

@@ -240,21 +240,23 @@ def test_label_resolution_counts_must_be_consistent():
 
 
 def test_confusion_matrices_must_match_labels():
+    _prepared_labels = [
+        ClassReference(
+            index=0,
+            label="class-a",
+        ),
+        ClassReference(
+            index=1,
+            label="class-b",
+        ),
+    ]
+
     with pytest.raises(
         ValidationError,
         match="must be square",
     ):
         ConfusionMatrices(
-            labels=[
-                ClassReference(
-                    index=0,
-                    label="class-a",
-                ),
-                ClassReference(
-                    index=1,
-                    label="class-b",
-                ),
-            ],
+            labels=_prepared_labels,
             original=[[1]],
             adversarial=[
                 [1, 0],
@@ -272,6 +274,14 @@ def test_confusion_matrices_must_match_labels():
 
 
 def test_prediction_flip_rate_must_match_counts():
+    _prepared_clean_accuracy = _available_metric(1.0)
+    _prepared_robust_accuracy = _available_metric(0.5)
+    _prepared_accuracy_drop = _available_metric(0.5)
+    _prepared_conditional_attack_success_rate = _available_metric(0.5)
+    _prepared_corrected_by_attack_rate = _available_metric(0.0)
+    _prepared_average_true_class_probability_drop = _available_metric(0.2)
+    _prepared_average_prediction_margin_drop = _available_metric(0.1)
+
     with pytest.raises(
         ValidationError,
         match="flip rate does not match",
@@ -283,13 +293,13 @@ def test_prediction_flip_rate_must_match_counts():
             prediction_flip_rate=0.9,
             correct_to_incorrect=1,
             incorrect_to_correct=0,
-            clean_accuracy=_available_metric(1.0),
-            robust_accuracy=_available_metric(0.5),
-            accuracy_drop=_available_metric(0.5),
-            conditional_attack_success_rate=(_available_metric(0.5)),
-            corrected_by_attack_rate=(_available_metric(0.0)),
-            average_true_class_probability_drop=(_available_metric(0.2)),
-            average_prediction_margin_drop=(_available_metric(0.1)),
+            clean_accuracy=_prepared_clean_accuracy,
+            robust_accuracy=_prepared_robust_accuracy,
+            accuracy_drop=_prepared_accuracy_drop,
+            conditional_attack_success_rate=(_prepared_conditional_attack_success_rate),
+            corrected_by_attack_rate=(_prepared_corrected_by_attack_rate),
+            average_true_class_probability_drop=(_prepared_average_true_class_probability_drop),
+            average_prediction_margin_drop=(_prepared_average_prediction_margin_drop),
             average_perturbation_linf=0.03,
             average_perturbation_l2=1.0,
         )
@@ -300,52 +310,4 @@ def test_unavailable_supervised_metrics_require_reason():
         ValidationError,
         match="must include a reason",
     ):
-        AdvancedClassificationMetrics(
-            label_resolution=LabelResolutionSummary(
-                labeled_images=0,
-                resolved_labels=0,
-                unresolved_labels=0,
-                coverage=0.0,
-            ),
-            robustness=RobustnessMetrics(
-                total_images=1,
-                changed_predictions=0,
-                unchanged_predictions=1,
-                prediction_flip_rate=0.0,
-                correct_to_incorrect=0,
-                incorrect_to_correct=0,
-                clean_accuracy=MetricValue(
-                    available=False,
-                    reason="No resolved labels",
-                ),
-                robust_accuracy=MetricValue(
-                    available=False,
-                    reason="No resolved labels",
-                ),
-                accuracy_drop=MetricValue(
-                    available=False,
-                    reason="No resolved labels",
-                ),
-                conditional_attack_success_rate=(
-                    MetricValue(
-                        available=False,
-                        reason=("No correct original predictions"),
-                    )
-                ),
-                corrected_by_attack_rate=MetricValue(
-                    available=False,
-                    reason=("No incorrect original predictions"),
-                ),
-                average_true_class_probability_drop=(
-                    MetricValue(
-                        available=False,
-                        reason="No resolved labels",
-                    )
-                ),
-                average_prediction_margin_drop=(_available_metric(0.0)),
-                average_perturbation_linf=0.03,
-                average_perturbation_l2=1.0,
-            ),
-            supervised_status=AvailabilityStatus(available=False),
-            supervised=None,
-        )
+        AvailabilityStatus(available=False)

@@ -132,23 +132,29 @@ def test_art_adapter_clamps_generated_values_back_to_model_domain():
 
 
 def test_art_adapter_rejects_non_classification_models():
+    _prepared_arg_1 = FakeDetectionModel()
+
     with pytest.raises(
         ValueError,
         match="requires a classification model",
     ):
-        ARTClassificationAdapter(FakeDetectionModel())
+        ARTClassificationAdapter(_prepared_arg_1)
 
 
 def test_art_adapter_rejects_unloaded_models():
+    _prepared_arg_1_2 = FakeClassificationModel(loaded=False)
+
     with pytest.raises(ValueError, match="Model is not loaded"):
-        ARTClassificationAdapter(FakeClassificationModel(loaded=False))
+        ARTClassificationAdapter(_prepared_arg_1_2)
 
 
 def test_art_adapter_rejects_prepared_input_with_wrong_shape():
     adapter = ARTClassificationAdapter(FakeClassificationModel())
 
+    _prepared_arg_1_3 = torch.zeros((1, 3, 8, 8), dtype=torch.float32)
+
     with pytest.raises(ValueError, match="does not match expected shape"):
-        adapter.to_art_input(torch.zeros((1, 3, 8, 8), dtype=torch.float32))
+        adapter.to_art_input(_prepared_arg_1_3)
 
 
 def test_art_estimator_honours_cooperative_cancellation():

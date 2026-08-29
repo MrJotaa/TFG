@@ -3,6 +3,11 @@ import test from 'node:test'
 import {
     buildIndividualAnalysisComparison,
     comparisonExplanationState,
+    formatComparisonMagnitude,
+    getComparisonExplanationMessage,
+    getComparisonKeyboardAction,
+    getComparisonLayerCaption,
+    loadIndividualAnalysisComparison,
     comparisonLayerOptions,
     individualAnalysisComparisonSummary,
     resolveIndividualAnalysisComparisonSource,
@@ -105,6 +110,8 @@ test('detection comparison switches annotated and raw sources without recalculat
         adversarial_image_url: '/results/a/adversarial.png',
         adversarial_annotated_image_url: '/results/a/adversarial-boxes.png',
         perturbation_image_url: '/results/a/perturbation.png',
+        original_explanation_image_url: '/results/a/eigencam-original.png',
+        adversarial_explanation_image_url: '/results/a/eigencam-adversarial.png',
     }
     const image = { url: '/datasets/image.png' }
 
@@ -117,6 +124,12 @@ test('detection comparison switches annotated and raw sources without recalculat
     assert.equal(resolveIndividualAnalysisComparisonSource({
         taskType: 'detection', analysis, image, layer: 'image', stage: 'adversarial', showAnnotations: false,
     }), '/results/a/adversarial.png')
+    assert.equal(resolveIndividualAnalysisComparisonSource({
+        taskType: 'detection', analysis, image, layer: 'explanation', stage: 'original',
+    }), '/results/a/eigencam-original.png')
+    assert.equal(resolveIndividualAnalysisComparisonSource({
+        taskType: 'detection', analysis, image, layer: 'explanation', stage: 'adversarial',
+    }), '/results/a/eigencam-adversarial.png')
 })
 
 test('explanation control is exposed only when both saved analyses have comparable artifacts', () => {
@@ -196,4 +209,103 @@ test('individual summaries expose persisted classification and detection impact'
     })
     assert.equal(detection.primaryLabel, '3 → 1')
     assert.equal(detection.primaryCaption, 'detecciones')
+})
+
+
+test('comparison magnitude formatting avoids regex backtracking and trims decimals', () => {
+    assert.equal(formatComparisonMagnitude('invalid'), '—')
+    assert.equal(formatComparisonMagnitude(0), '0')
+    assert.equal(formatComparisonMagnitude(0.00012), '1.20e-4')
+    assert.equal(formatComparisonMagnitude(1.23), '1.23')
+    assert.equal(formatComparisonMagnitude(4), '4')
+})
+
+
+test('comparison explorer helpers describe layers, explanations and keyboard actions', () => {
+    assert.equal(getComparisonLayerCaption('perturbation', 'classification', 'original'), 'Mapa amplificado de la perturbación')
+    assert.equal(getComparisonLayerCaption('explanation', 'detection', 'original'), 'Eigen-CAM persistido')
+    assert.equal(getComparisonLayerCaption('explanation', 'classification', 'original'), 'Grad-CAM persistido')
+    assert.equal(getComparisonLayerCaption('image', 'classification', 'original'), 'Resultado original')
+    assert.equal(getComparisonLayerCaption('image', 'classification', 'adversarial'), 'Resultado tras el ataque')
+
+    assert.match(getComparisonExplanationMessage({
+        taskType: 'classification',
+        comparisonKind: 'model',
+        explanationState: { left: false, right: false },
+    }), /ambos análisis conservaron su Grad-CAM/)
+    assert.match(getComparisonExplanationMessage({
+        taskType: 'detection',
+        comparisonKind: 'attack',
+        explanationState: { left: true, right: false },
+    }), /solo uno de los análisis conserva Eigen-CAM/)
+    assert.match(getComparisonExplanationMessage({
+        taskType: 'classification',
+        comparisonKind: 'attack',
+        explanationState: { left: false, right: false },
+    }), /ninguno de los dos análisis conserva Grad-CAM/)
+
+    assert.deepEqual(getComparisonKeyboardAction('ArrowLeft', 2, 1), { type: 'pan', x: 24, y: 0 })
+    assert.equal(getComparisonKeyboardAction('ArrowLeft', 1, 1), null)
+    assert.deepEqual(getComparisonKeyboardAction('+', 1, 1), { type: 'zoom', direction: 1 })
+    assert.deepEqual(getComparisonKeyboardAction('-', 1, 1), { type: 'zoom', direction: -1 })
+    assert.deepEqual(getComparisonKeyboardAction('0', 1, 1), { type: 'reset' })
+    assert.equal(getComparisonKeyboardAction('Enter', 1, 1), null)
+})
+
+test('comparison loading accepts transient pairs and saved pairs', async () => {
+    const leftItem = item()
+    const rightItem = item({ analysis_id: 'analysis-b', parameters: { epsilon: 0.04 } })
+    const left = { item: leftItem, analysis: { result_id: 'result-a' }, dataset: { id: 'dataset-1' }, image: { id: 'image-1' }, temporary: true }
+    const right = { item: rightItem, analysis: { result_id: 'result-b' }, dataset: left.dataset, image: left.image, temporary: true }
+
+    const transient = await loadIndividualAnalysisComparison({
+        transientPair: { left, right },
+        leftId: null,
+        rightId: null,
+        getStoredIndividualAnalysis: async () => { throw new Error('not used') },
+        getDatasetById: async () => { throw new Error('not used') },
+    })
+    assert.equal(transient.status, 'ready')
+    assert.equal(transient.left, left)
+
+    const stored = new Map([
+        ['analysis-a', { item: leftItem, analysis: { result_id: 'result-a' } }],
+        ['analysis-b', { item: rightItem, analysis: { result_id: 'result-b' } }],
+    ])
+    const saved = await loadIndividualAnalysisComparison({
+        transientPair: null,
+        leftId: 'analysis-a',
+        rightId: 'analysis-b',
+        getStoredIndividualAnalysis: async (id) => stored.get(id),
+        getDatasetById: async () => ({ id: 'dataset-1', images: [{ id: 'image-1', filename: 'fish.jpg' }] }),
+    })
+    assert.equal(saved.status, 'ready')
+    assert.equal(saved.left.temporary, false)
+    assert.equal(saved.right.resultId, 'result-b')
+})
+
+test('comparison loading rejects incomplete transient and stored contexts', async () => {
+    await assert.rejects(() => loadIndividualAnalysisComparison({
+        transientPair: { left: {}, right: {} },
+        getStoredIndividualAnalysis: async () => null,
+        getDatasetById: async () => null,
+    }), /dos resultados necesarios/)
+
+    await assert.rejects(() => loadIndividualAnalysisComparison({
+        transientPair: null,
+        leftId: 'same',
+        rightId: 'same',
+        getStoredIndividualAnalysis: async () => null,
+        getDatasetById: async () => null,
+    }), /dos análisis individuales diferentes/)
+
+    const leftStored = { item: item(), analysis: {} }
+    const rightStored = { item: item({ analysis_id: 'analysis-b', parameters: { epsilon: 0.04 } }), analysis: {} }
+    await assert.rejects(() => loadIndividualAnalysisComparison({
+        transientPair: null,
+        leftId: 'analysis-a',
+        rightId: 'analysis-b',
+        getStoredIndividualAnalysis: async (id) => id === 'analysis-a' ? leftStored : rightStored,
+        getDatasetById: async () => ({ images: [] }),
+    }), /imagen original asociada/)
 })

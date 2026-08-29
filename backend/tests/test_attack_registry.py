@@ -295,8 +295,10 @@ def test_parameter_resolution_rejects_unknown_values():
 
     pgd = get_attack(AttackType.PGD)
 
+    _prepared_arg_1 = AttackParameters(epsilon=0.03, learning_rate_typo=0.01)
+
     with pytest.raises(ValueError, match="Parámetros no compatibles"):
-        pgd.resolve_parameters(AttackParameters(epsilon=0.03, learning_rate_typo=0.01))
+        pgd.resolve_parameters(_prepared_arg_1)
 
 
 def test_attack_catalog_exposes_capabilities_and_parameter_contracts():

@@ -33,6 +33,11 @@ from utils.result_files import (
 )
 
 
+def _raise_if_cancelled(cancellation_token: CancellationToken | None) -> None:
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+
+
 async def apply_adversarial_attack(
     request: AttackRequest,
     *,
@@ -61,11 +66,9 @@ async def apply_adversarial_attack(
         task_type=model.task_type,
     )
 
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
+    _raise_if_cancelled(cancellation_token)
     original_prediction = await asyncio.to_thread(model.predict, image)
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
+    _raise_if_cancelled(cancellation_token)
 
     attack_runner = create_attack_runner(
         attack=attack,
@@ -73,16 +76,14 @@ async def apply_adversarial_attack(
         parameters=request.parameters,
         cancellation_token=cancellation_token,
     )
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
+    _raise_if_cancelled(cancellation_token)
     attack_result = await asyncio.to_thread(
         attack_runner.apply,
         model_wrapper=model,
         image=image,
         parameters=request.parameters,
     )
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
+    _raise_if_cancelled(cancellation_token)
 
     if isinstance(attack_result, AdversarialAttackResult):
         perturbation_linf = attack_result.perturbation_linf
@@ -91,8 +92,7 @@ async def apply_adversarial_attack(
             model.predict_from_prepared_input,
             attack_result.adversarial_model_input,
         )
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
+        _raise_if_cancelled(cancellation_token)
 
         reconstruction = reconstruct_attack_in_source_geometry(
             source_image=image,
@@ -102,24 +102,21 @@ async def apply_adversarial_attack(
         perturbation_image_to_persist = reconstruction.perturbation_visualization
         del reconstruction
 
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
+        _raise_if_cancelled(cancellation_token)
         original_gradcam_result = await asyncio.to_thread(
             generate_gradcam_from_prepared_input,
             model_wrapper=model,
             model_input=attack_result.clean_model_input,
             visualization_image=image.copy().convert("RGB"),
         )
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
+        _raise_if_cancelled(cancellation_token)
         adversarial_gradcam_result = await asyncio.to_thread(
             generate_gradcam_from_prepared_input,
             model_wrapper=model,
             model_input=attack_result.adversarial_model_input,
             visualization_image=adversarial_image_to_persist,
         )
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
+        _raise_if_cancelled(cancellation_token)
     else:
         adversarial_image = attack_result["adversarial_image"]
         adversarial_image_to_persist = adversarial_image
@@ -129,21 +126,18 @@ async def apply_adversarial_attack(
         adversarial_prediction = await asyncio.to_thread(
             model.predict, adversarial_image
         )
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
+        _raise_if_cancelled(cancellation_token)
 
         original_gradcam_result = await asyncio.to_thread(
             generate_gradcam, model, image
         )
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
+        _raise_if_cancelled(cancellation_token)
         adversarial_gradcam_result = await asyncio.to_thread(
             generate_gradcam,
             model,
             adversarial_image,
         )
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
+        _raise_if_cancelled(cancellation_token)
 
     confidence_difference = round(
         adversarial_prediction.confidence - original_prediction.confidence,
@@ -166,8 +160,7 @@ async def apply_adversarial_attack(
         perturbation_l2=perturbation_l2,
     )
 
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
+    _raise_if_cancelled(cancellation_token)
 
     result_id, result_path = create_result_directory(prefix="attack")
 

@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import ClassificationTopK from '../classification/ClassificationTopK'
 import {
     formatDecimal,
     formatInteger,
@@ -253,16 +254,17 @@ function EvaluationImageLightbox({ preview, onClose }) {
 
     const safeZoom = clampEvaluationPreviewZoom(zoom)
     const modal = (
-        <div
-            className="image-lightbox-backdrop evaluation-image-lightbox-backdrop"
-            role="presentation"
-            onMouseDown={(event) => {
-                if (event.target === event.currentTarget) onClose()
-            }}
-        >
-            <section
+        <div className="image-lightbox-backdrop evaluation-image-lightbox-backdrop">
+            <button
+                type="button"
+                className="modal-backdrop-dismiss"
+                tabIndex={-1}
+                aria-label="Cerrar vista ampliada"
+                onClick={onClose}
+            />
+            <dialog
+                open
                 className="image-lightbox evaluation-image-lightbox"
-                role="dialog"
                 aria-modal="true"
                 aria-label={`Vista ampliada: ${preview.label}`}
             >
@@ -336,7 +338,7 @@ function EvaluationImageLightbox({ preview, onClose }) {
                         Usa + / − para cambiar el zoom. Con zoom activo, arrastra la imagen para desplazarte.
                     </span>
                 </footer>
-            </section>
+            </dialog>
         </div>
     )
 
@@ -573,6 +575,20 @@ function EvaluationImageCard({
                         <strong>{formatDecimal(result.perturbation_l2)}</strong>
                     </div>
                 </div>
+
+            <div
+                className="classification-topk-comparison evaluation-image-topk-comparison"
+                hidden={!expanded}
+            >
+                <ClassificationTopK
+                    title="Top-3 original"
+                    predictions={result.original_top_k}
+                />
+                <ClassificationTopK
+                    title="Top-3 tras el ataque"
+                    predictions={result.adversarial_top_k}
+                />
+            </div>
 
             {diagnostics.label_resolution_reason && (
                 <div className="evaluation-image-warning">

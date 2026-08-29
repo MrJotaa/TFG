@@ -65,14 +65,16 @@ def test_detection_class_rejects_invalid_id(class_id):
 
 
 def test_detection_class_catalog_rejects_duplicate_ids():
+    _prepared_classes = (
+        DetectionClass(class_id=3, name="car"),
+        DetectionClass(class_id=3, name="truck"),
+    )
+
     with pytest.raises(DetectionClassCatalogError, match="IDs must be unique"):
         DetectionClassCatalog(
             model_id="detector-1",
             model_name="Detector",
-            classes=(
-                DetectionClass(class_id=3, name="car"),
-                DetectionClass(class_id=3, name="truck"),
-            ),
+            classes=_prepared_classes,
         )
 
 

@@ -36,6 +36,7 @@ from schemas.evaluation_history import (
     EvaluationTaskType,
     StoredEvaluationResponse,
 )
+from services.evaluation_cancellation import request_evaluation_cancellation
 from services.model_service import get_active_model, get_active_model_revision
 from utils.detection_evaluation_artifacts import (
     remove_detection_evaluation_visual_artifacts,
@@ -43,6 +44,8 @@ from utils.detection_evaluation_artifacts import (
 from utils.result_files import RESULTS_BASE_PATH
 
 logger = logging.getLogger(__name__)
+_EVALUATION_NOT_FOUND = "Evaluación no encontrada"
+_EVALUATION_WRONG_OWNER = "La evaluación pertenece a otro usuario"
 
 EVALUATION_STORAGE_SCHEMA_VERSION = 2
 CLASSIFICATION_PIPELINE_VERSION = "classification-evaluation-v2"
@@ -302,7 +305,7 @@ async def get_stored_evaluation(
             evaluation = EvaluationResponse.model_validate(payload)
         else:
             evaluation = DetectionEvaluationResponse.model_validate(payload)
-    except (OSError, UnicodeError, ValueError, ValidationError) as error:
+    except (OSError, ValueError, ValidationError) as error:
         raise BadRequestError("El artefacto de la evaluación no es válido") from error
     if evaluation.result_id != evaluation_id:
         raise BadRequestError("La identidad del artefacto de la evaluación no es válida")
@@ -335,6 +338,29 @@ async def update_evaluation_preservation(
     await evaluations_collection.update_one({"_id": evaluation_id}, {"$set": values})
     document.update(values)
     return _history_item(document)
+
+
+async def cancel_running_evaluation(*, evaluation_id: str, owner_id: str) -> None:
+    await _get_owned_running_document(evaluation_id, owner_id)
+    active_execution = request_evaluation_cancellation(evaluation_id)
+    result = await evaluations_collection.delete_one(
+        {
+            "_id": evaluation_id,
+            "owner_id": owner_id,
+            "status": "running",
+        }
+    )
+    if result.deleted_count == 0:
+        raise BadRequestError("La evaluación ya no está en curso")
+
+    if not active_execution:
+        try:
+            await asyncio.to_thread(_remove_evaluation_artifacts, evaluation_id)
+        except OSError:
+            logger.exception(
+                "cancelled_evaluation_artifact_cleanup_failed result_id=%s",
+                evaluation_id,
+            )
 
 
 async def delete_evaluation_result(*, evaluation_id: str, owner_id: str) -> None:
@@ -552,14 +578,27 @@ async def _find_compatible_document(*, owner_id: str, signature: str) -> dict | 
     return None
 
 
-async def _get_owned_completed_document(evaluation_id: str, owner_id: str) -> dict:
+async def _get_owned_running_document(evaluation_id: str, owner_id: str) -> dict:
     if not _valid_result_id(evaluation_id):
-        raise NotFoundError("Evaluación no encontrada")
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
     document = await evaluations_collection.find_one({"_id": evaluation_id})
     if document is None:
-        raise NotFoundError("Evaluación no encontrada")
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
     if document.get("owner_id") != owner_id:
-        raise ForbiddenError("La evaluación pertenece a otro usuario")
+        raise ForbiddenError(_EVALUATION_WRONG_OWNER)
+    if document.get("status") != "running":
+        raise BadRequestError("La evaluación no está en curso")
+    return document
+
+
+async def _get_owned_completed_document(evaluation_id: str, owner_id: str) -> dict:
+    if not _valid_result_id(evaluation_id):
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
+    document = await evaluations_collection.find_one({"_id": evaluation_id})
+    if document is None:
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
+    if document.get("owner_id") != owner_id:
+        raise ForbiddenError(_EVALUATION_WRONG_OWNER)
     if document.get("status") != "completed":
         raise BadRequestError("La evaluación no está completada")
     return document
@@ -567,12 +606,12 @@ async def _get_owned_completed_document(evaluation_id: str, owner_id: str) -> di
 
 async def _get_accessible_document(evaluation_id: str, owner_id: str) -> dict:
     if not _valid_result_id(evaluation_id):
-        raise NotFoundError("Evaluación no encontrada")
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
     document = await evaluations_collection.find_one({"_id": evaluation_id})
     if document is None:
-        raise NotFoundError("Evaluación no encontrada")
+        raise NotFoundError(_EVALUATION_NOT_FOUND)
     if document.get("owner_id") != owner_id:
-        raise ForbiddenError("La evaluación pertenece a otro usuario")
+        raise ForbiddenError(_EVALUATION_WRONG_OWNER)
     if document.get("status") != "completed":
         raise BadRequestError("La evaluación no está completada")
     if document.get("preserved") is not True:

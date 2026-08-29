@@ -694,6 +694,21 @@ async def test_random_noise_evaluation_keeps_legacy_visual_flow(monkeypatch):
     )
     assert response.results[0].perturbation_linf == 0.03
     assert response.results[0].perturbation_l2 == 1.0
+    assert [item.label for item in response.results[0].original_top_k] == [
+        "cat",
+        "dog",
+        "car",
+    ]
+    assert [item.probability for item in response.results[0].original_top_k] == [
+        pytest.approx(0.8),
+        pytest.approx(0.1),
+        pytest.approx(0.1),
+    ]
+    assert [item.label for item in response.results[0].adversarial_top_k] == [
+        "dog",
+        "cat",
+        "car",
+    ]
 
 
 @pytest.mark.asyncio

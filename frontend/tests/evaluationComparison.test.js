@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 
 import {
     baselineConsistency,
+    buildClassificationCurveSeries,
     classifyEvaluationComparison,
     getCompatibleEvaluationCandidates,
     getClassificationClassComparison,
@@ -539,4 +540,29 @@ test('detection preservation balance reports exclusive preserved objects without
     assert.equal(summary.preservation_disagreements, 3)
     assert.equal(summary.preservation_disagreement_rate, 1)
     assert.equal(summary.preservation_balance, 1)
+})
+
+
+test('classification curve series keeps the correct shared or separate references', () => {
+    const left = {
+        original: { available: true, points: [{ x: 0, y: 1 }], score: 0.91 },
+        adversarial: { available: true, points: [{ x: 0, y: 0.8 }], score: 0.72 },
+    }
+    const right = {
+        original: { available: true, points: [{ x: 0, y: 0.95 }], score: 0.89 },
+        adversarial: { available: true, points: [{ x: 0, y: 0.7 }], score: 0.64 },
+    }
+
+    assert.deepEqual(
+        buildClassificationCurveSeries(left, right, true).map((entry) => entry.key),
+        ['reference', 'a', 'b'],
+    )
+    assert.deepEqual(
+        buildClassificationCurveSeries(left, right, false).map((entry) => entry.key),
+        ['a-original', 'b-original', 'a', 'b'],
+    )
+    assert.deepEqual(
+        buildClassificationCurveSeries({ original: { available: false } }, null, false),
+        [],
+    )
 })

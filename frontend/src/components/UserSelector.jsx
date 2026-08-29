@@ -69,7 +69,7 @@ function UserSelector({
             {showCreateForm && (
                 <form onSubmit={handleCreateUser} className="user-form">
                     <label>
-                        Nombre
+                        <span>Nombre</span>
                         <input
                             type="text"
                             placeholder="Nombre"
@@ -80,7 +80,7 @@ function UserSelector({
                     </label>
 
                     <label>
-                        Correo
+                        <span>Correo</span>
                         <input
                             type="email"
                             placeholder="Correo"
@@ -91,7 +91,7 @@ function UserSelector({
                     </label>
 
                     <label>
-                        Contraseña
+                        <span>Contraseña</span>
                         <input
                             type="password"
                             placeholder="Contraseña"
@@ -117,7 +117,7 @@ function UserSelector({
                         <p>No hay usuarios registrados.</p>
                     ) : (
                         <label>
-                            Usuario
+                            <span>Usuario</span>
                             <select
                                 value={selectedUser?.id || ''}
                                 onChange={(event) => {

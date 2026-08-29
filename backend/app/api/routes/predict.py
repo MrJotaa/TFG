@@ -7,7 +7,7 @@ from services.request_cancellation import run_cancellable_request
 router = APIRouter()
 
 
-@router.post("/predict", response_model=PredictResponse)
+@router.post("/predict")
 async def predict(
     request: PredictRequest,
     http_request: Request,

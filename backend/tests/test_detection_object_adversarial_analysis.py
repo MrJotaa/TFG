@@ -409,14 +409,17 @@ def test_match_below_operating_point_is_rejected_in_both_detail_modes(
         iou=iou,
     )
 
+    _prepared_ground_truths = (_ground_truth("object"),)
+    _prepared_reviewed_image_ids = frozenset({"image-1"})
+
     with pytest.raises(
         DetectionObjectAdversarialAnalysisInputError,
         match=f"{field_name} is below the operating point",
     ):
         build_detection_object_adversarial_analysis(
-            ground_truths=(_ground_truth("object"),),
+            ground_truths=_prepared_ground_truths,
             classes=(category,),
-            reviewed_image_ids=frozenset({"image-1"}),
+            reviewed_image_ids=_prepared_reviewed_image_ids,
             original_observations=(matched,),
             adversarial_observations=(matched,),
             confidence_threshold=0.25,
@@ -472,11 +475,13 @@ def test_comparison_rejects_non_exact_observation_sets(condition):
     else:
         original = (valid, valid)
 
+    _prepared_reviewed_image_ids_2 = frozenset({"image-1"})
+
     with pytest.raises(DetectionObjectAdversarialAnalysisInputError):
         build_detection_object_adversarial_analysis(
             ground_truths=(ground_truth,),
             classes=(category,),
-            reviewed_image_ids=frozenset({"image-1"}),
+            reviewed_image_ids=_prepared_reviewed_image_ids_2,
             original_observations=original,
             adversarial_observations=(valid,),
             confidence_threshold=0.25,
@@ -489,13 +494,16 @@ def test_comparison_rejects_incoherent_image_or_category_reference():
     category = _class()
     wrong = _observation("object", matched=False, image_id="wrong", category=category)
 
+    _prepared_ground_truths_2 = (_ground_truth("object"),)
+    _prepared_reviewed_image_ids_3 = frozenset({"image-1"})
+
     with pytest.raises(
         DetectionObjectAdversarialAnalysisInputError, match="references"
     ):
         build_detection_object_adversarial_analysis(
-            ground_truths=(_ground_truth("object"),),
+            ground_truths=_prepared_ground_truths_2,
             classes=(category,),
-            reviewed_image_ids=frozenset({"image-1"}),
+            reviewed_image_ids=_prepared_reviewed_image_ids_3,
             original_observations=(wrong,),
             adversarial_observations=(wrong,),
             confidence_threshold=0.25,
@@ -516,13 +524,16 @@ def test_comparison_rejects_match_field_invariants():
         matched_detection_box=None,
     )
 
+    _prepared_ground_truths_3 = (_ground_truth("object"),)
+    _prepared_reviewed_image_ids_4 = frozenset({"image-1"})
+
     with pytest.raises(
         DetectionObjectAdversarialAnalysisInputError, match="incomplete"
     ):
         build_detection_object_adversarial_analysis(
-            ground_truths=(_ground_truth("object"),),
+            ground_truths=_prepared_ground_truths_3,
             classes=(category,),
-            reviewed_image_ids=frozenset({"image-1"}),
+            reviewed_image_ids=_prepared_reviewed_image_ids_4,
             original_observations=(incomplete,),
             adversarial_observations=(incomplete,),
             confidence_threshold=0.25,
@@ -543,6 +554,11 @@ def test_comparison_wraps_wrong_numeric_types_in_typed_input_error(invalid_field
     else:
         ground_truth = replace(ground_truth, area="bad")
 
+    _prepared_reviewed_image_ids_5 = frozenset({"image-1"})
+    _prepared_adversarial_observations = (
+        _observation("object", matched=True, category=category),
+    )
+
     with pytest.raises(
         DetectionObjectAdversarialAnalysisInputError,
         match="must be a real number",
@@ -550,11 +566,9 @@ def test_comparison_wraps_wrong_numeric_types_in_typed_input_error(invalid_field
         build_detection_object_adversarial_analysis(
             ground_truths=(ground_truth,),
             classes=(category,),
-            reviewed_image_ids=frozenset({"image-1"}),
+            reviewed_image_ids=_prepared_reviewed_image_ids_5,
             original_observations=(original,),
-            adversarial_observations=(
-                _observation("object", matched=True, category=category),
-            ),
+            adversarial_observations=_prepared_adversarial_observations,
             confidence_threshold=0.25,
             iou_threshold=0.5,
             include_details=False,
@@ -591,14 +605,17 @@ def test_comparison_rejects_ground_truth_without_persisted_id_and_never_falls_ba
         _ground_truth("persisted-id", annotation_id=77), object_internal_id=None
     )
 
+    _prepared_classes = (_class(),)
+    _prepared_reviewed_image_ids_6 = frozenset({"image-1"})
+
     with pytest.raises(
         DetectionObjectAdversarialAnalysisInputError,
         match="object_internal_id must be a non-empty string",
     ):
         build_detection_object_adversarial_analysis(
             ground_truths=(ground_truth,),
-            classes=(_class(),),
-            reviewed_image_ids=frozenset({"image-1"}),
+            classes=_prepared_classes,
+            reviewed_image_ids=_prepared_reviewed_image_ids_6,
             original_observations=(),
             adversarial_observations=(),
             confidence_threshold=0.25,

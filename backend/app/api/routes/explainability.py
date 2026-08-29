@@ -15,7 +15,7 @@ from services.request_cancellation import run_cancellable_request
 router = APIRouter()
 
 
-@router.post("/explain/gradcam", response_model=GradCamResponse)
+@router.post("/explain/gradcam")
 async def gradcam(
     request: GradCamRequest,
     http_request: Request,
@@ -30,7 +30,7 @@ async def gradcam(
     )
 
 
-@router.post("/explain/detection", response_model=DetectionExplainResponse)
+@router.post("/explain/detection")
 async def explain_detection(
     request: DetectionExplainRequest,
     http_request: Request,

@@ -272,10 +272,13 @@ async def test_detection_evaluation_cleans_artifact_when_index_insert_fails(
     result_id = "detection_evaluation_00000000-0000-4000-8000-000000000005"
     persistence_environment.insert_error = RuntimeError("mongo unavailable")
 
+    _prepared_response = _response(result_id)
+    _prepared_request = _request()
+
     with pytest.raises(RuntimeError, match="mongo unavailable"):
         await persistence.persist_detection_evaluation(
-            response=_response(result_id),
-            request=_request(),
+            response=_prepared_response,
+            request=_prepared_request,
             owner_id="user-1",
         )
 

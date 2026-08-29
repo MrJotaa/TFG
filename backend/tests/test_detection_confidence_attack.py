@@ -214,15 +214,18 @@ def test_detection_confidence_requires_loaded_model():
         loaded=False,
     )
 
+    _prepared_image = _create_test_image()
+    _prepared_parameters = _create_parameters(
+        epsilon=0.1,
+        alpha=0.02,
+        steps=3,
+    )
+
     with pytest.raises(ValueError, match="Model is not loaded"):
         attack.apply(
             model_wrapper=wrapper,
-            image=_create_test_image(),
-            parameters=_create_parameters(
-                epsilon=0.1,
-                alpha=0.02,
-                steps=3,
-            ),
+            image=_prepared_image,
+            parameters=_prepared_parameters,
         )
 
 
@@ -461,18 +464,21 @@ def test_detection_confidence_rejects_non_scalar_model_objective():
 
     wrapper.detection_confidence_objective = vector_objective
 
+    _prepared_image_2 = _create_test_image()
+    _prepared_parameters_2 = _create_parameters(
+        epsilon=0.1,
+        alpha=0.02,
+        steps=1,
+    )
+
     with pytest.raises(
         ValueError,
         match="Detection confidence objective must be a scalar",
     ):
         attack.apply(
             model_wrapper=wrapper,
-            image=_create_test_image(),
-            parameters=_create_parameters(
-                epsilon=0.1,
-                alpha=0.02,
-                steps=1,
-            ),
+            image=_prepared_image_2,
+            parameters=_prepared_parameters_2,
         )
 
 
@@ -489,16 +495,19 @@ def test_detection_confidence_rejects_objective_without_input_gradient():
 
     wrapper.detection_confidence_objective = detached_objective
 
+    _prepared_image_3 = _create_test_image()
+    _prepared_parameters_3 = _create_parameters(
+        epsilon=0.1,
+        alpha=0.02,
+        steps=1,
+    )
+
     with pytest.raises(
         RuntimeError,
         match="did not produce an input gradient",
     ):
         attack.apply(
             model_wrapper=wrapper,
-            image=_create_test_image(),
-            parameters=_create_parameters(
-                epsilon=0.1,
-                alpha=0.02,
-                steps=1,
-            ),
+            image=_prepared_image_3,
+            parameters=_prepared_parameters_3,
         )

@@ -153,59 +153,77 @@ def _save_image_pair_atomically(
     adversarial_image: Image.Image,
 ) -> None:
     operation_id = uuid.uuid4().hex
-    temporary_original = original_path.with_name(
-        f"{original_path.name}.{operation_id}.tmp"
-    )
-    temporary_adversarial = adversarial_path.with_name(
-        f"{adversarial_path.name}.{operation_id}.tmp"
-    )
-    backup_original = original_path.with_name(
-        f"{original_path.name}.{operation_id}.backup"
-    )
-    backup_adversarial = adversarial_path.with_name(
-        f"{adversarial_path.name}.{operation_id}.backup"
-    )
+    temporary_original = _transient_path(original_path, operation_id, "tmp")
+    temporary_adversarial = _transient_path(adversarial_path, operation_id, "tmp")
+    backup_original = _transient_path(original_path, operation_id, "backup")
+    backup_adversarial = _transient_path(adversarial_path, operation_id, "backup")
     published_paths: list[Path] = []
     backups: list[tuple[Path, Path]] = []
 
     try:
-        original_image.convert("RGB").save(
-            temporary_original,
-            format="PNG",
-            compress_level=1,
+        _save_png(original_image, temporary_original)
+        _save_png(adversarial_image, temporary_adversarial)
+        _backup_existing_paths(
+            (
+                (original_path, backup_original),
+                (adversarial_path, backup_adversarial),
+            ),
+            backups,
         )
-        adversarial_image.convert("RGB").save(
-            temporary_adversarial,
-            format="PNG",
-            compress_level=1,
-        )
-
-        for final_path, backup_path in (
-            (original_path, backup_original),
-            (adversarial_path, backup_adversarial),
-        ):
-            if final_path.exists():
-                os.replace(final_path, backup_path)
-                backups.append((final_path, backup_path))
-
-        os.replace(temporary_original, original_path)
-        published_paths.append(original_path)
-        os.replace(temporary_adversarial, adversarial_path)
-        published_paths.append(adversarial_path)
+        _publish_path(temporary_original, original_path, published_paths)
+        _publish_path(temporary_adversarial, adversarial_path, published_paths)
     except OSError:
-        for published_path in reversed(published_paths):
-            if published_path.exists():
-                published_path.unlink()
-        for final_path, backup_path in reversed(backups):
-            if backup_path.exists():
-                os.replace(backup_path, final_path)
+        _rollback_published_paths(published_paths, backups)
         raise
     finally:
-        for transient_path in (
+        _remove_transient_paths(
             temporary_original,
             temporary_adversarial,
             backup_original,
             backup_adversarial,
-        ):
-            if transient_path.exists():
-                transient_path.unlink()
+        )
+
+
+def _transient_path(path: Path, operation_id: str, suffix: str) -> Path:
+    return path.with_name(f"{path.name}.{operation_id}.{suffix}")
+
+
+def _save_png(image: Image.Image, path: Path) -> None:
+    image.convert("RGB").save(path, format="PNG", compress_level=1)
+
+
+def _backup_existing_paths(
+    path_pairs: tuple[tuple[Path, Path], ...],
+    backups: list[tuple[Path, Path]],
+) -> None:
+    for final_path, backup_path in path_pairs:
+        if final_path.exists():
+            os.replace(final_path, backup_path)
+            backups.append((final_path, backup_path))
+
+
+def _publish_path(
+    temporary_path: Path,
+    final_path: Path,
+    published_paths: list[Path],
+) -> None:
+    os.replace(temporary_path, final_path)
+    published_paths.append(final_path)
+
+
+def _rollback_published_paths(
+    published_paths: list[Path],
+    backups: list[tuple[Path, Path]],
+) -> None:
+    for published_path in reversed(published_paths):
+        if published_path.exists():
+            published_path.unlink()
+    for final_path, backup_path in reversed(backups):
+        if backup_path.exists():
+            os.replace(backup_path, final_path)
+
+
+def _remove_transient_paths(*paths: Path) -> None:
+    for path in paths:
+        if path.exists():
+            path.unlink()

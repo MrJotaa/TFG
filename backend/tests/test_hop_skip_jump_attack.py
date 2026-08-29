@@ -54,15 +54,19 @@ def test_hop_skip_jump_parameter_contract_accepts_custom_values():
 def test_hop_skip_jump_parameter_contract_rejects_invalid_values(parameters, message):
     attack = HopSkipJumpAttack()
 
+    _prepared_arg_1 = AttackParameters(**parameters)
+
     with pytest.raises(ValueError, match=message):
-        attack.resolve_parameters(AttackParameters(**parameters))
+        attack.resolve_parameters(_prepared_arg_1)
 
 
 def test_hop_skip_jump_requires_init_eval_not_to_exceed_max_eval():
     attack = HopSkipJumpAttack()
 
+    _prepared_arg_1_2 = AttackParameters(init_eval=101, max_eval=100)
+
     with pytest.raises(ValueError, match="init_eval.*menor o igual.*max_eval"):
-        attack.resolve_parameters(AttackParameters(init_eval=101, max_eval=100))
+        attack.resolve_parameters(_prepared_arg_1_2)
 
 
 @pytest.mark.parametrize(

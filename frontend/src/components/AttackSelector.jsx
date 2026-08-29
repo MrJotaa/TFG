@@ -57,13 +57,16 @@ function ParameterControl({ parameter, value, onChange }) {
     const isRange = parameter.control === 'range'
 
     if (isRange) {
+        const controlId = `attack-parameter-${parameter.key}`
+
         return (
-            <label className="parameter-field parameter-range" title={parameter.description}>
+            <div className="parameter-field parameter-range" title={parameter.description}>
                 <span className="parameter-field-heading">
-                    <span>{parameter.label}</span>
-                    <output>{String(value)}</output>
+                    <label htmlFor={controlId}>{parameter.label}</label>
+                    <output htmlFor={controlId}>{String(value)}</output>
                 </span>
                 <input
+                    id={controlId}
                     type="range"
                     min={parameter.minimum ?? undefined}
                     max={parameter.maximum ?? undefined}
@@ -71,7 +74,7 @@ function ParameterControl({ parameter, value, onChange }) {
                     value={value}
                     onChange={(event) => onChange(parseParameterValue(parameter, event))}
                 />
-            </label>
+            </div>
         )
     }
 
@@ -185,6 +188,10 @@ function AttackSelector({
                             activeTaskType,
                         )
                         const isSelected = selectedAttack === attack.id
+                        const taskLabel = activeTaskType === 'classification' ? 'clasificación' : 'detección'
+                        const attackTitle = isSupported
+                            ? attack.description
+                            : `No compatible con ${taskLabel}`
 
                         return (
                             <button
@@ -195,11 +202,7 @@ function AttackSelector({
                                     if (isSupported) onSelectAttack(attack.id)
                                 }}
                                 disabled={!isSupported}
-                                title={
-                                    isSupported
-                                        ? attack.description
-                                        : `No compatible con ${activeTaskType === 'classification' ? 'clasificación' : 'detección'}`
-                                }
+                                title={attackTitle}
                                 aria-pressed={isSupported ? isSelected : undefined}
                             >
                                 <span>{attack.name}</span>

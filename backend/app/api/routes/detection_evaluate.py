@@ -22,7 +22,7 @@ from services.evaluation_progress import stream_evaluation
 router = APIRouter()
 
 
-@router.post("/detect/evaluate", response_model=DetectionEvaluationResponse)
+@router.post("/detect/evaluate")
 async def evaluate_detection(
     request: DetectionEvaluationRequest,
     current_user: UserResponse = Depends(require_current_user),
@@ -60,7 +60,6 @@ async def evaluate_detection_stream(
 
 @router.get(
     "/detect/evaluations",
-    response_model=list[DetectionEvaluationHistoryItem],
 )
 async def get_current_user_detection_evaluations(
     limit: int = Query(default=50, ge=1, le=100),
@@ -76,7 +75,6 @@ async def get_current_user_detection_evaluations(
 
 @router.get(
     "/detect/evaluations/{evaluation_id}",
-    response_model=DetectionEvaluationResponse,
 )
 async def get_current_user_detection_evaluation(
     evaluation_id: str,
@@ -90,7 +88,6 @@ async def get_current_user_detection_evaluation(
 
 @router.post(
     "/detect/evaluations/{evaluation_id}/images/{image_id}/eigencam",
-    response_model=DetectionEvaluationEigenCamResponse,
 )
 async def detection_evaluation_image_eigencam(
     evaluation_id: str,

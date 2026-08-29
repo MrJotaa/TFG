@@ -35,6 +35,11 @@ from utils.result_files import (
 )
 
 
+def _raise_if_cancelled(cancellation_token: CancellationToken | None) -> None:
+    if cancellation_token is not None:
+        cancellation_token.raise_if_cancelled()
+
+
 async def apply_detection_attack(
     request: DetectionAttackRequest,
     *,
@@ -63,8 +68,7 @@ async def apply_detection_attack(
         task_type=model.task_type,
     )
 
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
+    _raise_if_cancelled(cancellation_token)
     (
         original_detection_result,
         original_annotated_image,
@@ -79,16 +83,14 @@ async def apply_detection_attack(
         parameters=request.parameters,
         cancellation_token=cancellation_token,
     )
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
+    _raise_if_cancelled(cancellation_token)
     attack_result = await run_detection_attack_operation(
         attack_runner,
         model_wrapper=model,
         image=image,
         parameters=request.parameters,
     )
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
+    _raise_if_cancelled(cancellation_token)
 
     adversarial_image = attack_result["adversarial_image"]
     perturbation_image = attack_result["perturbation_image"]
@@ -100,8 +102,7 @@ async def apply_detection_attack(
         model.detect_with_visualization,
         adversarial_image,
     )
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
+    _raise_if_cancelled(cancellation_token)
 
     original_detections = original_detection_result.detections
     adversarial_detections = adversarial_detection_result.detections
@@ -119,8 +120,7 @@ async def apply_detection_attack(
             model,
             image,
         )
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
+        _raise_if_cancelled(cancellation_token)
         original_explanation_image = draw_detections_on_image(
             image=original_heatmap,
             detections=original_detections,
@@ -131,8 +131,7 @@ async def apply_detection_attack(
             model,
             adversarial_image,
         )
-        if cancellation_token is not None:
-            cancellation_token.raise_if_cancelled()
+        _raise_if_cancelled(cancellation_token)
         adversarial_explanation_image = draw_detections_on_image(
             image=adversarial_heatmap,
             detections=adversarial_detections,
@@ -161,8 +160,7 @@ async def apply_detection_attack(
         perturbation_l2=attack_result["perturbation_l2"],
     )
 
-    if cancellation_token is not None:
-        cancellation_token.raise_if_cancelled()
+    _raise_if_cancelled(cancellation_token)
 
     result_id, result_path = create_result_directory(prefix="detection_attack")
 

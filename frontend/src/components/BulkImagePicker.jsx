@@ -19,6 +19,14 @@ function BulkImagePicker({ files, onChange, disabled = false }) {
         onChange(Array.from(nextFiles || []))
     }
 
+    const selectedImageNoun = summary.count === 1 ? 'imagen seleccionada' : 'imágenes seleccionadas'
+    const dropzoneTitle = summary.count > 0
+        ? `${summary.count} ${selectedImageNoun}`
+        : 'Arrastra tus imágenes aquí'
+    const dropzoneDescription = summary.count > 0
+        ? `${summary.totalMegabytes.toFixed(1)} MB en total · pulsa para cambiar la selección`
+        : 'o pulsa para seleccionar varios archivos de una vez'
+
     return (
         <div className="bulk-image-picker">
             <input
@@ -49,16 +57,8 @@ function BulkImagePicker({ files, onChange, disabled = false }) {
                 }}
             >
                 <span className="bulk-image-dropzone-icon"><UploadIcon /></span>
-                <strong>
-                    {summary.count > 0
-                        ? `${summary.count} ${summary.count === 1 ? 'imagen seleccionada' : 'imágenes seleccionadas'}`
-                        : 'Arrastra tus imágenes aquí'}
-                </strong>
-                <span>
-                    {summary.count > 0
-                        ? `${summary.totalMegabytes.toFixed(1)} MB en total · pulsa para cambiar la selección`
-                        : 'o pulsa para seleccionar varios archivos de una vez'}
-                </span>
+                <strong>{dropzoneTitle}</strong>
+                <span>{dropzoneDescription}</span>
             </button>
 
             {summary.count > 0 && (

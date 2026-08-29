@@ -14,10 +14,8 @@ export function formatAttackParameters(
     if (!attack) {
         const entries = Object.entries(attackParameters ?? {})
         if (entries.length === 0) return 'Sin parámetros'
-        return entries
-            .sort(([left], [right]) => left.localeCompare(right))
-            .map(([key, value]) => `${key}=${value}`)
-            .join(' · ')
+        entries.sort(([left], [right]) => left.localeCompare(right))
+        return entries.map(([key, value]) => `${key}=${value}`).join(' · ')
     }
 
     if (attack.parameters.length === 0) return 'Sin parámetros'

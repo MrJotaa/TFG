@@ -7,7 +7,7 @@ from services.request_cancellation import run_cancellable_request
 router = APIRouter()
 
 
-@router.post("/detect", response_model=DetectionResponse)
+@router.post("/detect")
 async def detect_image(
     request: DetectionRequest,
     http_request: Request,

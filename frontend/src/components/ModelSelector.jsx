@@ -60,6 +60,10 @@ function ModelSelector({ onActiveModelChange }) {
         }
     }
 
+    let activateButtonLabel = 'Activar modelo'
+    if (loading) activateButtonLabel = 'Activando…'
+    else if (selectedModelIsActive) activateButtonLabel = 'Modelo activo'
+
     return (
         <section className="sidebar-block dashboard-config-section">
             <div className="dashboard-config-heading">
@@ -98,7 +102,7 @@ function ModelSelector({ onActiveModelChange }) {
 
                                 {model.active && (
                                     <span className="model-active-indicator">
-                                        <span aria-hidden="true" />
+                                        <span aria-hidden="true" />{' '}
                                         Activo
                                     </span>
                                 )}
@@ -114,11 +118,7 @@ function ModelSelector({ onActiveModelChange }) {
                 onClick={handleSelectModel}
                 disabled={!selectedModelId || selectedModelIsActive || loading}
             >
-                {loading
-                    ? 'Activando…'
-                    : selectedModelIsActive
-                        ? 'Modelo activo'
-                        : 'Activar modelo'}
+                {activateButtonLabel}
             </button>
         </section>
     )

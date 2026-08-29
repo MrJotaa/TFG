@@ -26,10 +26,9 @@ function ExplorerImage({
     return (
         <figure className="adversarial-explorer-figure">
             <figcaption>{title}</figcaption>
-            <div
+            <button
+                type="button"
                 className={`adversarial-explorer-viewport ${zoom > 1 ? 'is-zoomed' : ''}`}
-                role="group"
-                tabIndex="0"
                 aria-label={`${title}. Usa las flechas para desplazar y las teclas más o menos para ampliar.`}
                 onDoubleClick={() => onKeyDown({ key: '0', preventDefault() {} })}
                 onKeyDown={onKeyDown}
@@ -48,11 +47,11 @@ function ExplorerImage({
                         }}
                     />
                 ) : (
-                    <div className="adversarial-explorer-missing">
+                    <span className="adversarial-explorer-missing">
                         Imagen no disponible
-                    </div>
+                    </span>
                 )}
-            </div>
+            </button>
         </figure>
     )
 }
@@ -70,10 +69,9 @@ function OverlayComparison({
 
     return (
         <div className="adversarial-overlay-comparison">
-            <div
+            <button
+                type="button"
                 className={`adversarial-explorer-viewport overlay ${zoom > 1 ? 'is-zoomed' : ''}`}
-                role="group"
-                tabIndex="0"
                 aria-label="Comparación superpuesta. Usa las flechas para desplazar y las teclas más o menos para ampliar."
                 {...imageHandlers}
             >
@@ -85,7 +83,7 @@ function OverlayComparison({
                         transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
                     }}
                 />
-                <div
+                <span
                     className="adversarial-overlay-layer"
                     style={{ clipPath: splitState.originalClipPath }}
                 >
@@ -97,7 +95,7 @@ function OverlayComparison({
                             transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
                         }}
                     />
-                </div>
+                </span>
                 <span
                     className="adversarial-overlay-divider"
                     style={{ left: `${splitState.originalPercent}%` }}
@@ -107,7 +105,7 @@ function OverlayComparison({
                 <span className="adversarial-overlay-label adversarial">
                     Adversaria
                 </span>
-            </div>
+            </button>
 
             <label className="adversarial-split-control">
                 <span>Original {splitState.originalPercent}%</span>
@@ -257,7 +255,7 @@ function AdversarialImageExplorer({
             </header>
 
             <div className="adversarial-explorer-toolbar" aria-label="Controles del explorador">
-                <div className="adversarial-explorer-segmented" role="group" aria-label="Disposición">
+                <fieldset className="adversarial-explorer-segmented semantic-fieldset-reset" aria-label="Disposición">
                     <button
                         type="button"
                         className={layout === 'parallel' ? 'active' : ''}
@@ -274,9 +272,9 @@ function AdversarialImageExplorer({
                     >
                         Superpuesto
                     </button>
-                </div>
+                </fieldset>
 
-                <div className="adversarial-explorer-segmented" role="group" aria-label="Capa visual">
+                <fieldset className="adversarial-explorer-segmented semantic-fieldset-reset" aria-label="Capa visual">
                     <button
                         type="button"
                         className={layer === 'image' ? 'active' : ''}
@@ -295,7 +293,7 @@ function AdversarialImageExplorer({
                             {taskType === 'detection' ? 'Eigen-CAM' : 'Grad-CAM'}
                         </button>
                     )}
-                </div>
+                </fieldset>
 
                 {sources.supportsAnnotations && layer === 'image' && (
                     <label className="adversarial-explorer-toggle">
@@ -317,7 +315,7 @@ function AdversarialImageExplorer({
                     <span>Mostrar perturbación</span>
                 </label>
 
-                <div className="adversarial-zoom-controls" role="group" aria-label="Ampliación sincronizada">
+                <fieldset className="adversarial-zoom-controls semantic-fieldset-reset" aria-label="Ampliación sincronizada">
                     <button
                         type="button"
                         onClick={() => changeZoom(zoom - EXPLORER_ZOOM_STEP)}
@@ -349,7 +347,7 @@ function AdversarialImageExplorer({
                     <button type="button" onClick={resetView}>
                         Restablecer
                     </button>
-                </div>
+                </fieldset>
             </div>
 
             {layout === 'parallel' ? (

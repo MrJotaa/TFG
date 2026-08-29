@@ -11,6 +11,7 @@ import {
     saveIndividualAnalysis,
 } from '../api/individualAnalysisHistory'
 import { predictImage } from '../api/predict'
+import ClassificationTopK from '../components/classification/ClassificationTopK'
 import AdversarialImageExplorer from '../components/visualExplorer/AdversarialImageExplorer'
 import {
     DuplicateAnalysisDialog,
@@ -19,24 +20,16 @@ import {
 } from '../components/individualAnalysis/IndividualAnalysisFlowControls'
 import { useExperiment } from '../context/ExperimentContext'
 import { useNavigationGuard } from '../context/NavigationGuardContext'
-import { resolveCleanDetectionResult } from '../utils/adversarialExplorer'
-import {
-    attackParametersKey,
-    isAttackSupportedForTask,
-} from '../utils/attackCatalog'
 import {
     formatAttackParameters,
     getAttackName,
 } from '../utils/attackFormatting'
+import { buildComparisonViewState } from '../utils/comparisonView'
 import {
     analysisImagePosition,
     formatAnalysisProbability,
     formatSignedInteger,
     formatSignedPercentagePoints,
-    normalizeClassificationPanel,
-    normalizeDetectionPanel,
-    resolveClassificationExplanation,
-    resolveDetectionExplanation,
 } from '../utils/individualAnalysis'
 import { formatCreatedAgo } from '../utils/evaluationHistory'
 import { getCompatibleIndividualAnalysisCandidates } from '../utils/individualAnalysisHistory'
@@ -47,6 +40,12 @@ import {
     resolveSaveState,
     validatePreparedComparison,
 } from '../utils/individualAnalysisFlow'
+
+function detectionExplanationListTitle(title) {
+    if (title === 'Original') return 'Detecciones originales'
+    if (title === 'Tras el ataque') return 'Detecciones tras el ataque'
+    return 'Detecciones explicadas'
+}
 
 function DetectionList({ detections = [], title }) {
     return (
@@ -73,34 +72,6 @@ function DetectionList({ detections = [], title }) {
                 )) : (
                     <p className="detection-result-empty">No hay detecciones en esta condición.</p>
                 )}
-            </div>
-        </section>
-    )
-}
-
-function ClassificationTopK({ title, predictions = [] }) {
-    return (
-        <section className="classification-topk-column">
-            <h4>{title}</h4>
-            <div className="classification-topk-list">
-                {predictions.map((prediction) => {
-                    const probability = Number(prediction.probability)
-                    const width = Number.isFinite(probability)
-                        ? `${Math.max(0, Math.min(100, probability * 100))}%`
-                        : '0%'
-
-                    return (
-                        <div key={prediction.label} className="classification-topk-row">
-                            <div>
-                                <span>{prediction.label}</span>
-                                <strong>{formatAnalysisProbability(prediction.probability)}</strong>
-                            </div>
-                            <span className="classification-topk-track" aria-hidden="true">
-                                <span style={{ width }} />
-                            </span>
-                        </div>
-                    )
-                })}
             </div>
         </section>
     )
@@ -253,7 +224,7 @@ function ClassificationWorkspaceTabs({ activePanel, onSelect }) {
 
 function ClassificationLoadingState({ title, description, onCancel }) {
     return (
-        <div className="classification-inline-loading" role="status">
+        <div className="classification-inline-loading" aria-live="polite">
             <span className="evaluation-loading-spinner" aria-hidden="true" />
             <div>
                 <strong>{title}</strong>
@@ -349,7 +320,7 @@ function DetectionExplainabilityResult({ explanation, selectedImage }) {
                 {items.map(([title, item]) => (
                     <DetectionList
                         key={`${title}-detections`}
-                        title={title === 'Original' ? 'Detecciones originales' : title === 'Tras el ataque' ? 'Detecciones tras el ataque' : 'Detecciones explicadas'}
+                        title={detectionExplanationListTitle(title)}
                         detections={item?.detections ?? []}
                     />
                 ))}
@@ -453,6 +424,921 @@ function DetectionResults({ result }) {
     )
 }
 
+
+
+function ClassificationCleanPanel({
+    historyMode,
+    cleanPrediction,
+    loadingPrediction,
+    busy,
+    selectedImage,
+    handlePredict,
+    handleCancelOperation,
+}) {
+    let content
+    if (loadingPrediction) {
+        content = (
+            <ClassificationLoadingState
+                title="Calculando predicción original"
+                description="El resultado aparecerá en este mismo espacio de análisis."
+                onCancel={handleCancelOperation}
+            />
+        )
+    } else if (cleanPrediction) {
+        content = (
+            <CleanPredictionResult
+                prediction={cleanPrediction}
+                selectedImage={selectedImage}
+            />
+        )
+    } else {
+        content = (
+            <AnalysisPrompt
+                eyebrow="Inferencia original"
+                title="Predice esta imagen"
+                description="Obtén la clase predicha, su confianza y el Top-K sin modificar la imagen."
+                actionLabel="Ejecutar predicción"
+                onAction={handlePredict}
+            />
+        )
+    }
+
+    return (
+        <section className="classification-analysis-mode">
+            <header className="classification-mode-heading">
+                <div>
+                    <span className="evaluation-eyebrow">Predicción</span>
+                    <h3>Qué reconoce el modelo</h3>
+                    <p>
+                        Ejecuta únicamente la inferencia original cuando no necesites aplicar un ataque.
+                    </p>
+                </div>
+                {!historyMode && cleanPrediction && !loadingPrediction && (
+                    <button
+                        type="button"
+                        className="secondary-action"
+                        onClick={handlePredict}
+                        disabled={busy}
+                    >
+                        Repetir predicción
+                    </button>
+                )}
+            </header>
+            {content}
+        </section>
+    )
+}
+
+function ClassificationAttackPanel({
+    historyMode,
+    attackResult,
+    loading,
+    busy,
+    isAttackSupported,
+    attackName,
+    taskType,
+    selectedImage,
+    imageDimensions,
+    handleRunAttack,
+    handleCancelOperation,
+}) {
+    let content
+    if (loading) {
+        content = (
+            <ClassificationLoadingState
+                title={`Aplicando ${attackName}`}
+                description="Se calculan la referencia original, la imagen adversaria, Grad-CAM y la perturbación."
+                onCancel={handleCancelOperation}
+            />
+        )
+    } else if (attackResult) {
+        content = (
+            <>
+                <AdversarialImageExplorer
+                    key={attackResult.result_id}
+                    taskType={taskType}
+                    selectedImage={selectedImage}
+                    attackResult={attackResult}
+                    filename={selectedImage.filename}
+                    imageDimensions={imageDimensions}
+                    perturbationMetrics={{
+                        linf: attackResult.comparison.perturbation_linf,
+                        l2: attackResult.comparison.perturbation_l2,
+                    }}
+                />
+                <ClassificationResults result={attackResult} />
+            </>
+        )
+    } else {
+        content = (
+            <AnalysisPrompt
+                eyebrow="Robustez adversaria"
+                title="Compara la imagen frente al ataque"
+                description={`El ataque ${attackName} calculará también la predicción original y los Grad-CAM necesarios para la exploración visual.`}
+                actionLabel={`Aplicar ${attackName} y comparar`}
+                onAction={handleRunAttack}
+                disabled={!isAttackSupported}
+            />
+        )
+    }
+
+    return (
+        <section className="classification-analysis-mode">
+            <header className="classification-mode-heading">
+                <div>
+                    <span className="evaluation-eyebrow">Comparación adversaria</span>
+                    <h3>Original frente al resultado tras el ataque</h3>
+                    <p>
+                        Conserva el visor sincronizado, la superposición y Grad-CAM para comparar ambas condiciones.
+                    </p>
+                </div>
+                {!historyMode && attackResult && !loading && (
+                    <button
+                        type="button"
+                        className="secondary-action"
+                        onClick={handleRunAttack}
+                        disabled={busy || !isAttackSupported}
+                    >
+                        Repetir ataque
+                    </button>
+                )}
+            </header>
+            {content}
+        </section>
+    )
+}
+
+function ClassificationExplanationPanel({
+    historyMode,
+    classificationExplanation,
+    loadingExplainability,
+    busy,
+    selectedImage,
+    handleGenerateExplainability,
+    handleCancelOperation,
+}) {
+    let content
+    if (loadingExplainability) {
+        content = (
+            <ClassificationLoadingState
+                title="Generando Grad-CAM"
+                description="El mapa resaltará las regiones con mayor influencia sobre la predicción original."
+                onCancel={handleCancelOperation}
+            />
+        )
+    } else if (classificationExplanation) {
+        content = (
+            <ClassificationExplainabilityResult
+                explanation={classificationExplanation}
+                selectedImage={selectedImage}
+            />
+        )
+    } else if (historyMode) {
+        content = (
+            <div className="dashboard-empty-state individual-history-explanation-empty">
+                <strong>Grad-CAM no se guardó con este análisis</strong>
+                <span>El historial conserva únicamente los artefactos que ya existían cuando se guardó el resultado.</span>
+            </div>
+        )
+    } else {
+        content = (
+            <AnalysisPrompt
+                eyebrow="Atención visual"
+                title="Genera Grad-CAM para esta imagen"
+                description="Obtén una explicación visual de la predicción sin necesidad de ejecutar un ataque."
+                actionLabel="Generar Grad-CAM"
+                onAction={handleGenerateExplainability}
+            />
+        )
+    }
+
+    return (
+        <section className="classification-analysis-mode">
+            <header className="classification-mode-heading">
+                <div>
+                    <span className="evaluation-eyebrow">Explicabilidad</span>
+                    <h3>Dónde se fija el modelo</h3>
+                    <p>
+                        Analiza Grad-CAM como resultado independiente o compara la atención original y adversaria cuando ya existe un ataque.
+                    </p>
+                </div>
+                {!historyMode && classificationExplanation?.mode === 'single' && !loadingExplainability && (
+                    <button
+                        type="button"
+                        className="secondary-action"
+                        onClick={handleGenerateExplainability}
+                        disabled={busy}
+                    >
+                        Regenerar Grad-CAM
+                    </button>
+                )}
+            </header>
+            {content}
+        </section>
+    )
+}
+
+function ClassificationWorkspacePanel(props) {
+    if (props.activePanel === 'attack') {
+        return <ClassificationAttackPanel {...props} />
+    }
+    if (props.activePanel === 'explanation') {
+        return <ClassificationExplanationPanel {...props} />
+    }
+    return <ClassificationCleanPanel {...props} />
+}
+
+function DetectionCleanPanel({
+    historyMode,
+    cleanDetection,
+    loadingPrediction,
+    busy,
+    selectedImage,
+    handlePredict,
+    handleCancelOperation,
+}) {
+    let content
+    if (loadingPrediction) {
+        content = (
+            <ClassificationLoadingState
+                title="Ejecutando detección original"
+                description="Las cajas y confianzas aparecerán en este mismo espacio de análisis."
+                onCancel={handleCancelOperation}
+            />
+        )
+    } else if (cleanDetection) {
+        content = <CleanDetectionResult detection={cleanDetection} selectedImage={selectedImage} />
+    } else {
+        content = (
+            <AnalysisPrompt
+                eyebrow="Detección original"
+                title="Detecta los objetos de esta imagen"
+                description="Obtén las cajas, clases y confianzas sin modificar la imagen seleccionada."
+                actionLabel="Ejecutar detección"
+                onAction={handlePredict}
+            />
+        )
+    }
+
+    return (
+        <section className="classification-analysis-mode">
+            <header className="classification-mode-heading">
+                <div>
+                    <span className="evaluation-eyebrow">Inferencia original</span>
+                    <h3>Detecciones de la imagen</h3>
+                    <p>
+                        Inspecciona las cajas, clases y confianzas del detector antes de aplicar perturbaciones.
+                    </p>
+                </div>
+                {!historyMode && cleanDetection && !loadingPrediction && (
+                    <button type="button" className="secondary-action" onClick={handlePredict} disabled={busy}>
+                        Repetir detección
+                    </button>
+                )}
+            </header>
+            {content}
+        </section>
+    )
+}
+
+function DetectionAttackPanel({
+    historyMode,
+    attackResult,
+    loading,
+    busy,
+    isAttackSupported,
+    attackName,
+    taskType,
+    selectedImage,
+    imageDimensions,
+    handleRunAttack,
+    handleCancelOperation,
+}) {
+    let content
+    if (loading) {
+        content = (
+            <ClassificationLoadingState
+                title={`Aplicando ${attackName}`}
+                description="Se calculan la referencia original, la imagen adversaria, las detecciones y, cuando el detector lo permite, Eigen-CAM."
+                onCancel={handleCancelOperation}
+            />
+        )
+    } else if (attackResult) {
+        content = (
+            <>
+                <AdversarialImageExplorer
+                    key={attackResult.result_id}
+                    taskType={taskType}
+                    selectedImage={selectedImage}
+                    attackResult={attackResult}
+                    filename={selectedImage.filename}
+                    imageDimensions={imageDimensions}
+                    perturbationMetrics={{
+                        linf: attackResult.comparison.perturbation_linf,
+                        l2: attackResult.comparison.perturbation_l2,
+                    }}
+                />
+                <DetectionResults result={attackResult} />
+            </>
+        )
+    } else {
+        content = (
+            <AnalysisPrompt
+                eyebrow="Robustez adversaria"
+                title="Compara las detecciones frente al ataque"
+                description={`El ataque ${attackName} calculará también la detección original y los artefactos visuales disponibles para este modelo.`}
+                actionLabel={`Aplicar ${attackName} y comparar`}
+                onAction={handleRunAttack}
+                disabled={!isAttackSupported}
+            />
+        )
+    }
+
+    return (
+        <section className="classification-analysis-mode">
+            <header className="classification-mode-heading">
+                <div>
+                    <span className="evaluation-eyebrow">Comparación adversaria</span>
+                    <h3>Detecciones antes y después del ataque</h3>
+                    <p>
+                        Conserva el visor sincronizado, la superposición, las cajas y Eigen-CAM para comparar ambas condiciones.
+                    </p>
+                </div>
+                {!historyMode && attackResult && !loading && (
+                    <button
+                        type="button"
+                        className="secondary-action"
+                        onClick={handleRunAttack}
+                        disabled={busy || !isAttackSupported}
+                    >
+                        Repetir ataque
+                    </button>
+                )}
+            </header>
+            {content}
+        </section>
+    )
+}
+
+function DetectionExplanationPanel({
+    historyMode,
+    detectionExplanation,
+    loadingExplainability,
+    busy,
+    selectedImage,
+    handleGenerateExplainability,
+    handleCancelOperation,
+}) {
+    let content
+    if (loadingExplainability) {
+        content = (
+            <ClassificationLoadingState
+                title="Generando Eigen-CAM"
+                description="El mapa resaltará las regiones con mayor influencia sobre las detecciones originales."
+                onCancel={handleCancelOperation}
+            />
+        )
+    } else if (detectionExplanation) {
+        content = (
+            <DetectionExplainabilityResult
+                explanation={detectionExplanation}
+                selectedImage={selectedImage}
+            />
+        )
+    } else if (historyMode) {
+        content = (
+            <div className="dashboard-empty-state individual-history-explanation-empty">
+                <strong>Eigen-CAM no se guardó con este análisis</strong>
+                <span>El historial conserva únicamente los artefactos que ya existían cuando se guardó el resultado.</span>
+            </div>
+        )
+    } else {
+        content = (
+            <AnalysisPrompt
+                eyebrow="Atención visual"
+                title="Genera Eigen-CAM para esta imagen"
+                description="Obtén una explicación visual de las detecciones sin necesidad de ejecutar un ataque."
+                actionLabel="Generar Eigen-CAM"
+                onAction={handleGenerateExplainability}
+            />
+        )
+    }
+
+    return (
+        <section className="classification-analysis-mode">
+            <header className="classification-mode-heading">
+                <div>
+                    <span className="evaluation-eyebrow">Explicabilidad</span>
+                    <h3>Dónde se fija el detector</h3>
+                    <p>
+                        Analiza Eigen-CAM como resultado independiente o compara la atención original y adversaria cuando el ataque ya la ha generado.
+                    </p>
+                </div>
+                {!historyMode && detectionExplanation?.mode === 'single' && !loadingExplainability && (
+                    <button
+                        type="button"
+                        className="secondary-action"
+                        onClick={handleGenerateExplainability}
+                        disabled={busy}
+                    >
+                        Regenerar Eigen-CAM
+                    </button>
+                )}
+            </header>
+            {content}
+        </section>
+    )
+}
+
+function DetectionWorkspacePanel(props) {
+    if (props.activePanel === 'attack') {
+        return <DetectionAttackPanel {...props} />
+    }
+    if (props.activePanel === 'explanation') {
+        return <DetectionExplanationPanel {...props} />
+    }
+    return <DetectionCleanPanel {...props} />
+}
+
+
+function ClassificationAnalysisContent(props) {
+    const {
+        activePanel, attackName, attackParameterSummary, attackResult, busy, classificationExplanation, cleanPrediction,
+        contextOpen, datasetImages, error, historyMode, imageContextKey, imageDimensions, isAttackSupported, loading,
+        loadingExplainability, loadingPrediction, pendingComparisonCopy, pendingIndividualComparison, recoveredHistoryItem,
+        saveState, savingAnalysis, selectedDataset, selectedImage, selectedIndex, taskType, viewModel, handleCancelOperation,
+        handleGenerateExplainability, handleOpenCompareDialog, handlePredict, handleRunAttack, handleSaveAnalysis,
+        selectRelativeImage, setActivePanelState, setContextOpen,
+    } = props
+
+    return <>
+    {pendingIndividualComparison && (
+        <div className="individual-analysis-preparing-b">
+            <span className="individual-comparison-side-token">B</span>
+            <div>
+                <strong>Preparando B · {pendingComparisonCopy.label}</strong>
+                <p>{pendingComparisonCopy.instruction} Antes de ejecutar se validará la identidad experimental exacta.</p>
+            </div>
+        </div>
+    )}
+    <section className="classification-context-shell">
+        <div className="classification-context-strip">
+            <div className="classification-context-summary">
+                <strong title={viewModel.name}>{viewModel.name}</strong>
+                <span aria-hidden="true">/</span>
+                <span>{attackName} {attackParameterSummary}</span>
+                <span aria-hidden="true">/</span>
+                <span>{selectedDataset.name}</span>
+            </div>
+
+            <div className="classification-context-actions">
+                <div className="classification-image-nav" aria-label="Navegación entre imágenes">
+                    <button
+                        type="button"
+                        onClick={() => selectRelativeImage(-1)}
+                        disabled={selectedIndex <= 0 || busy || historyMode}
+                        aria-label="Imagen anterior"
+                        title="Imagen anterior"
+                    >
+                        ‹
+                    </button>
+                    <span title={selectedImage.filename}>
+                        {analysisImagePosition(selectedIndex, datasetImages.length)}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => selectRelativeImage(1)}
+                        disabled={
+                            selectedIndex < 0 ||
+                            selectedIndex >= datasetImages.length - 1 ||
+                            busy ||
+                            historyMode
+                        }
+                        aria-label="Imagen siguiente"
+                        title="Imagen siguiente"
+                    >
+                        ›
+                    </button>
+                </div>
+                <button
+                    type="button"
+                    className="classification-context-toggle"
+                    aria-expanded={contextOpen}
+                    onClick={() => setContextOpen((current) => !current)}
+                >
+                    Contexto{' '}
+                    <span aria-hidden="true">{contextOpen ? '▴' : '▾'}</span>
+                </button>
+            </div>
+        </div>
+
+        {contextOpen && (
+            <dl className="classification-context-details">
+                <div>
+                    <dt>Imagen</dt>
+                    <dd>{selectedImage.filename}</dd>
+                </div>
+                <div>
+                    <dt>Geometría</dt>
+                    <dd>{imageDimensions || 'No disponible'}</dd>
+                </div>
+                <div>
+                    <dt>Modelo</dt>
+                    <dd>{viewModel.name}</dd>
+                </div>
+                <div>
+                    <dt>Ataque</dt>
+                    <dd>{attackName}</dd>
+                </div>
+                <div>
+                    <dt>Parámetros</dt>
+                    <dd>{attackParameterSummary || 'Configuración por defecto'}</dd>
+                </div>
+                <div>
+                    <dt>Dataset</dt>
+                    <dd>{selectedDataset.name}</dd>
+                </div>
+                {attackResult?.result_id && (
+                    <div>
+                        <dt>{historyMode ? 'Análisis guardado' : 'Resultado temporal'}</dt>
+                        <dd>{historyMode ? recoveredHistoryItem.analysis_id : attackResult.result_id}</dd>
+                    </div>
+                )}
+            </dl>
+        )}
+    </section>
+
+    {historyMode && (
+        <div className="individual-history-readonly-notice">
+            <div>
+                <span className="evaluation-eyebrow">Historial</span>
+                <strong>Análisis individual conservado</strong>
+            </div>
+            <p>
+                Estás inspeccionando el resultado guardado de {formatCreatedAgo(recoveredHistoryItem.saved_at)}.
+                Los cálculos se muestran tal como fueron persistidos y no se repiten al abrirlos.
+            </p>
+        </div>
+    )}
+
+    {error && <p className="error classification-analysis-error" role="alert">{error}</p>}
+
+    {!historyMode && !isAttackSupported && (
+        <div className="evaluation-warning-banner">
+            El ataque seleccionado no es compatible con el modelo activo.
+            Cámbialo desde el panel principal antes de ejecutar la comparación.
+        </div>
+    )}
+
+    <ClassificationWorkspaceTabs
+        activePanel={activePanel}
+        onSelect={(panel) => setActivePanelState({
+            contextKey: imageContextKey,
+            panel,
+        })}
+    />
+
+    <div className="classification-analysis-workspace">
+        <ClassificationWorkspacePanel
+            activePanel={activePanel}
+            historyMode={historyMode}
+            cleanPrediction={cleanPrediction}
+            loadingPrediction={loadingPrediction}
+            loading={loading}
+            busy={busy}
+            selectedImage={selectedImage}
+            attackResult={attackResult}
+            isAttackSupported={isAttackSupported}
+            attackName={attackName}
+            taskType={taskType}
+            imageDimensions={imageDimensions}
+            classificationExplanation={classificationExplanation}
+            loadingExplainability={loadingExplainability}
+            handlePredict={handlePredict}
+            handleRunAttack={handleRunAttack}
+            handleGenerateExplainability={handleGenerateExplainability}
+            handleCancelOperation={handleCancelOperation}
+        />
+    </div>
+
+    {attackResult && (
+        <IndividualAnalysisActionBar
+            historyMode={historyMode}
+            saveState={saveState}
+            saving={savingAnalysis}
+            onSave={handleSaveAnalysis}
+            onCompare={handleOpenCompareDialog}
+        />
+    )}
+</>
+}
+
+function ClassificationAnalysisPage(props) {
+    const {
+        attackCatalog, checkingHistory, compareDialogOpen, comparisonCandidates, currentReference, duplicateAnalysis,
+        handleCompareSavedCandidate, handleOpenDuplicate, handlePrepareComparison, handleRecalculateDuplicate,
+        handleUseDuplicateAsB, loading, loadingComparisonCandidates, navigateToDashboard, pendingIndividualComparison,
+        selectedDataset, selectedImage, setCompareDialogOpen, setDuplicateAnalysis, viewModel,
+    } = props
+    const hasContext = Boolean(selectedDataset && selectedImage && viewModel)
+
+    return (
+            <section className="comparison-page classification-analysis-page">
+                <header className="classification-analysis-header">
+                    <span className="evaluation-eyebrow">Análisis individual · Clasificación</span>
+                    <h2>Predicción, robustez y atención del modelo</h2>
+                    <p>
+                        Explora la inferencia original, compara el efecto del ataque y
+                        analiza Grad-CAM sin abandonar la misma imagen.
+                    </p>
+                </header>
+
+                {hasContext ? (
+                    <ClassificationAnalysisContent {...props} />
+                ) : (
+                    <div className="classification-analysis-missing">
+                        <span className="evaluation-eyebrow">Contexto incompleto</span>
+                        <h3>Selecciona el experimento antes de analizar</h3>
+                        <p>
+                            Necesitas un conjunto de datos, una imagen y un modelo activo.
+                        </p>
+                        <button
+                            type="button"
+                            className="primary-action"
+                            onClick={navigateToDashboard}
+                        >
+                            Configurar experimento
+                        </button>
+                    </div>
+                )}
+
+                <DuplicateAnalysisDialog
+                    match={duplicateAnalysis?.match}
+                    attackCatalog={attackCatalog}
+                    preparingB={Boolean(pendingIndividualComparison)}
+                    busy={checkingHistory || loading}
+                    onOpenSaved={handleOpenDuplicate}
+                    onUseAsB={handleUseDuplicateAsB}
+                    onRecalculate={handleRecalculateDuplicate}
+                    onCancel={() => setDuplicateAnalysis(null)}
+                />
+                {compareDialogOpen && currentReference && (
+                    <IndividualAnalysisCompareDialog
+                        baseItem={currentReference.item}
+                        candidates={comparisonCandidates}
+                        loadingCandidates={loadingComparisonCandidates}
+                        attackCatalog={attackCatalog}
+                        onPrepare={handlePrepareComparison}
+                        onCompareCandidate={handleCompareSavedCandidate}
+                        onClose={() => setCompareDialogOpen(false)}
+                    />
+                )}
+            </section>
+        )
+}
+
+
+function DetectionAnalysisContent(props) {
+    const {
+        activePanel, attackName, attackParameterSummary, attackResult, busy, cleanDetection, contextOpen, datasetImages,
+        detectionExplanation, error, explainabilityResult, historyMode, imageContextKey, imageDimensions, isAttackSupported,
+        loading, loadingExplainability, loadingPrediction, pendingComparisonCopy, pendingIndividualComparison,
+        recoveredHistoryItem, saveState, savingAnalysis, selectedDataset, selectedImage, selectedIndex, taskType, viewModel,
+        handleCancelOperation, handleGenerateExplainability, handleOpenCompareDialog, handlePredict, handleRunAttack,
+        handleSaveAnalysis, selectRelativeImage, setActivePanelState, setContextOpen,
+    } = props
+
+    return <>
+    {pendingIndividualComparison && (
+        <div className="individual-analysis-preparing-b">
+            <span className="individual-comparison-side-token">B</span>
+            <div>
+                <strong>Preparando B · {pendingComparisonCopy.label}</strong>
+                <p>{pendingComparisonCopy.instruction} Antes de ejecutar se validará la identidad experimental exacta.</p>
+            </div>
+        </div>
+    )}
+    <section className="classification-context-shell">
+        <div className="classification-context-strip">
+            <div className="classification-context-summary">
+                <strong title={viewModel.name}>{viewModel.name}</strong>
+                <span aria-hidden="true">/</span>
+                <span>{attackName} {attackParameterSummary}</span>
+                <span aria-hidden="true">/</span>
+                <span>{selectedDataset.name}</span>
+            </div>
+
+            <div className="classification-context-actions">
+                <div className="classification-image-nav" aria-label="Navegación entre imágenes">
+                    <button
+                        type="button"
+                        onClick={() => selectRelativeImage(-1)}
+                        disabled={selectedIndex <= 0 || busy || historyMode}
+                        aria-label="Imagen anterior"
+                        title="Imagen anterior"
+                    >
+                        ‹
+                    </button>
+                    <span title={selectedImage.filename}>
+                        {analysisImagePosition(selectedIndex, datasetImages.length)}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => selectRelativeImage(1)}
+                        disabled={
+                            selectedIndex < 0 ||
+                            selectedIndex >= datasetImages.length - 1 ||
+                            busy ||
+                            historyMode
+                        }
+                        aria-label="Imagen siguiente"
+                        title="Imagen siguiente"
+                    >
+                        ›
+                    </button>
+                </div>
+
+                <button
+                    type="button"
+                    className="classification-context-toggle"
+                    aria-expanded={contextOpen}
+                    onClick={() => setContextOpen((current) => !current)}
+                >
+                    Contexto{' '}
+                    <span aria-hidden="true">{contextOpen ? '▴' : '▾'}</span>
+                </button>
+            </div>
+        </div>
+
+        {contextOpen && (
+            <dl className="classification-context-details">
+                <div>
+                    <dt>Imagen</dt>
+                    <dd>{selectedImage.filename}</dd>
+                </div>
+                <div>
+                    <dt>Geometría</dt>
+                    <dd>{imageDimensions || 'No disponible'}</dd>
+                </div>
+                <div>
+                    <dt>Modelo</dt>
+                    <dd>{viewModel.name}</dd>
+                </div>
+                <div>
+                    <dt>Ataque</dt>
+                    <dd>{attackName}</dd>
+                </div>
+                <div>
+                    <dt>Parámetros</dt>
+                    <dd>{attackParameterSummary || 'Sin parámetros'}</dd>
+                </div>
+                <div>
+                    <dt>Dataset</dt>
+                    <dd>{selectedDataset.name}</dd>
+                </div>
+                {(attackResult?.result_id || explainabilityResult?.result_id) && (
+                    <div>
+                        <dt>{historyMode ? 'Análisis guardado' : 'Resultado temporal'}</dt>
+                        <dd>{historyMode ? recoveredHistoryItem.analysis_id : attackResult?.result_id || explainabilityResult?.result_id}</dd>
+                    </div>
+                )}
+            </dl>
+        )}
+    </section>
+
+    {historyMode && (
+        <div className="individual-history-readonly-notice">
+            <div>
+                <span className="evaluation-eyebrow">Historial</span>
+                <strong>Análisis individual conservado</strong>
+            </div>
+            <p>
+                Estás inspeccionando el resultado guardado de {formatCreatedAgo(recoveredHistoryItem.saved_at)}.
+                Los cálculos se muestran tal como fueron persistidos y no se repiten al abrirlos.
+            </p>
+        </div>
+    )}
+
+    {error && (
+        <p className="error classification-analysis-error" role="alert">
+            {error}
+        </p>
+    )}
+
+    {!historyMode && !isAttackSupported && (
+        <div className="evaluation-warning-banner">
+            El ataque seleccionado no es compatible con este detector.
+            Cambia el ataque desde el panel principal.
+        </div>
+    )}
+
+    <DetectionWorkspaceTabs
+        activePanel={activePanel}
+        onSelect={(panel) => setActivePanelState({
+            contextKey: imageContextKey,
+            panel,
+        })}
+    />
+
+    <div className="classification-analysis-workspace">
+        <DetectionWorkspacePanel
+            activePanel={activePanel}
+            historyMode={historyMode}
+            cleanDetection={cleanDetection}
+            loadingPrediction={loadingPrediction}
+            loading={loading}
+            busy={busy}
+            selectedImage={selectedImage}
+            attackResult={attackResult}
+            isAttackSupported={isAttackSupported}
+            attackName={attackName}
+            taskType={taskType}
+            imageDimensions={imageDimensions}
+            detectionExplanation={detectionExplanation}
+            loadingExplainability={loadingExplainability}
+            handlePredict={handlePredict}
+            handleRunAttack={handleRunAttack}
+            handleGenerateExplainability={handleGenerateExplainability}
+            handleCancelOperation={handleCancelOperation}
+        />
+    </div>
+
+    {attackResult && (
+        <IndividualAnalysisActionBar
+            historyMode={historyMode}
+            saveState={saveState}
+            saving={savingAnalysis}
+            onSave={handleSaveAnalysis}
+            onCompare={handleOpenCompareDialog}
+        />
+    )}
+</>
+}
+
+function DetectionAnalysisPage(props) {
+    const {
+        attackCatalog, checkingHistory, compareDialogOpen, comparisonCandidates, currentReference, duplicateAnalysis,
+        handleCompareSavedCandidate, handleOpenDuplicate, handlePrepareComparison, handleRecalculateDuplicate,
+        handleUseDuplicateAsB, loading, loadingComparisonCandidates, navigateToDashboard, pendingIndividualComparison,
+        selectedDataset, selectedImage, setCompareDialogOpen, setDuplicateAnalysis, viewModel,
+    } = props
+    const hasDetectionContext = Boolean(selectedDataset && selectedImage && viewModel)
+
+    return (
+        <section className="comparison-page classification-analysis-page detection-analysis-page">
+            <header className="classification-analysis-header">
+                <span className="evaluation-eyebrow">Análisis individual · Detección</span>
+                <h2>Detección, robustez y atención del modelo</h2>
+                <p>
+                    Explora las detecciones originales, compara el efecto del ataque y
+                    analiza Eigen-CAM sin abandonar la misma imagen.
+                </p>
+            </header>
+
+            {hasDetectionContext ? (
+                <DetectionAnalysisContent {...props} />
+            ) : (
+                <div className="classification-analysis-missing">
+                    <span className="evaluation-eyebrow">Contexto incompleto</span>
+                    <h3>Selecciona el experimento antes de analizar</h3>
+                    <p>
+                        Necesitas un conjunto de datos, una imagen y un detector activo.
+                    </p>
+                    <button
+                        type="button"
+                        className="primary-action"
+                        onClick={navigateToDashboard}
+                    >
+                        Configurar experimento
+                    </button>
+                </div>
+            )}
+
+            <DuplicateAnalysisDialog
+                match={duplicateAnalysis?.match}
+                attackCatalog={attackCatalog}
+                preparingB={Boolean(pendingIndividualComparison)}
+                busy={checkingHistory || loading}
+                onOpenSaved={handleOpenDuplicate}
+                onUseAsB={handleUseDuplicateAsB}
+                onRecalculate={handleRecalculateDuplicate}
+                onCancel={() => setDuplicateAnalysis(null)}
+            />
+            {compareDialogOpen && currentReference && (
+                <IndividualAnalysisCompareDialog
+                    baseItem={currentReference.item}
+                    candidates={comparisonCandidates}
+                    loadingCandidates={loadingComparisonCandidates}
+                    attackCatalog={attackCatalog}
+                    onPrepare={handlePrepareComparison}
+                    onCompareCandidate={handleCompareSavedCandidate}
+                    onClose={() => setCompareDialogOpen(false)}
+                />
+            )}
+        </section>
+    )
+}
+
 function ComparisonView() {
     const navigate = useNavigate()
     const {
@@ -489,127 +1375,56 @@ function ComparisonView() {
     const [errorState, setErrorState] = useState(null)
     const requestAbortController = useRef(null)
 
-    const recoveredHistoryItem = recoveredIndividualAnalysis?.historyItem ?? null
-    const recoveredAnalysis = recoveredIndividualAnalysis?.data ?? null
-    const historyMode = Boolean(recoveredHistoryItem && recoveredAnalysis)
-    const viewModel = historyMode
-        ? {
-            id: recoveredHistoryItem.model_id,
-            name: recoveredHistoryItem.model_name,
-            task_type: recoveredHistoryItem.task_type,
-        }
-        : activeModel
-    const viewAttack = historyMode ? recoveredHistoryItem.attack_type : selectedAttack
-    const viewAttackParameters = historyMode
-        ? recoveredHistoryItem.parameters
-        : attackParameters
-    const taskType = viewModel?.task_type ?? 'classification'
-    const isDetection = taskType === 'detection'
-    const isAttackSupported = isAttackSupportedForTask(
-        attackCatalog,
+    const {
+        recoveredHistoryItem,
+        historyMode,
+        viewModel,
         viewAttack,
+        viewAttackParameters,
         taskType,
-    )
+        isDetection,
+        isAttackSupported,
+        imageContextKey,
+        attackContextKey,
+        explainabilityResult,
+        attackResult,
+        activePanel,
+        cleanPrediction,
+        cleanDetection,
+        classificationExplanation,
+        detectionExplanation,
+        saveState,
+        currentReference,
+        error,
+        busy,
+        hasTemporaryWork,
+    } = buildComparisonViewState({
+        selectedDataset,
+        selectedImage,
+        activeModel,
+        attackCatalog,
+        selectedAttack,
+        attackParameters,
+        recoveredIndividualAnalysis,
+        pendingIndividualComparison,
+        predictionResultState,
+        attackResultState,
+        explainabilityResultState,
+        activePanelState,
+        savedAnalysisState,
+        errorState,
+        loading,
+        loadingPrediction,
+        loadingExplainability,
+        checkingHistory,
+        savingAnalysis,
+    })
     const datasetImages = useMemo(
         () => selectedDataset?.images ?? [],
         [selectedDataset],
     )
     const selectedIndex = datasetImages.findIndex(
         (image) => image.id === selectedImage?.id,
-    )
-    const imageContextKey = [
-        selectedDataset?.id,
-        selectedImage?.id,
-        viewModel?.id,
-    ].join(':')
-    const attackContextKey = [
-        imageContextKey,
-        viewAttack,
-        attackParametersKey(viewAttackParameters),
-    ].join(':')
-    const predictionResult = predictionResultState?.contextKey === imageContextKey
-        ? predictionResultState.data
-        : null
-    const attackResult = historyMode
-        ? recoveredAnalysis
-        : attackResultState?.contextKey === attackContextKey
-            ? attackResultState.data
-            : null
-    const attackIdentity = !historyMode && attackResultState?.contextKey === attackContextKey
-        ? attackResultState.identity ?? null
-        : null
-    const explainabilityResult =
-        explainabilityResultState?.contextKey === imageContextKey
-            ? explainabilityResultState.data
-            : null
-    const cleanPrediction = !isDetection
-        ? attackResult?.original_prediction ?? predictionResult
-        : null
-    const cleanDetection = isDetection
-        ? resolveCleanDetectionResult({
-            detectionResult: predictionResult,
-            attackResult,
-        })
-        : null
-    const requestedPanel = activePanelState?.contextKey === imageContextKey
-        ? activePanelState.panel
-        : historyMode ? 'attack' : 'clean'
-    const activePanel = !isDetection
-        ? normalizeClassificationPanel(requestedPanel)
-        : normalizeDetectionPanel(requestedPanel)
-    const classificationExplanation = !isDetection
-        ? resolveClassificationExplanation({
-            attackResult,
-            explainabilityResult,
-        })
-        : null
-    const detectionExplanation = isDetection
-        ? resolveDetectionExplanation({
-            attackResult,
-            explainabilityResult,
-        })
-        : null
-    const error = errorState?.contextKey === imageContextKey
-        ? errorState.message
-        : ''
-    const currentSavedAnalysis = !historyMode
-        && savedAnalysisState?.resultId === attackResult?.result_id
-        ? savedAnalysisState
-        : null
-    const saveState = historyMode ? 'saved' : currentSavedAnalysis?.status ?? 'temporary'
-    const temporaryItem = !historyMode && attackResult && attackIdentity
-        ? makeTemporaryAnalysisItem({ identity: attackIdentity, analysis: attackResult })
-        : null
-    const currentReference = historyMode
-        ? makeAnalysisReference({
-            item: recoveredHistoryItem,
-            analysis: recoveredAnalysis,
-            dataset: selectedDataset,
-            image: selectedImage,
-            temporary: false,
-        })
-        : temporaryItem
-            ? makeAnalysisReference({
-                item: saveState === 'saved' && currentSavedAnalysis?.item
-                    ? currentSavedAnalysis.item
-                    : temporaryItem,
-                analysis: attackResult,
-                dataset: selectedDataset,
-                image: selectedImage,
-                temporary: saveState !== 'saved',
-            })
-            : null
-    const busy = loading
-        || loadingPrediction
-        || loadingExplainability
-        || checkingHistory
-        || savingAnalysis
-    const hasTemporaryWork = Boolean(
-        pendingIndividualComparison?.base?.temporary
-        || (!historyMode && (
-            (attackResult && saveState !== 'saved')
-            || (!attackResult && (predictionResult || explainabilityResult))
-        )),
     )
 
     useEffect(() => {
@@ -985,706 +1800,26 @@ function ComparisonView() {
         ? individualComparisonKindCopy(pendingIndividualComparison.kind)
         : null
 
-    if (!isDetection) {
-        const hasContext = Boolean(selectedDataset && selectedImage && viewModel)
-
-        return (
-            <section className="comparison-page classification-analysis-page">
-                <header className="classification-analysis-header">
-                    <span className="evaluation-eyebrow">Análisis individual · Clasificación</span>
-                    <h2>Predicción, robustez y atención del modelo</h2>
-                    <p>
-                        Explora la inferencia original, compara el efecto del ataque y
-                        analiza Grad-CAM sin abandonar la misma imagen.
-                    </p>
-                </header>
-
-                {!hasContext ? (
-                    <div className="classification-analysis-missing">
-                        <span className="evaluation-eyebrow">Contexto incompleto</span>
-                        <h3>Selecciona el experimento antes de analizar</h3>
-                        <p>
-                            Necesitas un conjunto de datos, una imagen y un modelo activo.
-                        </p>
-                        <button
-                            type="button"
-                            className="primary-action"
-                            onClick={navigateToDashboard}
-                        >
-                            Configurar experimento
-                        </button>
-                    </div>
-                ) : (
-                    <>
-                        {pendingIndividualComparison && (
-                            <div className="individual-analysis-preparing-b">
-                                <span className="individual-comparison-side-token">B</span>
-                                <div>
-                                    <strong>Preparando B · {pendingComparisonCopy.label}</strong>
-                                    <p>{pendingComparisonCopy.instruction} Antes de ejecutar se validará la identidad experimental exacta.</p>
-                                </div>
-                            </div>
-                        )}
-                        <section className="classification-context-shell">
-                            <div className="classification-context-strip">
-                                <div className="classification-context-summary">
-                                    <strong title={viewModel.name}>{viewModel.name}</strong>
-                                    <span aria-hidden="true">/</span>
-                                    <span>{attackName} {attackParameterSummary}</span>
-                                    <span aria-hidden="true">/</span>
-                                    <span>{selectedDataset.name}</span>
-                                </div>
-
-                                <div className="classification-context-actions">
-                                    <div className="classification-image-nav" aria-label="Navegación entre imágenes">
-                                        <button
-                                            type="button"
-                                            onClick={() => selectRelativeImage(-1)}
-                                            disabled={selectedIndex <= 0 || busy || historyMode}
-                                            aria-label="Imagen anterior"
-                                            title="Imagen anterior"
-                                        >
-                                            ‹
-                                        </button>
-                                        <span title={selectedImage.filename}>
-                                            {analysisImagePosition(selectedIndex, datasetImages.length)}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() => selectRelativeImage(1)}
-                                            disabled={
-                                                selectedIndex < 0 ||
-                                                selectedIndex >= datasetImages.length - 1 ||
-                                                busy ||
-                                                historyMode
-                                            }
-                                            aria-label="Imagen siguiente"
-                                            title="Imagen siguiente"
-                                        >
-                                            ›
-                                        </button>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        className="classification-context-toggle"
-                                        aria-expanded={contextOpen}
-                                        onClick={() => setContextOpen((current) => !current)}
-                                    >
-                                        Contexto
-                                        <span aria-hidden="true">{contextOpen ? '▴' : '▾'}</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {contextOpen && (
-                                <dl className="classification-context-details">
-                                    <div>
-                                        <dt>Imagen</dt>
-                                        <dd>{selectedImage.filename}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>Geometría</dt>
-                                        <dd>{imageDimensions || 'No disponible'}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>Modelo</dt>
-                                        <dd>{viewModel.name}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>Ataque</dt>
-                                        <dd>{attackName}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>Parámetros</dt>
-                                        <dd>{attackParameterSummary || 'Configuración por defecto'}</dd>
-                                    </div>
-                                    <div>
-                                        <dt>Dataset</dt>
-                                        <dd>{selectedDataset.name}</dd>
-                                    </div>
-                                    {attackResult?.result_id && (
-                                        <div>
-                                            <dt>{historyMode ? 'Análisis guardado' : 'Resultado temporal'}</dt>
-                                            <dd>{historyMode ? recoveredHistoryItem.analysis_id : attackResult.result_id}</dd>
-                                        </div>
-                                    )}
-                                </dl>
-                            )}
-                        </section>
-
-                        {historyMode && (
-                            <div className="individual-history-readonly-notice">
-                                <div>
-                                    <span className="evaluation-eyebrow">Historial</span>
-                                    <strong>Análisis individual conservado</strong>
-                                </div>
-                                <p>
-                                    Estás inspeccionando el resultado guardado de {formatCreatedAgo(recoveredHistoryItem.saved_at)}.
-                                    Los cálculos se muestran tal como fueron persistidos y no se repiten al abrirlos.
-                                </p>
-                            </div>
-                        )}
-
-                        {error && <p className="error classification-analysis-error" role="alert">{error}</p>}
-
-                        {!historyMode && !isAttackSupported && (
-                            <div className="evaluation-warning-banner">
-                                El ataque seleccionado no es compatible con el modelo activo.
-                                Cámbialo desde el panel principal antes de ejecutar la comparación.
-                            </div>
-                        )}
-
-                        <ClassificationWorkspaceTabs
-                            activePanel={activePanel}
-                            onSelect={(panel) => setActivePanelState({
-                                contextKey: imageContextKey,
-                                panel,
-                            })}
-                        />
-
-                        <div className="classification-analysis-workspace">
-                            {activePanel === 'clean' && (
-                                <section className="classification-analysis-mode">
-                                    <header className="classification-mode-heading">
-                                        <div>
-                                            <span className="evaluation-eyebrow">Predicción</span>
-                                            <h3>Qué reconoce el modelo</h3>
-                                            <p>
-                                                Ejecuta únicamente la inferencia original cuando no necesites aplicar un ataque.
-                                            </p>
-                                        </div>
-                                        {!historyMode && cleanPrediction && !loadingPrediction && (
-                                            <button
-                                                type="button"
-                                                className="secondary-action"
-                                                onClick={handlePredict}
-                                                disabled={busy}
-                                            >
-                                                Repetir predicción
-                                            </button>
-                                        )}
-                                    </header>
-
-                                    {loadingPrediction ? (
-                                        <ClassificationLoadingState
-                                            title="Calculando predicción original"
-                                            description="El resultado aparecerá en este mismo espacio de análisis."
-                                            onCancel={handleCancelOperation}
-                                        />
-                                    ) : cleanPrediction ? (
-                                        <CleanPredictionResult
-                                            prediction={cleanPrediction}
-                                            selectedImage={selectedImage}
-                                        />
-                                    ) : (
-                                        <AnalysisPrompt
-                                            eyebrow="Inferencia original"
-                                            title="Predice esta imagen"
-                                            description="Obtén la clase predicha, su confianza y el Top-K sin modificar la imagen."
-                                            actionLabel="Ejecutar predicción"
-                                            onAction={handlePredict}
-                                        />
-                                    )}
-                                </section>
-                            )}
-
-                            {activePanel === 'attack' && (
-                                <section className="classification-analysis-mode">
-                                    <header className="classification-mode-heading">
-                                        <div>
-                                            <span className="evaluation-eyebrow">Comparación adversaria</span>
-                                            <h3>Original frente al resultado tras el ataque</h3>
-                                            <p>
-                                                Conserva el visor sincronizado, la superposición y Grad-CAM para comparar ambas condiciones.
-                                            </p>
-                                        </div>
-                                        {!historyMode && attackResult && !loading && (
-                                            <button
-                                                type="button"
-                                                className="secondary-action"
-                                                onClick={handleRunAttack}
-                                                disabled={busy || !isAttackSupported}
-                                            >
-                                                Repetir ataque
-                                            </button>
-                                        )}
-                                    </header>
-
-                                    {loading ? (
-                                        <ClassificationLoadingState
-                                            title={`Aplicando ${attackName}`}
-                                            description="Se calculan la referencia original, la imagen adversaria, Grad-CAM y la perturbación."
-                                            onCancel={handleCancelOperation}
-                                        />
-                                    ) : attackResult ? (
-                                        <>
-                                            <AdversarialImageExplorer
-                                                key={attackResult.result_id}
-                                                taskType={taskType}
-                                                selectedImage={selectedImage}
-                                                attackResult={attackResult}
-                                                filename={selectedImage.filename}
-                                                imageDimensions={imageDimensions}
-                                                perturbationMetrics={{
-                                                    linf: attackResult.comparison.perturbation_linf,
-                                                    l2: attackResult.comparison.perturbation_l2,
-                                                }}
-                                            />
-                                            <ClassificationResults result={attackResult} />
-                                        </>
-                                    ) : (
-                                        <AnalysisPrompt
-                                            eyebrow="Robustez adversaria"
-                                            title="Compara la imagen frente al ataque"
-                                            description={`El ataque ${attackName} calculará también la predicción original y los Grad-CAM necesarios para la exploración visual.`}
-                                            actionLabel={`Aplicar ${attackName} y comparar`}
-                                            onAction={handleRunAttack}
-                                            disabled={!isAttackSupported}
-                                        />
-                                    )}
-                                </section>
-                            )}
-
-                            {activePanel === 'explanation' && (
-                                <section className="classification-analysis-mode">
-                                    <header className="classification-mode-heading">
-                                        <div>
-                                            <span className="evaluation-eyebrow">Explicabilidad</span>
-                                            <h3>Dónde se fija el modelo</h3>
-                                            <p>
-                                                Analiza Grad-CAM como resultado independiente o compara la atención original y adversaria cuando ya existe un ataque.
-                                            </p>
-                                        </div>
-                                        {!historyMode && classificationExplanation?.mode === 'single' &&
-                                            !loadingExplainability && (
-                                            <button
-                                                type="button"
-                                                className="secondary-action"
-                                                onClick={handleGenerateExplainability}
-                                                disabled={busy}
-                                            >
-                                                Regenerar Grad-CAM
-                                            </button>
-                                        )}
-                                    </header>
-
-                                    {loadingExplainability ? (
-                                        <ClassificationLoadingState
-                                            title="Generando Grad-CAM"
-                                            description="El mapa resaltará las regiones con mayor influencia sobre la predicción original."
-                                            onCancel={handleCancelOperation}
-                                        />
-                                    ) : classificationExplanation ? (
-                                        <ClassificationExplainabilityResult
-                                            explanation={classificationExplanation}
-                                            selectedImage={selectedImage}
-                                        />
-                                    ) : historyMode ? (
-                                        <div className="dashboard-empty-state individual-history-explanation-empty">
-                                            <strong>Grad-CAM no se guardó con este análisis</strong>
-                                            <span>El historial conserva únicamente los artefactos que ya existían cuando se guardó el resultado.</span>
-                                        </div>
-                                    ) : (
-                                        <AnalysisPrompt
-                                            eyebrow="Atención visual"
-                                            title="Genera Grad-CAM para esta imagen"
-                                            description="Obtén una explicación visual de la predicción sin necesidad de ejecutar un ataque."
-                                            actionLabel="Generar Grad-CAM"
-                                            onAction={handleGenerateExplainability}
-                                        />
-                                    )}
-                                </section>
-                            )}
-                        </div>
-
-                        {attackResult && (
-                            <IndividualAnalysisActionBar
-                                historyMode={historyMode}
-                                saveState={saveState}
-                                saving={savingAnalysis}
-                                onSave={handleSaveAnalysis}
-                                onCompare={handleOpenCompareDialog}
-                            />
-                        )}
-                    </>
-                )}
-
-                <DuplicateAnalysisDialog
-                    match={duplicateAnalysis?.match}
-                    attackCatalog={attackCatalog}
-                    preparingB={Boolean(pendingIndividualComparison)}
-                    busy={checkingHistory || loading}
-                    onOpenSaved={handleOpenDuplicate}
-                    onUseAsB={handleUseDuplicateAsB}
-                    onRecalculate={handleRecalculateDuplicate}
-                    onCancel={() => setDuplicateAnalysis(null)}
-                />
-                {compareDialogOpen && currentReference && (
-                    <IndividualAnalysisCompareDialog
-                        baseItem={currentReference.item}
-                        candidates={comparisonCandidates}
-                        loadingCandidates={loadingComparisonCandidates}
-                        attackCatalog={attackCatalog}
-                        onPrepare={handlePrepareComparison}
-                        onCompareCandidate={handleCompareSavedCandidate}
-                        onClose={() => setCompareDialogOpen(false)}
-                    />
-                )}
-            </section>
-        )
+    const pageProps = {
+        activePanel, attackCatalog, attackName, attackParameterSummary, attackResult, busy, checkingHistory,
+        classificationExplanation, cleanPrediction, cleanDetection, compareDialogOpen, comparisonCandidates,
+        contextOpen, currentReference, datasetImages, detectionExplanation, duplicateAnalysis, error,
+        explainabilityResult, handleCancelOperation, handleCompareSavedCandidate, handleGenerateExplainability,
+        handleOpenCompareDialog, handleOpenDuplicate, handlePredict, handlePrepareComparison,
+        handleRecalculateDuplicate, handleRunAttack, handleSaveAnalysis, handleUseDuplicateAsB, historyMode,
+        imageContextKey, imageDimensions, isAttackSupported, loading, loadingComparisonCandidates,
+        loadingExplainability, loadingPrediction, navigateToDashboard, pendingComparisonCopy,
+        pendingIndividualComparison, recoveredHistoryItem, saveState, savingAnalysis, selectRelativeImage,
+        selectedDataset, selectedImage, selectedIndex, setActivePanelState, setCompareDialogOpen, setContextOpen,
+        setDuplicateAnalysis, taskType, viewModel,
     }
 
-    const hasDetectionContext = Boolean(selectedDataset && selectedImage && viewModel)
+    if (isDetection) {
+        return <DetectionAnalysisPage {...pageProps} />
+    }
 
-    return (
-        <section className="comparison-page classification-analysis-page detection-analysis-page">
-            <header className="classification-analysis-header">
-                <span className="evaluation-eyebrow">Análisis individual · Detección</span>
-                <h2>Detección, robustez y atención del modelo</h2>
-                <p>
-                    Explora las detecciones originales, compara el efecto del ataque y
-                    analiza Eigen-CAM sin abandonar la misma imagen.
-                </p>
-            </header>
+    return <ClassificationAnalysisPage {...pageProps} />
 
-            {!hasDetectionContext ? (
-                <div className="classification-analysis-missing">
-                    <span className="evaluation-eyebrow">Contexto incompleto</span>
-                    <h3>Selecciona el experimento antes de analizar</h3>
-                    <p>
-                        Necesitas un conjunto de datos, una imagen y un detector activo.
-                    </p>
-                    <button
-                        type="button"
-                        className="primary-action"
-                        onClick={navigateToDashboard}
-                    >
-                        Configurar experimento
-                    </button>
-                </div>
-            ) : (
-                <>
-                    {pendingIndividualComparison && (
-                        <div className="individual-analysis-preparing-b">
-                            <span className="individual-comparison-side-token">B</span>
-                            <div>
-                                <strong>Preparando B · {pendingComparisonCopy.label}</strong>
-                                <p>{pendingComparisonCopy.instruction} Antes de ejecutar se validará la identidad experimental exacta.</p>
-                            </div>
-                        </div>
-                    )}
-                    <section className="classification-context-shell">
-                        <div className="classification-context-strip">
-                            <div className="classification-context-summary">
-                                <strong title={viewModel.name}>{viewModel.name}</strong>
-                                <span aria-hidden="true">/</span>
-                                <span>{attackName} {attackParameterSummary}</span>
-                                <span aria-hidden="true">/</span>
-                                <span>{selectedDataset.name}</span>
-                            </div>
-
-                            <div className="classification-context-actions">
-                                <div className="classification-image-nav" aria-label="Navegación entre imágenes">
-                                    <button
-                                        type="button"
-                                        onClick={() => selectRelativeImage(-1)}
-                                        disabled={selectedIndex <= 0 || busy || historyMode}
-                                        aria-label="Imagen anterior"
-                                        title="Imagen anterior"
-                                    >
-                                        ‹
-                                    </button>
-                                    <span title={selectedImage.filename}>
-                                        {analysisImagePosition(selectedIndex, datasetImages.length)}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={() => selectRelativeImage(1)}
-                                        disabled={
-                                            selectedIndex < 0 ||
-                                            selectedIndex >= datasetImages.length - 1 ||
-                                            busy ||
-                                            historyMode
-                                        }
-                                        aria-label="Imagen siguiente"
-                                        title="Imagen siguiente"
-                                    >
-                                        ›
-                                    </button>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    className="classification-context-toggle"
-                                    aria-expanded={contextOpen}
-                                    onClick={() => setContextOpen((current) => !current)}
-                                >
-                                    Contexto
-                                    <span aria-hidden="true">{contextOpen ? '▴' : '▾'}</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        {contextOpen && (
-                            <dl className="classification-context-details">
-                                <div>
-                                    <dt>Imagen</dt>
-                                    <dd>{selectedImage.filename}</dd>
-                                </div>
-                                <div>
-                                    <dt>Geometría</dt>
-                                    <dd>{imageDimensions || 'No disponible'}</dd>
-                                </div>
-                                <div>
-                                    <dt>Modelo</dt>
-                                    <dd>{viewModel.name}</dd>
-                                </div>
-                                <div>
-                                    <dt>Ataque</dt>
-                                    <dd>{attackName}</dd>
-                                </div>
-                                <div>
-                                    <dt>Parámetros</dt>
-                                    <dd>{attackParameterSummary || 'Sin parámetros'}</dd>
-                                </div>
-                                <div>
-                                    <dt>Dataset</dt>
-                                    <dd>{selectedDataset.name}</dd>
-                                </div>
-                                {(attackResult?.result_id || explainabilityResult?.result_id) && (
-                                    <div>
-                                        <dt>{historyMode ? 'Análisis guardado' : 'Resultado temporal'}</dt>
-                                        <dd>{historyMode ? recoveredHistoryItem.analysis_id : attackResult?.result_id || explainabilityResult?.result_id}</dd>
-                                    </div>
-                                )}
-                            </dl>
-                        )}
-                    </section>
-
-                    {historyMode && (
-                        <div className="individual-history-readonly-notice">
-                            <div>
-                                <span className="evaluation-eyebrow">Historial</span>
-                                <strong>Análisis individual conservado</strong>
-                            </div>
-                            <p>
-                                Estás inspeccionando el resultado guardado de {formatCreatedAgo(recoveredHistoryItem.saved_at)}.
-                                Los cálculos se muestran tal como fueron persistidos y no se repiten al abrirlos.
-                            </p>
-                        </div>
-                    )}
-
-                    {error && (
-                        <p className="error classification-analysis-error" role="alert">
-                            {error}
-                        </p>
-                    )}
-
-                    {!historyMode && !isAttackSupported && (
-                        <div className="evaluation-warning-banner">
-                            El ataque seleccionado no es compatible con este detector.
-                            Cambia el ataque desde el panel principal.
-                        </div>
-                    )}
-
-                    <DetectionWorkspaceTabs
-                        activePanel={activePanel}
-                        onSelect={(panel) => setActivePanelState({
-                            contextKey: imageContextKey,
-                            panel,
-                        })}
-                    />
-
-                    <div className="classification-analysis-workspace">
-                        {activePanel === 'clean' && (
-                            <section className="classification-analysis-mode">
-                                <header className="classification-mode-heading">
-                                    <div>
-                                        <span className="evaluation-eyebrow">Inferencia original</span>
-                                        <h3>Detecciones de la imagen</h3>
-                                        <p>
-                                            Inspecciona las cajas, clases y confianzas del detector antes de aplicar perturbaciones.
-                                        </p>
-                                    </div>
-                                    {!historyMode && cleanDetection && !loadingPrediction && (
-                                        <button
-                                            type="button"
-                                            className="secondary-action"
-                                            onClick={handlePredict}
-                                            disabled={busy}
-                                        >
-                                            Repetir detección
-                                        </button>
-                                    )}
-                                </header>
-
-                                {loadingPrediction ? (
-                                    <ClassificationLoadingState
-                                        title="Ejecutando detección original"
-                                        description="Las cajas y confianzas aparecerán en este mismo espacio de análisis."
-                                        onCancel={handleCancelOperation}
-                                    />
-                                ) : cleanDetection ? (
-                                    <CleanDetectionResult
-                                        detection={cleanDetection}
-                                        selectedImage={selectedImage}
-                                    />
-                                ) : (
-                                    <AnalysisPrompt
-                                        eyebrow="Detección original"
-                                        title="Detecta los objetos de esta imagen"
-                                        description="Obtén las cajas, clases y confianzas sin modificar la imagen seleccionada."
-                                        actionLabel="Ejecutar detección"
-                                        onAction={handlePredict}
-                                    />
-                                )}
-                            </section>
-                        )}
-
-                        {activePanel === 'attack' && (
-                            <section className="classification-analysis-mode">
-                                <header className="classification-mode-heading">
-                                    <div>
-                                        <span className="evaluation-eyebrow">Comparación adversaria</span>
-                                        <h3>Detecciones antes y después del ataque</h3>
-                                        <p>
-                                            Conserva el visor sincronizado, la superposición, las cajas y Eigen-CAM para comparar ambas condiciones.
-                                        </p>
-                                    </div>
-                                    {!historyMode && attackResult && !loading && (
-                                        <button
-                                            type="button"
-                                            className="secondary-action"
-                                            onClick={handleRunAttack}
-                                            disabled={busy || !isAttackSupported}
-                                        >
-                                            Repetir ataque
-                                        </button>
-                                    )}
-                                </header>
-
-                                {loading ? (
-                                    <ClassificationLoadingState
-                                        title={`Aplicando ${attackName}`}
-                                        description="Se calculan la referencia original, la imagen adversaria, las detecciones y, cuando el detector lo permite, Eigen-CAM."
-                                        onCancel={handleCancelOperation}
-                                    />
-                                ) : attackResult ? (
-                                    <>
-                                        <AdversarialImageExplorer
-                                            key={attackResult.result_id}
-                                            taskType={taskType}
-                                            selectedImage={selectedImage}
-                                            attackResult={attackResult}
-                                            filename={selectedImage.filename}
-                                            imageDimensions={imageDimensions}
-                                            perturbationMetrics={{
-                                                linf: attackResult.comparison.perturbation_linf,
-                                                l2: attackResult.comparison.perturbation_l2,
-                                            }}
-                                        />
-                                        <DetectionResults result={attackResult} />
-                                    </>
-                                ) : (
-                                    <AnalysisPrompt
-                                        eyebrow="Robustez adversaria"
-                                        title="Compara las detecciones frente al ataque"
-                                        description={`El ataque ${attackName} calculará también la detección original y los artefactos visuales disponibles para este modelo.`}
-                                        actionLabel={`Aplicar ${attackName} y comparar`}
-                                        onAction={handleRunAttack}
-                                        disabled={!isAttackSupported}
-                                    />
-                                )}
-                            </section>
-                        )}
-
-                        {activePanel === 'explanation' && (
-                            <section className="classification-analysis-mode">
-                                <header className="classification-mode-heading">
-                                    <div>
-                                        <span className="evaluation-eyebrow">Explicabilidad</span>
-                                        <h3>Dónde se fija el detector</h3>
-                                        <p>
-                                            Analiza Eigen-CAM como resultado independiente o compara la atención original y adversaria cuando el ataque ya la ha generado.
-                                        </p>
-                                    </div>
-                                    {!historyMode && detectionExplanation?.mode === 'single' &&
-                                        !loadingExplainability && (
-                                        <button
-                                            type="button"
-                                            className="secondary-action"
-                                            onClick={handleGenerateExplainability}
-                                            disabled={busy}
-                                        >
-                                            Regenerar Eigen-CAM
-                                        </button>
-                                    )}
-                                </header>
-
-                                {loadingExplainability ? (
-                                    <ClassificationLoadingState
-                                        title="Generando Eigen-CAM"
-                                        description="El mapa resaltará las regiones con mayor influencia sobre las detecciones originales."
-                                        onCancel={handleCancelOperation}
-                                    />
-                                ) : detectionExplanation ? (
-                                    <DetectionExplainabilityResult
-                                        explanation={detectionExplanation}
-                                        selectedImage={selectedImage}
-                                    />
-                                ) : historyMode ? (
-                                    <div className="dashboard-empty-state individual-history-explanation-empty">
-                                        <strong>Eigen-CAM no se guardó con este análisis</strong>
-                                        <span>El historial conserva únicamente los artefactos que ya existían cuando se guardó el resultado.</span>
-                                    </div>
-                                ) : (
-                                    <AnalysisPrompt
-                                        eyebrow="Atención visual"
-                                        title="Genera Eigen-CAM para esta imagen"
-                                        description="Obtén una explicación visual de las detecciones sin necesidad de ejecutar un ataque."
-                                        actionLabel="Generar Eigen-CAM"
-                                        onAction={handleGenerateExplainability}
-                                    />
-                                )}
-                            </section>
-                        )}
-                    </div>
-
-                    {attackResult && (
-                        <IndividualAnalysisActionBar
-                            historyMode={historyMode}
-                            saveState={saveState}
-                            saving={savingAnalysis}
-                            onSave={handleSaveAnalysis}
-                            onCompare={handleOpenCompareDialog}
-                        />
-                    )}
-                </>
-            )}
-
-            <DuplicateAnalysisDialog
-                match={duplicateAnalysis?.match}
-                attackCatalog={attackCatalog}
-                preparingB={Boolean(pendingIndividualComparison)}
-                busy={checkingHistory || loading}
-                onOpenSaved={handleOpenDuplicate}
-                onUseAsB={handleUseDuplicateAsB}
-                onRecalculate={handleRecalculateDuplicate}
-                onCancel={() => setDuplicateAnalysis(null)}
-            />
-            {compareDialogOpen && currentReference && (
-                <IndividualAnalysisCompareDialog
-                    baseItem={currentReference.item}
-                    candidates={comparisonCandidates}
-                    loadingCandidates={loadingComparisonCandidates}
-                    attackCatalog={attackCatalog}
-                    onPrepare={handlePrepareComparison}
-                    onCompareCandidate={handleCompareSavedCandidate}
-                    onClose={() => setCompareDialogOpen(false)}
-                />
-            )}
-        </section>
-    )
 }
 
 export default ComparisonView

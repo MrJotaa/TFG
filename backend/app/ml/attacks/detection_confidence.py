@@ -124,8 +124,7 @@ class DetectionConfidenceAttack(BaseAdversarialAttack):
 
         perturbation = adversarial_tensor - original_tensor
 
-        perturbation_linf = torch.max(torch.abs(perturbation)).item()
-        perturbation_l2 = torch.norm(perturbation).item()
+        perturbation_linf, perturbation_l2 = self._perturbation_norms(perturbation)
 
         adversarial_image = self._tensor_to_image(adversarial_tensor)
         perturbation_image = self._perturbation_to_image(perturbation)

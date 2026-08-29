@@ -106,6 +106,53 @@ export function validatePreparedComparison({ baseItem, expectedKind, identity })
     return { valid: true, comparison, message: '' }
 }
 
+function notReady(message) {
+    return { ready: false, message }
+}
+
+function comparisonContextReadiness({ baseItem, selectedDataset, selectedImage, activeModel }) {
+    if (!baseItem) return notReady('Falta el análisis A.')
+    if (selectedDataset?.id !== baseItem.dataset_id) return notReady('Vuelve al dataset usado por A.')
+    if (
+        selectedDataset?.dataset_revision != null
+        && Number(selectedDataset.dataset_revision) !== Number(baseItem.dataset_revision)
+    ) {
+        return notReady('El dataset ha cambiado desde A. La comparación requiere la misma revisión.')
+    }
+    if (selectedImage?.id !== baseItem.image_id) return notReady('Selecciona la misma imagen usada por A.')
+    if (!activeModel) return notReady('Activa un modelo para preparar B.')
+    if (activeModel.task_type !== baseItem.task_type) return notReady('El modelo activo pertenece a otra tarea.')
+    return null
+}
+
+function modelComparisonReadiness({ sameModel, sameAttack, sameParameters }) {
+    if (sameModel) return notReady('Activa un modelo diferente para B.')
+    if (!sameAttack || !sameParameters) {
+        return notReady('Para comparar modelos debes conservar el ataque y sus parámetros de A.')
+    }
+    return null
+}
+
+function attackComparisonReadiness({ baseItem, sameModel, sameAttack }) {
+    if (!sameModel) return notReady(`Activa de nuevo ${baseItem.model_name} para comparar ataques.`)
+    if (sameAttack) return notReady('Selecciona un ataque diferente para B.')
+    return null
+}
+
+function attackConfigurationReadiness({ baseItem, sameModel, sameAttack, sameParameters }) {
+    if (!sameModel) return notReady(`Activa de nuevo ${baseItem.model_name} para comparar configuraciones.`)
+    if (!sameAttack) return notReady('Mantén el mismo ataque de A para comparar configuraciones.')
+    if (sameParameters) return notReady('Modifica al menos un parámetro del ataque para B.')
+    return null
+}
+
+function comparisonKindReadiness(expectedKind, state) {
+    if (expectedKind === 'model') return modelComparisonReadiness(state)
+    if (expectedKind === 'attack') return attackComparisonReadiness(state)
+    if (expectedKind === 'attack_configuration') return attackConfigurationReadiness(state)
+    return null
+}
+
 export function pendingComparisonReadiness({
     baseItem,
     expectedKind,
@@ -115,46 +162,25 @@ export function pendingComparisonReadiness({
     selectedAttack,
     attackParameters,
 }) {
-    const copy = individualComparisonKindCopy(expectedKind)
-    if (!baseItem) return { ready: false, message: 'Falta el análisis A.' }
-    if (selectedDataset?.id !== baseItem.dataset_id) {
-        return { ready: false, message: 'Vuelve al dataset usado por A.' }
-    }
-    if (
-        selectedDataset?.dataset_revision != null
-        && Number(selectedDataset.dataset_revision) !== Number(baseItem.dataset_revision)
-    ) {
-        return { ready: false, message: 'El dataset ha cambiado desde A. La comparación requiere la misma revisión.' }
-    }
-    if (selectedImage?.id !== baseItem.image_id) {
-        return { ready: false, message: 'Selecciona la misma imagen usada por A.' }
-    }
-    if (!activeModel) return { ready: false, message: 'Activa un modelo para preparar B.' }
-    if (activeModel.task_type !== baseItem.task_type) {
-        return { ready: false, message: 'El modelo activo pertenece a otra tarea.' }
-    }
+    const contextIssue = comparisonContextReadiness({
+        baseItem,
+        selectedDataset,
+        selectedImage,
+        activeModel,
+    })
+    if (contextIssue) return contextIssue
 
-    const sameModel = activeModel.id === baseItem.model_id
-    const sameAttack = selectedAttack === baseItem.attack_type
-    const sameParameters = stableComparisonKey(attackParameters)
-        === stableComparisonKey(baseItem.parameters)
-
-    if (expectedKind === 'model') {
-        if (sameModel) return { ready: false, message: 'Activa un modelo diferente para B.' }
-        if (!sameAttack || !sameParameters) {
-            return { ready: false, message: 'Para comparar modelos debes conservar el ataque y sus parámetros de A.' }
-        }
-    } else if (expectedKind === 'attack') {
-        if (!sameModel) return { ready: false, message: `Activa de nuevo ${baseItem.model_name} para comparar ataques.` }
-        if (sameAttack) return { ready: false, message: 'Selecciona un ataque diferente para B.' }
-    } else if (expectedKind === 'attack_configuration') {
-        if (!sameModel) return { ready: false, message: `Activa de nuevo ${baseItem.model_name} para comparar configuraciones.` }
-        if (!sameAttack) return { ready: false, message: 'Mantén el mismo ataque de A para comparar configuraciones.' }
-        if (sameParameters) return { ready: false, message: 'Modifica al menos un parámetro del ataque para B.' }
+    const state = {
+        baseItem,
+        sameModel: activeModel.id === baseItem.model_id,
+        sameAttack: selectedAttack === baseItem.attack_type,
+        sameParameters: stableComparisonKey(attackParameters) === stableComparisonKey(baseItem.parameters),
     }
+    const kindIssue = comparisonKindReadiness(expectedKind, state)
+    if (kindIssue) return kindIssue
 
     return {
         ready: true,
-        message: `B está lista. ${copy.instruction}`,
+        message: `B está lista. ${individualComparisonKindCopy(expectedKind).instruction}`,
     }
 }

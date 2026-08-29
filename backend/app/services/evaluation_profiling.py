@@ -15,7 +15,7 @@ def get_model_device(model) -> torch.device | None:
 
     try:
         torch_model = get_torch_model()
-    except (NotImplementedError, RuntimeError, ValueError):
+    except (RuntimeError, ValueError):
         # A model may legitimately not expose a torch module to diagnostics.
         return None
 

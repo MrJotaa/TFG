@@ -331,17 +331,9 @@ def build_detection_object_adversarial_analysis(
     include_details: bool,
 ) -> DetectionObjectAdversarialAnalysis:
     """Compara dos colecciones oficiales de matches sin ejecutar matching propio."""
-    confidence_threshold = _require_real(
+    confidence_threshold, iou_threshold = _validated_operating_point(
         confidence_threshold,
-        field_name="confidence_threshold",
-        minimum=0.0,
-        maximum=1.0,
-    )
-    iou_threshold = _require_real(
         iou_threshold,
-        field_name="iou_threshold",
-        minimum=0.0,
-        maximum=1.0,
     )
     if not isinstance(include_details, bool):
         raise DetectionObjectAdversarialAnalysisInputError(
@@ -358,115 +350,13 @@ def build_detection_object_adversarial_analysis(
         adversarial_observations,
         field_name="adversarial_observations",
     )
-    if isinstance(reviewed_image_ids, (str, bytes)):
-        raise DetectionObjectAdversarialAnalysisInputError(
-            "reviewed_image_ids must be an iterable of image IDs"
-        )
-    try:
-        reviewed_image_ids = frozenset(reviewed_image_ids)
-    except TypeError as error:
-        raise DetectionObjectAdversarialAnalysisInputError(
-            "reviewed_image_ids must be an iterable of image IDs"
-        ) from error
-    for image_id in reviewed_image_ids:
-        _require_non_empty_string(
-            image_id,
-            field_name="reviewed image ID",
-        )
-
-    class_by_id = {}
-    for model_class in classes:
-        if not isinstance(model_class, CocoEvaluationClass):
-            raise DetectionObjectAdversarialAnalysisInputError(
-                "classes must contain CocoEvaluationClass values"
-            )
-        if (
-            isinstance(model_class.model_class_id, bool)
-            or not isinstance(model_class.model_class_id, Integral)
-            or model_class.model_class_id < 0
-        ):
-            raise DetectionObjectAdversarialAnalysisInputError(
-                "resolved model class IDs must be non-negative integers"
-            )
-        if isinstance(model_class.coco_category_id, bool) or not isinstance(
-            model_class.coco_category_id, Integral
-        ):
-            raise DetectionObjectAdversarialAnalysisInputError(
-                "resolved COCO category IDs must be integers"
-            )
-        for field_name in (
-            "category_internal_id",
-            "category_name",
-            "model_class_name",
-        ):
-            _require_non_empty_string(
-                getattr(model_class, field_name),
-                field_name=f"resolved class {field_name}",
-            )
-        if model_class.model_class_id in class_by_id:
-            raise DetectionObjectAdversarialAnalysisInputError(
-                "resolved model class IDs must be unique"
-            )
-        class_by_id[model_class.model_class_id] = model_class
-    ground_truth_by_id = {}
-    all_ground_truth_ids = set()
-    for ground_truth in ground_truths:
-        if not isinstance(ground_truth, CocoGroundTruth):
-            raise DetectionObjectAdversarialAnalysisInputError(
-                "ground_truths must contain CocoGroundTruth values"
-            )
-        object_id = _require_non_empty_string(
-            ground_truth.object_internal_id,
-            field_name="ground-truth object_internal_id",
-        )
-        if object_id in all_ground_truth_ids:
-            raise DetectionObjectAdversarialAnalysisInputError(
-                f"duplicate ground-truth ID '{object_id}'"
-            )
-        all_ground_truth_ids.add(object_id)
-        _require_non_empty_string(
-            ground_truth.image_id,
-            field_name=f"ground-truth image_id for object '{object_id}'",
-        )
-        if isinstance(ground_truth.model_class_id, bool) or not isinstance(
-            ground_truth.model_class_id, Integral
-        ):
-            raise DetectionObjectAdversarialAnalysisInputError(
-                f"ground truth '{object_id}' has an invalid model class ID"
-            )
-        if not isinstance(ground_truth.box, DetectionBox):
-            raise DetectionObjectAdversarialAnalysisInputError(
-                f"ground truth '{object_id}' has an invalid box"
-            )
-        _require_real(
-            ground_truth.area,
-            field_name=f"ground-truth area for object '{object_id}'",
-            strictly_positive=True,
-        )
-        if (
-            isinstance(ground_truth.iscrowd, bool)
-            or not isinstance(ground_truth.iscrowd, Integral)
-            or ground_truth.iscrowd not in (0, 1)
-        ):
-            raise DetectionObjectAdversarialAnalysisInputError(
-                f"ground truth '{object_id}' has invalid iscrowd"
-            )
-        if ground_truth.iscrowd == 1:
-            continue
-        if object_id in ground_truth_by_id:
-            raise DetectionObjectAdversarialAnalysisInputError(
-                f"duplicate evaluable ground-truth ID '{object_id}'"
-            )
-        if ground_truth.image_id not in reviewed_image_ids:
-            raise DetectionObjectAdversarialAnalysisInputError(
-                f"ground truth '{object_id}' references an unreviewed image"
-            )
-        if ground_truth.model_class_id not in class_by_id:
-            raise DetectionObjectAdversarialAnalysisInputError(
-                f"ground truth '{object_id}' references an unresolved class"
-            )
-        ground_truth_by_id[object_id] = ground_truth
-
+    reviewed_image_ids = _validated_reviewed_image_ids(reviewed_image_ids)
+    class_by_id = _class_catalog_by_id(classes)
+    ground_truth_by_id = _evaluable_ground_truth_by_id(
+        ground_truths,
+        reviewed_image_ids=reviewed_image_ids,
+        class_by_id=class_by_id,
+    )
     original_by_id = _observations_by_id(
         original_observations,
         condition="original",
@@ -479,59 +369,316 @@ def build_detection_object_adversarial_analysis(
         confidence_threshold=confidence_threshold,
         iou_threshold=iou_threshold,
     )
+    _validate_observation_universe(
+        ground_truth_by_id,
+        original_by_id,
+        adversarial_by_id,
+    )
+
+    transitions = _build_transitions(
+        ground_truth_by_id=ground_truth_by_id,
+        class_by_id=class_by_id,
+        original_by_id=original_by_id,
+        adversarial_by_id=adversarial_by_id,
+    )
+    summary = DetectionObjectAggregate(**_aggregate_values(transitions))
+    ordered_classes, size_order, grouped = _group_transitions(
+        classes=classes,
+        reviewed_image_ids=reviewed_image_ids,
+        transitions=transitions,
+    )
+    by_class, by_size = _dimension_aggregates(
+        ordered_classes=ordered_classes,
+        size_order=size_order,
+        transitions_by_class_id=grouped["class"],
+        transitions_by_size=grouped["size"],
+    )
+    by_image, objects = _detail_collections(
+        include_details=include_details,
+        transitions=transitions,
+        transitions_by_image_id=grouped["image"],
+    )
+    return DetectionObjectAdversarialAnalysis(
+        operating_point_configuration=DetectionObjectOperatingPointConfiguration(
+            confidence_threshold=confidence_threshold,
+            iou_threshold=iou_threshold,
+        ),
+        details_included=include_details,
+        total_evaluable_objects=len(transitions),
+        summary=summary,
+        by_class=by_class,
+        by_size=by_size,
+        by_image=by_image,
+        objects=objects,
+    )
+
+
+def _validated_operating_point(
+    confidence_threshold: float,
+    iou_threshold: float,
+) -> tuple[float, float]:
+    return (
+        _require_real(
+            confidence_threshold,
+            field_name="confidence_threshold",
+            minimum=0.0,
+            maximum=1.0,
+        ),
+        _require_real(
+            iou_threshold,
+            field_name="iou_threshold",
+            minimum=0.0,
+            maximum=1.0,
+        ),
+    )
+
+
+def _validated_reviewed_image_ids(value: object) -> frozenset[str]:
+    if isinstance(value, (str, bytes)):
+        raise DetectionObjectAdversarialAnalysisInputError(
+            "reviewed_image_ids must be an iterable of image IDs"
+        )
+    try:
+        reviewed_image_ids = frozenset(value)
+    except TypeError as error:
+        raise DetectionObjectAdversarialAnalysisInputError(
+            "reviewed_image_ids must be an iterable of image IDs"
+        ) from error
+    for image_id in reviewed_image_ids:
+        _require_non_empty_string(
+            image_id,
+            field_name="reviewed image ID",
+        )
+    return reviewed_image_ids
+
+
+def _class_catalog_by_id(
+    classes: tuple[CocoEvaluationClass, ...],
+) -> dict[int, CocoEvaluationClass]:
+    class_by_id: dict[int, CocoEvaluationClass] = {}
+    for model_class in classes:
+        _validate_resolved_class(model_class)
+        if model_class.model_class_id in class_by_id:
+            raise DetectionObjectAdversarialAnalysisInputError(
+                "resolved model class IDs must be unique"
+            )
+        class_by_id[model_class.model_class_id] = model_class
+    return class_by_id
+
+
+def _validate_resolved_class(model_class: object) -> None:
+    if not isinstance(model_class, CocoEvaluationClass):
+        raise DetectionObjectAdversarialAnalysisInputError(
+            "classes must contain CocoEvaluationClass values"
+        )
+    if (
+        isinstance(model_class.model_class_id, bool)
+        or not isinstance(model_class.model_class_id, Integral)
+        or model_class.model_class_id < 0
+    ):
+        raise DetectionObjectAdversarialAnalysisInputError(
+            "resolved model class IDs must be non-negative integers"
+        )
+    if isinstance(model_class.coco_category_id, bool) or not isinstance(
+        model_class.coco_category_id,
+        Integral,
+    ):
+        raise DetectionObjectAdversarialAnalysisInputError(
+            "resolved COCO category IDs must be integers"
+        )
+    for field_name in (
+        "category_internal_id",
+        "category_name",
+        "model_class_name",
+    ):
+        _require_non_empty_string(
+            getattr(model_class, field_name),
+            field_name=f"resolved class {field_name}",
+        )
+
+
+def _evaluable_ground_truth_by_id(
+    ground_truths: tuple[CocoGroundTruth, ...],
+    *,
+    reviewed_image_ids: frozenset[str],
+    class_by_id: dict[int, CocoEvaluationClass],
+) -> dict[str, CocoGroundTruth]:
+    ground_truth_by_id: dict[str, CocoGroundTruth] = {}
+    all_ground_truth_ids: set[str] = set()
+    for ground_truth in ground_truths:
+        object_id = _validate_ground_truth(
+            ground_truth,
+            all_ground_truth_ids=all_ground_truth_ids,
+        )
+        if ground_truth.iscrowd == 1:
+            continue
+        _validate_evaluable_ground_truth(
+            ground_truth,
+            object_id=object_id,
+            reviewed_image_ids=reviewed_image_ids,
+            class_by_id=class_by_id,
+            ground_truth_by_id=ground_truth_by_id,
+        )
+        ground_truth_by_id[object_id] = ground_truth
+    return ground_truth_by_id
+
+
+def _validate_ground_truth(
+    ground_truth: object,
+    *,
+    all_ground_truth_ids: set[str],
+) -> str:
+    if not isinstance(ground_truth, CocoGroundTruth):
+        raise DetectionObjectAdversarialAnalysisInputError(
+            "ground_truths must contain CocoGroundTruth values"
+        )
+    object_id = _require_non_empty_string(
+        ground_truth.object_internal_id,
+        field_name="ground-truth object_internal_id",
+    )
+    if object_id in all_ground_truth_ids:
+        raise DetectionObjectAdversarialAnalysisInputError(
+            f"duplicate ground-truth ID '{object_id}'"
+        )
+    all_ground_truth_ids.add(object_id)
+    _require_non_empty_string(
+        ground_truth.image_id,
+        field_name=f"ground-truth image_id for object '{object_id}'",
+    )
+    if isinstance(ground_truth.model_class_id, bool) or not isinstance(
+        ground_truth.model_class_id,
+        Integral,
+    ):
+        raise DetectionObjectAdversarialAnalysisInputError(
+            f"ground truth '{object_id}' has an invalid model class ID"
+        )
+    if not isinstance(ground_truth.box, DetectionBox):
+        raise DetectionObjectAdversarialAnalysisInputError(
+            f"ground truth '{object_id}' has an invalid box"
+        )
+    _require_real(
+        ground_truth.area,
+        field_name=f"ground-truth area for object '{object_id}'",
+        strictly_positive=True,
+    )
+    if (
+        isinstance(ground_truth.iscrowd, bool)
+        or not isinstance(ground_truth.iscrowd, Integral)
+        or ground_truth.iscrowd not in (0, 1)
+    ):
+        raise DetectionObjectAdversarialAnalysisInputError(
+            f"ground truth '{object_id}' has invalid iscrowd"
+        )
+    return object_id
+
+
+def _validate_evaluable_ground_truth(
+    ground_truth: CocoGroundTruth,
+    *,
+    object_id: str,
+    reviewed_image_ids: frozenset[str],
+    class_by_id: dict[int, CocoEvaluationClass],
+    ground_truth_by_id: dict[str, CocoGroundTruth],
+) -> None:
+    if object_id in ground_truth_by_id:
+        raise DetectionObjectAdversarialAnalysisInputError(
+            f"duplicate evaluable ground-truth ID '{object_id}'"
+        )
+    if ground_truth.image_id not in reviewed_image_ids:
+        raise DetectionObjectAdversarialAnalysisInputError(
+            f"ground truth '{object_id}' references an unreviewed image"
+        )
+    if ground_truth.model_class_id not in class_by_id:
+        raise DetectionObjectAdversarialAnalysisInputError(
+            f"ground truth '{object_id}' references an unresolved class"
+        )
+
+
+def _validate_observation_universe(
+    ground_truth_by_id: dict[str, CocoGroundTruth],
+    original_by_id: dict[str, GroundTruthMatchObservation],
+    adversarial_by_id: dict[str, GroundTruthMatchObservation],
+) -> None:
     expected_ids = set(ground_truth_by_id)
     if set(original_by_id) != expected_ids or set(adversarial_by_id) != expected_ids:
         raise DetectionObjectAdversarialAnalysisInputError(
             "original and adversarial observations must cover exactly the GT universe"
         )
 
-    transitions = []
-    for object_id, ground_truth in sorted(
-        ground_truth_by_id.items(),
-        key=lambda item: (item[1].image_id, item[0]),
-    ):
-        category = class_by_id[ground_truth.model_class_id]
-        original = original_by_id[object_id]
-        adversarial = adversarial_by_id[object_id]
-        for condition, observation in (
-            ("original", original),
-            ("adversarial", adversarial),
-        ):
-            if (
-                observation.image_id != ground_truth.image_id
-                or observation.category_reference != category
-            ):
-                raise DetectionObjectAdversarialAnalysisInputError(
-                    f"{condition} observation references disagree for object "
-                    f"'{object_id}'"
-                )
-        outcome = _outcome(original, adversarial)
-        confidence_drop = None
-        iou_drop = None
-        if outcome is DetectionObjectOutcome.PRESERVED:
-            confidence_drop = _public_metric_difference(
-                original.matched_detection_confidence,
-                adversarial.matched_detection_confidence,
-            )
-            iou_drop = _public_metric_difference(
-                original.matched_detection_iou,
-                adversarial.matched_detection_iou,
-            )
-        transitions.append(
-            _ObjectTransition(
-                ground_truth=ground_truth,
-                category=category,
-                original=original,
-                adversarial=adversarial,
-                outcome=outcome,
-                size_bucket=_size_bucket(ground_truth.area),
-                confidence_drop=confidence_drop,
-                iou_drop=iou_drop,
-            )
-        )
-    transitions = tuple(transitions)
 
-    summary = DetectionObjectAggregate(**_aggregate_values(transitions))
+def _build_transitions(
+    *,
+    ground_truth_by_id: dict[str, CocoGroundTruth],
+    class_by_id: dict[int, CocoEvaluationClass],
+    original_by_id: dict[str, GroundTruthMatchObservation],
+    adversarial_by_id: dict[str, GroundTruthMatchObservation],
+) -> tuple[_ObjectTransition, ...]:
+    return tuple(
+        _build_transition(
+            object_id=object_id,
+            ground_truth=ground_truth,
+            category=class_by_id[ground_truth.model_class_id],
+            original=original_by_id[object_id],
+            adversarial=adversarial_by_id[object_id],
+        )
+        for object_id, ground_truth in sorted(
+            ground_truth_by_id.items(),
+            key=lambda item: (item[1].image_id, item[0]),
+        )
+    )
+
+
+def _build_transition(
+    *,
+    object_id: str,
+    ground_truth: CocoGroundTruth,
+    category: CocoEvaluationClass,
+    original: GroundTruthMatchObservation,
+    adversarial: GroundTruthMatchObservation,
+) -> _ObjectTransition:
+    for condition, observation in (
+        ("original", original),
+        ("adversarial", adversarial),
+    ):
+        if (
+            observation.image_id != ground_truth.image_id
+            or observation.category_reference != category
+        ):
+            raise DetectionObjectAdversarialAnalysisInputError(
+                f"{condition} observation references disagree for object "
+                f"'{object_id}'"
+            )
+
+    outcome = _outcome(original, adversarial)
+    confidence_drop = None
+    iou_drop = None
+    if outcome is DetectionObjectOutcome.PRESERVED:
+        confidence_drop = _public_metric_difference(
+            original.matched_detection_confidence,
+            adversarial.matched_detection_confidence,
+        )
+        iou_drop = _public_metric_difference(
+            original.matched_detection_iou,
+            adversarial.matched_detection_iou,
+        )
+    return _ObjectTransition(
+        ground_truth=ground_truth,
+        category=category,
+        original=original,
+        adversarial=adversarial,
+        outcome=outcome,
+        size_bucket=_size_bucket(ground_truth.area),
+        confidence_drop=confidence_drop,
+        iou_drop=iou_drop,
+    )
+
+
+def _group_transitions(
+    *,
+    classes: tuple[CocoEvaluationClass, ...],
+    reviewed_image_ids: frozenset[str],
+    transitions: tuple[_ObjectTransition, ...],
+):
     ordered_classes = tuple(
         sorted(
             classes,
@@ -543,16 +690,30 @@ def build_detection_object_adversarial_analysis(
         DetectionObjectSizeBucket.MEDIUM,
         DetectionObjectSizeBucket.LARGE,
     )
-    transitions_by_class_id = {
-        model_class.model_class_id: [] for model_class in ordered_classes
+    grouped = {
+        "class": {
+            model_class.model_class_id: [] for model_class in ordered_classes
+        },
+        "size": {size_bucket: [] for size_bucket in size_order},
+        "image": {image_id: [] for image_id in sorted(reviewed_image_ids)},
     }
-    transitions_by_size = {size_bucket: [] for size_bucket in size_order}
-    transitions_by_image_id = {image_id: [] for image_id in sorted(reviewed_image_ids)}
     for transition in transitions:
-        transitions_by_class_id[transition.category.model_class_id].append(transition)
-        transitions_by_size[transition.size_bucket].append(transition)
-        transitions_by_image_id[transition.ground_truth.image_id].append(transition)
+        grouped["class"][transition.category.model_class_id].append(transition)
+        grouped["size"][transition.size_bucket].append(transition)
+        grouped["image"][transition.ground_truth.image_id].append(transition)
+    return ordered_classes, size_order, grouped
 
+
+def _dimension_aggregates(
+    *,
+    ordered_classes: tuple[CocoEvaluationClass, ...],
+    size_order: tuple[DetectionObjectSizeBucket, ...],
+    transitions_by_class_id: dict[int, list[_ObjectTransition]],
+    transitions_by_size: dict[DetectionObjectSizeBucket, list[_ObjectTransition]],
+) -> tuple[
+    tuple[DetectionObjectClassAggregate, ...],
+    tuple[DetectionObjectSizeAggregate, ...],
+]:
     by_class = tuple(
         DetectionObjectClassAggregate(
             category=_reference(model_class),
@@ -569,54 +730,60 @@ def build_detection_object_adversarial_analysis(
         )
         for size_bucket in size_order
     )
+    return by_class, by_size
 
-    by_image = None
-    objects = None
-    if include_details:
-        image_aggregates = []
-        for image_id, image_transitions in transitions_by_image_id.items():
-            aggregate_values = _aggregate_values(tuple(image_transitions))
-            image_aggregates.append(
-                DetectionObjectImageAggregate(
-                    image_id=image_id,
-                    object_level_attack_success=(
-                        True
-                        if aggregate_values["suppressed_count"] > 0
-                        else False
-                        if aggregate_values["originally_detected_count"] > 0
-                        else None
-                    ),
-                    **aggregate_values,
-                ),
-            )
-        by_image = tuple(image_aggregates)
-        objects = tuple(
-            DetectionObjectResult(
-                object_id=item.object_id,
-                image_id=item.ground_truth.image_id,
-                category=_reference(item.category),
-                ground_truth_box=_public_box(item.ground_truth.box),
-                area=_round_metric(item.ground_truth.area),
-                size_bucket=item.size_bucket,
-                outcome=item.outcome,
-                original_observation=_public_observation(item.original),
-                adversarial_observation=_public_observation(item.adversarial),
-                confidence_drop=_round_metric(item.confidence_drop),
-                iou_drop=_round_metric(item.iou_drop),
-            )
-            for item in transitions
-        )
 
-    return DetectionObjectAdversarialAnalysis(
-        operating_point_configuration=DetectionObjectOperatingPointConfiguration(
-            confidence_threshold=confidence_threshold,
-            iou_threshold=iou_threshold,
-        ),
-        details_included=include_details,
-        total_evaluable_objects=len(transitions),
-        summary=summary,
-        by_class=by_class,
-        by_size=by_size,
-        by_image=by_image,
-        objects=objects,
+def _detail_collections(
+    *,
+    include_details: bool,
+    transitions: tuple[_ObjectTransition, ...],
+    transitions_by_image_id: dict[str, list[_ObjectTransition]],
+) -> tuple[
+    tuple[DetectionObjectImageAggregate, ...] | None,
+    tuple[DetectionObjectResult, ...] | None,
+]:
+    if not include_details:
+        return None, None
+
+    by_image = tuple(
+        _image_aggregate(image_id, tuple(image_transitions))
+        for image_id, image_transitions in transitions_by_image_id.items()
+    )
+    objects = tuple(_public_object_result(item) for item in transitions)
+    return by_image, objects
+
+
+def _image_aggregate(
+    image_id: str,
+    transitions: tuple[_ObjectTransition, ...],
+) -> DetectionObjectImageAggregate:
+    aggregate_values = _aggregate_values(transitions)
+    return DetectionObjectImageAggregate(
+        image_id=image_id,
+        object_level_attack_success=_object_level_attack_success(aggregate_values),
+        **aggregate_values,
+    )
+
+
+def _object_level_attack_success(aggregate_values: dict[str, object]) -> bool | None:
+    if aggregate_values["suppressed_count"] > 0:
+        return True
+    if aggregate_values["originally_detected_count"] > 0:
+        return False
+    return None
+
+
+def _public_object_result(item: _ObjectTransition) -> DetectionObjectResult:
+    return DetectionObjectResult(
+        object_id=item.object_id,
+        image_id=item.ground_truth.image_id,
+        category=_reference(item.category),
+        ground_truth_box=_public_box(item.ground_truth.box),
+        area=_round_metric(item.ground_truth.area),
+        size_bucket=item.size_bucket,
+        outcome=item.outcome,
+        original_observation=_public_observation(item.original),
+        adversarial_observation=_public_observation(item.adversarial),
+        confidence_drop=_round_metric(item.confidence_drop),
+        iou_drop=_round_metric(item.iou_drop),
     )

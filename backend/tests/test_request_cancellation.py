@@ -42,9 +42,11 @@ async def test_cancellable_request_propagates_disconnect_to_worker():
                 cancellation_observed.set()
                 cancellation_token.raise_if_cancelled()
 
+    _prepared_arg_1 = _DisconnectedRequest()
+
     with pytest.raises(ClientDisconnectedError) as exc_info:
         await run_cancellable_request(
-            _DisconnectedRequest(),
+            _prepared_arg_1,
             operation,
             poll_interval_seconds=0.001,
         )

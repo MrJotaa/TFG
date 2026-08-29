@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { getCurrentUser, loginUser, signupUser } from '../api/auth'
 import { removeStoredToken, setStoredToken } from '../api/client'
 
@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
         loadCurrentUser()
     }, [])
 
-    async function login({ email, password }) {
+    const login = useCallback(async ({ email, password }) => {
         setAuthError('')
 
         const result = await loginUser({ email, password })
@@ -35,9 +35,9 @@ export function AuthProvider({ children }) {
         setUser(result.user)
 
         return result.user
-    }
+    }, [])
 
-    async function signup({ name, email, password }) {
+    const signup = useCallback(async ({ name, email, password }) => {
         setAuthError('')
 
         const result = await signupUser({ name, email, password })
@@ -46,14 +46,14 @@ export function AuthProvider({ children }) {
         setUser(result.user)
 
         return result.user
-    }
+    }, [])
 
-    function logout() {
+    const logout = useCallback(() => {
         removeStoredToken()
         setUser(null)
-    }
+    }, [])
 
-    const value = {
+    const value = useMemo(() => ({
         user,
         setUser,
         loadingAuth,
@@ -63,7 +63,7 @@ export function AuthProvider({ children }) {
         signup,
         logout,
         isAuthenticated: Boolean(user),
-    }
+    }), [authError, loadingAuth, login, logout, signup, user])
 
     return (
         <AuthContext.Provider value={value}>

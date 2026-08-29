@@ -186,12 +186,14 @@ def test_predict_detailed_limits_top_k_to_class_count():
 def test_predict_detailed_rejects_invalid_top_k():
     model, torch_model = _create_loaded_model([0.1, 0.2])
 
+    _prepared_image = _create_image()
+
     with pytest.raises(
         ValueError,
         match="top_k must be greater than zero",
     ):
         model.predict_detailed(
-            image=_create_image(),
+            image=_prepared_image,
             top_k=0,
         )
 
@@ -211,17 +213,21 @@ def test_get_class_labels_returns_ordered_catalog():
 def test_prediction_requires_loaded_model():
     model = ResNet18Model()
 
-    with pytest.raises(
-        ValueError,
-        match="Model is not loaded",
-    ):
-        model.predict_detailed(_create_image())
+    _prepared_arg_1 = _create_image()
 
     with pytest.raises(
         ValueError,
         match="Model is not loaded",
     ):
-        model.predict(_create_image())
+        model.predict_detailed(_prepared_arg_1)
+
+    _prepared_arg_1_2 = _create_image()
+
+    with pytest.raises(
+        ValueError,
+        match="Model is not loaded",
+    ):
+        model.predict(_prepared_arg_1_2)
 
     with pytest.raises(
         ValueError,
@@ -238,11 +244,13 @@ def test_predict_detailed_validates_category_count():
         "class-1",
     ]
 
+    _prepared_arg_1_3 = _create_image()
+
     with pytest.raises(
         ValueError,
         match=("Model category count does not match probability count"),
     ):
-        model.predict_detailed(_create_image())
+        model.predict_detailed(_prepared_arg_1_3)
 
 
 def test_single_class_prediction_has_no_margin():

@@ -35,12 +35,12 @@ function ThemeIcon({ name }) {
 function ThemeSwitcher({ compact = false, className = '' }) {
     const { themePreference, setThemePreference } = useTheme()
 
+    const compactClassName = compact ? ' compact' : ''
+    const additionalClassName = className ? ` ${className}` : ''
+    const switcherClassName = `theme-switcher${compactClassName}${additionalClassName}`
+
     return (
-        <div
-            className={`theme-switcher${compact ? ' compact' : ''}${className ? ` ${className}` : ''}`}
-            role="group"
-            aria-label="Tema de la aplicación"
-        >
+        <fieldset className={`${switcherClassName} semantic-fieldset-reset`} aria-label="Tema de la aplicación">
             {THEME_OPTIONS.map((option) => (
                 <button
                     key={option.value}
@@ -55,7 +55,7 @@ function ThemeSwitcher({ compact = false, className = '' }) {
                     <span>{option.label}</span>
                 </button>
             ))}
-        </div>
+        </fieldset>
     )
 }
 
