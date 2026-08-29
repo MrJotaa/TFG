@@ -875,7 +875,8 @@ function ComparisonImageLightbox({ preview, onClose }) {
 
     const safeZoom = clampEvaluationPreviewZoom(zoom)
     const modal = (
-        <div className="image-lightbox-backdrop evaluation-image-lightbox-backdrop comparison-image-lightbox-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+        <div className="image-lightbox-backdrop evaluation-image-lightbox-backdrop comparison-image-lightbox-backdrop">
+            <button type="button" className="modal-backdrop-dismiss" tabIndex={-1} aria-label="Cerrar vista ampliada" onClick={onClose} />
             <dialog open className="image-lightbox evaluation-image-lightbox comparison-image-lightbox" aria-modal="true" aria-label={`Vista ampliada: ${preview.label}`}>
                 <header>
                     <div><span className="evaluation-eyebrow">Vista ampliada</span><strong>{preview.label}</strong></div>

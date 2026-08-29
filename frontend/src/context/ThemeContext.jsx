@@ -31,7 +31,7 @@ function subscribeToSystemTheme(mediaQuery, listener) {
 }
 
 export function ThemeProvider({ children }) {
-    const [themePreference, setThemePreferenceState] = useState(() =>
+    const [themePreference, setThemePreference] = useState(() =>
         getStoredThemePreference(),
     )
     const [resolvedTheme, setResolvedTheme] = useState(() =>
@@ -56,16 +56,16 @@ export function ThemeProvider({ children }) {
         return subscribeToSystemTheme(mediaQuery, syncTheme)
     }, [themePreference])
 
-    const setThemePreference = useCallback((nextPreference) => {
+    const updateThemePreference = useCallback((nextPreference) => {
         const normalizedPreference = normalizeThemePreference(nextPreference)
         persistThemePreference(normalizedPreference)
         setResolvedTheme(applyThemePreference(normalizedPreference))
-        setThemePreferenceState(normalizedPreference)
+        setThemePreference(normalizedPreference)
     }, [])
 
     const value = useMemo(
-        () => ({ themePreference, resolvedTheme, setThemePreference }),
-        [themePreference, resolvedTheme, setThemePreference],
+        () => ({ themePreference, resolvedTheme, setThemePreference: updateThemePreference }),
+        [themePreference, resolvedTheme, updateThemePreference],
     )
 
     return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

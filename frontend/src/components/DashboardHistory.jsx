@@ -286,12 +286,15 @@ export function HistoryConfirmationDialog({ confirmation, busy, onCancel, onConf
     const copy = getHistoryConfirmationCopy(confirmation, busy)
 
     return (
-        <div
-            className="dashboard-history-dialog-backdrop"
-            onMouseDown={(event) => {
-                if (event.target === event.currentTarget && !busy) onCancel()
-            }}
-        >
+        <div className="dashboard-history-dialog-backdrop">
+            <button
+                type="button"
+                className="modal-backdrop-dismiss"
+                tabIndex={-1}
+                aria-label="Cerrar diálogo"
+                disabled={busy}
+                onClick={onCancel}
+            />
             <dialog
                 open
                 className="dashboard-history-dialog"

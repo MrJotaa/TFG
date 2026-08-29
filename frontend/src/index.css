@@ -629,7 +629,7 @@ button {
     font-size: 0.8rem;
     color: #475569;
     margin: 0.4rem 0;
-    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .app-footer {
@@ -889,7 +889,7 @@ button {
     border: 1px solid #cbd5e1;
     border-radius: 8px;
     background: #f1f5f9;
-    color: #64748b;
+    color: #475569;
 }
 
 .prediction-main-card {
@@ -4308,7 +4308,7 @@ button {
 
 .evaluation-legend-pills .reference {
     background: #f1f5f9;
-    color: #64748b;
+    color: #475569;
 }
 
 .curve-chart-wrap {

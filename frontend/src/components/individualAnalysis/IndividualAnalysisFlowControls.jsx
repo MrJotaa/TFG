@@ -16,12 +16,15 @@ function DialogShell({ children, onClose, busy = false, labelledBy }) {
     }, [busy, onClose])
 
     return (
-        <div
-            className="individual-analysis-flow-backdrop"
-            onMouseDown={(event) => {
-                if (event.target === event.currentTarget && !busy) onClose()
-            }}
-        >
+        <div className="individual-analysis-flow-backdrop">
+            <button
+                type="button"
+                className="modal-backdrop-dismiss"
+                tabIndex={-1}
+                aria-label="Cerrar diálogo"
+                disabled={busy}
+                onClick={onClose}
+            />
             <dialog
                 open
                 className="individual-analysis-flow-dialog"

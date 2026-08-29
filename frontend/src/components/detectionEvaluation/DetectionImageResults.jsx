@@ -301,12 +301,14 @@ function DetectionImageLightbox({ preview, onClose }) {
 
     const safeZoom = clampEvaluationPreviewZoom(zoom)
     const modal = (
-        <div
-            className="image-lightbox-backdrop evaluation-image-lightbox-backdrop"
-            onMouseDown={(event) => {
-                if (event.target === event.currentTarget) onClose()
-            }}
-        >
+        <div className="image-lightbox-backdrop evaluation-image-lightbox-backdrop">
+            <button
+                type="button"
+                className="modal-backdrop-dismiss"
+                tabIndex={-1}
+                aria-label="Cerrar vista ampliada"
+                onClick={onClose}
+            />
             <dialog
                 open
                 className="image-lightbox evaluation-image-lightbox detection-evaluation-image-lightbox"

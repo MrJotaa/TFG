@@ -492,14 +492,14 @@ function EvaluationCurves({ evaluation }) {
             </section>
 
             {isExpanded && (
-                <div
-                    className="curve-modal-backdrop"
-                    onMouseDown={(event) => {
-                        if (event.target === event.currentTarget) {
-                            setIsExpanded(false)
-                        }
-                    }}
-                >
+                <div className="curve-modal-backdrop">
+                    <button
+                        type="button"
+                        className="modal-backdrop-dismiss"
+                        tabIndex={-1}
+                        aria-label="Cerrar gráfico ampliado"
+                        onClick={() => setIsExpanded(false)}
+                    />
                     <dialog
                         open
                         className="curve-modal"

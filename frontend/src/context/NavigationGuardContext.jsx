@@ -46,12 +46,14 @@ function NavigationGuardDialog({ request, protection, onCancel, onConfirm }) {
     if (!request) return null
 
     return (
-        <div
-            className="navigation-guard-backdrop"
-            onMouseDown={(event) => {
-                if (event.target === event.currentTarget) onCancel()
-            }}
-        >
+        <div className="navigation-guard-backdrop">
+            <button
+                type="button"
+                className="modal-backdrop-dismiss"
+                tabIndex={-1}
+                aria-label="Cancelar navegación"
+                onClick={onCancel}
+            />
             <section
                 className={`navigation-guard-dialog ${copy.tone}`}
                 role="alertdialog"

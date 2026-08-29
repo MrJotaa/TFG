@@ -12232,3 +12232,24 @@ html[data-theme='dark'] .evaluation-chart-tooltip.comparison-chart-tooltip:where
 :where(progress.evaluation-progress-track)::-webkit-progress-bar { border-radius: inherit; background: #dbeafe; }
 :where(progress.evaluation-progress-track)::-webkit-progress-value { border-radius: inherit; background: var(--primary); transition: width 180ms ease-out; }
 :where(progress.evaluation-progress-track)::-moz-progress-bar { border-radius: inherit; background: var(--primary); }
+
+/* Native pointer target used to dismiss modal backdrops without making the backdrop itself interactive. */
+.modal-backdrop-dismiss {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    appearance: none;
+    cursor: default;
+}
+
+.modal-backdrop-dismiss + * {
+    z-index: 1;
+}

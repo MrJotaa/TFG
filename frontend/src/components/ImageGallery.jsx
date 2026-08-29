@@ -166,12 +166,14 @@ function ImageGallery({
             />
 
             {previewImage && (
-                <div
-                    className="image-lightbox-backdrop"
-                    onMouseDown={(event) => {
-                        if (event.target === event.currentTarget) setPreviewImage(null)
-                    }}
-                >
+                <div className="image-lightbox-backdrop">
+                    <button
+                        type="button"
+                        className="modal-backdrop-dismiss"
+                        tabIndex={-1}
+                        aria-label="Cerrar vista ampliada"
+                        onClick={() => setPreviewImage(null)}
+                    />
                     <dialog
                         open
                         className="image-lightbox"
