@@ -2,7 +2,7 @@ name: tfg
 
 services:
   mongo:
-    image: mongo:latest
+    image: mongo:8.2.12
     container_name: tfg-mongo
     ports:
       - "27017:27017"
