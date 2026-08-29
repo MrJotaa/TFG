@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getDatasetImages } from '../api/datasets'
+import { resolveApiUrl } from '../api/client'
 import { filterVisibleImages } from '../utils/imageGallery'
 
 function CheckIcon() {
@@ -27,7 +28,7 @@ function CloseIcon() {
 }
 
 function imageSource(image) {
-    return `http://127.0.0.1:8000${image.url}`
+    return resolveApiUrl(image?.url)
 }
 
 

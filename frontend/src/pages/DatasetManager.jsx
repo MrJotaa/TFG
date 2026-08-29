@@ -3,6 +3,7 @@ import BulkImagePicker from '../components/BulkImagePicker'
 import CocoAnnotationPanel from '../components/CocoAnnotationPanel'
 import DatasetDialog from '../components/DatasetDialog'
 import ImageGallery from '../components/ImageGallery'
+import { resolveApiUrl } from '../api/client'
 import {
     addImagesToDataset,
     deleteDataset,
@@ -47,7 +48,7 @@ function TrashIcon() {
 }
 
 function imageSource(image) {
-    return `http://127.0.0.1:8000${image.url}`
+    return resolveApiUrl(image?.url)
 }
 
 function DatasetCreateDialog({ user, onClose, onCreated }) {
