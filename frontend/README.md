@@ -1,16 +1,43 @@
-# React + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend de la plataforma desarrollado con React y Vite.
 
-Currently, two official plugins are available:
+La puesta en marcha completa de la aplicación, incluyendo frontend, backend y MongoDB, se encuentra documentada en el [README principal](../README.md).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Desarrollo local
 
-## React Compiler
+Instalar las dependencias:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm ci
+```
 
-## Expanding the ESLint configuration
+Iniciar el servidor de desarrollo:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run dev
+```
+
+Ejecutar las pruebas:
+
+```bash
+npm test
+```
+
+Ejecutar el análisis estático:
+
+```bash
+npm run lint
+```
+
+Generar el build de producción:
+
+```bash
+npm run build
+```
+
+Para la ejecución normal de la aplicación se recomienda utilizar Docker Compose desde la raíz del proyecto:
+
+```bash
+docker compose up --build
+```
