@@ -28,6 +28,34 @@ Navegador
                     └── MongoDB
 ```
 
+## Arquitectura interna
+
+### Backend
+
+El backend sigue una organización modular:
+
+* `app/api/routes/`: definición de endpoints HTTP y adaptación entre las peticiones de la API y los servicios.
+* `app/services/`: lógica de aplicación, evaluación, persistencia e historial.
+* `app/ml/`: modelos, ataques adversarios, métricas, adaptadores y técnicas de explicabilidad.
+* `app/schemas/`: contratos y modelos de datos utilizados por la API.
+* `app/db/`: conexión con MongoDB y acceso a las colecciones.
+* `app/core/`: infraestructura transversal, gestión de errores, cancelación y  compatibilidad entre tareas.
+* `app/utils/`: utilidades compartidas y gestión de artefactos y ficheros.
+
+FastAPI genera automáticamente la documentación detallada de los endpoints y sus contratos, disponible en `http://localhost:8000/docs`.
+
+### Frontend
+
+El frontend se organiza principalmente en:
+
+* `src/pages/`: vistas principales de la aplicación.
+* `src/components/`: componentes reutilizables de interfaz.
+* `src/api/`: comunicación con la API del backend.
+* `src/context/`: estado y contexto compartido de la aplicación.
+* `src/utils/`: lógica auxiliar y transformaciones reutilizables.
+
+Esta separación mantiene desacopladas la interfaz, la comunicación con el backend y la lógica específica de cada funcionalidad.
+
 ## Requisitos
 
 Para ejecutar la aplicación únicamente es necesario disponer de:
@@ -181,6 +209,16 @@ docker compose down
 
 detiene y elimina los contenedores, pero conserva los datos persistentes.
 
+### Retención de resultados
+
+La persistencia física de `backend/uploads/` es independiente de la política de retención gestionada por la aplicación.
+
+Los resultados de análisis y evaluaciones pueden tener una fecha de expiración. Cada usuario puede configurar su periodo de retención y, por defecto, los resultados se conservan durante 24 horas.
+
+Las evaluaciones marcadas como preservadas se mantienen de forma indefinida hasta que el usuario cambie dicha configuración o las elimine explícitamente.
+
+Por tanto, reiniciar o reconstruir los contenedores no elimina los datos, pero la propia aplicación puede eliminar resultados expirados de acuerdo con su política de retención.
+
 ### Reinicio completo
 
 El siguiente comando elimina también los volúmenes declarados por Docker Compose:
@@ -263,9 +301,19 @@ Para comprobar las dependencias instaladas:
 docker compose exec backend python -m pip check
 ```
 
+### Rendimiento
+
+El protocolo utilizado para realizar benchmarks reproducibles de las
+evaluaciones se encuentra documentado en:
+
+```text
+backend/PERFORMANCE.md
+```
+Este documento describe las métricas registradas, el procedimiento de benchmark y las condiciones necesarias para comparar correctamente distintas versiones.
+
 ## Desarrollo del frontend
 
-Si se desea ejecutar el frontend fuera de Docker para trabajar con el servidor de desarrollo de Vite, es necesario disponer de una versión compatible de Node.js.
+Si se desea ejecutar el frontend fuera de Docker para trabajar con el servidor de desarrollo de Vite, es necesario disponer de Node.js. Se recomienda utilizar Node.js 22, que es la versión empleada durante la construcción de la imagen Docker.
 
 Desde `frontend/`:
 
@@ -375,7 +423,6 @@ La configuración utiliza los puertos:
 ```text
 5173  Frontend
 8000  Backend
-27017 MongoDB
 ```
 
 Debe comprobarse que no exista otro proceso o contenedor utilizando alguno de ellos.

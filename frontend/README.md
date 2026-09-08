@@ -4,6 +4,8 @@ Frontend de la plataforma desarrollado con React y Vite.
 
 La puesta en marcha completa de la aplicación, incluyendo frontend, backend y MongoDB, se encuentra documentada en el [README principal](../README.md).
 
+Para el desarrollo local se recomienda Node.js 22, que coincide con la versión utilizada para construir la imagen Docker del frontend.
+
 ## Desarrollo local
 
 Instalar las dependencias:
