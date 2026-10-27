@@ -2,6 +2,7 @@ from art.attacks.evasion import ZooAttack as ARTZooAttack
 
 from ml.attacks.art_classification import BaseARTClassificationAttack
 from ml.attacks.base import AttackParameterSpec
+from ml.attacks.zoo_reduced_noise import ReducedNoiseZooAttack
 
 
 class ZerothOrderOptimizationAttack(BaseARTClassificationAttack):
@@ -12,7 +13,7 @@ class ZerothOrderOptimizationAttack(BaseARTClassificationAttack):
         "diferencias finitas y optimización coordinada ADAM"
     )
     knowledge_type = "black_box"
-    revision = "art-1.20.1-zoo-v1"
+    revision = "art-1.20.1-zoo-noise-v2"
     supported_task_types = ("classification",)
     parameter_specs = (
         AttackParameterSpec(
@@ -100,8 +101,9 @@ class ZerothOrderOptimizationAttack(BaseARTClassificationAttack):
             label="Usar reducción dimensional",
             summary_label="redim.",
             description=(
-                "Optimiza primero en baja resolución siguiendo la estrategia jerárquica "
-                "de ZOO para reducir el coste en imágenes grandes"
+                "Optimiza ruido de 32×32 sobre la imagen original, "
+                "sin reducir ni degradar la imagen que recibe el modelo. "
+                "La búsqueda puede requerir muchas consultas."
             ),
             value_type="boolean",
             default=True,
@@ -123,6 +125,9 @@ class ZerothOrderOptimizationAttack(BaseARTClassificationAttack):
     )
 
     def build_art_attack(self, estimator, parameters):
+        if parameters.use_resize:
+            return ReducedNoiseZooAttack(estimator=estimator, parameters=parameters)
+
         return ARTZooAttack(
             classifier=estimator,
             confidence=parameters.confidence,

@@ -276,7 +276,9 @@ def test_active_class_catalog_rejects_detection_model(
 
     with pytest.raises(
         BadRequestError,
-        match=("El endpoint '/models/active/classes' requiere un modelo de clasificación"),
+        match=(
+            "El endpoint '/models/active/classes' requiere un modelo de clasificación"
+        ),
     ):
         label_service.get_active_model_class_catalog()
 
@@ -349,7 +351,9 @@ def test_dataset_label_resolution_endpoint(
                         "image_id": "image-2",
                         "filename": "unknown.png",
                         "provided_label": "unknown",
-                        "reason": ("La etiqueta no coincide con ninguna clase del modelo"),
+                        "reason": (
+                            "La etiqueta no coincide con ninguna clase del modelo"
+                        ),
                     }
                 ],
             ),

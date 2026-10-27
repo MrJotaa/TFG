@@ -298,7 +298,9 @@ def test_prediction_flip_rate_must_match_counts():
             accuracy_drop=_prepared_accuracy_drop,
             conditional_attack_success_rate=(_prepared_conditional_attack_success_rate),
             corrected_by_attack_rate=(_prepared_corrected_by_attack_rate),
-            average_true_class_probability_drop=(_prepared_average_true_class_probability_drop),
+            average_true_class_probability_drop=(
+                _prepared_average_true_class_probability_drop
+            ),
             average_prediction_margin_drop=(_prepared_average_prediction_margin_drop),
             average_perturbation_linf=0.03,
             average_perturbation_l2=1.0,

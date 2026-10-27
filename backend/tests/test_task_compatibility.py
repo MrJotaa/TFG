@@ -122,7 +122,9 @@ def test_require_attack_task_type_rejects_incompatible_attack():
 
     with pytest.raises(
         BadRequestError,
-        match=("El ataque 'yolo_confidence' no es compatible con la tarea de clasificación"),
+        match=(
+            "El ataque 'yolo_confidence' no es compatible con la tarea de clasificación"
+        ),
     ):
         require_attack_task_type(
             attack=attack,

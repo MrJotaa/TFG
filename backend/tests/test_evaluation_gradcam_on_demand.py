@@ -583,7 +583,9 @@ async def test_on_demand_gradcam_rejects_corrupt_scientific_artifacts(
         lambda artifact_path: artifact,
     )
 
-    with pytest.raises(BadRequestError, match="artefacto científico de la evaluación no es válido"):
+    with pytest.raises(
+        BadRequestError, match="artefacto científico de la evaluación no es válido"
+    ):
         await gradcam_service.generate_evaluation_image_gradcam(
             evaluation_id=evaluation_id,
             image_id=image_id,
@@ -1000,6 +1002,7 @@ def test_evaluation_gradcam_route_is_authenticated_post():
         dependency.call is require_current_user
         for dependency in route.dependant.dependencies
     )
+
 
 @pytest.mark.asyncio
 async def test_preserved_evaluation_gradcam_ignores_stale_metadata_expiration(

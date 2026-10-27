@@ -116,8 +116,9 @@ def test_preserve_evaluation_uses_authenticated_owner_and_user_retention(
     assert response.status_code == 200
     assert response.json()["preserved"] is True
     assert captured["owner_id"] == registered_user["user"]["id"]
-    assert captured["retention_seconds"] == (
-        registered_user["user"]["result_retention_seconds"]
+    assert (
+        captured["retention_seconds"]
+        == (registered_user["user"]["result_retention_seconds"])
     )
 
 

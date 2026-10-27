@@ -68,10 +68,7 @@ class _FakeEvaluationCollection:
             for document in self.documents.values()
             if document["owner_id"] == query["owner_id"]
             and document["status"] == query["status"]
-            and (
-                document.get("preserved") is True
-                or document.get("expires_at") > now
-            )
+            and (document.get("preserved") is True or document.get("expires_at") > now)
         ]
         return _FakeCursor(documents)
 
@@ -257,7 +254,9 @@ async def test_detection_evaluation_rejects_invalid_identity_and_artifact(
     )
     artifact_path.write_text("{}", encoding="utf-8")
 
-    with pytest.raises(BadRequestError, match="artefacto de la evaluación de detección no es válido"):
+    with pytest.raises(
+        BadRequestError, match="artefacto de la evaluación de detección no es válido"
+    ):
         await persistence.get_detection_evaluation(
             evaluation_id=result_id,
             owner_id="user-1",
@@ -338,6 +337,7 @@ async def test_persistence_does_not_delete_stale_evaluation_directories_by_mtime
     assert stale_path.is_dir()
     assert unrelated_path.is_dir()
     assert (tmp_path / active_id).is_dir()
+
 
 @pytest.mark.asyncio
 async def test_legacy_detection_access_honors_preserved_evaluations(

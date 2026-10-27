@@ -816,6 +816,4 @@ async def test_detection_evaluation_propagates_supervised_geometry_error(
     )
 
     with pytest.raises(RuntimeError, match="does not match snapshot geometry"):
-        await detection_evaluation_service.evaluate_detection_dataset(
-            _prepared_arg_1
-        )
+        await detection_evaluation_service.evaluate_detection_dataset(_prepared_arg_1)

@@ -10,7 +10,7 @@ def _resolved_parameters(**overrides):
     return attack.resolve_parameters(AttackParameters(**overrides))
 
 
-def test_zoo_parameter_contract_uses_art_defaults():
+def test_zoo_parameter_contract_uses_platform_defaults():
     parameters = _resolved_parameters()
 
     assert parameters.model_dump() == {
@@ -119,3 +119,13 @@ def test_zoo_is_classification_only_black_box_attack():
     assert attack.knowledge_type == "black_box"
     assert attack.supports_task_type("classification") is True
     assert attack.supports_task_type("detection") is False
+
+
+def test_zoo_uses_reduced_noise_only_when_requested():
+    from ml.attacks.zoo_reduced_noise import ReducedNoiseZooAttack
+
+    estimator = object()
+    attack = ZerothOrderOptimizationAttack()
+    reduced = attack.build_art_attack(estimator, _resolved_parameters(use_resize=True))
+    assert isinstance(reduced, ReducedNoiseZooAttack)
+    assert reduced._estimator is estimator
