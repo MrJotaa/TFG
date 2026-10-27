@@ -93,7 +93,7 @@ async def test_unversioned_attacks_keep_legacy_evaluation_identity_shape(monkeyp
         ),
         (
             AttackType.ZOO,
-            "art-1.20.1-zoo-v1",
+            "art-1.20.1-zoo-noise-v2",
         ),
     ],
 )

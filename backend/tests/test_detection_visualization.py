@@ -50,9 +50,7 @@ def test_detection_color_falls_back_to_class_id_without_a_name():
     assert detection_color(first_detection) == detection_color(
         same_class_different_detection
     )
-    assert detection_color(first_detection) != detection_color(
-        different_class
-    )
+    assert detection_color(first_detection) != detection_color(different_class)
 
 
 def test_draw_detections_keeps_source_geometry_and_uses_class_colors():
