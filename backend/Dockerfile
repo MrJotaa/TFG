@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.lock.txt .
+COPY requirements.txt requirements.lock.txt ./
 
 RUN pip install --no-cache-dir -r requirements.lock.txt \
     && python -m pip check
