@@ -1,0 +1,912 @@
+/* Classification evaluation: per-class metrics and confusion matrices */
+.class-metrics-tab,
+.confusion-matrix-tab {
+    min-width: 0;
+}
+
+.class-metrics-header,
+.confusion-matrix-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.5rem;
+    background:
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 34%),
+        #ffffff;
+}
+
+.class-metrics-header h3,
+.confusion-matrix-header h3 {
+    margin: 0.3rem 0 0.45rem;
+    color: var(--evaluation-ink);
+    font-size: 1.2rem;
+}
+
+.class-metrics-header p,
+.confusion-matrix-header p {
+    max-width: 720px;
+    margin: 0;
+    color: var(--evaluation-muted);
+    line-height: 1.55;
+}
+
+.class-metrics-summary {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(112px, 1fr));
+    overflow: hidden;
+    border: 1px solid var(--evaluation-line);
+    border-radius: 14px;
+    background: rgba(248, 250, 252, 0.8);
+}
+
+.class-metrics-summary div {
+    padding: 0.8rem 0.9rem;
+    border-right: 1px solid var(--evaluation-line);
+    text-align: center;
+}
+
+.class-metrics-summary div:last-child {
+    border-right: 0;
+}
+
+.class-metrics-summary strong,
+.class-metrics-summary span {
+    display: block;
+}
+
+.class-metrics-summary strong {
+    color: var(--evaluation-ink);
+    font-size: 1.2rem;
+}
+
+.class-metrics-summary span {
+    margin-top: 0.2rem;
+    color: var(--evaluation-muted);
+    font-size: 0.7rem;
+    font-weight: 750;
+}
+
+.class-metrics-summary .warning strong {
+    color: #b45309;
+}
+
+.class-metrics-toolbar {
+    display: grid;
+    grid-template-columns: minmax(230px, 1fr) minmax(180px, 0.45fr) minmax(210px, 0.55fr);
+    gap: 0.8rem;
+    padding: 0.85rem;
+    border: 1px solid var(--evaluation-line);
+    border-radius: 16px;
+    background: var(--evaluation-soft);
+}
+
+.class-metrics-toolbar label {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.class-metrics-toolbar label > span {
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+}
+
+.class-metrics-toolbar input,
+.class-metrics-toolbar select {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 11px;
+    background: #ffffff;
+    color: var(--evaluation-ink);
+}
+
+.class-metrics-legend {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-height: 34px;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid var(--evaluation-line);
+    border-radius: 12px;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.74rem;
+    font-weight: 750;
+}
+
+    .class-metrics-legend small {
+    margin-left: auto;
+    color: var(--evaluation-muted);
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.class-metrics-list {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.class-metric-card {
+    overflow: hidden;
+    border: 1px solid var(--evaluation-line);
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045);
+}
+
+.class-metric-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.05rem;
+    border-bottom: 1px solid var(--evaluation-line);
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+}
+
+.class-metric-identity span {
+    color: var(--evaluation-muted);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.class-metric-identity h4 {
+    margin: 0.28rem 0 0;
+    color: var(--evaluation-ink);
+    font-size: 1rem;
+}
+
+.class-metric-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.45rem;
+}
+
+.class-metric-badges span,
+.class-metric-badges strong {
+    padding: 0.38rem 0.58rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-style: normal;
+}
+
+.class-metric-badges span {
+    background: #eef2f7;
+    color: #475569;
+}
+
+.class-metric-badges strong,
+.class-metric-miniature em,
+.class-metric-delta {
+    color: #475569;
+}
+
+.class-metric-badges .tone-danger,
+.class-metric-miniature .tone-danger,
+.class-metric-delta.tone-danger {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.class-metric-badges .tone-success,
+.class-metric-miniature .tone-success,
+.class-metric-delta.tone-success {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.class-metric-badges .tone-neutral,
+.class-metric-miniature .tone-neutral,
+.class-metric-delta.tone-neutral {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.class-metric-main-comparison {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px;
+    gap: 1rem;
+    align-items: stretch;
+    padding: 1rem 1.05rem;
+}
+
+.class-metric-main-label {
+    display: block;
+    margin-bottom: 0.7rem;
+    color: #475569;
+    font-size: 0.76rem;
+    font-weight: 800;
+}
+
+.class-metric-bar-row + .class-metric-bar-row {
+    margin-top: 0.65rem;
+}
+
+.class-metric-bar-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.3rem;
+}
+
+.class-metric-bar-label > span {
+    color: var(--evaluation-muted);
+    font-size: 0.76rem;
+}
+
+.class-metric-series-label,
+.class-metrics-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+}
+
+.class-metric-series-dot {
+    width: 0.62rem;
+    height: 0.62rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+}
+
+.class-metric-series-dot.tone-original {
+    background: var(--evaluation-original);
+}
+
+.class-metric-series-dot.tone-adversarial {
+    background: var(--evaluation-adversarial);
+}
+
+.class-metric-bar-label strong {
+    color: var(--evaluation-ink);
+    font-size: 0.8rem;
+}
+
+.class-metric-track {
+    position: relative;
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e8edf5;
+}
+
+.class-metric-track > span:not(.class-metric-unavailable-label) {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    transition: width 180ms ease;
+}
+
+.class-metric-track.is-unavailable {
+    height: 24px;
+    border: 1px dashed #cbd5e1;
+    background: repeating-linear-gradient(
+        -45deg,
+        #f8fafc,
+        #f8fafc 6px,
+        #f1f5f9 6px,
+        #f1f5f9 12px
+    );
+}
+
+.class-metric-unavailable-label {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 750;
+}
+
+.class-metric-zero-marker {
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    width: 8px;
+    height: 8px;
+    border: 2px solid #ffffff;
+    border-radius: 999px;
+    transform: translateY(-50%);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.12);
+}
+
+.class-metric-zero-marker.tone-original {
+    background: var(--evaluation-original);
+}
+
+.class-metric-zero-marker.tone-adversarial {
+    background: var(--evaluation-adversarial);
+}
+
+.class-metric-track .tone-original {
+    background: linear-gradient(90deg, #60a5fa, var(--evaluation-original));
+}
+
+.class-metric-track .tone-adversarial {
+    background: linear-gradient(90deg, #f87171, var(--evaluation-adversarial));
+}
+
+.class-metric-delta {
+    display: grid;
+    place-content: center;
+    padding: 0.75rem;
+    border-radius: 14px;
+    text-align: center;
+}
+
+.class-metric-delta span,
+.class-metric-delta small,
+.class-metric-delta strong {
+    display: block;
+}
+
+.class-metric-delta span {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.class-metric-delta strong {
+    margin: 0.25rem 0;
+    font-size: 1.35rem;
+}
+
+.class-metric-delta small {
+    opacity: 0.78;
+    font-size: 0.68rem;
+}
+
+.class-metric-mini-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    border-top: 1px solid var(--evaluation-line);
+    background: #fbfdff;
+}
+
+.class-metric-miniature {
+    min-width: 0;
+    padding: 0.78rem;
+    border-right: 1px solid var(--evaluation-line);
+}
+
+.class-metric-miniature:last-child {
+    border-right: 0;
+}
+
+.class-metric-miniature > span,
+.class-metric-miniature strong,
+.class-metric-miniature em {
+    display: block;
+}
+
+.class-metric-miniature > span {
+    overflow: hidden;
+    color: var(--evaluation-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.class-metric-miniature strong {
+    margin-top: 0.35rem;
+    color: var(--evaluation-ink);
+    font-size: 0.76rem;
+    white-space: nowrap;
+}
+
+.class-metric-miniature strong small {
+    color: #94a3b8;
+}
+
+.class-metric-miniature strong > span {
+    display: inline;
+}
+
+.class-metric-miniature em {
+    width: fit-content;
+    margin-top: 0.38rem;
+    padding: 0.22rem 0.38rem;
+    border-radius: 999px;
+    font-size: 0.66rem;
+    font-style: normal;
+    font-weight: 800;
+}
+
+.evaluation-empty-panel.compact {
+    padding: 1.5rem;
+}
+
+.confusion-matrix-controls {
+    flex: 0 1 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.55rem;
+}
+
+.evaluation-segmented-control {
+    display: inline-flex;
+    padding: 0.25rem;
+    border: 1px solid var(--evaluation-line);
+    border-radius: 12px;
+    background: var(--evaluation-soft);
+}
+
+.evaluation-segmented-control button {
+    min-width: 105px;
+    margin: 0;
+    padding: 0.5rem 0.72rem;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.evaluation-segmented-control button.active {
+    background: #ffffff;
+    color: var(--evaluation-original);
+    box-shadow: 0 5px 14px rgba(15, 23, 42, 0.08);
+}
+
+.confusion-variant-control button.active[data-variant='adversarial'] {
+    color: var(--evaluation-adversarial);
+}
+
+.confusion-matrix-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.confusion-matrix-stat-grid article {
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--evaluation-line);
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.confusion-matrix-stat-grid span,
+.confusion-matrix-stat-grid strong {
+    display: block;
+}
+
+.confusion-matrix-stat-grid span {
+    color: var(--evaluation-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.confusion-matrix-stat-grid strong {
+    margin-top: 0.3rem;
+    color: var(--evaluation-ink);
+    font-size: 1.25rem;
+}
+
+.confusion-matrix-surface {
+    min-width: 0;
+    overflow: hidden;
+    padding: 1rem;
+}
+
+.confusion-matrix-viewport-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--evaluation-line);
+}
+
+.confusion-matrix-viewport-header div,
+.confusion-matrix-viewport-header strong,
+.confusion-matrix-viewport-header span {
+    display: block;
+}
+
+.confusion-matrix-viewport-header strong {
+    color: var(--evaluation-ink);
+    font-size: 0.82rem;
+}
+
+.confusion-matrix-viewport-header span,
+.confusion-matrix-viewport-header p {
+    color: var(--evaluation-muted);
+    font-size: 0.72rem;
+}
+
+.confusion-matrix-viewport-header span {
+    margin-top: 0.18rem;
+}
+
+.confusion-matrix-viewport-header p {
+    max-width: 360px;
+    margin: 0;
+    text-align: right;
+}
+
+.confusion-matrix-layout {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: stretch;
+}
+
+.confusion-matrix-axis-label {
+    color: var(--evaluation-muted);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.confusion-matrix-axis-label.top {
+    margin: 0 0 0.55rem 3rem;
+    text-align: center;
+}
+
+.confusion-matrix-axis-label.side {
+    display: grid;
+    place-items: center;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+}
+
+.confusion-matrix-scroll {
+    min-width: 0;
+    max-height: min(64vh, 660px);
+    overflow: auto;
+    padding: 0 0.35rem 0.35rem 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    scrollbar-color: #94a3b8 #e8edf5;
+    scrollbar-gutter: stable both-edges;
+    scrollbar-width: auto;
+    overscroll-behavior: contain;
+}
+
+.confusion-matrix-scroll:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.22);
+    outline-offset: 3px;
+}
+
+.confusion-matrix-scroll::-webkit-scrollbar {
+    width: 14px;
+    height: 14px;
+}
+
+.confusion-matrix-scroll::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: #e8edf5;
+}
+
+.confusion-matrix-scroll::-webkit-scrollbar-thumb {
+    border: 3px solid #e8edf5;
+    border-radius: 999px;
+    background: #94a3b8;
+}
+
+.confusion-matrix-scroll::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+.confusion-matrix-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 4px;
+    table-layout: fixed;
+}
+
+.confusion-matrix-table caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.confusion-matrix-table th,
+.confusion-matrix-table td {
+    min-width: 76px;
+    height: 62px;
+    padding: 0.45rem;
+    border: 0;
+    border-radius: 9px;
+    text-align: center;
+}
+
+.confusion-matrix-table.is-compact th,
+.confusion-matrix-table.is-compact td {
+    min-width: 62px;
+    height: 50px;
+    padding: 0.34rem;
+}
+
+.confusion-matrix-table thead th,
+.confusion-matrix-table tbody th {
+    background: #f8fafc;
+    color: #475569;
+}
+
+.confusion-matrix-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    max-width: 88px;
+    vertical-align: bottom;
+    box-shadow: 0 1px 0 #dbe3ee;
+}
+
+.confusion-matrix-table tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 126px;
+    max-width: 126px;
+    text-align: left;
+    box-shadow: 1px 0 0 #dbe3ee;
+}
+
+.confusion-matrix-table.is-compact tbody th {
+    min-width: 112px;
+    max-width: 112px;
+}
+
+.confusion-matrix-table th span,
+.confusion-matrix-table th strong {
+    display: block;
+}
+
+.confusion-matrix-table th span {
+    color: #94a3b8;
+    font-size: 0.62rem;
+}
+
+.confusion-matrix-table th strong {
+    overflow: hidden;
+    margin-top: 0.2rem;
+    font-size: 0.68rem;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+}
+
+.confusion-matrix-table.is-compact th strong {
+    font-size: 0.64rem;
+}
+
+.confusion-matrix-table thead th strong {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+}
+
+.confusion-matrix-table td {
+    font-size: 0.78rem;
+    font-weight: 850;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.confusion-matrix-table.is-compact td {
+    font-size: 0.72rem;
+}
+
+.confusion-matrix-table td:hover {
+    position: relative;
+    z-index: 3;
+    transform: scale(1.06);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+}
+
+.confusion-matrix-table td.diagonal {
+    outline: 2px solid rgba(15, 23, 42, 0.3);
+    outline-offset: 1px;
+}
+
+.confusion-matrix-corner {
+    position: sticky;
+    left: 0;
+    z-index: 3 !important;
+    min-width: 126px !important;
+    box-shadow: 1px 1px 0 #dbe3ee !important;
+}
+
+.confusion-matrix-table.is-compact .confusion-matrix-corner {
+    min-width: 112px !important;
+}
+
+.confusion-matrix-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    margin-top: 0.7rem;
+    color: var(--evaluation-muted);
+    font-size: 0.68rem;
+}
+
+.confusion-matrix-legend div {
+    width: 150px;
+    height: 9px;
+    border-radius: 999px;
+}
+
+.confusion-matrix-legend .original {
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.06), rgba(37, 99, 235, 0.84));
+}
+
+.confusion-matrix-legend .adversarial {
+    background: linear-gradient(90deg, rgba(220, 38, 38, 0.06), rgba(220, 38, 38, 0.84));
+}
+
+.evaluation-info-banner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.6rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid #bfdbfe;
+    border-radius: 14px;
+    background: #eff6ff;
+    color: #1e3a8a;
+}
+
+.evaluation-info-banner span {
+    color: inherit;
+}
+
+@media (max-width: 1180px) {
+    .class-metrics-header,
+    .confusion-matrix-header {
+        flex-direction: column;
+    }
+
+    .class-metrics-summary {
+        width: 100%;
+    }
+
+    .class-metric-mini-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .class-metric-miniature:nth-child(3) {
+        border-right: 0;
+    }
+
+    .class-metric-miniature:nth-child(n + 4) {
+        border-top: 1px solid var(--evaluation-line);
+    }
+
+    .confusion-matrix-controls {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .confusion-matrix-controls .evaluation-segmented-control {
+        flex: 1 1 210px;
+    }
+
+    .evaluation-segmented-control {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .evaluation-segmented-control button {
+        min-width: 0;
+    }
+}
+
+@media (max-width: 760px) {
+    .class-metrics-toolbar,
+    .class-metric-main-comparison,
+    .confusion-matrix-stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .confusion-matrix-controls {
+        flex-direction: column;
+    }
+
+    .confusion-matrix-controls .evaluation-segmented-control {
+        width: 100%;
+        flex-basis: auto;
+    }
+
+    .class-metrics-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .class-metrics-summary div {
+        border-right: 0;
+        border-bottom: 1px solid var(--evaluation-line);
+    }
+
+    .class-metrics-summary div:last-child {
+        border-bottom: 0;
+    }
+
+    .class-metric-card-header {
+        flex-direction: column;
+    }
+
+    .class-metric-badges {
+        justify-content: flex-start;
+    }
+
+    .class-metric-mini-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .class-metric-miniature,
+    .class-metric-miniature:nth-child(3) {
+        border-right: 0;
+        border-top: 1px solid var(--evaluation-line);
+    }
+
+    .class-metric-miniature:first-child {
+        border-top: 0;
+    }
+
+    .confusion-matrix-viewport-header {
+        flex-direction: column;
+    }
+
+    .confusion-matrix-viewport-header p {
+        text-align: left;
+    }
+
+    .confusion-matrix-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .confusion-matrix-axis-label.side {
+        display: none;
+    }
+
+    .confusion-matrix-axis-label.top {
+        margin-left: 0;
+    }
+
+    .confusion-matrix-scroll {
+        max-height: 62vh;
+    }
+
+    .confusion-matrix-table th,
+    .confusion-matrix-table td {
+        min-width: 68px;
+        height: 56px;
+    }
+
+    .confusion-matrix-table.is-compact th,
+    .confusion-matrix-table.is-compact td {
+        min-width: 58px;
+        height: 48px;
+    }
+
+    .confusion-matrix-table tbody th,
+    .confusion-matrix-corner {
+        min-width: 108px !important;
+        max-width: 108px;
+    }
+
+    .confusion-matrix-table.is-compact tbody th,
+    .confusion-matrix-table.is-compact .confusion-matrix-corner {
+        min-width: 100px !important;
+        max-width: 100px;
+    }
+}

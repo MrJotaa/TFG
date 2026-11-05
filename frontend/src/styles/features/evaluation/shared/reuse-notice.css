@@ -1,0 +1,45 @@
+.evaluation-reuse-notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin: 1rem 1.25rem;
+    padding: 1rem;
+    border: 1px solid #93c5fd;
+    border-radius: 14px;
+    background: #eff6ff;
+}
+
+.evaluation-reuse-notice.near-expiration {
+    border-color: #fdba74;
+    background: #fff7ed;
+}
+
+.evaluation-reuse-copy h4,
+.evaluation-reuse-copy p {
+    margin: 0;
+}
+
+.evaluation-reuse-copy h4 {
+    margin-top: 0.25rem;
+}
+
+.evaluation-reuse-copy p {
+    margin-top: 0.35rem;
+    color: #475569;
+    line-height: 1.45;
+}
+
+.evaluation-reuse-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.text-action {
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    font-weight: 750;
+}

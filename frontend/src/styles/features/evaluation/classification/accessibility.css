@@ -1,0 +1,123 @@
+/* Classification evaluation: final responsive and accessibility polish */
+.evaluation-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.evaluation-dashboard button:focus-visible,
+.evaluation-dashboard input:focus-visible,
+.evaluation-dashboard select:focus-visible,
+.evaluation-tab-panel:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.42);
+    outline-offset: 3px;
+}
+
+.evaluation-tabs:where(*) {
+    scrollbar-width: thin;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+}
+
+.evaluation-tab:where(*) {
+    min-height: 44px;
+    scroll-snap-align: start;
+}
+
+.evaluation-tab-panel:where(*) {
+    outline: none;
+}
+
+.evaluation-tab-panel:focus-visible {
+    border-radius: 0 0 20px 20px;
+}
+
+.evaluation-segmented-control button,
+.evaluation-image-filter-list button,
+.evaluation-detail-button,
+.evaluation-pagination button {
+    min-height: 42px;
+}
+
+.evaluation-image-card,
+.class-metric-card,
+.curve-score-card,
+.evaluation-metric-card {
+    transition:
+        transform 160ms ease,
+        box-shadow 160ms ease,
+        border-color 160ms ease;
+}
+
+.evaluation-image-diagnostics[hidden] {
+    display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .evaluation-image-card:hover,
+    .class-metric-card:hover,
+    .curve-score-card:hover,
+    .evaluation-metric-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(37, 99, 235, 0.2);
+        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+    }
+}
+
+@media (max-width: 560px) {
+    .evaluation-results-shell {
+        border-radius: 16px;
+    }
+
+    .evaluation-tabs {
+        padding: 0.55rem;
+    }
+
+    .evaluation-tab {
+        padding-inline: 0.75rem;
+    }
+
+    .evaluation-tab-panel {
+        min-height: 360px;
+        padding: 0.65rem;
+    }
+
+    .evaluation-run-card.modern,
+    .evaluation-surface,
+    .evaluation-image-card-body {
+        padding: 0.85rem;
+    }
+
+    .evaluation-image-summary dl div {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .evaluation-image-summary dd {
+        max-width: 100%;
+        text-align: left;
+        white-space: normal;
+    }
+
+    .evaluation-pagination button {
+        padding-inline: 0.65rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .evaluation-dashboard *,
+    .evaluation-dashboard *::before,
+    .evaluation-dashboard *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
