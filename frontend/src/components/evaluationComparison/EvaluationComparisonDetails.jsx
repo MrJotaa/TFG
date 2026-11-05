@@ -1,3 +1,4 @@
+import PrivateImage from '../PrivateImage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -890,7 +891,7 @@ function ComparisonImageLightbox({ preview, onClose }) {
                 </header>
                 <div ref={viewportRef} className={`evaluation-image-lightbox-stage${safeZoom > 1 ? ' can-pan' : ''}${dragging ? ' is-dragging' : ''}`} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}>
                     <div ref={canvasRef} className="evaluation-comparison-lightbox-canvas" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${safeZoom})` }}>
-                        <img src={resolveApiUrl(preview.url)} alt={preview.label} draggable="false" onLoad={(event) => setDimensions({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} />
+                        <PrivateImage src={resolveApiUrl(preview.url)} alt={preview.label} draggable="false" onLoad={(event) => setDimensions({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} />
                         <DetectionLabelsOverlay detections={preview.detections} dimensions={dimensions} />
                     </div>
                 </div>
@@ -907,7 +908,7 @@ function ComparisonImageFigure({ label, url, caption, onExpand, tone, detections
         <figure className={`evaluation-comparison-image-figure ${tone ?? ''}`}>
             <figcaption><strong>{label}</strong>{caption && <span>{caption}</span>}</figcaption>
             <div>
-                <img src={resolveApiUrl(url)} alt={label} loading="lazy" onLoad={(event) => setDimensions({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} />
+                <PrivateImage src={resolveApiUrl(url)} alt={label} loading="lazy" onLoad={(event) => setDimensions({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} />
                 <DetectionLabelsOverlay detections={detections} dimensions={dimensions} />
                 <button type="button" onClick={() => onExpand({ label, url, detections })} aria-label={`Ampliar ${label}`}><ExpandIcon /></button>
             </div>

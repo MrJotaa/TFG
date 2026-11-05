@@ -137,13 +137,15 @@ async def add_images_to_existing_dataset(
     return await add_images_to_dataset(dataset_id, files, owner_id=current_user.id)
 
 
-# Fase 3: la descarga sigue siendo pública hasta adaptar los <img> del frontend.
 @router.get("/datasets/{dataset_id}/images/{image_id}")
 async def get_dataset_image(
     dataset_id: str,
     image_id: str,
+    current_user: UserResponse = Depends(require_current_user),
 ) -> FileResponse:
-    return await get_image_file_response(dataset_id, image_id)
+    return await get_image_file_response(
+        dataset_id, image_id, owner_id=current_user.id
+    )
 
 
 @router.delete("/datasets/{dataset_id}/images/{image_id}")

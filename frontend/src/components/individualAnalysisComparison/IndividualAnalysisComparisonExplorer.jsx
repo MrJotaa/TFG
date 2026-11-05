@@ -1,3 +1,4 @@
+import PrivateImage from '../PrivateImage'
 import { useMemo, useRef, useState } from 'react'
 import { resolveApiUrl } from '../../api/client'
 import {
@@ -38,7 +39,7 @@ function ComparisonViewport({
                 {...handlers}
             >
                 {source ? (
-                    <img
+                    <PrivateImage
                         src={resolveApiUrl(source)}
                         alt={label}
                         draggable="false"
@@ -74,7 +75,7 @@ function ComparisonOverlay({
                 {...handlers}
             >
                 {rightSource && (
-                    <img
+                    <PrivateImage
                         src={resolveApiUrl(rightSource)}
                         alt="Evaluación B"
                         draggable="false"
@@ -88,7 +89,7 @@ function ComparisonOverlay({
                         className="individual-comparison-overlay-layer"
                         style={{ clipPath: splitState.originalClipPath }}
                     >
-                        <img
+                        <PrivateImage
                             src={resolveApiUrl(leftSource)}
                             alt="Evaluación A"
                             draggable="false"

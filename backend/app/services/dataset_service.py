@@ -368,8 +368,10 @@ async def list_images_in_dataset(
 async def get_image_file_response(
     dataset_id: str,
     image_id: str,
+    *,
+    owner_id: str | None = None,
 ) -> FileResponse:
-    _, dataset = await _get_dataset_document(dataset_id)
+    _, dataset = await _get_dataset_document(dataset_id, owner_id=owner_id)
     image_metadata = _get_image_metadata(dataset, image_id)
     image_path = image_metadata["path"]
 
@@ -382,6 +384,7 @@ async def get_image_file_response(
         path=image_path,
         filename=image_metadata["filename"],
         media_type=media_type or "application/octet-stream",
+        headers={"Cache-Control": "private, no-store, max-age=0"},
     )
 
 

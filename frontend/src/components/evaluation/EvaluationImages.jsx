@@ -1,3 +1,4 @@
+import PrivateImage from '../PrivateImage'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ClassificationTopK from '../classification/ClassificationTopK'
@@ -129,7 +130,7 @@ function ImagePreview({ label, path, alt, variant, onExpand }) {
             <figcaption>{label}</figcaption>
             {url ? (
                 <div className="evaluation-image-preview-visual">
-                    <img src={url} alt={alt} loading="lazy" />
+                    <PrivateImage src={url} alt={alt} loading="lazy" />
                     {onExpand && (
                         <button
                             type="button"
@@ -323,7 +324,7 @@ function EvaluationImageLightbox({ preview, onClose }) {
                     onPointerUp={finishPointerDrag}
                     onPointerCancel={finishPointerDrag}
                 >
-                    <img
+                    <PrivateImage
                         ref={imageRef}
                         src={preview.url}
                         alt={preview.alt}

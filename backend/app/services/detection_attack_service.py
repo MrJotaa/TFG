@@ -214,6 +214,7 @@ async def apply_detection_attack(
         )
 
     metadata = {
+        "owner_id": owner_id,
         "result_id": result_id,
         "result_type": "detection_attack",
         "dataset_id": request.dataset_id,

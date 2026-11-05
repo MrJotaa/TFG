@@ -59,6 +59,7 @@ async def detect_objects(
     save_result_metadata(
         result_path=result_path,
         metadata={
+            "owner_id": owner_id,
             "result_id": result_id,
             "result_type": "detection",
             "dataset_id": request.dataset_id,

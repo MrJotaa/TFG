@@ -1,3 +1,4 @@
+import PrivateImage from './PrivateImage'
 import { useState } from 'react'
 import { predictImage } from '../api/predict'
 import { generateGradCam } from '../api/explainability'
@@ -118,7 +119,7 @@ function PredictionPanelContent({ selectedDataset, selectedImage }) {
                     <p>
                         Confianza: <strong>{gradCam.confidence}</strong>
                     </p>
-                    <img
+                    <PrivateImage
                         src={resolveApiUrl(gradCam.gradcam_image_url)}
                         alt="Grad-CAM"
                         width={300}

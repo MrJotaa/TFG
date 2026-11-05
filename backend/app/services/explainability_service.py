@@ -73,6 +73,7 @@ async def generate_gradcam_for_image(
     save_result_metadata(
         result_path=result_path,
         metadata={
+            "owner_id": owner_id,
             "result_id": result_id,
             "result_type": "gradcam",
             "dataset_id": dataset_id,
@@ -143,6 +144,7 @@ async def generate_detection_explainability(
     save_result_metadata(
         result_path=result_path,
         metadata={
+            "owner_id": owner_id,
             "result_id": result_id,
             "result_type": "detection_eigencam",
             "dataset_id": request.dataset_id,

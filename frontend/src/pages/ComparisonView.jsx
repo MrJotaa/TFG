@@ -1,3 +1,4 @@
+import PrivateImage from '../components/PrivateImage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { applyAttack } from '../api/attack'
@@ -131,7 +132,7 @@ function CleanPredictionResult({ prediction, selectedImage }) {
     return (
         <section className="classification-prediction-result" aria-live="polite">
             <figure className="classification-prediction-figure">
-                <img
+                <PrivateImage
                     src={resolveApiUrl(selectedImage.url)}
                     alt={selectedImage.filename}
                 />
@@ -182,7 +183,7 @@ function ClassificationExplainabilityResult({ explanation, selectedImage }) {
                                 </small>
                             )}
                         </figcaption>
-                        <img
+                        <PrivateImage
                             src={resolveApiUrl(item?.imageUrl)}
                             alt={`${title} de ${selectedImage.filename}`}
                         />
@@ -261,7 +262,7 @@ function CleanDetectionResult({ detection, selectedImage }) {
     return (
         <section className="detection-clean-result" aria-live="polite">
             <figure className="detection-clean-figure">
-                <img
+                <PrivateImage
                     src={resolveApiUrl(
                         detection.annotated_image_url ?? selectedImage.url,
                     )}
@@ -308,7 +309,7 @@ function DetectionExplainabilityResult({ explanation, selectedImage }) {
                             <span>{title}</span>
                             <small>{item?.detections?.length ?? 0} detecciones</small>
                         </figcaption>
-                        <img
+                        <PrivateImage
                             src={resolveApiUrl(item?.imageUrl)}
                             alt={`${title} de ${selectedImage.filename}`}
                         />

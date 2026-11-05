@@ -436,8 +436,21 @@ def cleanup_orphaned_evaluation_artifacts(
                 )
 
 
-async def evaluation_artifact_is_accessible(result_id: str) -> bool:
-    document = await evaluations_collection.find_one({"_id": result_id})
+async def evaluation_artifact_belongs_to_user(result_id: str, owner_id: str) -> bool:
+    """The database owns the identity of a persisted evaluation."""
+    document = await evaluations_collection.find_one(
+        {"_id": result_id, "owner_id": owner_id}, {"_id": 1}
+    )
+    return document is not None
+
+
+async def evaluation_artifact_is_accessible(
+    result_id: str, *, owner_id: str | None = None
+) -> bool:
+    query = {"_id": result_id}
+    if owner_id is not None:
+        query["owner_id"] = owner_id
+    document = await evaluations_collection.find_one(query)
     if document is None or document.get("status") != "completed":
         return False
     if document.get("preserved") is True:

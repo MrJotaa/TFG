@@ -210,6 +210,7 @@ async def apply_adversarial_attack(
     save_result_metadata(
         result_path=result_path,
         metadata={
+            "owner_id": owner_id,
             "result_id": result_id,
             "result_type": "attack",
             "task_type": "classification",
