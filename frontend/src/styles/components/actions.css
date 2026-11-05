@@ -1,0 +1,53 @@
+/* Shared action language */
+.primary-action,
+.secondary-action,
+.danger-action {
+    min-height: 40px;
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+}
+
+.primary-action {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: var(--primary-contrast);
+    box-shadow: var(--shadow-xs);
+}
+
+.primary-action:hover:not(:disabled) {
+    border-color: var(--primary-dark);
+    background: var(--primary-dark);
+}
+
+.secondary-action {
+    border-color: var(--border-strong);
+    background: var(--surface);
+    color: var(--text-soft);
+}
+
+.secondary-action:hover:not(:disabled) {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.danger-action {
+    border-color: var(--danger);
+    background: var(--danger);
+    color: #ffffff;
+}
+
+.danger-action:hover:not(:disabled) {
+    border-color: var(--danger-dark);
+    background: var(--danger-dark);
+}
+
+.error {
+    color: var(--danger-text);
+}
+
+.muted-text,
+.status-muted {
+    color: var(--muted);
+}
+

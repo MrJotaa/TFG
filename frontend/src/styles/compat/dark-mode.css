@@ -1,0 +1,280 @@
+/* Dark-mode compatibility for screens that still contain literal light colours. */
+html[data-theme='dark'] :is(
+    .page-toolbar,
+    .management-card,
+    .dashboard-sidebar,
+    .dashboard-main-panel,
+    .view-panel,
+    .context-summary,
+    .analysis-card,
+    .comparison-header,
+    .comparison-detail-card,
+    .evaluation-run-card,
+    .metrics-section,
+    .metric-card,
+    .info-card,
+    .empty-state,
+    .evaluation-results-shell,
+    .evaluation-surface,
+    .evaluation-metric-card,
+    .evaluation-chart-tooltip,
+    .evaluation-donut,
+    .evaluation-donut > div,
+    .class-metric-card,
+    .class-metric-mini-grid,
+    .confusion-matrix-scroll,
+    .curve-score-card,
+    .curve-modal,
+    .curve-tooltip,
+    .curve-unavailable-panel,
+    .evaluation-image-card,
+    .evaluation-image-preview,
+    .evaluation-image-preview img,
+    .evaluation-image-diagnostics,
+    .evaluation-rerun-footer,
+    .detection-image-result-card,
+    .detection-eigencam-section,
+    .adversarial-explorer,
+    .adversarial-explorer-identity,
+    .adversarial-explorer-toolbar,
+    .adversarial-perturbation-panel,
+    .adversarial-detection-list,
+    .individual-analysis-toolbar,
+    .clean-prediction-result,
+    .clean-detection-result,
+    .detection-explainability-result,
+    .clean-detection-summary .adversarial-detection-list,
+    .individual-analysis-empty
+) {
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--text);
+}
+
+html[data-theme='dark'] :is(
+    .dashboard-user-card,
+    .image-card,
+    .dataset-management-item,
+    .history-task-filter,
+    .profile-history-table th,
+    .evaluation-table th,
+    .evaluation-context-strip,
+    .evaluation-tab,
+    .evaluation-tab small,
+    .detection-run-controls input[type='number'],
+    .detection-run-controls select,
+    .detection-object-explorer-toolbar input,
+    .detection-object-explorer-toolbar select,
+    .detection-curve-header select,
+    .class-metrics-toolbar input,
+    .class-metrics-toolbar select,
+    .class-metrics-legend,
+    .class-metric-badges span,
+    .class-metric-track,
+    .evaluation-segmented-control button,
+    .confusion-matrix-table thead th,
+    .confusion-matrix-table tbody th,
+    .curve-controls select,
+    .evaluation-images-toolbar input,
+    .curve-expand-button,
+    .curve-modal-close,
+    .evaluation-image-filter-list button,
+    .evaluation-detail-button,
+    .evaluation-pagination button,
+    .annotation-category-distribution li,
+    .annotation-status,
+    .adversarial-explorer-segmented,
+    .adversarial-zoom-controls button,
+    .adversarial-detection-list summary span,
+    .individual-analysis-tabs
+) {
+    border-color: var(--border);
+    background: var(--surface-soft);
+    color: var(--text-soft);
+}
+
+html[data-theme='dark'] :is(
+    .sidebar-list-item:hover,
+    .dashboard-user-button:hover,
+    .evaluation-tab:hover,
+    .evaluation-image-filter-list button:hover
+) {
+    background: var(--surface-hover);
+}
+
+html[data-theme='dark'] :is(
+    .sidebar-list-item.active,
+    .dataset-management-item.active,
+    .evaluation-tab.active,
+    .evaluation-segmented-control button.active,
+    .evaluation-image-filter-list button.active,
+    .adversarial-explorer-segmented button.active,
+    .individual-analysis-tabs button.active
+) {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+    box-shadow: var(--shadow-xs);
+}
+
+html[data-theme='dark'] :is(
+    .evaluation-metric-guide summary small,
+    .evaluation-metric-guide-intro,
+    .evaluation-metric-guide-grid dd,
+    .detection-explained-metric small,
+    .tide-errors-table th small,
+    .tide-tooltip > p,
+    .tide-special-card dt,
+    .sidebar-block-title,
+    .sidebar-list-item small,
+    .user-card-label,
+    .dashboard-user-card span,
+    .summary-heading p,
+    .image-filename,
+    .page-toolbar p,
+    .dataset-management-item p,
+    .muted-text,
+    .image-placeholder,
+    .comparison-header p,
+    .status-muted,
+    .evaluation-run-card p,
+    .metric-card span,
+    .metric-card small,
+    .retention-control label,
+    .history-task-filter button,
+    .profile-history-table th,
+    .evaluation-reuse-copy p,
+    .text-action,
+    .evaluation-tab,
+    .evaluation-tab small,
+    .evaluation-metric-card-heading span,
+    .evaluation-legend-pills span,
+    .evaluation-chart-legend,
+    .evaluation-impact-list dt,
+    .evaluation-loading-card p,
+    .detection-run-controls label > span,
+    .detection-object-explorer-toolbar label > span,
+    .detection-curve-header label > span,
+    .detection-outcome-list dt,
+    .detection-coverage-meters label,
+    .class-metrics-toolbar label > span,
+    .class-metrics-legend,
+    .class-metric-main-label,
+    .class-metric-unavailable-label,
+    .curve-controls label > span,
+    .evaluation-images-toolbar label > span,
+    .evaluation-image-preview figcaption,
+    .detection-image-result-card > header small,
+    .detection-preview figcaption,
+    .detection-preview figcaption span,
+    .detection-preview-note,
+    .detection-image-result-metrics dt,
+    .detection-image-result-metrics dd,
+    .detection-eigencam-action span,
+    .detection-eigencam-preview figcaption,
+    .adversarial-explorer-header p,
+    .adversarial-explorer-help,
+    .adversarial-perturbation-panel p,
+    .adversarial-image-navigation span,
+    .adversarial-explorer-loading p,
+    .individual-analysis-empty p,
+    .clean-prediction-confidence
+) {
+    color: var(--muted);
+}
+
+html[data-theme='dark'] :is(
+    .tide-special-card h3,
+    .tide-special-card dd,
+    .adversarial-explorer-header h3,
+    .adversarial-split-control output,
+    .adversarial-detection-list summary,
+    .clean-detection-summary h3,
+    .clean-prediction-summary h3
+) {
+    color: var(--text);
+}
+
+html[data-theme='dark'] .evaluation-page-hero,
+html[data-theme='dark'] .evaluation-page-hero.compact {
+    border-color: var(--border);
+    background:
+        radial-gradient(circle at top right, rgba(124, 58, 237, 0.16), transparent 36%),
+        radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.14), transparent 40%),
+        var(--surface);
+    box-shadow: var(--shadow-md);
+}
+
+html[data-theme='dark'] .evaluation-back-button {
+    border-color: var(--primary-border);
+    background: var(--surface-soft);
+    color: var(--primary);
+}
+
+html[data-theme='dark'] .evaluation-reuse-notice,
+html[data-theme='dark'] .evaluation-info-banner {
+    border-color: var(--info-border);
+    background: var(--info-soft);
+    color: var(--text-soft);
+}
+
+html[data-theme='dark'] :is(
+    .evaluation-warning-banner,
+    .annotation-status.reviewed_empty,
+    .history-status.expiring
+) {
+    border-color: var(--warning-border);
+    background: var(--warning-soft);
+    color: var(--warning-text);
+}
+
+html[data-theme='dark'] :is(
+    .evaluation-error-banner,
+    .evaluation-gradcam-error,
+    .danger-zone,
+    .metric-card.tone-danger
+) {
+    border-color: var(--danger-border);
+    background: var(--danger-soft);
+    color: var(--danger-text);
+}
+
+html[data-theme='dark'] :is(
+    .success-message,
+    .history-status.completed,
+    .annotation-status.reviewed_with_objects,
+    .metric-card.tone-success
+) {
+    border-color: var(--success-border);
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+html[data-theme='dark'] :is(
+    .analysis-image,
+    .clean-prediction-image img,
+    .clean-detection-image img,
+    .adversarial-perturbation-panel img
+) {
+    border-color: var(--border);
+    background: #0a1220;
+}
+
+html[data-theme='dark'] .simple-bar-track,
+html[data-theme='dark'] .evaluation-progress-track,
+html[data-theme='dark'] .detection-outcome-bar,
+html[data-theme='dark'] .evaluation-coverage-meter {
+    background: var(--surface-muted);
+}
+
+html[data-theme='dark'] .profile-history-table td {
+    border-color: var(--border-subtle);
+}
+
+html[data-theme='dark'] :is(
+    .profile-history-table tbody tr:hover,
+    .evaluation-table tbody tr:hover
+) {
+    background: rgba(96, 165, 250, 0.055);
+}
+

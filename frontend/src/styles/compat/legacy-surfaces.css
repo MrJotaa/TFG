@@ -1,0 +1,176 @@
+/* Public pages get theme access now; their redesign belongs to the next issues. */
+.auth-page {
+    position: relative;
+}
+
+.auth-theme-control {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
+}
+
+.auth-card {
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-md);
+}
+
+.auth-card p {
+    color: var(--muted);
+}
+
+.auth-card label {
+    color: var(--text-soft);
+}
+
+.auth-card input {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+/* Common surfaces: this is the compatibility bridge for the existing UI. */
+.page-toolbar,
+.management-card,
+.dashboard-sidebar,
+.dashboard-main-panel,
+.view-panel,
+.context-summary,
+.analysis-card,
+.comparison-header,
+.comparison-detail-card,
+.evaluation-run-card,
+.metrics-section,
+.metric-card,
+.info-card,
+.empty-state,
+.profile-history-table-wrapper,
+.detection-image-result-card,
+.adversarial-explorer,
+.individual-analysis-toolbar {
+    border-color: var(--border);
+    background-color: var(--surface);
+    color: var(--text);
+}
+
+.page-toolbar,
+.management-card,
+.context-summary,
+.analysis-card,
+.comparison-header,
+.comparison-detail-card,
+.evaluation-run-card,
+.metrics-section,
+.info-card,
+.empty-state {
+    box-shadow: var(--shadow-xs);
+}
+
+.page-toolbar p,
+.dataset-management-item p,
+.comparison-header p,
+.evaluation-run-card p,
+.metric-card span,
+.metric-card small,
+.image-filename,
+.sidebar-list-item small,
+.sidebar-block-title,
+.retention-control label {
+    color: var(--muted);
+}
+
+.sidebar-list-item:hover,
+.dashboard-user-button:hover {
+    background: var(--surface-hover);
+}
+
+.sidebar-list-item.active,
+.dataset-management-item.active {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--text);
+}
+
+.dashboard-user-card,
+.image-card,
+.dataset-management-item,
+.history-task-filter,
+.profile-history-table th,
+.evaluation-table th,
+.annotation-category-distribution li,
+.annotation-status {
+    border-color: var(--border);
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+.resize-handle:hover::after {
+    background: var(--border-strong);
+}
+
+.sidebar-block,
+.user-panel,
+.profile-history-table th,
+.profile-history-table td {
+    border-color: var(--border-subtle);
+}
+
+/* Semantic feedback */
+.success-message,
+.history-status.completed,
+.annotation-status.reviewed_with_objects {
+    border-color: var(--success-border);
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+.danger-zone,
+.metric-card.tone-danger {
+    border-color: var(--danger-border);
+    background: var(--danger-soft);
+}
+
+.annotation-status.reviewed_empty,
+.history-status.expiring {
+    border-color: var(--warning-border);
+    background: var(--warning-soft);
+    color: var(--warning-text);
+}
+
+/* Evaluation subsystem already uses semantic variables; keep them theme-aware. */
+.evaluation-metric-guide,
+.evaluation-info-banner {
+    border-color: var(--info-border);
+    background: var(--info-soft);
+}
+
+.evaluation-metric-guide summary,
+.evaluation-metric-guide-grid dt {
+    color: var(--info-text);
+}
+
+.evaluation-info-icon {
+    background: var(--primary-soft-strong);
+    color: var(--primary);
+}
+
+.evaluation-metric-guide summary small,
+.evaluation-metric-guide-intro,
+.evaluation-metric-guide-grid dd,
+.evaluation-metric-guide-note {
+    color: var(--muted-strong);
+}
+
+.evaluation-metric-guide-intro,
+.evaluation-metric-guide-grid > div,
+.evaluation-metric-guide-note {
+    border-color: var(--info-border);
+}
+
+.evaluation-metric-guide-note {
+    background: var(--primary-soft);
+}
+
