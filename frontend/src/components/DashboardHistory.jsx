@@ -25,6 +25,7 @@ import {
     formatDateTime,
     formatRemainingTime,
     historySummary,
+    historyArtifactAvailable,
     isNearExpiration,
 } from '../utils/evaluationHistory'
 import {
@@ -81,6 +82,9 @@ export function TrashIcon() {
 function HistoryStatus({ item }) {
     if (item.status === 'running') {
         return <span className="dashboard-history-status running">En curso</span>
+    }
+    if (!historyArtifactAvailable(item)) {
+        return <span className="dashboard-history-status unavailable" title="No se encuentra el archivo del resultado">Archivos no disponibles</span>
     }
     if (item.preserved) {
         return <span className="dashboard-history-status preserved">Conservada</span>
@@ -357,7 +361,7 @@ function DashboardHistoryControls({ comparisonMode, historyKind, taskType, histo
                         <button key={value || 'all'} type="button" className={taskType === value ? 'active' : ''} onClick={() => onTaskFilter(value)}>{label}</button>
                     ))}
                 </div>
-                <span>{historyTotal} {isEvaluationHistory ? 'evaluaciones disponibles' : 'análisis guardados'}</span>
+                <span>{historyTotal} {isEvaluationHistory ? 'evaluaciones registradas' : 'análisis guardados'}</span>
             </div>
         </>
     )
@@ -447,11 +451,11 @@ function EvaluationHistoryList({ history, attackCatalog, openingResultId, mutati
                                 {mutationResultId === item.result_id ? 'Cancelando…' : 'Cancelar'}
                             </button>
                         )}
-                        <button type="button" className="dashboard-history-compare" disabled={item.status !== 'completed'} onClick={() => onStartComparison(item)} title="Seleccionar como evaluación A"><CompareIcon /><span>Comparar</span></button>
-                        <button type="button" className="dashboard-history-open" disabled={item.status !== 'completed' || openingResultId === item.result_id} onClick={() => onOpen(item)}><span>{openingResultId === item.result_id ? 'Abriendo…' : 'Abrir'}</span><ArrowIcon /></button>
+                        <button type="button" className="dashboard-history-compare" disabled={item.status !== 'completed' || !historyArtifactAvailable(item)} onClick={() => onStartComparison(item)} title="Seleccionar como evaluación A"><CompareIcon /><span>Comparar</span></button>
+                        <button type="button" className="dashboard-history-open" disabled={item.status !== 'completed' || !historyArtifactAvailable(item) || openingResultId === item.result_id} onClick={() => onOpen(item)}><span>{openingResultId === item.result_id ? 'Abriendo…' : 'Abrir'}</span><ArrowIcon /></button>
                         {item.status === 'completed' && (
                             <HistoryMoreMenu label={`Más acciones para ${item.dataset_name}`} menuId={`evaluation-${item.result_id}`} open={openMenuId === `evaluation-${item.result_id}`} onToggle={onToggleMenu}>
-                                <button type="button" disabled={mutationResultId === item.result_id} onClick={() => onRetentionAction(item)}><PinIcon /><span>{item.preserved ? 'Volver a retención automática' : 'Conservar indefinidamente'}</span></button>
+                                <button type="button" disabled={mutationResultId === item.result_id || (!item.preserved && !historyArtifactAvailable(item))} onClick={() => onRetentionAction(item)}><PinIcon /><span>{item.preserved ? 'Volver a retención automática' : 'Conservar indefinidamente'}</span></button>
                                 <button type="button" className="danger" disabled={mutationResultId === item.result_id} onClick={() => onDelete(item)}><TrashIcon /><span>Eliminar evaluación</span></button>
                             </HistoryMoreMenu>
                         )}
@@ -469,9 +473,11 @@ function IndividualHistoryList({ history, datasets, attackCatalog, openingResult
                 <article key={item.analysis_id} className="dashboard-history-row dashboard-individual-history-row">
                     <IndividualAnalysisCopy item={item} datasets={datasets} attackCatalog={attackCatalog} />
                     <div className="dashboard-history-actions">
-                        <span className="dashboard-history-status preserved">Conservado</span>
-                        <button type="button" className="dashboard-history-compare" onClick={() => onStartComparison(item)} title="Seleccionar como análisis A"><CompareIcon /><span>Comparar</span></button>
-                        <button type="button" className="dashboard-history-open" disabled={openingResultId === item.analysis_id} onClick={() => onOpen(item)}><span>{openingResultId === item.analysis_id ? 'Abriendo…' : 'Abrir'}</span><ArrowIcon /></button>
+                        {historyArtifactAvailable(item)
+                            ? <span className="dashboard-history-status preserved">Conservado</span>
+                            : <span className="dashboard-history-status unavailable" title="No se encuentra el archivo del análisis">Archivos no disponibles</span>}
+                        <button type="button" className="dashboard-history-compare" disabled={!historyArtifactAvailable(item)} onClick={() => onStartComparison(item)} title="Seleccionar como análisis A"><CompareIcon /><span>Comparar</span></button>
+                        <button type="button" className="dashboard-history-open" disabled={!historyArtifactAvailable(item) || openingResultId === item.analysis_id} onClick={() => onOpen(item)}><span>{openingResultId === item.analysis_id ? 'Abriendo…' : 'Abrir'}</span><ArrowIcon /></button>
                         <HistoryMoreMenu label={`Más acciones para ${item.image_filename}`} menuId={`individual-${item.analysis_id}`} open={openMenuId === `individual-${item.analysis_id}`} onToggle={onToggleMenu}>
                             <button type="button" className="danger" disabled={mutationResultId === item.analysis_id} onClick={() => onDelete(item)}><TrashIcon /><span>Eliminar análisis</span></button>
                         </HistoryMoreMenu>
@@ -485,7 +491,7 @@ function IndividualHistoryList({ history, datasets, attackCatalog, openingResult
 function DashboardHistoryBody(props) {
     if (props.comparisonMode) return <DashboardComparisonPicker {...props.comparisonProps} />
     if (props.loading) return <div className="dashboard-empty-state dashboard-history-loading"><strong>Cargando historial…</strong><span>{props.isEvaluationHistory ? 'Recuperando tus evaluaciones vigentes.' : 'Recuperando los análisis que has guardado.'}</span></div>
-    if (props.history.items.length === 0) return <div className="dashboard-empty-state dashboard-history-empty"><strong>{props.isEvaluationHistory ? 'Aún no hay evaluaciones recuperables' : 'Todavía no has guardado ningún análisis individual'}</strong><span>{props.isEvaluationHistory ? 'Las evaluaciones aparecerán aquí mientras sigan vigentes o cuando decidas conservarlas.' : 'Los análisis de imagen seguirán siendo temporales hasta que utilices Guardar análisis desde su vista.'}</span></div>
+    if (props.history.items.length === 0) return <div className="dashboard-empty-state dashboard-history-empty"><strong>{props.isEvaluationHistory ? 'Aún no hay evaluaciones registradas' : 'Todavía no has guardado ningún análisis individual'}</strong><span>{props.isEvaluationHistory ? 'Las evaluaciones aparecerán aquí mientras sigan vigentes o cuando decidas conservarlas.' : 'Los análisis de imagen seguirán siendo temporales hasta que utilices Guardar análisis desde su vista.'}</span></div>
     if (props.isEvaluationHistory) return <EvaluationHistoryList {...props.evaluationListProps} />
     return <IndividualHistoryList {...props.individualListProps} />
 }
@@ -625,6 +631,10 @@ function DashboardHistory({
     }
 
     async function handleOpenEvaluation(item) {
+        if (!historyArtifactAvailable(item)) {
+            setError('Los archivos de esta evaluación ya no están disponibles.')
+            return
+        }
         const dataset = datasets.find((candidate) => candidate.id === item.dataset_id)
         if (!dataset) {
             setError(
@@ -647,6 +657,10 @@ function DashboardHistory({
     }
 
     async function handleOpenIndividualAnalysis(item) {
+        if (!historyArtifactAvailable(item)) {
+            setError('Los archivos de este análisis ya no están disponibles.')
+            return
+        }
         const { dataset, image } = findAnalysisImage(datasets, item)
         if (!dataset || !image) {
             setError(
@@ -723,6 +737,7 @@ function DashboardHistory({
     }
 
     async function handleStartComparison(item) {
+        if (!historyArtifactAvailable(item)) return
         if (historyKind === 'evaluations' && item.status !== 'completed') return
 
         try {

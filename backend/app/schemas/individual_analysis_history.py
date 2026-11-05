@@ -58,6 +58,7 @@ class IndividualAnalysisHistoryItem(BaseModel):
     pipeline_version: str | None = None
     created_at: datetime
     saved_at: datetime
+    artifact_available: bool = True
 
 
 class IndividualAnalysisHistoryPage(BaseModel):

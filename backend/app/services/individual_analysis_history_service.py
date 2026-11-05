@@ -380,6 +380,7 @@ def _history_item(document: dict) -> IndividualAnalysisHistoryItem:
             pipeline_version=document.get("pipeline_version"),
             created_at=_utc_datetime(document["created_at"]),
             saved_at=_utc_datetime(document["saved_at"]),
+            artifact_available=_source_artifact_exists(document),
         )
     except (KeyError, TypeError, ValueError, ValidationError) as error:
         raise BadRequestError(

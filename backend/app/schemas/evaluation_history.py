@@ -38,6 +38,7 @@ class EvaluationHistoryItem(BaseModel):
     expires_at: datetime | None = None
     retention_seconds: int | None = None
     preserved: bool = False
+    artifact_available: bool = True
     exact_reuse_available: bool = False
 
 

@@ -566,3 +566,15 @@ test('classification curve series keeps the correct shared or separate reference
         [],
     )
 })
+
+
+test('missing evaluation artifacts cannot be offered for saved comparisons', () => {
+    const base = historyItem()
+    const missing = historyItem({ result_id: 'missing', attack_type: 'pgd', artifact_available: false })
+    const available = historyItem({ result_id: 'available', model_id: 'swin-v2', artifact_available: true })
+    assert.deepEqual(
+        getCompatibleEvaluationCandidates(base, [missing, available]).map(({ item }) => item.result_id),
+        ['available'],
+    )
+    assert.deepEqual(getCompatibleEvaluationCandidates({ ...base, artifact_available: false }, [available]), [])
+})

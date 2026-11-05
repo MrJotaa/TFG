@@ -5,6 +5,7 @@ import {
     evaluationExpirationLabel,
     formatRemainingTime,
     historySummary,
+    historyArtifactAvailable,
     historyTotalLabel,
     isNearExpiration,
 } from '../src/utils/evaluationHistory.js'
@@ -76,4 +77,11 @@ test('history total labels use the correct singular and plural nouns', () => {
     assert.equal(historyTotalLabel('evaluations', 2), '2 evaluaciones vigentes')
     assert.equal(historyTotalLabel('individual', 1), '1 análisis guardado')
     assert.equal(historyTotalLabel('individual', 3), '3 análisis guardados')
+})
+
+
+test('history distinguishes missing artifacts from preserved records', () => {
+    assert.equal(historyArtifactAvailable({ preserved: true, artifact_available: false }), false)
+    assert.equal(historyArtifactAvailable({ preserved: true, artifact_available: true }), true)
+    assert.equal(historyArtifactAvailable({ preserved: true }), true)
 })
