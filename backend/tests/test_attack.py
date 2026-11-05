@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+import pytest
 
 import api.routes.attack as attack_route
 
@@ -227,3 +228,6 @@ def test_attack_catalog_endpoint_exposes_registered_metadata(client):
     assert catalog["yolo_confidence"]["supported_task_types"] == ["detection"]
     assert catalog["yolo_confidence"]["name"] == "Supresión de confianza"
     assert catalog["pgd"]["parameters"][0]["key"] == "epsilon"
+
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")

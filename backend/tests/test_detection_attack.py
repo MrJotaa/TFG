@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+import pytest
 
 import api.routes.detection_attack as detection_attack_route
 
@@ -256,3 +257,6 @@ def test_detect_attack_propagates_dataset_error(client, monkeypatch):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Image not found"
+
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")

@@ -109,7 +109,8 @@ async def test_dataset_image_deletion_cascades_to_saved_individual_analysis(
     annotations = _Collection()
     cascade_calls = []
 
-    async def fake_get_dataset_document(received_dataset_id):
+    async def fake_get_dataset_document(received_dataset_id, *, owner_id=None):
+        assert owner_id is None
         assert received_dataset_id == dataset_id
         return object_id, dataset
 

@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+import pytest
 
 import api.routes.predict as predict_route
 
@@ -71,3 +72,6 @@ def test_predict_propagates_service_error(client, monkeypatch):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Image not found"
+
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")

@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+import pytest
 
 import api.routes.explainability as explainability_route
 
@@ -296,3 +297,6 @@ def test_detection_explainability_propagates_no_detections_error(
 
     assert response.status_code == 400
     assert "no detections" in response.json()["detail"].lower()
+
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")

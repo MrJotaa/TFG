@@ -32,10 +32,12 @@ async def generate_gradcam_for_image(
     image_id: str,
     *,
     cancellation_token: CancellationToken | None = None,
+    owner_id: str | None = None,
 ) -> GradCamResponse:
     image = await get_image_from_dataset(
         dataset_id=dataset_id,
         image_id=image_id,
+        owner_id=owner_id,
     )
 
     model = get_active_model_instance()
@@ -94,10 +96,12 @@ async def generate_detection_explainability(
     request: DetectionExplainRequest,
     *,
     cancellation_token: CancellationToken | None = None,
+    owner_id: str | None = None,
 ) -> DetectionExplainResponse:
     image = await get_image_from_dataset(
         dataset_id=request.dataset_id,
         image_id=request.image_id,
+        owner_id=owner_id,
     )
 
     model = get_active_model_instance()

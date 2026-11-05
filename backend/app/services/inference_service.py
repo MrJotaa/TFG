@@ -15,6 +15,7 @@ async def predict_image(
     image_id: str,
     *,
     cancellation_token: CancellationToken | None = None,
+    owner_id: str | None = None,
 ) -> PredictResponse:
     """
     Realiza una predicción sobre una imagen persistida en un dataset
@@ -23,6 +24,7 @@ async def predict_image(
     image = await get_image_from_dataset(
         dataset_id=dataset_id,
         image_id=image_id,
+        owner_id=owner_id,
     )
 
     model = get_active_model_instance()

@@ -42,6 +42,7 @@ async def apply_adversarial_attack(
     request: AttackRequest,
     *,
     cancellation_token: CancellationToken | None = None,
+    owner_id: str | None = None,
 ) -> AttackResponse:
     try:
         attack = get_attack(request.attack_type)
@@ -52,6 +53,7 @@ async def apply_adversarial_attack(
     image = await get_image_from_dataset(
         dataset_id=request.dataset_id,
         image_id=request.image_id,
+        owner_id=owner_id,
     )
     model = get_active_model_instance()
 
