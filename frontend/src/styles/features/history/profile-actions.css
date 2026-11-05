@@ -1,0 +1,44 @@
+/* Preserved evaluation state in the profile history. */
+.history-status.preserved {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+/* Compact history actions reused in the profile history table.
+   Keep the td in the table layout; flex on a table cell breaks column alignment. */
+.profile-history-actions-cell {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.profile-history-actions-cell .secondary-action {
+    margin: 0;
+    vertical-align: middle;
+}
+
+.profile-history-actions-cell > .dashboard-history-more {
+    display: inline-block;
+    margin-left: 0.35rem;
+    vertical-align: middle;
+}
+
+@media (max-width: 720px) {
+    .profile-history-actions-cell {
+        gap: 0.35rem;
+        width: 100%;
+    }
+
+    .profile-history-actions-cell > .dashboard-history-more {
+        margin-left: 0;
+    }
+}
+
+.dashboard-history-cancel {
+    color: var(--danger-text);
+}
+
+.dashboard-history-cancel:hover:not(:disabled) {
+    background: var(--danger-soft);
+    color: var(--danger);
+}

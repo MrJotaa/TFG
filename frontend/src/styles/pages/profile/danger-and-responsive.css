@@ -1,0 +1,219 @@
+.profile-danger-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin: 1.1rem 1rem 0.5rem;
+    padding: 1rem 1.05rem;
+    border: 1px solid var(--danger-border);
+    border-radius: var(--radius-lg);
+    background: var(--danger-soft);
+}
+
+.profile-danger-section h2,
+.profile-danger-section p {
+    margin: 0;
+}
+
+.profile-danger-section h2 {
+    margin-top: 0.16rem;
+    color: var(--text);
+}
+
+.profile-danger-section p {
+    margin-top: 0.25rem;
+    color: var(--muted-strong);
+    line-height: 1.45;
+}
+
+.profile-danger-label {
+    color: var(--danger);
+}
+
+.profile-delete-trigger {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.profile-delete-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(7, 17, 31, 0.62);
+    backdrop-filter: blur(5px);
+}
+
+.profile-delete-backdrop-dismiss {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: transparent;
+    cursor: default;
+}
+
+.profile-delete-dialog {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.85rem 1rem;
+    width: min(100%, 560px);
+    padding: 1.15rem;
+    border: 1px solid var(--danger-border);
+    border-radius: var(--radius-xl);
+    background: var(--surface-raised);
+    color: var(--text);
+    box-shadow: var(--shadow-md);
+}
+
+.profile-delete-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid var(--danger-border);
+    border-radius: 13px;
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.profile-delete-icon svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.profile-delete-copy h2,
+.profile-delete-copy p {
+    margin: 0;
+}
+
+.profile-delete-copy h2 {
+    margin-top: 0.15rem;
+    color: var(--text);
+    font-size: 1.05rem;
+}
+
+.profile-delete-copy p {
+    margin-top: 0.42rem;
+    color: var(--muted);
+    line-height: 1.52;
+}
+
+.profile-delete-form {
+    grid-column: 1 / -1;
+    margin-top: 0.15rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.profile-delete-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    margin-top: 0.85rem;
+}
+
+.profile-delete-actions button {
+    width: auto;
+    min-width: 132px;
+    margin: 0;
+}
+
+@media (max-width: 900px) {
+    .profile-overview-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-overview-grid > .profile-section + .profile-section {
+        border-top: 1px solid var(--border-subtle);
+        border-left: 0;
+    }
+
+    .profile-history-heading-modern {
+        flex-direction: column;
+    }
+
+    .profile-retention-control {
+        width: 100%;
+    }
+}
+
+@media (max-width: 640px) {
+    .profile-page-heading,
+    .profile-section,
+    .profile-history-section {
+        padding-right: 0.75rem;
+        padding-left: 0.75rem;
+    }
+
+    .profile-form-grid,
+    .profile-password-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-password-panel .auth-field:last-of-type,
+    .profile-security-note {
+        grid-column: 1;
+    }
+
+    .profile-password-toggle-row,
+    .profile-form-actions,
+    .profile-danger-section,
+    .profile-history-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .profile-text-action,
+    .profile-delete-trigger,
+    .profile-form-actions .primary-action {
+        width: 100%;
+    }
+
+    .profile-retention-control > div {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-history-kind-tabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .profile-history-kind-tabs button {
+        width: 100%;
+    }
+
+    .profile-history-tabs {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .profile-danger-section {
+        margin-right: 0.75rem;
+        margin-left: 0.75rem;
+    }
+
+    .profile-delete-dialog {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-delete-actions {
+        flex-direction: column-reverse;
+    }
+
+    .profile-delete-actions button {
+        width: 100%;
+    }
+}
