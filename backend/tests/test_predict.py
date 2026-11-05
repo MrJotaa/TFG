@@ -1,5 +1,5 @@
-from fastapi import HTTPException
 import pytest
+from fastapi import HTTPException
 
 import api.routes.predict as predict_route
 

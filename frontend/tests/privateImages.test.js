@@ -94,3 +94,80 @@ test('private media fetch does not accept an HTML or empty API response as an im
         globalThis.localStorage = previousStorage
     }
 })
+
+test('a protected image uses the latest session token and propagates cancellation', async () => {
+    const previousFetch = globalThis.fetch
+    const previousStorage = globalThis.localStorage
+    const previousCreate = URL.createObjectURL
+    let token = 'first-session-token'
+    const requests = []
+    const controller = new AbortController()
+
+    globalThis.localStorage = { getItem: () => token }
+    URL.createObjectURL = () => 'blob:protected-test-image'
+    globalThis.fetch = async (url, options) => {
+        requests.push({ url, options })
+        return new Response(new Blob(['image-bytes'], { type: 'image/png' }), {
+            status: 200,
+        })
+    }
+    try {
+        await fetchPrivateImage('/results/attack_1/adversarial.png', {
+            signal: controller.signal,
+        })
+        token = 'second-session-token'
+        await fetchPrivateImage('/results/attack_1/adversarial.png')
+
+        assert.equal(requests.length, 2)
+        assert.equal(requests[0].options.headers.Authorization, 'Bearer first-session-token')
+        assert.equal(requests[1].options.headers.Authorization, 'Bearer second-session-token')
+        assert.equal(requests[0].options.signal, controller.signal)
+        assert.equal(requests[0].options.cache, 'no-store')
+        assert.equal(requests[1].options.cache, 'no-store')
+        for (const request of requests) {
+            assert.doesNotMatch(request.url, /session-token/)
+        }
+    } finally {
+        globalThis.fetch = previousFetch
+        globalThis.localStorage = previousStorage
+        URL.createObjectURL = previousCreate
+    }
+})
+
+test('a foreign image URL never receives the session JWT', async () => {
+    const previousFetch = globalThis.fetch
+    const previousStorage = globalThis.localStorage
+    let requests = 0
+
+    globalThis.localStorage = { getItem: () => 'secret-session' }
+    globalThis.fetch = async () => { requests += 1 }
+    try {
+        await assert.rejects(
+            fetchPrivateImage('https://other.example/results/attack_1/image.png'),
+            /imagen privada/,
+        )
+        assert.equal(requests, 0)
+    } finally {
+        globalThis.fetch = previousFetch
+        globalThis.localStorage = previousStorage
+    }
+})
+
+test('an empty successful response is not converted into an image', async () => {
+    const previousFetch = globalThis.fetch
+    const previousStorage = globalThis.localStorage
+    globalThis.localStorage = { getItem: () => 'test-jwt' }
+    globalThis.fetch = async () => new Response('', {
+        status: 200,
+        headers: { 'Content-Type': 'image/png' },
+    })
+    try {
+        await assert.rejects(
+            fetchPrivateImage('/datasets/d/images/i'),
+            /imagen válida/,
+        )
+    } finally {
+        globalThis.fetch = previousFetch
+        globalThis.localStorage = previousStorage
+    }
+})

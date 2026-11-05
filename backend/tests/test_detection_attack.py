@@ -1,5 +1,5 @@
-from fastapi import HTTPException
 import pytest
+from fastapi import HTTPException
 
 import api.routes.detection_attack as detection_attack_route
 

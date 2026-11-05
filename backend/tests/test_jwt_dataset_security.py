@@ -34,9 +34,7 @@ def other_user_headers(client):
         ("GET", "/models/active/classes", None),
         ("POST", "/models/resnet18/select", None),
         ("GET", "/attacks", None),
-        (
-            "POST", "/predict", {"dataset_id": "not-an-id", "image_id": "image"}
-        ),
+        ("POST", "/predict", {"dataset_id": "not-an-id", "image_id": "image"}),
         (
             "POST",
             "/attack",
@@ -46,9 +44,7 @@ def other_user_headers(client):
                 "attack_type": "random_noise",
             },
         ),
-        (
-            "POST", "/detect", {"dataset_id": "not-an-id", "image_id": "image"}
-        ),
+        ("POST", "/detect", {"dataset_id": "not-an-id", "image_id": "image"}),
         (
             "POST",
             "/detect/attack",
@@ -58,9 +54,7 @@ def other_user_headers(client):
                 "attack_type": "random_noise",
             },
         ),
-        (
-            "POST", "/explain/gradcam", {"dataset_id": "not-an-id", "image_id": "image"}
-        ),
+        ("POST", "/explain/gradcam", {"dataset_id": "not-an-id", "image_id": "image"}),
         (
             "POST",
             "/explain/detection",

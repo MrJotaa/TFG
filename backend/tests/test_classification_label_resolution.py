@@ -367,9 +367,7 @@ def test_dataset_label_resolution_endpoint(
         fake_get_resolution,
     )
 
-    response = client.get(
-        "/datasets/dataset-1/label-resolution", headers=auth_headers
-    )
+    response = client.get("/datasets/dataset-1/label-resolution", headers=auth_headers)
 
     assert response.status_code == 200
 

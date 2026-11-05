@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
 from pymongo import MongoClient
 
 RESULTS = Path("uploads/results")
@@ -51,8 +52,7 @@ def test_dataset_image_is_private(client, created_dataset, auth_headers):
 
     assert client.get(url).status_code == 401
     assert (
-        client.get(url, headers={"Authorization": "Bearer broken"}).status_code
-        == 401
+        client.get(url, headers={"Authorization": "Bearer broken"}).status_code == 401
     )
     own = client.get(url, headers=auth_headers)
     assert own.status_code == 200
@@ -92,9 +92,7 @@ def test_temporary_artifact_requires_owner_and_never_exposes_json(
 def test_legacy_temporary_artifact_requires_ownership_of_source_dataset(
     client, created_dataset, auth_headers
 ):
-    result_id, result_path = _temporary_artifact(
-        {"dataset_id": created_dataset["id"]}
-    )
+    result_id, result_path = _temporary_artifact({"dataset_id": created_dataset["id"]})
     try:
         url = f"/results/{result_id}/gradcam.png"
         assert client.get(url, headers=auth_headers).status_code == 200
@@ -175,6 +173,50 @@ def test_saved_individual_analysis_uses_database_owner_not_temporary_ttl(
     try:
         url = f"/results/{result_id}/gradcam.png"
         assert client.get(url, headers=auth_headers).status_code == 200
+        assert client.get(url, headers=_other_headers(client)).status_code == 404
+    finally:
+        shutil.rmtree(result_path, ignore_errors=True)
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {},
+        {"dataset_id": "not-an-object-id"},
+        {"dataset_id": "507f1f77bcf86cd799439011"},
+    ],
+)
+def test_orphaned_legacy_temporary_result_is_not_public(client, auth_headers, metadata):
+    """Older metadata never grants access when ownership cannot be proven."""
+    result_id, result_path = _temporary_artifact(metadata)
+    try:
+        url = f"/results/{result_id}/gradcam.png"
+        assert client.get(url).status_code == 401
+        assert client.get(url, headers=auth_headers).status_code == 404
+    finally:
+        shutil.rmtree(result_path, ignore_errors=True)
+
+
+def test_unpreserved_evaluation_expires_even_if_its_image_still_exists(
+    client, auth_headers, registered_user
+):
+    """Disk retention and database preservation must not be confused."""
+    result_id, result_path = _temporary_artifact(
+        {"owner_id": registered_user["user"]["id"]}, prefix="evaluation"
+    )
+    _insert_document(
+        "detection_evaluations",
+        {
+            "_id": result_id,
+            "owner_id": registered_user["user"]["id"],
+            "status": "completed",
+            "preserved": False,
+            "expires_at": datetime.now(timezone.utc) - timedelta(minutes=5),
+        },
+    )
+    try:
+        url = f"/results/{result_id}/gradcam.png"
+        assert client.get(url, headers=auth_headers).status_code == 410
         assert client.get(url, headers=_other_headers(client)).status_code == 404
     finally:
         shutil.rmtree(result_path, ignore_errors=True)

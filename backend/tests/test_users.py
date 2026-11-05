@@ -170,9 +170,7 @@ def test_other_user_account_cannot_be_accessed(
     unchanged_user = client.get(
         "/auth/me",
         headers={
-            "Authorization": (
-                f"Bearer {another_user.json()['access_token']}"
-            ),
+            "Authorization": (f"Bearer {another_user.json()['access_token']}"),
         },
     )
     assert unchanged_user.status_code == 200
