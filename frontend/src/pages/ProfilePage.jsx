@@ -15,7 +15,7 @@ import {
 import {
     deleteCurrentUser,
     updateResultRetention,
-    updateUser,
+    updateCurrentUser,
 } from '../api/users'
 import {
     HistoryConfirmationDialog,
@@ -418,7 +418,7 @@ function ProfilePage() {
             setProfileSaving(true)
             setProfileError('')
             setProfileSuccess('')
-            const updatedUser = await updateUser(user.id, updateData)
+            const updatedUser = await updateCurrentUser(updateData)
             setUser(updatedUser)
             setName(updatedUser.name)
             setEmail(updatedUser.email)

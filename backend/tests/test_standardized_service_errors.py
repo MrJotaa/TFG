@@ -34,12 +34,13 @@ UNKNOWN_OBJECT_ID = "507f1f77bcf86cd799439011"
 )
 def test_invalid_resource_ids_return_standardized_400(
     client,
+    auth_headers,
     method,
     path,
     payload,
     expected_detail,
 ):
-    request_arguments = {}
+    request_arguments = {"headers": auth_headers}
 
     if payload is not None:
         request_arguments["json"] = payload
@@ -92,12 +93,13 @@ def test_invalid_resource_ids_return_standardized_400(
 )
 def test_missing_resources_return_standardized_404(
     client,
+    auth_headers,
     method,
     path,
     payload,
     expected_detail,
 ):
-    request_arguments = {}
+    request_arguments = {"headers": auth_headers}
 
     if payload is not None:
         request_arguments["json"] = payload

@@ -12,7 +12,7 @@ __pycache__/
 # Archivos del sistema
 .DS_Store
 
-# Uploads (importante en tu caso)
+# Uploads
 uploads/
 
 # VSCode / IDEs

@@ -381,7 +381,10 @@ def test_get_user_datasets_returns_only_user_datasets(
 
     assert second_response.status_code == 200
 
-    response = client.get(f"/users/{user_id}/datasets")
+    response = client.get(
+        f"/users/{user_id}/datasets",
+        headers={"Authorization": f"Bearer {registered_user['access_token']}"},
+    )
 
     assert response.status_code == 200
 
