@@ -327,6 +327,8 @@ async def update_evaluation_preservation(
 ) -> EvaluationHistoryItem:
     document = await _get_owned_completed_document(evaluation_id, owner_id)
     if update.preserved:
+        if not _artifact_path(evaluation_id, _document_task_type(document)).is_file():
+            raise GoneError("El artefacto de la evaluación ya no está disponible")
         values = {"preserved": True, "expires_at": None}
     else:
         values = {
@@ -647,6 +649,10 @@ def _history_item(document: dict) -> EvaluationHistoryItem:
             retention_seconds = max(0, int((expires_at - created_at).total_seconds()))
         task_type = _document_task_type(document)
         preserved = bool(document.get("preserved"))
+        artifact_available = (
+            document.get("status") == "completed"
+            and _artifact_path(document["_id"], task_type).is_file()
+        )
         exact_reuse_available = bool(
             document.get("status") == "completed"
             and document.get("signature")
@@ -659,7 +665,7 @@ def _history_item(document: dict) -> EvaluationHistoryItem:
                     and expires_at > datetime.now(timezone.utc)
                 )
             )
-            and _artifact_path(document["_id"], task_type).is_file()
+            and artifact_available
         )
         return EvaluationHistoryItem(
             result_id=document["_id"],
@@ -683,6 +689,7 @@ def _history_item(document: dict) -> EvaluationHistoryItem:
             expires_at=expires_at,
             retention_seconds=retention_seconds,
             preserved=preserved,
+            artifact_available=artifact_available,
             exact_reuse_available=exact_reuse_available,
         )
     except (KeyError, TypeError, ValueError, ValidationError) as error:

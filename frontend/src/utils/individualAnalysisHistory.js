@@ -79,7 +79,8 @@ export function classifyIndividualAnalysisComparison(left, right) {
 }
 
 export function getCompatibleIndividualAnalysisCandidates(base, items = []) {
-    return items.flatMap((item) => {
+    if (base?.artifact_available === false) return []
+    return items.filter((item) => item.artifact_available !== false).flatMap((item) => {
         const comparison = classifyIndividualAnalysisComparison(base, item)
         return comparison.compatible ? [{ item, comparison }] : []
     })

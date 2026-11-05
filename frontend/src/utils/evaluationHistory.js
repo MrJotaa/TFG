@@ -31,6 +31,10 @@ export function formatRemainingTime(expiresAt, now = Date.now()) {
 }
 
 
+export function historyArtifactAvailable(item) {
+    return item?.artifact_available !== false
+}
+
 export function evaluationExpirationLabel(item, now = Date.now()) {
     if (item?.status === 'running') return 'Al finalizar'
     if (item?.preserved) return 'Indefinida'

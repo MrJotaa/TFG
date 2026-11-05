@@ -23,9 +23,7 @@ if (
     or _APPLICATION_UPLOADS in _TEST_STORAGE_ROOT.parents
 ):
     _TEST_STORAGE.cleanup()
-    raise RuntimeError(
-        "Test storage must be outside the application uploads directory"
-    )
+    raise RuntimeError("Test storage must be outside the application uploads directory")
 
 TEST_UPLOADS_DATASETS_PATH = str(_TEST_STORAGE_ROOT / "datasets")
 TEST_RESULTS_BASE_PATH = str(_TEST_STORAGE_ROOT / "results")

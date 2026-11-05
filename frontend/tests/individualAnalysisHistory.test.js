@@ -153,3 +153,12 @@ test('candidate preparation rejects identical or multi-variable individual analy
         [['attack-b', 'attack']],
     )
 })
+
+
+test('missing individual artifacts are excluded from saved comparison candidates', () => {
+    const base = historyItem()
+    const other = historyItem({ analysis_id: 'other', attack_type: 'pgd', artifact_available: true })
+    assert.equal(getCompatibleIndividualAnalysisCandidates(base, [{ ...other, artifact_available: false }]).length, 0)
+    assert.equal(getCompatibleIndividualAnalysisCandidates(base, [other]).length, 1)
+    assert.equal(getCompatibleIndividualAnalysisCandidates({ ...base, artifact_available: false }, [other]).length, 0)
+})

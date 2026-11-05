@@ -111,7 +111,9 @@ export function classifyEvaluationComparison(left, right) {
 }
 
 export function getCompatibleEvaluationCandidates(base, items) {
+    if (base?.artifact_available === false) return []
     return (items ?? [])
+        .filter((item) => item.artifact_available !== false)
         .map((item) => ({
             item,
             comparison: classifyEvaluationComparison(base, item),

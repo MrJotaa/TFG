@@ -2431,6 +2431,10 @@ html[data-theme='dark'] .adversarial-overlay-divider {
     color: var(--info-text);
 }
 
+.dashboard-history-status.unavailable {
+    color: var(--warning-text);
+}
+
 .dashboard-history-open {
     display: inline-flex;
     align-items: center;
