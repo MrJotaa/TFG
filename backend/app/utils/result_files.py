@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from PIL import Image
 
-RESULTS_BASE_PATH = "uploads/results"
+RESULTS_BASE_PATH = os.getenv("RESULTS_BASE_PATH", "uploads/results")
 RESULTS_TTL_SECONDS = 24 * 60 * 60  # 24 horas
 _METADATA_FILENAME = "metadata.json"
 _INVALID_RESULT_IDENTITY = "Result identity is invalid"

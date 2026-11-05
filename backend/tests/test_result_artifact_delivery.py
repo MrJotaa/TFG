@@ -4,10 +4,12 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from utils.result_files import RESULTS_BASE_PATH
+
 
 def test_temporary_result_artifact_requires_authentication(client):
     result_id = f"gradcam_{uuid.uuid4()}"
-    result_path = Path("uploads/results") / result_id
+    result_path = Path(RESULTS_BASE_PATH) / result_id
     result_path.mkdir(parents=True, exist_ok=False)
     (result_path / "gradcam.png").write_bytes(b"artifact")
     (result_path / "metadata.json").write_text(

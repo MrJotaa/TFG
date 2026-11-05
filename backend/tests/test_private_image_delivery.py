@@ -10,7 +10,9 @@ from pathlib import Path
 import pytest
 from pymongo import MongoClient
 
-RESULTS = Path("uploads/results")
+from utils.result_files import RESULTS_BASE_PATH
+
+RESULTS = Path(RESULTS_BASE_PATH)
 
 
 def _other_headers(client):
