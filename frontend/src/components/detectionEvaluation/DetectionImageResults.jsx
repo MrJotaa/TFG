@@ -1,3 +1,4 @@
+import PrivateImage from '../PrivateImage'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { resolveApiUrl } from '../../api/client'
@@ -141,7 +142,7 @@ function DetectionOverlayImage({ imagePath, result, variant, onExpand }) {
                     </div>
                 ) : (
                     <>
-                        <img
+                        <PrivateImage
                             src={imageUrl}
                             alt={alt}
                             loading="lazy"
@@ -187,7 +188,7 @@ function EigenCamPreview({ label, path, filename, variant, onExpand }) {
         <figure className="detection-eigencam-preview">
             <figcaption>{label}</figcaption>
             <div className="detection-eigencam-visual">
-                <img
+                <PrivateImage
                     src={imageUrl}
                     alt={alt}
                     loading="lazy"
@@ -377,7 +378,7 @@ function DetectionImageLightbox({ preview, onClose }) {
                             transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${safeZoom})`,
                         }}
                     >
-                        <img
+                        <PrivateImage
                             src={preview.url}
                             alt={preview.alt}
                             draggable="false"

@@ -1,3 +1,4 @@
+import PrivateImage from '../components/PrivateImage'
 import { useCallback, useMemo, useState, useEffect } from 'react'
 import BulkImagePicker from '../components/BulkImagePicker'
 import CocoAnnotationPanel from '../components/CocoAnnotationPanel'
@@ -316,7 +317,7 @@ function DatasetImageInspector({ dataset, image, onSaved, onDelete }) {
                 <span className="dashboard-section-eyebrow">Detalle de imagen</span>
                 <strong title={image.filename}>{image.filename}</strong>
             </div>
-            <img className="dataset-inspector-preview" src={imageSource(image)} alt={image.filename} />
+            <PrivateImage className="dataset-inspector-preview" src={imageSource(image)} alt={image.filename} />
             <dl className="dataset-image-metadata">
                 <div><dt>Dimensiones</dt><dd>{image.width && image.height ? `${image.width} × ${image.height}` : 'No disponibles'}</dd></div>
                 <div><dt>Tipo</dt><dd>{taskTypeLabel}</dd></div>

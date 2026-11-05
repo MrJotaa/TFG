@@ -389,7 +389,8 @@ async def test_explain_endpoint_service_separates_model_input_and_source(
             captured["preprocess_calls"] = captured.get("preprocess_calls", 0) + 1
             return model_input
 
-    async def fake_get_image_from_dataset(dataset_id, image_id):
+    async def fake_get_image_from_dataset(dataset_id, image_id, owner_id=None):
+        assert owner_id is None
         assert dataset_id == "dataset-1"
         assert image_id == "image-1"
         return source_image
@@ -499,7 +500,7 @@ async def test_gradcam_http_contract_remains_unchanged(monkeypatch):
     assert (
         gradcam_route.dependant.body_params[0].field_info.annotation is GradCamRequest
     )
-    assert gradcam_route.dependant.dependencies == []
+    assert len(gradcam_route.dependant.dependencies) == 1
 
     response = await explainability_route.gradcam(
         GradCamRequest(
@@ -514,6 +515,7 @@ async def test_gradcam_http_contract_remains_unchanged(monkeypatch):
                 "headers": [],
             }
         ),
+        type("CurrentUser", (), {"id": "test-user"})(),
     )
 
     assert response == {

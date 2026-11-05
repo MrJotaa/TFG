@@ -1,3 +1,4 @@
+import PrivateImage from './PrivateImage'
 import { useEffect, useState } from 'react'
 import { resolveApiUrl } from '../api/client'
 import {
@@ -161,7 +162,7 @@ function IndividualAnalysisCopy({ item, datasets, attackCatalog }) {
             <div className="dashboard-individual-identity">
                 <div className="dashboard-individual-thumbnail" aria-hidden="true">
                     {imageUrl ? (
-                        <img src={imageUrl} alt="" />
+                        <PrivateImage src={imageUrl} alt="" />
                     ) : (
                         <span>IMG</span>
                     )}

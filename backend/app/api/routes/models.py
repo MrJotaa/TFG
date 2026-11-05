@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from api.dependencies.auth import require_current_user
 from schemas.models import (
     ModelClassCatalog,
     ModelInfo,
@@ -13,7 +14,7 @@ from services.model_service import (
     select_model,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_current_user)])
 
 
 @router.get("/models")

@@ -266,3 +266,6 @@ def test_select_already_active_model_loads_it(client):
     assert selected_model["active"] is True
     assert selected_model["loaded"] is True
     assert resnet_instance.is_loaded() is True
+
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")

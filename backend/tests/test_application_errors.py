@@ -97,6 +97,7 @@ def test_application_error_handler_is_registered():
 )
 def test_application_errors_are_converted_to_http_responses(
     client,
+    auth_headers,
     monkeypatch,
     error_class,
     expected_status_code,
@@ -111,7 +112,7 @@ def test_application_errors_are_converted_to_http_responses(
         fake_get_active_model,
     )
 
-    response = client.get("/models/active")
+    response = client.get("/models/active", headers=auth_headers)
 
     assert response.status_code == expected_status_code
     assert response.json() == {

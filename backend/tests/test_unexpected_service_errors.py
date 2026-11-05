@@ -36,7 +36,9 @@ def _create_image() -> Image.Image:
 async def _fake_get_image_from_dataset(
     dataset_id: str,
     image_id: str,
+    owner_id: str | None = None,
 ) -> Image.Image:
+    assert owner_id is None
     return _create_image()
 
 

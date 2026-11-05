@@ -1,3 +1,4 @@
+import PrivateImage from './PrivateImage'
 import { useEffect, useState } from 'react'
 import { getDatasetImages } from '../api/datasets'
 import { resolveApiUrl } from '../api/client'
@@ -57,7 +58,7 @@ function GalleryImageCard({ image, selectedImage, onSelectImage, workspace, comp
         <div className={`image-card${isSelected ? ' selected' : ''}`}>
             <div className="image-card-visual">
                 <button type="button" className="image-button" onClick={() => onSelectImage(image)} aria-pressed={isSelected} title={`Seleccionar ${image.filename}`}>
-                    <img src={imageSource(image)} alt={image.filename} />
+                    <PrivateImage src={imageSource(image)} alt={image.filename} loading="lazy" />
                 </button>
                 {workspace && isSelected && <span className="image-selection-mark" aria-label="Imagen seleccionada"><CheckIcon /></span>}
                 {allowPreview && (
@@ -196,7 +197,7 @@ function ImageGallery({
                             </button>
                         </header>
                         <div className="image-lightbox-content">
-                            <img src={imageSource(previewImage)} alt={previewImage.filename} />
+                            <PrivateImage src={imageSource(previewImage)} alt={previewImage.filename} />
                         </div>
                         {previewImage.label && (
                             <footer>

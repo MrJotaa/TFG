@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_create_dataset_with_image_returns_dataset(
     client,
     registered_user,
@@ -34,7 +37,7 @@ def test_create_dataset_with_image_returns_dataset(
     assert image["label"] is None
 
 
-def test_create_dataset_with_invalid_user_returns_400(
+def test_create_dataset_with_invalid_user_is_forbidden(
     client,
     image_file_factory,
 ):
@@ -49,11 +52,11 @@ def test_create_dataset_with_invalid_user_returns_400(
         ],
     )
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Identificador de usuario no válido"
+    assert response.status_code == 403
+    assert response.json()["detail"] == "No puedes crear datasets para otro usuario"
 
 
-def test_create_dataset_with_non_existing_user_returns_404(
+def test_create_dataset_with_non_existing_user_is_forbidden(
     client,
     image_file_factory,
 ):
@@ -68,8 +71,8 @@ def test_create_dataset_with_non_existing_user_returns_404(
         ],
     )
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Usuario no encontrado"
+    assert response.status_code == 403
+    assert response.json()["detail"] == "No puedes crear datasets para otro usuario"
 
 
 def test_create_dataset_with_invalid_file_extension_returns_400(
@@ -381,7 +384,10 @@ def test_get_user_datasets_returns_only_user_datasets(
 
     assert second_response.status_code == 200
 
-    response = client.get(f"/users/{user_id}/datasets")
+    response = client.get(
+        f"/users/{user_id}/datasets",
+        headers={"Authorization": f"Bearer {registered_user['access_token']}"},
+    )
 
     assert response.status_code == 200
 
@@ -486,3 +492,6 @@ def test_update_dataset_rejects_blank_name(client, created_dataset):
     assert response.json()["detail"] == (
         "El nombre del conjunto de datos no puede estar vacío"
     )
+
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")

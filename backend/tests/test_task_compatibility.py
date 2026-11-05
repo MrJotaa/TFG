@@ -139,6 +139,7 @@ def test_predict_rejects_detection_model(
     async def fake_get_image_from_dataset(
         dataset_id: str,
         image_id: str,
+        **kwargs,
     ):
         return _create_image()
 
@@ -174,6 +175,7 @@ def test_attack_rejects_detection_model(
     async def fake_get_image_from_dataset(
         dataset_id: str,
         image_id: str,
+        **kwargs,
     ):
         return _create_image()
 
@@ -210,6 +212,7 @@ def test_attack_rejects_detection_only_attack(
     async def fake_get_image_from_dataset(
         dataset_id: str,
         image_id: str,
+        **kwargs,
     ):
         return _create_image()
 
@@ -320,6 +323,7 @@ def test_detect_rejects_classification_model(
     async def fake_get_image_from_dataset(
         dataset_id: str,
         image_id: str,
+        **kwargs,
     ):
         return _create_image()
 
@@ -355,6 +359,7 @@ def test_detection_attack_rejects_classification_model(
     async def fake_get_image_from_dataset(
         dataset_id: str,
         image_id: str,
+        **kwargs,
     ):
         return _create_image()
 
@@ -391,6 +396,7 @@ def test_detection_attack_rejects_classification_only_attack(
     async def fake_get_image_from_dataset(
         dataset_id: str,
         image_id: str,
+        **kwargs,
     ):
         return _create_image()
 
@@ -517,6 +523,7 @@ def test_gradcam_rejects_detection_model(
     async def fake_get_image_from_dataset(
         dataset_id: str,
         image_id: str,
+        **kwargs,
     ):
         return _create_image()
 
@@ -552,6 +559,7 @@ def test_detection_explainability_rejects_classification_model(
     async def fake_get_image_from_dataset(
         dataset_id: str,
         image_id: str,
+        **kwargs,
     ):
         return _create_image()
 
@@ -578,3 +586,6 @@ def test_detection_explainability_rejects_classification_model(
     assert response.json()["detail"] == (
         "El endpoint '/explain/detection' requiere un modelo de detección"
     )
+
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")

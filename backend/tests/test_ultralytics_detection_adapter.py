@@ -369,7 +369,8 @@ async def test_detection_service_uses_ultralytics_adapter_and_preserves_http_con
         inference_calls += 1
         return native
 
-    async def fake_get_image_from_dataset(*, dataset_id, image_id):
+    async def fake_get_image_from_dataset(*, dataset_id, image_id, owner_id=None):
+        assert owner_id is None
         assert (dataset_id, image_id) == ("dataset-1", "image-1")
         return source_image
 

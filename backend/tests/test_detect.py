@@ -1,3 +1,4 @@
+import pytest
 from fastapi import HTTPException
 
 import api.routes.detect as detect_route
@@ -117,3 +118,6 @@ def test_detect_propagates_incompatible_model_error(
     assert response.json()["detail"] == (
         "Endpoint '/detect' requires a detection model"
     )
+
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")

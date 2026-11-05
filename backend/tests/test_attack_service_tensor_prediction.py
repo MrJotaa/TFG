@@ -102,7 +102,12 @@ async def _run_service(
     legacy_gradcam_calls = []
     fake_attack = FakeAttack(result)
 
-    async def fake_get_image_from_dataset(dataset_id: str, image_id: str):
+    async def fake_get_image_from_dataset(
+        dataset_id: str,
+        image_id: str,
+        owner_id: str | None = None,
+    ):
+        assert owner_id is None
         return source_image
 
     def fake_save_result_image(image, result_id, result_path, filename):

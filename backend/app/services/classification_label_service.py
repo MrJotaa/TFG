@@ -399,8 +399,10 @@ def get_active_model_class_catalog() -> ModelClassCatalog:
 
 async def get_active_dataset_label_resolution(
     dataset_id: str,
+    *,
+    owner_id: str | None = None,
 ) -> DatasetLabelResolutionResponse:
-    dataset = await get_dataset(dataset_id)
+    dataset = await get_dataset(dataset_id, owner_id=owner_id)
     model = get_active_model_instance()
 
     resolution = resolve_dataset_labels(

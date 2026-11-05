@@ -668,6 +668,7 @@ def test_import_coco_snapshot_updates_coverage_states_and_canonical_records(
     dataset_id = created_dataset["id"]
     add_response = client.post(
         f"/datasets/{dataset_id}/images",
+        headers=auth_headers,
         files=[
             image_file_factory("image-2.png"),
             image_file_factory("image-3.png"),
@@ -687,7 +688,7 @@ def test_import_coco_snapshot_updates_coverage_states_and_canonical_records(
     assert data["format"] == "coco"
     assert data["replaced_existing_snapshot"] is False
 
-    dataset_response = client.get(f"/datasets/{dataset_id}")
+    dataset_response = client.get(f"/datasets/{dataset_id}", headers=auth_headers)
     assert dataset_response.status_code == 200
     assert dataset_response.json()["task_type"] == "detection"
 
@@ -725,7 +726,7 @@ def test_import_coco_snapshot_updates_coverage_states_and_canonical_records(
     assert persisted_coverage.status_code == 200
     assert persisted_coverage.json() == coverage
 
-    images_response = client.get(f"/datasets/{dataset_id}/images")
+    images_response = client.get(f"/datasets/{dataset_id}/images", headers=auth_headers)
     assert images_response.status_code == 200
     statuses = {
         image["filename"]: image["annotation_review_status"]
@@ -1475,7 +1476,9 @@ def test_deleting_image_and_dataset_removes_annotation_records(
         == 200
     )
 
-    delete_image = client.delete(f"/datasets/{dataset_id}/images/{image_id}")
+    delete_image = client.delete(
+        f"/datasets/{dataset_id}/images/{image_id}", headers=auth_headers
+    )
     assert delete_image.status_code == 200
 
     mongo_client, database = _sync_database()
@@ -1490,7 +1493,7 @@ def test_deleting_image_and_dataset_removes_annotation_records(
         == 0
     )
 
-    delete_dataset = client.delete(f"/datasets/{dataset_id}")
+    delete_dataset = client.delete(f"/datasets/{dataset_id}", headers=auth_headers)
     assert delete_dataset.status_code == 200
     assert (
         database.annotation_categories.count_documents(
@@ -1616,6 +1619,7 @@ def test_classification_dataset_rejects_coco_import(
     user_id = registered_user["user"]["id"]
     created = client.post(
         "/datasets",
+        headers=auth_headers,
         data={
             "user_id": user_id,
             "name": "Classification Dataset",

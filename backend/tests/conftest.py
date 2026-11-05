@@ -107,11 +107,12 @@ def image_file_factory():
 
 
 @pytest.fixture
-def created_dataset(client, registered_user, image_file_factory):
+def created_dataset(client, registered_user, image_file_factory, auth_headers):
     user_id = registered_user["user"]["id"]
 
     response = client.post(
         "/datasets",
+        headers=auth_headers,
         data={
             "user_id": user_id,
             "name": "Test Dataset",
@@ -124,3 +125,17 @@ def created_dataset(client, registered_user, image_file_factory):
     assert response.status_code == 200
 
     return response.json()
+
+
+@pytest.fixture
+def authenticated_client(client, auth_headers):
+    """Authenticate legacy route tests without changing the anonymous client fixture."""
+    original = client.headers.get("Authorization")
+    client.headers["Authorization"] = auth_headers["Authorization"]
+    try:
+        yield client
+    finally:
+        if original is None:
+            client.headers.pop("Authorization", None)
+        else:
+            client.headers["Authorization"] = original

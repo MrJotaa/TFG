@@ -12,7 +12,7 @@ from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image
 
-from core.errors import BadRequestError, NotFoundError
+from core.errors import BadRequestError, ForbiddenError, NotFoundError
 from db.collections import (
     annotation_categories_collection,
     datasets_collection,
@@ -134,6 +134,8 @@ def _validate_user_id(user_id: str) -> ObjectId:
 
 async def _get_dataset_document(
     dataset_id: str,
+    *,
+    owner_id: str | None = None,
 ) -> tuple[ObjectId, dict]:
     object_id = _validate_dataset_id(dataset_id)
     snapshot = _ACTIVE_DATASET_READ_SNAPSHOT.get()
@@ -144,12 +146,17 @@ async def _get_dataset_document(
         and snapshot.dataset is not None
         and snapshot.object_id is not None
     ):
+        if owner_id is not None and str(snapshot.dataset["owner_id"]) != owner_id:
+            raise ForbiddenError("El conjunto de datos pertenece a otro usuario")
         return snapshot.object_id, snapshot.dataset
 
     dataset = await datasets_collection.find_one({"_id": object_id})
 
     if not dataset:
         raise NotFoundError(DATASET_NOT_FOUND_MESSAGE)
+
+    if owner_id is not None and str(dataset["owner_id"]) != owner_id:
+        raise ForbiddenError("El conjunto de datos pertenece a otro usuario")
 
     if snapshot is not None and snapshot.dataset_id == dataset_id:
         snapshot.object_id = object_id
@@ -279,8 +286,10 @@ async def create_dataset_from_images(
 async def update_dataset_metadata(
     dataset_id: str,
     metadata: DatasetMetadataUpdate,
+    *,
+    owner_id: str | None = None,
 ) -> DatasetResponse:
-    object_id, dataset = await _get_dataset_document(dataset_id)
+    object_id, dataset = await _get_dataset_document(dataset_id, owner_id=owner_id)
     updates: dict[str, str] = {}
 
     if metadata.name is not None:
@@ -323,24 +332,35 @@ async def update_dataset_metadata(
     return dataset_to_response(dataset)
 
 
-async def list_datasets() -> list[DatasetResponse]:
+async def list_datasets(
+    *,
+    owner_id: str | None = None,
+) -> list[DatasetResponse]:
     datasets = []
 
-    async for dataset in datasets_collection.find():
+    query = {"owner_id": _validate_user_id(owner_id)} if owner_id is not None else {}
+
+    async for dataset in datasets_collection.find(query):
         datasets.append(dataset_to_response(dataset))
 
     return datasets
 
 
-async def get_dataset(dataset_id: str) -> DatasetResponse:
-    _, dataset = await _get_dataset_document(dataset_id)
+async def get_dataset(
+    dataset_id: str,
+    *,
+    owner_id: str | None = None,
+) -> DatasetResponse:
+    _, dataset = await _get_dataset_document(dataset_id, owner_id=owner_id)
     return dataset_to_response(dataset)
 
 
 async def list_images_in_dataset(
     dataset_id: str,
+    *,
+    owner_id: str | None = None,
 ) -> list[DatasetImage]:
-    _, dataset = await _get_dataset_document(dataset_id)
+    _, dataset = await _get_dataset_document(dataset_id, owner_id=owner_id)
 
     return [_to_dataset_image(dataset_id, image) for image in dataset["images"]]
 
@@ -348,8 +368,10 @@ async def list_images_in_dataset(
 async def get_image_file_response(
     dataset_id: str,
     image_id: str,
+    *,
+    owner_id: str | None = None,
 ) -> FileResponse:
-    _, dataset = await _get_dataset_document(dataset_id)
+    _, dataset = await _get_dataset_document(dataset_id, owner_id=owner_id)
     image_metadata = _get_image_metadata(dataset, image_id)
     image_path = image_metadata["path"]
 
@@ -362,14 +384,17 @@ async def get_image_file_response(
         path=image_path,
         filename=image_metadata["filename"],
         media_type=media_type or "application/octet-stream",
+        headers={"Cache-Control": "private, no-store, max-age=0"},
     )
 
 
 async def add_images_to_dataset(
     dataset_id: str,
     files: list[UploadFile],
+    *,
+    owner_id: str | None = None,
 ) -> list[DatasetImage]:
-    object_id, dataset = await _get_dataset_document(dataset_id)
+    object_id, dataset = await _get_dataset_document(dataset_id, owner_id=owner_id)
 
     if not files:
         raise BadRequestError("Debes proporcionar al menos una imagen")
@@ -427,8 +452,10 @@ async def add_images_to_dataset(
 async def delete_image_from_dataset(
     dataset_id: str,
     image_id: str,
+    *,
+    owner_id: str | None = None,
 ) -> None:
-    object_id, dataset = await _get_dataset_document(dataset_id)
+    object_id, dataset = await _get_dataset_document(dataset_id, owner_id=owner_id)
     image_metadata = _get_image_metadata(dataset, image_id)
     image_path = image_metadata["path"]
 
@@ -459,8 +486,12 @@ async def delete_image_from_dataset(
     await delete_individual_analyses_for_image(dataset_id, image_id)
 
 
-async def delete_dataset(dataset_id: str) -> None:
-    object_id, dataset = await _get_dataset_document(dataset_id)
+async def delete_dataset(
+    dataset_id: str,
+    *,
+    owner_id: str | None = None,
+) -> None:
+    object_id, dataset = await _get_dataset_document(dataset_id, owner_id=owner_id)
     dataset_path = dataset["path"]
 
     if os.path.exists(dataset_path):
@@ -487,8 +518,10 @@ async def delete_dataset(dataset_id: str) -> None:
 async def get_image_from_dataset(
     dataset_id: str,
     image_id: str,
+    *,
+    owner_id: str | None = None,
 ) -> Image.Image:
-    _, dataset = await _get_dataset_document(dataset_id)
+    _, dataset = await _get_dataset_document(dataset_id, owner_id=owner_id)
     image_metadata = _get_image_metadata(dataset, image_id)
     image_path = image_metadata["path"]
 
@@ -524,8 +557,10 @@ async def update_image_label(
     dataset_id: str,
     image_id: str,
     label_update: DatasetImageLabelUpdate,
+    *,
+    owner_id: str | None = None,
 ) -> DatasetImage:
-    object_id, dataset = await _get_dataset_document(dataset_id)
+    object_id, dataset = await _get_dataset_document(dataset_id, owner_id=owner_id)
     image_metadata = _get_image_metadata(dataset, image_id)
 
     normalized_label = (

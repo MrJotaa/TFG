@@ -285,6 +285,7 @@ def test_active_class_catalog_rejects_detection_model(
 
 def test_active_class_catalog_endpoint(
     client,
+    auth_headers,
     monkeypatch,
 ):
     def fake_get_active_model_class_catalog():
@@ -315,7 +316,7 @@ def test_active_class_catalog_endpoint(
         fake_get_active_model_class_catalog,
     )
 
-    response = client.get("/models/active/classes")
+    response = client.get("/models/active/classes", headers=auth_headers)
 
     assert response.status_code == 200
 
@@ -332,9 +333,10 @@ def test_active_class_catalog_endpoint(
 
 def test_dataset_label_resolution_endpoint(
     client,
+    auth_headers,
     monkeypatch,
 ):
-    async def fake_get_resolution(dataset_id: str):
+    async def fake_get_resolution(dataset_id: str, *, owner_id: str):
         assert dataset_id == "dataset-1"
 
         return DatasetLabelResolutionResponse(
@@ -365,7 +367,7 @@ def test_dataset_label_resolution_endpoint(
         fake_get_resolution,
     )
 
-    response = client.get("/datasets/dataset-1/label-resolution")
+    response = client.get("/datasets/dataset-1/label-resolution", headers=auth_headers)
 
     assert response.status_code == 200
 

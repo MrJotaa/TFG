@@ -44,6 +44,7 @@ async def apply_detection_attack(
     request: DetectionAttackRequest,
     *,
     cancellation_token: CancellationToken | None = None,
+    owner_id: str | None = None,
 ) -> DetectionAttackResponse:
     try:
         attack = get_attack(request.attack_type)
@@ -54,6 +55,7 @@ async def apply_detection_attack(
     image = await get_image_from_dataset(
         dataset_id=request.dataset_id,
         image_id=request.image_id,
+        owner_id=owner_id,
     )
     model = await run_detection_model_operation(get_active_model_instance)
 
@@ -212,6 +214,7 @@ async def apply_detection_attack(
         )
 
     metadata = {
+        "owner_id": owner_id,
         "result_id": result_id,
         "result_type": "detection_attack",
         "dataset_id": request.dataset_id,

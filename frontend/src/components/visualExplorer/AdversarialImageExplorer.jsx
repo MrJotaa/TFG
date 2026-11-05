@@ -1,3 +1,4 @@
+import PrivateImage from '../PrivateImage'
 import { useMemo, useRef, useState } from 'react'
 import { resolveApiUrl } from '../../api/client'
 import {
@@ -38,7 +39,7 @@ function ExplorerImage({
                 onPointerCancel={onPointerUp}
             >
                 {imageUrl ? (
-                    <img
+                    <PrivateImage
                         src={resolveApiUrl(imageUrl)}
                         alt={alt}
                         draggable="false"
@@ -75,7 +76,7 @@ function OverlayComparison({
                 aria-label="Comparación superpuesta. Usa las flechas para desplazar y las teclas más o menos para ampliar."
                 {...imageHandlers}
             >
-                <img
+                <PrivateImage
                     src={resolveApiUrl(adversarialUrl)}
                     alt="Vista adversaria"
                     draggable="false"
@@ -87,7 +88,7 @@ function OverlayComparison({
                     className="adversarial-overlay-layer"
                     style={{ clipPath: splitState.originalClipPath }}
                 >
-                    <img
+                    <PrivateImage
                         src={resolveApiUrl(originalUrl)}
                         alt="Vista original"
                         draggable="false"
@@ -391,7 +392,7 @@ function AdversarialImageExplorer({
             {showPerturbation && sources.perturbationUrl && (
                 <section className="adversarial-perturbation-panel" aria-label="Mapa de perturbación">
                     <div className="adversarial-perturbation-preview">
-                        <img
+                        <PrivateImage
                             src={resolveApiUrl(sources.perturbationUrl)}
                             alt={`Perturbación aplicada a ${filename || 'la imagen'}`}
                         />

@@ -321,7 +321,12 @@ async def test_rf_detr_runs_through_detection_attack_service_with_eigencam(
     saved_images = {}
     saved_metadata = {}
 
-    async def fake_get_image_from_dataset(dataset_id: str, image_id: str):
+    async def fake_get_image_from_dataset(
+        dataset_id: str,
+        image_id: str,
+        owner_id: str | None = None,
+    ):
+        assert owner_id is None
         assert dataset_id == "dataset-rf-detr-contract"
         assert image_id == "image-1"
         return source_image.copy()
