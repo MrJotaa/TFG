@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
     getAttackDefinition,
-    isAttackSupportedForTask,
+    getSupportedAttacksForTask,
 } from '../utils/attackCatalog'
 import { resolveScrollOverflow } from '../utils/dashboard'
 
@@ -104,7 +104,14 @@ function AttackSelector({
     error = '',
 }) {
     const activeTaskType = activeModel?.task_type || 'classification'
-    const selectedDefinition = getAttackDefinition(attackCatalog, selectedAttack)
+    const availableAttacks = getSupportedAttacksForTask(
+        attackCatalog,
+        activeTaskType,
+        activeModel?.id,
+    )
+    const selectedDefinition = availableAttacks.some((attack) => attack.id === selectedAttack)
+        ? getAttackDefinition(attackCatalog, selectedAttack)
+        : null
     const attackListRef = useRef(null)
     const [scrollOverflow, setScrollOverflow] = useState({
         canScrollUp: false,
@@ -129,7 +136,11 @@ function AttackSelector({
             window.cancelAnimationFrame(frame)
             observer?.disconnect()
         }
-    }, [attackCatalog.length, activeTaskType])
+    }, [availableAttacks.length, activeTaskType, activeModel?.id])
+
+    useEffect(() => {
+        if (attackListRef.current) attackListRef.current.scrollTop = 0
+    }, [activeModel?.id, activeTaskType])
 
     function handleAttackListScroll(event) {
         setScrollOverflow(resolveScrollOverflow(event.currentTarget))
@@ -181,38 +192,23 @@ function AttackSelector({
                     aria-label="Ataques disponibles"
                     onScroll={handleAttackListScroll}
                 >
-                    {attackCatalog.map((attack) => {
-                        const isSupported = isAttackSupportedForTask(
-                            attackCatalog,
-                            attack.id,
-                            activeTaskType,
-                        )
-                        const isSelected = selectedAttack === attack.id
-                        const taskLabel = activeTaskType === 'classification' ? 'clasificación' : 'detección'
-                        const attackTitle = isSupported
-                            ? attack.description
-                            : `No compatible con ${taskLabel}`
-
-                        return (
-                            <button
-                                key={attack.id}
-                                type="button"
-                                className={isSelected ? 'sidebar-list-item active' : 'sidebar-list-item'}
-                                onClick={() => {
-                                    if (isSupported) onSelectAttack(attack.id)
-                                }}
-                                disabled={!isSupported}
-                                title={attackTitle}
-                                aria-pressed={isSupported ? isSelected : undefined}
-                            >
-                                <span>{attack.name}</span>
-
-                                {!isSupported && (
-                                    <small className="attack-unavailable">No disponible</small>
-                                )}
-                            </button>
-                        )
-                    })}
+                    {availableAttacks.map((attack) => (
+                        <button
+                            key={attack.id}
+                            type="button"
+                            className={selectedAttack === attack.id
+                                ? 'sidebar-list-item active'
+                                : 'sidebar-list-item'}
+                            onClick={() => onSelectAttack(attack.id)}
+                            title={attack.description}
+                            aria-pressed={selectedAttack === attack.id}
+                        >
+                            <span>{attack.name}</span>
+                        </button>
+                    ))}
+                    {!loading && !error && availableAttacks.length === 0 && (
+                        <p className="muted-text">No hay ataques compatibles con este modelo.</p>
+                    )}
                 </div>
 
                 {scrollOverflow.canScrollDown && (

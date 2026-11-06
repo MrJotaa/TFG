@@ -145,6 +145,7 @@ function Dashboard() {
             attackCatalog,
             selectedAttack,
             activeModel.task_type || 'classification',
+            activeModel.id,
         )
     )
 

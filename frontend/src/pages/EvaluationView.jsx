@@ -135,6 +135,7 @@ function EvaluationView() {
                 <DetectionEvaluationPanel
                     selectedDataset={selectedDataset}
                     selectedAttack={selectedAttack}
+                    modelId={activeModel?.id}
                     attackParameters={attackParameters}
                     attackCatalog={attackCatalog}
                     recoveredEvaluation={recoveredEvaluation}
