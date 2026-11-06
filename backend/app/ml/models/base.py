@@ -8,6 +8,7 @@ from ml.models.classification import (
     DetailedClassificationPrediction,
 )
 from ml.models.detection import DetectionResult
+from ml.models.detection_localization import DetectionLocalizationReferences
 from ml.models.detection_inference import (
     DetectionEvaluationInferenceConfiguration,
 )
@@ -271,6 +272,20 @@ class BaseObjectDetectionModel(BaseModel):
         """
         raise NotImplementedError(
             f"Model '{self.id}' does not expose a detection confidence objective"
+        )
+
+    def detection_localization_objective(
+        self,
+        prepared_input: torch.Tensor,
+        references: DetectionLocalizationReferences,
+    ) -> torch.Tensor:
+        """Objetivo diferenciable de error de cajas con referencias fijas.
+
+        ``references`` usa coordenadas xyxy de la imagen fuente e IDs de
+        clase del modelo. No se redefine a partir de cada imagen perturbada.
+        """
+        raise NotImplementedError(
+            f"Model '{self.id}' does not expose a detection localization objective"
         )
 
     def get_torch_model(self):

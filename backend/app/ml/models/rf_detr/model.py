@@ -11,6 +11,7 @@ from transformers import AutoImageProcessor, AutoModelForObjectDetection
 from ml.detection_categories import DetectionClassCatalog
 from ml.models.base import BaseObjectDetectionModel
 from ml.models.detection import DetectionResult
+from ml.models.detection_localization import DetectionLocalizationReferences
 from ml.models.detection_inference import (
     DETECTION_EVALUATION_MAX_DETECTIONS_PER_IMAGE,
     DetectionEvaluationInferenceConfiguration,
@@ -365,6 +366,122 @@ class RfDetrDetectionModel(BaseObjectDetectionModel):
             logits,
             valid_class_ids=valid_class_ids,
         )
+
+    @staticmethod
+    def _localization_target_labels(
+        references: DetectionLocalizationReferences,
+        *,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> list[dict[str, torch.Tensor]]:
+        """Pasa xyxy en geometría fuente a cxcywh normalizado de RF-DETR."""
+        class_ids = [item.class_id for item in references.objects]
+        boxes = [
+            (
+                (item.box.x_min + item.box.x_max) / (2 * references.source_width),
+                (item.box.y_min + item.box.y_max) / (2 * references.source_height),
+                (item.box.x_max - item.box.x_min) / references.source_width,
+                (item.box.y_max - item.box.y_min) / references.source_height,
+            )
+            for item in references.objects
+        ]
+        return [
+            {
+                "class_labels": torch.tensor(
+                    class_ids, device=device, dtype=torch.long
+                ),
+                "boxes": torch.tensor(boxes, device=device, dtype=dtype).reshape(-1, 4),
+            }
+        ]
+
+    @staticmethod
+    def _localization_loss_from_outputs(outputs, config) -> torch.Tensor:
+        """Usa SOLO las pérdidas finales de cajas, no CE ni pérdidas auxiliares."""
+        loss_dict = getattr(outputs, "loss_dict", None)
+        if not isinstance(loss_dict, Mapping):
+            raise ValueError("RF-DETR did not return a localization loss_dict")
+
+        terms = []
+        for key, coefficient_name in (
+            ("loss_bbox", "bbox_loss_coefficient"),
+            ("loss_giou", "giou_loss_coefficient"),
+        ):
+            value = loss_dict.get(key)
+            if not isinstance(value, torch.Tensor) or value.numel() != 1:
+                raise ValueError(f"RF-DETR loss_dict must contain scalar {key}")
+            if not torch.isfinite(value).all():
+                raise ValueError(f"RF-DETR {key} must be finite")
+            if not value.requires_grad:
+                raise RuntimeError(f"RF-DETR {key} is not differentiable")
+            coefficient = getattr(config, coefficient_name, None)
+            if (
+                isinstance(coefficient, bool)
+                or not isinstance(coefficient, (int, float))
+                or not 0 < coefficient < float("inf")
+            ):
+                raise ValueError(f"RF-DETR config has invalid {coefficient_name}")
+            terms.append(float(coefficient) * value.reshape(()))
+
+        objective = sum(terms)
+        if not objective.requires_grad:
+            raise RuntimeError(
+                "RF-DETR localization losses are not differentiable"
+            )
+        return objective
+
+    def detection_localization_objective(
+        self,
+        prepared_input: torch.Tensor,
+        references: DetectionLocalizationReferences,
+    ) -> torch.Tensor:
+        """Maximizar este escalar degrada la localización frente a cajas fijas.
+
+        Se utiliza el matcher oficial de Transformers 5.15.1 a través del
+        forward supervisado (sin entrenar pesos). La asignación húngara puede
+        cambiar entre iteraciones; LAS REFERENCIAS nunca se recalculan.
+        """
+        if not isinstance(references, DetectionLocalizationReferences):
+            raise TypeError("references must be DetectionLocalizationReferences")
+        if not references.objects:
+            raise ValueError(
+                "RF-DETR localization requires at least one reference box"
+            )
+        if (
+            not isinstance(prepared_input, torch.Tensor)
+            or prepared_input.ndim != 4
+            or prepared_input.shape[0] != 1
+            or prepared_input.shape[1] != 3
+        ):
+            raise ValueError("RF-DETR localization requires input [1, 3, H, W]")
+        if (prepared_input.shape[-1], prepared_input.shape[-2]) != (
+            references.source_width,
+            references.source_height,
+        ):
+            raise ValueError("localization reference geometry differs from input image")
+
+        torch_model = self.get_torch_model()
+        torch_model.eval()
+        pixel_values, pixel_mask = self._differentiable_attack_model_input(
+            prepared_input
+        )
+        valid_ids = set(
+            self._valid_attack_class_ids(
+                num_classes=getattr(torch_model.config, "num_labels", 0)
+            )
+        )
+        if not all(item.class_id in valid_ids for item in references.objects):
+            raise ValueError(
+                "RF-DETR localization references include invalid model class IDs"
+            )
+        labels = self._localization_target_labels(
+            references, device=pixel_values.device, dtype=pixel_values.dtype
+        )
+        outputs = torch_model(
+            pixel_values=pixel_values,
+            pixel_mask=pixel_mask,
+            labels=labels,
+        )
+        return self._localization_loss_from_outputs(outputs, torch_model.config)
 
     def _prepare_inputs(self, image: Image.Image) -> dict[str, object]:
         if not isinstance(image, Image.Image):

@@ -14,7 +14,8 @@ from ml.attacks.detection_confidence import DetectionConfidenceAttack
 from ml.attacks.registry import get_attack
 from ml.explainability.gradcam import generate_detection_eigencam
 from ml.models.definitions import build_model_registry
-from ml.models.detection import DetectionResult
+from ml.models.detection import DetectionBox, DetectionResult
+from ml.models.detection_localization import DetectionLocalizationReferences
 from ml.models.detection_inference import DetectionEvaluationInferenceConfiguration
 from ml.models.rf_detr.catalog import build_rf_detr_class_catalog
 from ml.models.rf_detr.config import RfDetrDetectionModelConfig
@@ -545,6 +546,36 @@ def test_real_rf_detr_nano_checkpoint_supports_application_contracts():
         assert torch.count_nonzero(input_gradient) > 0
         assert all(
             parameter.grad is None for parameter in model.get_torch_model().parameters()
+        )
+
+        # A3: comprobar en el checkpoint fijado las pérdidas oficiales
+        # y el gradiente de localización en geometría de origen.
+        # Una referencia COCO real sería preferible; usamos una caja válida
+        # conocida para verificar el contrato sin depender de detecciones.
+        localization_references = (
+            DetectionLocalizationReferences.from_supervised_objects(
+                source_width=source_image.width,
+                source_height=source_image.height,
+                objects=((1, DetectionBox(10.0, 10.0, 60.0, 45.0)),),
+            )
+        )
+        localization_input = model.prepare_detection_attack_input(
+            source_image
+        ).requires_grad_(True)
+        localization_loss = model.detection_localization_objective(
+            localization_input, localization_references
+        )
+        (localization_gradient,) = torch.autograd.grad(
+            localization_loss, localization_input
+        )
+        assert localization_loss.ndim == 0
+        assert torch.isfinite(localization_loss)
+        assert localization_gradient.shape == localization_input.shape
+        assert torch.isfinite(localization_gradient).all()
+        assert torch.count_nonzero(localization_gradient) > 0
+        assert all(
+            parameter.grad is None
+            for parameter in model.get_torch_model().parameters()
         )
 
         explanation = generate_detection_eigencam(model, source_image)
