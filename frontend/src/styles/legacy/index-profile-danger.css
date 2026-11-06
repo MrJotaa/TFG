@@ -1,0 +1,8 @@
+.profile-danger-row {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) minmax(240px, 360px) auto;
+}
+
+.profile-danger-row label {
+    margin: 0;
+}

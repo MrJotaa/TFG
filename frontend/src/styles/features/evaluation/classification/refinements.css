@@ -1,0 +1,1338 @@
+/* Classification evaluation refinement */
+html[data-theme='dark']:where(*) {
+    --evaluation-original: #60a5fa;
+    --evaluation-adversarial: #ff5368;
+    --evaluation-danger: #ff5368;
+    --evaluation-matrix-text: #dbe8f8;
+    --evaluation-matrix-strong-text: #ffffff;
+    --evaluation-matrix-zero: #60708a;
+    --evaluation-chart-grid: #25364e;
+    --evaluation-chart-axis: #52637d;
+}
+
+:root:where(*) {
+    --evaluation-matrix-text: #172033;
+    --evaluation-matrix-strong-text: #ffffff;
+    --evaluation-matrix-zero: #94a3b8;
+    --evaluation-chart-grid: #dbe4ef;
+    --evaluation-chart-axis: #94a3b8;
+}
+
+.evaluation-page-hero-flat {
+    align-items: flex-end;
+    padding: 0.3rem 0 0.65rem;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.evaluation-page-hero-flat::before,
+.evaluation-page-hero-flat::after {
+    display: none;
+}
+
+.evaluation-page-hero-flat h2 {
+    margin-top: 0.22rem;
+    font-size: clamp(1.55rem, 2.4vw, 2rem);
+}
+
+.evaluation-page-hero-flat p {
+    margin-top: 0.15rem;
+}
+
+.evaluation-hero-context {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.evaluation-context-summary {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.evaluation-context-summary strong,
+.evaluation-context-summary span {
+    overflow: hidden;
+    max-width: 230px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.evaluation-context-summary strong {
+    color: var(--text-soft);
+}
+
+.evaluation-context-toggle {
+    flex: 0 0 auto;
+    min-height: 36px;
+    margin: 0;
+    padding: 0.45rem 0.7rem;
+}
+
+.evaluation-context-strip {
+    border-width: 0 0 1px;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.evaluation-context-item {
+    padding-block: 0.7rem;
+}
+
+.evaluation-run-card.modern {
+    padding: 0.85rem 0;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.evaluation-run-card.modern .evaluation-run-button {
+    box-shadow: none;
+}
+
+.evaluation-reuse-notice {
+    align-items: center;
+    padding: 0.9rem 0;
+    border-width: 1px 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.evaluation-reuse-actions {
+    align-items: center;
+}
+
+.evaluation-reuse-actions .primary-action,
+.evaluation-reuse-actions .secondary-action,
+.evaluation-reuse-actions .text-action {
+    align-self: center;
+    min-height: 40px;
+    margin: 0;
+}
+
+.evaluation-reuse-actions .text-action {
+    padding-inline: 0.75rem;
+}
+
+.evaluation-loading-card,
+.evaluation-progress-card {
+    align-items: center;
+    padding: 1rem 0;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text);
+}
+
+.evaluation-progress-heading strong,
+.evaluation-progress-heading span,
+.evaluation-loading-card > div > strong {
+    color: var(--text);
+}
+
+.evaluation-progress-value {
+    background: var(--primary);
+}
+
+.evaluation-results-shell {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.evaluation-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    gap: 1rem;
+    padding: 0.55rem 0.25rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+    background: color-mix(in srgb, var(--bg) 93%, transparent);
+    backdrop-filter: blur(14px);
+}
+
+.evaluation-tab {
+    position: relative;
+    min-height: 42px;
+    padding: 0.55rem 0.2rem 0.7rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--muted);
+    box-shadow: none;
+}
+
+.evaluation-tab::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    border-radius: 999px;
+    background: transparent;
+}
+
+.evaluation-tab:hover {
+    background: transparent;
+    color: var(--text);
+}
+
+.evaluation-tab.active {
+    border: 0;
+    background: transparent;
+    color: var(--primary);
+    box-shadow: none;
+}
+
+.evaluation-tab.active::after {
+    background: var(--primary);
+}
+
+.evaluation-tab small,
+.evaluation-tab.active small {
+    min-width: auto;
+    height: auto;
+    padding: 0;
+    background: transparent;
+    color: currentColor;
+}
+
+.evaluation-tab-panel {
+    padding: 1rem 0 0;
+}
+
+.evaluation-metric-guide {
+    margin: 0.8rem 0 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: transparent;
+}
+
+.evaluation-metric-guide summary {
+    padding: 0.72rem 0.8rem;
+    color: var(--text-soft);
+}
+
+.evaluation-metric-guide summary strong {
+    color: var(--text);
+}
+
+.evaluation-metric-guide summary small:where(*),
+.evaluation-metric-guide-intro:where(*),
+.evaluation-metric-guide-grid dd:where(*),
+.evaluation-metric-guide-note:where(*) {
+    color: var(--muted);
+}
+
+.evaluation-info-icon:where(*) {
+    width: 1.45rem;
+    height: 1.45rem;
+    border: 1px solid var(--info-border);
+    background: var(--info-soft);
+    color: var(--info-text);
+    font-size: 0.78rem;
+}
+
+.evaluation-guide-chevron {
+    color: var(--info-text);
+}
+
+.evaluation-metric-guide-intro {
+    padding: 0.75rem 0.9rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.evaluation-metric-guide-grid > div,
+.evaluation-metric-guide-grid > div:nth-child(odd) {
+    padding: 0.75rem 0.9rem;
+    border-color: var(--border-subtle);
+    background: transparent;
+}
+
+.evaluation-metric-guide-grid dt {
+    color: var(--text-soft);
+}
+
+.evaluation-metric-guide-note:where(*) {
+    margin: 0.15rem 0.9rem 0.9rem;
+    padding: 0.7rem 0.8rem;
+    border: 0;
+    border-left: 2px solid var(--info-text);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background: var(--surface-soft);
+}
+
+.evaluation-info-tip {
+    position: relative;
+    display: inline-flex;
+    margin-left: 0.35rem;
+    vertical-align: middle;
+}
+
+.evaluation-info-tip-trigger {
+    display: inline-grid;
+    width: 1.1rem;
+    height: 1.1rem;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    place-items: center;
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted-strong);
+    font-family: Georgia, serif;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.evaluation-info-tip-trigger:hover,
+.evaluation-info-tip-trigger:focus-visible {
+    border-color: var(--info-border);
+    background: var(--info-soft);
+    color: var(--info-text);
+}
+
+.evaluation-info-tip-content {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 0.45rem);
+    left: 50%;
+    display: grid;
+    width: min(310px, 70vw);
+    gap: 0.3rem;
+    padding: 0.7rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-raised);
+    box-shadow: var(--shadow-md);
+    color: var(--muted-strong);
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.45;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -4px);
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.evaluation-info-tip-content strong {
+    color: var(--text);
+    font-size: 0.74rem;
+}
+
+.evaluation-info-tip:hover .evaluation-info-tip-content,
+.evaluation-info-tip:focus-within .evaluation-info-tip-content {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+.evaluation-label-with-info {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.1rem;
+}
+
+.evaluation-kpi-grid {
+    gap: 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.evaluation-metric-card {
+    min-height: 128px;
+    padding: 0.9rem 1rem;
+    border: 0;
+    border-right: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+}
+
+.evaluation-kpi-grid .evaluation-metric-card:last-child {
+    border-right: 0;
+}
+
+.evaluation-metric-card::before {
+    width: 3px;
+    inset: 0 auto 0 0;
+}
+
+.evaluation-metric-card-heading span {
+    display: inline-flex;
+    align-items: center;
+    color: var(--muted-strong);
+}
+
+.evaluation-secondary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.evaluation-secondary-grid .evaluation-metric-card {
+    min-height: 120px;
+    border-right: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.evaluation-secondary-grid .evaluation-metric-card:nth-child(3n) {
+    border-right: 0;
+}
+
+.evaluation-secondary-grid .evaluation-metric-card:nth-last-child(-n + 3) {
+    border-bottom: 0;
+}
+
+.evaluation-overview-grid {
+    gap: 1.25rem;
+}
+
+.evaluation-surface,
+.class-metrics-header,
+.confusion-matrix-header,
+.curve-header-card,
+.evaluation-images-header {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.evaluation-comparison-card,
+.evaluation-impact-card {
+    padding: 0;
+}
+
+.evaluation-impact-card {
+    padding-left: 1.15rem;
+    border-left: 1px solid var(--border-subtle);
+}
+
+.evaluation-coverage-card {
+    padding: 1rem 0 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.evaluation-coverage-meter {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.evaluation-coverage-meter > div {
+    background: var(--surface-muted);
+}
+
+.evaluation-coverage-meter > div > span {
+    background: var(--success);
+}
+
+.class-metrics-header,
+.confusion-matrix-header,
+.curve-header-card,
+.evaluation-images-header {
+    padding: 0 0 0.95rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.class-metrics-summary,
+.evaluation-images-summary {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.class-metrics-summary div,
+.evaluation-images-summary div {
+    padding: 0.35rem 0.85rem;
+    border-color: var(--border-subtle);
+}
+
+.class-metrics-toolbar,
+.evaluation-images-toolbar {
+    padding: 0 0 0.9rem;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+}
+
+.class-metrics-legend {
+    padding: 0.35rem 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.class-metric-card {
+    overflow: visible;
+    padding: 0.95rem 0;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.class-metric-card-header {
+    padding: 0 0 0.75rem;
+    border: 0;
+    background: transparent;
+}
+
+.class-metric-main-comparison {
+    border-top: 1px solid var(--border-subtle);
+}
+
+.class-metric-mini-grid {
+    border-color: var(--border-subtle);
+    background: transparent;
+}
+
+.confusion-matrix-stat-grid {
+    gap: 0;
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.confusion-matrix-stat-grid article {
+    padding: 0.7rem 0.9rem;
+    border: 0;
+    border-right: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+}
+
+.confusion-matrix-stat-grid article:last-child {
+    border-right: 0;
+}
+
+.confusion-matrix-surface {
+    padding: 0.9rem 0 0;
+}
+
+.confusion-matrix-scroll {
+    border-color: var(--border);
+    background: var(--surface);
+    scrollbar-color: var(--border-strong) var(--surface-soft);
+}
+
+.confusion-matrix-scroll::-webkit-scrollbar-track {
+    background: var(--surface-soft);
+}
+
+.confusion-matrix-scroll::-webkit-scrollbar-thumb {
+    border-color: var(--surface-soft);
+    background: var(--border-strong);
+}
+
+.confusion-matrix-table thead th,
+.confusion-matrix-table tbody th {
+    background: var(--surface-soft);
+    color: var(--muted-strong);
+}
+
+.confusion-matrix-table th span {
+    color: var(--muted);
+}
+
+.confusion-matrix-table th strong {
+    color: var(--text-soft);
+}
+
+.curve-controls {
+    padding: 0;
+}
+
+.curve-score-grid {
+    gap: 0;
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.curve-score-card {
+    min-height: 112px;
+    padding: 0.75rem 0.9rem;
+    border: 0;
+    border-right: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+}
+
+.curve-score-card:last-child {
+    border-right: 0;
+}
+
+.curve-main-card {
+    padding: 0.4rem 0 0;
+}
+
+.curve-tooltip,
+.evaluation-chart-tooltip,
+.curve-modal {
+    border-color: var(--border);
+    background: var(--surface-raised);
+    color: var(--text);
+}
+
+.curve-modal-header {
+    background: var(--surface-raised);
+}
+
+.evaluation-image-filter-list button {
+    border-color: var(--border);
+    background: transparent;
+    color: var(--muted-strong);
+}
+
+.evaluation-image-filter-list button:hover,
+.evaluation-image-filter-list button.active {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.evaluation-image-card {
+    overflow: visible;
+    padding: 0.95rem 0;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.evaluation-image-card-header {
+    padding: 0 0 0.8rem;
+    border: 0;
+    background: transparent;
+}
+
+.evaluation-image-card-body {
+    padding: 0;
+}
+
+.evaluation-image-preview {
+    border-color: var(--border);
+    background: var(--surface-soft);
+}
+
+.evaluation-image-preview-visual {
+    position: relative;
+}
+
+.evaluation-image-preview img {
+    background: var(--surface-soft);
+}
+
+.evaluation-image-expand {
+    position: absolute;
+    right: 0.45rem;
+    bottom: 0.45rem;
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 8px;
+    background: rgba(8, 16, 29, 0.72);
+    color: #fff;
+    opacity: 0;
+    backdrop-filter: blur(5px);
+}
+
+.evaluation-image-expand svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.evaluation-image-preview:hover .evaluation-image-expand,
+.evaluation-image-expand:focus-visible {
+    opacity: 1;
+}
+
+.evaluation-gradcam-section {
+    margin-top: 0.85rem;
+    padding: 0.85rem 0 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.evaluation-gradcam-action {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.evaluation-gradcam-grid .evaluation-image-preview img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: contain;
+}
+
+.evaluation-image-diagnostics {
+    margin-top: 0.85rem;
+    border-top: 1px solid var(--border-subtle);
+    background: transparent;
+}
+
+.evaluation-image-topk-comparison {
+    padding-inline: 0;
+    border-top-color: var(--border-subtle);
+    background: transparent;
+}
+
+.evaluation-image-lightbox {
+    max-width: min(1100px, calc(100vw - 2rem));
+}
+
+.evaluation-rerun-footer {
+    margin-top: 1rem;
+    padding: 0.85rem 0;
+    border-width: 1px 0 0;
+    background: transparent;
+}
+
+html[data-theme='dark'] .evaluation-page-hero,
+html[data-theme='dark'] .evaluation-page-hero.compact,
+html[data-theme='dark'] .evaluation-page-hero-flat {
+    border-color: var(--border-subtle);
+    background: transparent;
+    box-shadow: none;
+}
+
+html[data-theme='dark'] :is(
+    .evaluation-results-shell,
+    .evaluation-surface,
+    .evaluation-metric-card,
+    .class-metric-card,
+    .class-metric-card-header,
+    .curve-score-card,
+    .evaluation-image-card,
+    .evaluation-image-card-header,
+    .evaluation-coverage-card,
+    .evaluation-gradcam-action
+) {
+    background: transparent;
+}
+
+html[data-theme='dark'] .evaluation-tabs {
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+}
+
+html[data-theme='dark'] .evaluation-metric-guide {
+    border-color: var(--border);
+    background: transparent;
+}
+
+html[data-theme='dark'] .evaluation-metric-guide-note {
+    background: var(--surface-soft);
+}
+
+html[data-theme='dark'] .evaluation-loading-card,
+html[data-theme='dark'] .evaluation-progress-card {
+    background: transparent;
+    color: var(--text);
+}
+
+html[data-theme='dark'] .evaluation-reuse-notice {
+    border-color: var(--info-border);
+    background: transparent;
+}
+
+html[data-theme='dark'] .class-metrics-toolbar :is(input, select),
+html[data-theme='dark'] .evaluation-images-toolbar input,
+html[data-theme='dark'] .curve-controls select {
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--text);
+}
+
+html[data-theme='dark'] .confusion-matrix-scroll {
+    border-color: var(--border);
+    background: #0d1728;
+}
+
+html[data-theme='dark'] .confusion-matrix-table thead th,
+html[data-theme='dark'] .confusion-matrix-table tbody th {
+    background: #18263c;
+    color: var(--text-soft);
+    box-shadow-color: var(--border);
+}
+
+html[data-theme='dark'] .confusion-matrix-table td {
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.28);
+}
+
+html[data-theme='dark'] .curve-tooltip,
+html[data-theme='dark'] .evaluation-chart-tooltip,
+html[data-theme='dark'] .curve-modal,
+html[data-theme='dark'] .curve-modal-header {
+    border-color: var(--border);
+    background: var(--surface-raised);
+}
+
+html[data-theme='dark'] .evaluation-image-preview img {
+    background: #0b1424;
+}
+
+html[data-theme='dark'] .evaluation-gradcam-grid .evaluation-image-preview img {
+    background: #0b1424;
+}
+
+@media (hover: none) {
+    .evaluation-image-expand {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 900px) {
+    .evaluation-page-hero-flat {
+        align-items: flex-start;
+    }
+
+    .evaluation-hero-context {
+        width: 100%;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+
+    .evaluation-context-summary {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .evaluation-secondary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .evaluation-secondary-grid .evaluation-metric-card:nth-child(3n) {
+        border-right: 1px solid var(--border-subtle);
+    }
+
+    .evaluation-secondary-grid .evaluation-metric-card:nth-child(2n) {
+        border-right: 0;
+    }
+}
+
+@media (max-width: 620px) {
+    .evaluation-context-summary span[aria-hidden='true'] {
+        display: none;
+    }
+
+    .evaluation-tabs {
+        gap: 0.75rem;
+    }
+
+    .evaluation-kpi-grid,
+    .evaluation-secondary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .evaluation-kpi-grid .evaluation-metric-card,
+    .evaluation-secondary-grid .evaluation-metric-card {
+        border-right: 0;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .evaluation-info-tip-content {
+        left: 0;
+        transform: translate(0, -4px);
+    }
+
+    .evaluation-info-tip:hover .evaluation-info-tip-content,
+    .evaluation-info-tip:focus-within .evaluation-info-tip-content {
+        transform: translate(0, 0);
+    }
+}
+
+.evaluation-metric-card:where(*) {
+    overflow: visible;
+}
+
+.evaluation-gradcam-grid .evaluation-image-preview img:where(*) {
+    height: clamp(240px, 25vw, 380px);
+    aspect-ratio: auto;
+    object-fit: contain;
+}
+
+@media (max-width: 620px) {
+    .evaluation-gradcam-grid .evaluation-image-preview img {
+        height: auto;
+        aspect-ratio: 1 / 1;
+    }
+}
+
+/* Classification evaluation: visual corrections after the first refinement pass */
+.classification-evaluation-panel .evaluation-tab-panel,
+.classification-evaluation-panel .evaluation-tab-content,
+.classification-evaluation-panel .evaluation-run-card.modern,
+.classification-evaluation-panel .evaluation-results-shell,
+.classification-evaluation-panel .evaluation-surface,
+.classification-evaluation-panel .evaluation-metric-card,
+.classification-evaluation-panel .class-metric-card,
+.classification-evaluation-panel .class-metric-card-header,
+.classification-evaluation-panel .curve-score-card,
+.classification-evaluation-panel .evaluation-image-card,
+.classification-evaluation-panel .evaluation-image-card-header,
+.classification-evaluation-panel .evaluation-gradcam-action,
+.classification-evaluation-panel .evaluation-rerun-footer,
+.classification-evaluation-panel .evaluation-coverage-card {
+    background: transparent;
+}
+
+html[data-theme='dark'] .classification-evaluation-panel :is(
+    .evaluation-run-card,
+    .evaluation-results-shell,
+    .evaluation-tab-panel,
+    .evaluation-surface,
+    .evaluation-metric-card,
+    .class-metric-card,
+    .class-metric-card-header,
+    .curve-score-card,
+    .evaluation-image-card,
+    .evaluation-image-card-header,
+    .evaluation-gradcam-action,
+    .evaluation-rerun-footer,
+    .evaluation-coverage-card
+) {
+    border-color: var(--border-subtle);
+    background: transparent;
+    box-shadow: none;
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-coverage-meter {
+    background: transparent;
+}
+
+/* Contextual help must float above the following metric row. */
+.evaluation-secondary-grid,
+.evaluation-kpi-grid {
+    overflow: visible;
+}
+
+.evaluation-metric-card:has(.evaluation-info-tip:hover),
+.evaluation-metric-card:has(.evaluation-info-tip:focus-within),
+.curve-score-card:has(.evaluation-info-tip:hover),
+.curve-score-card:has(.evaluation-info-tip:focus-within) {
+    z-index: 90;
+}
+
+.evaluation-info-tip:where(*) {
+    z-index: 100;
+}
+
+.evaluation-info-tip-content:where(*) {
+    z-index: 110;
+}
+
+/* Guides read top-to-bottom in the first column, then use the right column. */
+@media (min-width: 761px) {
+    .evaluation-metric-guide-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-rows: repeat(2, auto);
+    }
+
+    .evaluation-metric-guide-grid > div:nth-child(1) {
+        grid-column: 1;
+        grid-row: 1;
+        border-right: 1px solid var(--border-subtle);
+    }
+
+    .evaluation-metric-guide-grid > div:nth-child(2) {
+        grid-column: 1;
+        grid-row: 2;
+        border-right: 1px solid var(--border-subtle);
+    }
+
+    .evaluation-metric-guide-grid > div:nth-child(3) {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        border-right: 0;
+    }
+}
+
+/* Sticky matrix headers keep depth in dark mode without a white seam. */
+html[data-theme='dark'] .classification-evaluation-panel .confusion-matrix-table thead th {
+    box-shadow: 0 1px 0 #24344b;
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .confusion-matrix-table tbody th {
+    box-shadow: 1px 0 0 #24344b;
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .confusion-matrix-corner {
+    box-shadow: 1px 1px 0 #24344b !important;
+}
+
+/* Curve controls share the available width and use normal sentence casing. */
+.curve-controls .evaluation-segmented-control {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.curve-controls .evaluation-segmented-control button {
+    width: 100%;
+    min-width: 0;
+}
+
+.curve-controls label > span,
+.curve-score-card > span,
+.curve-score-card .evaluation-label-with-info {
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+/* Evaluation image viewer is a real modal: large canvas, locked background and zoom. */
+.evaluation-image-lightbox-backdrop {
+    z-index: 1600;
+    overscroll-behavior: contain;
+}
+
+.evaluation-image-lightbox:where(*) {
+    width: min(1440px, calc(100vw - 2rem));
+    height: min(94vh, 1000px);
+    max-height: 94vh;
+}
+
+.evaluation-image-lightbox > header {
+    gap: 0.75rem;
+}
+
+.evaluation-image-lightbox-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.evaluation-image-lightbox-actions output {
+    min-width: 3.4rem;
+    color: var(--text-soft);
+    font-size: 0.78rem;
+    font-weight: 750;
+    text-align: center;
+}
+
+.evaluation-image-zoom-button svg,
+.evaluation-image-lightbox .image-lightbox-close svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.evaluation-image-zoom-button:disabled,
+.evaluation-image-reset-zoom:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+}
+
+.evaluation-image-reset-zoom {
+    min-height: 34px;
+    margin: 0;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-soft);
+    color: var(--muted-strong);
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.evaluation-image-reset-zoom:hover:not(:disabled) {
+    background: var(--surface-hover);
+    color: var(--text);
+}
+
+.evaluation-image-lightbox-content {
+    position: relative;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    cursor: zoom-in;
+    user-select: none;
+}
+
+.evaluation-image-lightbox-content img {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    object-fit: contain;
+    transform-origin: center center;
+    transition: transform 120ms ease;
+}
+
+.evaluation-image-lightbox > footer {
+    justify-content: center;
+    min-height: 40px;
+}
+
+@media (max-width: 700px) {
+    .evaluation-image-lightbox {
+        width: calc(100vw - 1rem);
+        height: calc(100vh - 1rem);
+        max-height: calc(100vh - 1rem);
+    }
+
+    .evaluation-image-lightbox > header {
+        align-items: flex-start;
+    }
+
+    .evaluation-image-lightbox-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .evaluation-image-reset-zoom {
+        display: none;
+    }
+}
+
+/* Classification evaluation: final dark-mode flattening and interaction polish. */
+:root:where(*):where(*) {
+    --evaluation-transition-warning: #f59e0b;
+}
+
+.classification-evaluation-page .evaluation-context-chevron,
+.evaluation-guide-chevron {
+    display: inline-block;
+    transform-origin: center;
+    transition: transform var(--transition-base);
+}
+
+.classification-evaluation-page .evaluation-context-toggle[aria-expanded='true'] .evaluation-context-chevron,
+.evaluation-metric-guide[open] .evaluation-guide-chevron {
+    transform: rotate(180deg);
+}
+
+.evaluation-context-collapse,
+.evaluation-metric-guide-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition:
+        grid-template-rows var(--transition-base),
+        opacity var(--transition-fast),
+        transform var(--transition-base);
+}
+
+.evaluation-context-collapse.open,
+.evaluation-metric-guide[open] .evaluation-metric-guide-body {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.evaluation-context-collapse-inner,
+.evaluation-metric-guide-body-inner {
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Override the browser's default details hiding so the guide can animate. */
+.evaluation-metric-guide:not([open]) > .evaluation-metric-guide-body {
+    display: grid;
+}
+
+html[data-theme='dark'] .classification-evaluation-page .evaluation-context-strip,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tabs,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tab,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tab:hover,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tab.active,
+html[data-theme='dark'] .classification-evaluation-panel .class-metrics-legend,
+html[data-theme='dark'] .classification-evaluation-panel .class-metric-mini-grid,
+html[data-theme='dark'] .classification-evaluation-panel .confusion-matrix-stat-grid article,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-gradcam-action,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-empty-panel,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-empty-panel.compact {
+    background: transparent;
+    box-shadow: none;
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tab {
+    border-color: transparent;
+    color: var(--muted);
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tab:hover {
+    color: var(--text);
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tab.active {
+    border-color: transparent;
+    color: var(--primary);
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tab small,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tab.active small {
+    background: transparent;
+    color: currentColor;
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .class-metrics-legend,
+html[data-theme='dark'] .classification-evaluation-panel .class-metric-mini-grid,
+html[data-theme='dark'] .classification-evaluation-panel .confusion-matrix-stat-grid,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-gradcam-action {
+    border-color: var(--border-subtle);
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .class-metric-miniature {
+    background: transparent;
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-empty-panel {
+    border-color: var(--border-subtle);
+    color: var(--text);
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-empty-panel h3 {
+    color: var(--text-soft);
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-empty-panel p {
+    color: var(--muted);
+}
+
+html[data-theme='dark'] .classification-evaluation-page .evaluation-context-strip {
+    border-color: var(--border-subtle);
+}
+
+/* Keep analytical warning colours identical between the donut and its legend. */
+.classification-evaluation-panel .evaluation-impact-list .tone-warning dt::before {
+    background: var(--evaluation-transition-warning);
+}
+
+/* The image preview opens slightly smaller and becomes pannable only after zooming. */
+.evaluation-image-lightbox:where(*):where(*) {
+    width: min(1240px, calc(100vw - 3rem));
+    height: min(88vh, 860px);
+    max-height: 88vh;
+}
+
+.evaluation-image-lightbox-content:where(*) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+    touch-action: none;
+}
+
+.evaluation-image-lightbox-content.is-zoomed {
+    cursor: grab;
+}
+
+.evaluation-image-lightbox-content.is-dragging {
+    cursor: grabbing;
+}
+
+.evaluation-image-lightbox-content img:where(*) {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    flex: 0 0 auto;
+    object-fit: contain;
+    will-change: transform;
+}
+
+.evaluation-image-lightbox-content.is-dragging img {
+    transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .classification-evaluation-page .evaluation-context-chevron,
+    .evaluation-guide-chevron,
+    .evaluation-context-collapse,
+    .evaluation-metric-guide-body,
+    .evaluation-image-lightbox-content img {
+        transition: none;
+    }
+}
+
+@media (max-width: 700px) {
+    .evaluation-image-lightbox {
+        width: calc(100vw - 1rem);
+        height: calc(100vh - 1rem);
+        max-height: calc(100vh - 1rem);
+    }
+}
+
+/* Metric details remain readable as a grid without looking like nested cards. */
+.classification-evaluation-panel .class-metric-miniature {
+    border-right: 0;
+    background: transparent;
+}
+
+/* Classification evaluation: final dark-mode cleanup */
+.classification-evaluation-panel .evaluation-tabs {
+    position: static;
+    top: auto;
+    z-index: auto;
+    background: transparent;
+    backdrop-filter: none;
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tabs {
+    background: transparent !important;
+    backdrop-filter: none;
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tabs > .evaluation-tab,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tabs > .evaluation-tab:hover,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tabs > .evaluation-tab.active,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tabs > .evaluation-tab small,
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-tabs > .evaluation-tab.active small {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .class-metrics-legend {
+    padding-inline: 0;
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+html[data-theme='dark'] .classification-evaluation-panel .evaluation-gradcam-action {
+    padding-inline: 0;
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}

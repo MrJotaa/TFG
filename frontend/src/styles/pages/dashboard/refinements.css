@@ -1,0 +1,201 @@
+/* The dashboard is now a workspace, not a fixed-height three-card layout. */
+.app-shell > .dashboard-workspace-layout {
+    flex: 1 1 0;
+}
+
+html[data-theme='dark'] .dashboard-config-panel,
+html[data-theme='dark'] .dashboard-workspace-shell {
+    background: var(--surface);
+}
+
+html[data-theme='dark'] .workspace-image-gallery .image-card {
+    background: transparent;
+}
+
+html[data-theme='dark'] .workspace-image-gallery .image-card:hover {
+    background: var(--surface-soft);
+}
+
+html[data-theme='dark'] .workspace-image-gallery .image-card.selected {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+}
+
+@media (max-width: 1180px) {
+    .dashboard-history-row {
+        grid-template-columns: minmax(170px, 1.1fr) minmax(150px, 1fr) auto;
+    }
+
+    .dashboard-history-result {
+        display: none;
+    }
+
+    .dashboard-action-context span {
+        max-width: 130px;
+    }
+}
+
+@media (max-width: 980px) {
+    .dashboard-workspace-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        overflow: visible;
+    }
+
+    .dashboard-config-panel,
+    .dashboard-workspace-shell {
+        height: auto;
+        overflow: visible;
+    }
+
+    .dashboard-config-panel {
+        flex: 0 0 auto;
+        padding: 0.25rem 0.9rem;
+    }
+
+    .dashboard-resize-handle {
+        display: none;
+    }
+
+    .dashboard-workspace-shell {
+        flex: 1 1 auto;
+        min-height: 620px;
+    }
+
+    .dashboard-action-bar {
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+    }
+
+    .attack-list {
+        max-height: 14rem;
+    }
+}
+
+@media (max-width: 760px) {
+    .dashboard-data-view,
+    .dashboard-history-view {
+        padding: 1rem;
+    }
+
+    .dashboard-workspace-header,
+    .dashboard-history-header,
+    .dashboard-action-bar,
+    .dashboard-history-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .dashboard-workspace-header .dashboard-text-action,
+    .dashboard-history-header .dashboard-text-action {
+        align-self: flex-start;
+    }
+
+    .dashboard-action-buttons {
+        width: 100%;
+    }
+
+    .dashboard-action-buttons .primary-action,
+    .dashboard-action-buttons .secondary-action {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .dashboard-action-context {
+        overflow-x: auto;
+        padding-bottom: 0.15rem;
+    }
+
+    .dashboard-history-row {
+        grid-template-columns: 1fr auto;
+        gap: 0.65rem 1rem;
+    }
+
+    .dashboard-history-config {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .dashboard-history-actions {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .dashboard-history-status {
+        display: none;
+    }
+
+    .image-preview-button {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (max-width: 520px) {
+    .dashboard-workspace-tabs {
+        min-height: 46px;
+        padding-inline: 1rem;
+    }
+
+    .dashboard-inline-heading > div {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .dashboard-image-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .dashboard-selected-image-label {
+        max-width: 100%;
+    }
+
+    .workspace-image-gallery .image-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .workspace-image-gallery .image-button img {
+        height: 112px;
+    }
+
+    .dashboard-action-buttons {
+        flex-direction: column-reverse;
+    }
+
+    .dashboard-action-buttons .primary-action,
+    .dashboard-action-buttons .secondary-action {
+        width: 100%;
+    }
+
+    .dashboard-history-filters {
+        gap: 0.75rem;
+        overflow-x: auto;
+    }
+
+    .dashboard-history-row {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-history-actions {
+        grid-column: 1;
+        grid-row: 3;
+        justify-content: flex-start;
+    }
+
+    .dashboard-history-config {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .dashboard-history-open {
+        padding-left: 0;
+    }
+
+    .image-lightbox-backdrop {
+        padding: 0.6rem;
+    }
+}

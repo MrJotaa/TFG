@@ -1,0 +1,257 @@
+/* Recharts inherits many colours from CSS/SVG attributes. These rules keep
+   axes and grids legible until each evaluation view is polished separately. */
+html[data-theme='dark'] :is(
+    .recharts-cartesian-axis-tick-value,
+    .recharts-legend-item-text,
+    .recharts-text
+) {
+    fill: var(--muted);
+    color: var(--muted) !important;
+}
+
+html[data-theme='dark'] .recharts-cartesian-grid line {
+    stroke: var(--border);
+}
+
+html[data-theme='dark'] .recharts-tooltip-wrapper {
+    color: var(--text);
+}
+
+@media (max-width: 720px) {
+    .app-brand-copy small,
+    .header-user-copy small,
+    .header-logout-button span {
+        display: none;
+    }
+
+    .header-user-copy {
+        max-width: 110px;
+    }
+}
+
+@media (max-width: 520px) {
+    .header-user-actions {
+        width: auto;
+    }
+
+    .app-shell {
+        padding: 0.4rem;
+    }
+
+    .app-session-header {
+        min-height: 52px;
+        padding: 0.38rem;
+    }
+
+    .app-brand-copy {
+        display: none;
+    }
+
+    .app-brand-mark {
+        width: 34px;
+        height: 34px;
+    }
+
+    .header-user-copy {
+        display: none;
+    }
+
+    .header-user-link {
+        padding-right: 0.3rem;
+    }
+
+    .header-logout-button {
+        width: 38px;
+        padding-inline: 0;
+    }
+
+    .auth-theme-control {
+        top: 0.65rem;
+        right: 0.65rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
+/* Remaining legacy accents kept semantic in dark mode. */
+html[data-theme='dark'] :is(.icon-button, .attack-summary-line) {
+    border-color: var(--border);
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+html[data-theme='dark'] .icon-button:hover {
+    background: var(--surface-hover);
+}
+
+html[data-theme='dark'] .summary-card-blue {
+    background: #123148;
+}
+
+html[data-theme='dark'] .summary-card-green {
+    background: var(--success-soft);
+}
+
+html[data-theme='dark'] .summary-card-yellow {
+    background: var(--warning-soft);
+}
+
+html[data-theme='dark'] .summary-card-red {
+    background: var(--danger-soft);
+}
+
+html[data-theme='dark'] .task-pill.classification {
+    background: #2d2450;
+    color: #c4b5fd;
+}
+
+html[data-theme='dark'] :is(
+    .task-pill.detection,
+    .history-status.running,
+    .detection-outcome-badge.outcome-preserved
+) {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+html[data-theme='dark'] .evaluation-reuse-notice.near-expiration {
+    border-color: var(--warning-border);
+    background: var(--warning-soft);
+}
+
+html[data-theme='dark'] .sidebar-list-item:disabled {
+    background: var(--surface-soft);
+    color: var(--muted);
+}
+
+html[data-theme='dark'] .evaluation-impact-list .tone-warning dt::before {
+    background: #f59e0b;
+}
+
+html[data-theme='dark'] .evaluation-coverage-meter > div {
+    background: var(--primary);
+}
+
+html[data-theme='dark'] :is(
+    .detection-metrics-table th[scope='row'],
+    .detection-class-table th[scope='row'],
+    .detection-object-aggregate-table th[scope='row'],
+    .detection-images-table th[scope='row'],
+    .detection-object-detail-row td,
+    .confusion-matrix-stat-grid article,
+    .detection-image-result-metrics div,
+    .evaluation-gradcam-action
+) {
+    border-color: var(--border);
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+html[data-theme='dark'] .detection-operating-comparison div + div {
+    border-color: var(--border);
+    background: var(--surface-soft);
+}
+
+html[data-theme='dark'] .detection-methodology-badge {
+    background: #292858;
+    color: #c7d2fe;
+}
+
+html[data-theme='dark'] :is(
+    .detection-object-detail-button,
+    .evaluation-gradcam-button
+) {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+html[data-theme='dark'] :is(
+    .detection-object-detail-button:hover,
+    .evaluation-gradcam-button:hover:not(:disabled)
+) {
+    border-color: var(--primary);
+    background: var(--primary-soft-strong);
+}
+
+html[data-theme='dark'] :is(
+    .detection-outcome-badge.outcome-suppressed,
+    .detection-legacy-badge.success,
+    .class-metric-badges .tone-danger,
+    .class-metric-miniature .tone-danger,
+    .class-metric-delta.tone-danger,
+    .evaluation-status-badge.danger
+) {
+    background: var(--danger-soft);
+    color: var(--danger-text);
+}
+
+html[data-theme='dark'] :is(
+    .detection-outcome-badge.outcome-recovered,
+    .class-metric-badges .tone-success,
+    .class-metric-miniature .tone-success,
+    .class-metric-delta.tone-success,
+    .evaluation-status-badge.success
+) {
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+html[data-theme='dark'] :is(
+    .detection-outcome-badge.outcome-missed_both,
+    .detection-legacy-badge.neutral,
+    .class-metric-badges .tone-neutral,
+    .class-metric-miniature .tone-neutral,
+    .class-metric-delta.tone-neutral,
+    .evaluation-status-badge.neutral
+) {
+    background: var(--surface-muted);
+    color: var(--muted-strong);
+}
+
+html[data-theme='dark'] .evaluation-status-badge.warning,
+html[data-theme='dark'] .evaluation-image-warning {
+    border-color: var(--warning-border);
+    background: var(--warning-soft);
+    color: var(--warning-text);
+}
+
+html[data-theme='dark'] .confusion-matrix-scroll::-webkit-scrollbar-track {
+    background: var(--surface-soft);
+}
+
+html[data-theme='dark'] .evaluation-legend-pills .reference {
+    border-color: var(--border);
+    background: var(--surface-soft);
+    color: var(--muted-strong);
+}
+
+html[data-theme='dark'] :is(
+    .evaluation-detail-button:hover,
+    .evaluation-rerun-button:hover
+) {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+html[data-theme='dark'] .evaluation-rerun-button {
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--muted-strong);
+}
+
+html[data-theme='dark'] .adversarial-overlay-divider {
+    background: #e2e8f0;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+

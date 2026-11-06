@@ -1,0 +1,474 @@
+/* -------------------------------------------------------------------------- */
+/* Individual analysis persistence flow                                       */
+/* -------------------------------------------------------------------------- */
+
+.dashboard-individual-compare-draft,
+.individual-analysis-preparing-b {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface-raised);
+}
+
+.dashboard-individual-compare-draft-side,
+.individual-analysis-preparing-b-side {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.dashboard-individual-compare-draft-side > span,
+.individual-analysis-preparing-b-side > span {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    border: 1px solid var(--comparison-a);
+    border-radius: 50%;
+    color: var(--comparison-a);
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.dashboard-individual-compare-draft-side > div,
+.individual-analysis-preparing-b-side > div,
+.dashboard-individual-compare-draft-copy {
+    display: grid;
+    gap: 0.12rem;
+    min-width: 0;
+}
+
+.dashboard-individual-compare-draft-side strong,
+.dashboard-individual-compare-draft-side small,
+.individual-analysis-preparing-b-side strong,
+.individual-analysis-preparing-b-side small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-individual-compare-draft-side strong,
+.individual-analysis-preparing-b-side strong,
+.dashboard-individual-compare-draft-copy strong {
+    color: var(--text-soft);
+    font-size: 0.78rem;
+}
+
+.dashboard-individual-compare-draft-side small,
+.individual-analysis-preparing-b-side small,
+.dashboard-individual-compare-draft-copy p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.68rem;
+    line-height: 1.45;
+}
+
+.individual-analysis-preparing-b {
+    margin: 0.65rem 0 0;
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--comparison-a);
+    border-radius: 12px;
+}
+
+.individual-analysis-preparing-b > div:last-child {
+    display: grid;
+    gap: 0.12rem;
+    color: var(--muted);
+    font-size: 0.7rem;
+    text-align: right;
+}
+
+.individual-analysis-preparing-b > div:last-child strong {
+    color: var(--text-soft);
+    font-size: 0.78rem;
+}
+
+.individual-analysis-persistence-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin-top: 1rem;
+    padding: 0.8rem 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.individual-analysis-persistence-bar > div:first-child {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.individual-analysis-persistence-bar > div:first-child > strong {
+    color: var(--text-soft);
+    font-size: 0.82rem;
+}
+
+.individual-analysis-persistence-bar > div:first-child > small {
+    color: var(--muted);
+    font-size: 0.69rem;
+    line-height: 1.45;
+}
+
+.individual-analysis-persistence-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex: 0 0 auto;
+}
+
+.individual-analysis-persistence-actions .primary-action,
+.individual-analysis-persistence-actions .secondary-action {
+    width: auto;
+    margin: 0;
+}
+
+.individual-analysis-flow-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 170;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgb(15 23 42 / 0.62);
+    backdrop-filter: blur(4px);
+}
+
+.individual-analysis-flow-dialog {
+    width: min(620px, 100%);
+    max-height: min(82vh, 760px);
+    overflow: auto;
+    padding: 1.2rem;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-raised);
+    box-shadow: var(--shadow-md);
+}
+
+.individual-analysis-flow-dialog h2 {
+    margin: 0.2rem 0 0.45rem;
+    color: var(--text);
+    font-size: 1.25rem;
+}
+
+.individual-analysis-flow-dialog > p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.76rem;
+    line-height: 1.55;
+}
+
+.individual-analysis-duplicate-summary,
+.individual-analysis-compare-base {
+    display: grid;
+    gap: 0.18rem;
+    margin-top: 1rem;
+    padding: 0.75rem 0;
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.individual-analysis-duplicate-summary strong,
+.individual-analysis-compare-base strong {
+    color: var(--text-soft);
+    font-size: 0.82rem;
+}
+
+.individual-analysis-duplicate-summary span,
+.individual-analysis-duplicate-summary small,
+.individual-analysis-compare-base small {
+    color: var(--muted);
+    font-size: 0.69rem;
+}
+
+.individual-analysis-compare-base {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 0.7rem;
+}
+
+.individual-analysis-compare-base > span {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--comparison-a);
+    border-radius: 50%;
+    color: var(--comparison-a);
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.individual-analysis-compare-base > div {
+    display: grid;
+    gap: 0.12rem;
+}
+
+.individual-analysis-compare-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin-top: 1rem;
+}
+
+.individual-analysis-compare-options > button {
+    display: grid;
+    gap: 0.22rem;
+    min-height: 82px;
+    padding: 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.individual-analysis-compare-options > button:hover {
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+}
+
+.individual-analysis-compare-options strong {
+    font-size: 0.76rem;
+}
+
+.individual-analysis-compare-options span {
+    color: var(--muted);
+    font-size: 0.65rem;
+    line-height: 1.4;
+}
+
+.individual-analysis-saved-candidates {
+    margin-top: 1.1rem;
+}
+
+.individual-analysis-saved-candidates > header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.55rem;
+}
+
+.individual-analysis-saved-candidates > header > div {
+    display: grid;
+    gap: 0.12rem;
+}
+
+.individual-analysis-saved-candidates > header strong {
+    color: var(--text-soft);
+    font-size: 0.78rem;
+}
+
+.individual-analysis-saved-candidates > header span,
+.individual-analysis-saved-candidates > header small,
+.individual-analysis-saved-candidates > p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.67rem;
+    line-height: 1.45;
+}
+
+.individual-analysis-saved-candidates > div {
+    display: grid;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.individual-analysis-saved-candidates > div > button {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.65rem 0.15rem;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.individual-analysis-saved-candidates > div > button:hover {
+    background: var(--surface-hover);
+}
+
+.individual-analysis-saved-candidates > div > button > div {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.individual-analysis-saved-candidates > div > button strong {
+    font-size: 0.75rem;
+}
+
+.individual-analysis-saved-candidates > div > button small,
+.individual-analysis-saved-candidates > div > button > span:last-child {
+    color: var(--muted);
+    font-size: 0.65rem;
+}
+
+.individual-analysis-flow-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    margin-top: 1rem;
+}
+
+.individual-analysis-flow-actions.wrap {
+    flex-wrap: wrap;
+}
+
+.individual-analysis-flow-actions .primary-action,
+.individual-analysis-flow-actions .secondary-action,
+.individual-analysis-flow-actions .danger-outline-action {
+    width: auto;
+    margin: 0;
+}
+
+.individual-comparison-save-strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    padding: 0.75rem 0 0.9rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.individual-comparison-save-state {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.individual-comparison-save-state > span {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.individual-comparison-save-state.side-a > span {
+    color: var(--comparison-a);
+}
+
+.individual-comparison-save-state.side-b > span {
+    color: var(--comparison-b);
+}
+
+.individual-comparison-save-state > div {
+    display: grid;
+    gap: 0.08rem;
+    min-width: 0;
+}
+
+.individual-comparison-save-state strong {
+    color: var(--text-soft);
+    font-size: 0.73rem;
+}
+
+.individual-comparison-save-state small {
+    color: var(--muted);
+    font-size: 0.64rem;
+    line-height: 1.4;
+}
+
+.individual-comparison-save-state .secondary-action {
+    width: auto;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.individual-comparison-save-error {
+    margin: 0.55rem 0 0;
+}
+
+@media (max-width: 900px) {
+    .dashboard-individual-compare-draft,
+    .individual-analysis-preparing-b,
+    .individual-analysis-persistence-bar {
+        align-items: flex-start;
+        grid-template-columns: 1fr;
+        flex-direction: column;
+    }
+
+    .dashboard-individual-compare-draft-copy p,
+    .individual-analysis-preparing-b > div:last-child {
+        text-align: left;
+    }
+
+    .individual-analysis-compare-options,
+    .individual-comparison-save-strip {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 620px) {
+    .individual-analysis-persistence-bar,
+    .individual-analysis-persistence-actions,
+    .individual-analysis-flow-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .individual-analysis-persistence-actions .primary-action,
+    .individual-analysis-persistence-actions .secondary-action,
+    .individual-analysis-flow-actions .primary-action,
+    .individual-analysis-flow-actions .secondary-action,
+    .individual-analysis-flow-actions .danger-outline-action {
+        width: 100%;
+    }
+
+    .individual-analysis-compare-options {
+        grid-template-columns: 1fr;
+    }
+
+    .individual-comparison-save-state {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .individual-comparison-save-state .secondary-action {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+}
+
+.individual-analysis-preparing-b:where(*) {
+    grid-template-columns: auto minmax(0, 1fr);
+}
+
+.individual-analysis-preparing-b > div:last-child:where(*) {
+    display: grid;
+    gap: 0.12rem;
+    text-align: left;
+}
+
+.individual-analysis-preparing-b > div:last-child p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.68rem;
+    line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+    .individual-analysis-preparing-b {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+}
+
+.individual-analysis-preparing-b > .individual-comparison-side-token,
+.individual-analysis-saved-candidates .individual-comparison-side-token {
+    color: var(--comparison-b);
+}

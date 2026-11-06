@@ -1,0 +1,222 @@
+/* Contextual metric guidance and TIDE diagnostics */
+.evaluation-metric-guide {
+    margin: 0.8rem 1.25rem 0;
+    border: 1px solid #bfdbfe;
+    border-radius: 14px;
+    background: #f8fbff;
+}
+
+.evaluation-metric-guide summary {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.75rem 0.9rem;
+    color: #1e3a8a;
+    cursor: pointer;
+    list-style: none;
+}
+
+.evaluation-metric-guide summary::-webkit-details-marker {
+    display: none;
+}
+
+.evaluation-metric-guide summary > span:nth-child(2),
+.evaluation-metric-guide summary strong,
+.evaluation-metric-guide summary small {
+    display: block;
+}
+
+.evaluation-metric-guide summary small {
+    margin-top: 0.12rem;
+    color: #64748b;
+    font-size: 0.72rem;
+}
+
+.evaluation-info-icon {
+    display: grid;
+    width: 1.7rem;
+    height: 1.7rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 50%;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-family: Georgia, serif;
+    font-weight: 800;
+}
+
+.evaluation-guide-chevron {
+    margin-left: auto;
+    color: #2563eb;
+    font-size: 1.2rem;
+    transition: transform 0.18s ease;
+}
+
+.evaluation-metric-guide[open] .evaluation-guide-chevron {
+    transform: rotate(180deg);
+}
+
+.evaluation-metric-guide-body {
+    padding: 0 0.9rem 0.9rem;
+}
+
+.evaluation-metric-guide-intro {
+    margin: 0;
+    padding: 0.75rem 0.8rem;
+    border-top: 1px solid #dbeafe;
+    color: #334155;
+    font-size: 0.8rem;
+    line-height: 1.55;
+}
+
+.evaluation-metric-guide-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+}
+
+.evaluation-metric-guide-grid > div {
+    padding: 0.8rem;
+    border-top: 1px solid #dbeafe;
+}
+
+.evaluation-metric-guide-grid > div:nth-child(odd) {
+    border-right: 1px solid #dbeafe;
+}
+
+.evaluation-metric-guide-grid dt,
+.evaluation-metric-guide-grid dd {
+    margin: 0;
+}
+
+.evaluation-metric-guide-grid dt {
+    color: #1e3a8a;
+    font-size: 0.84rem;
+    font-weight: 800;
+}
+
+.evaluation-metric-guide-grid dd {
+    margin-top: 0.35rem;
+    color: #475569;
+    font-size: 0.78rem;
+    line-height: 1.55;
+}
+
+.evaluation-metric-guide-note {
+    margin: 0;
+    padding: 0.75rem 0.8rem;
+    border-top: 1px solid #bfdbfe;
+    border-radius: 0 0 10px 10px;
+    background: #eff6ff;
+    color: #334155;
+    font-size: 0.78rem;
+    line-height: 1.55;
+}
+
+.detection-explained-metric {
+    min-width: 245px;
+}
+
+.detection-explained-metric strong,
+.detection-explained-metric small,
+.tide-errors-table th strong,
+.tide-errors-table th small {
+    display: block;
+}
+
+.detection-explained-metric small,
+.tide-errors-table th small {
+    max-width: 360px;
+    margin-top: 0.25rem;
+    color: #64748b;
+    font-size: 0.7rem;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: normal;
+}
+
+.tide-chart-card .evaluation-section-heading p {
+    margin: 0.35rem 0 0;
+    color: var(--evaluation-muted);
+}
+
+.tide-chart {
+    width: 100%;
+    height: 360px;
+}
+
+.tide-tooltip {
+    max-width: 310px;
+}
+
+.tide-tooltip > p {
+    margin: 0 0 0.55rem;
+    color: #64748b;
+    font-size: 0.72rem;
+    line-height: 1.4;
+}
+
+.tide-special-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.tide-special-card h3,
+.tide-special-card p {
+    margin: 0;
+}
+
+.tide-special-card h3 {
+    margin-top: 0.3rem;
+    color: var(--evaluation-ink);
+}
+
+.tide-special-card p {
+    margin-top: 0.4rem;
+    color: var(--evaluation-muted);
+    line-height: 1.5;
+}
+
+.tide-special-card dl {
+    margin: 0.8rem 0 0;
+}
+
+.tide-special-card dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.65rem 0;
+    border-top: 1px solid var(--evaluation-line);
+}
+
+.tide-special-card dt {
+    color: #64748b;
+}
+
+.tide-special-card dd {
+    margin: 0;
+    color: var(--evaluation-ink);
+    font-weight: 800;
+    text-align: right;
+}
+
+@media (max-width: 760px) {
+    .evaluation-metric-guide {
+        margin-inline: 0.8rem;
+    }
+
+    .evaluation-metric-guide-grid,
+    .tide-special-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .evaluation-metric-guide-grid > div:nth-child(odd) {
+        border-right: 0;
+    }
+
+    .tide-chart {
+        height: 300px;
+    }
+}

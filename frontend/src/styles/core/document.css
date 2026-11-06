@@ -1,0 +1,92 @@
+html {
+    min-width: 320px;
+    background: var(--bg);
+}
+
+body {
+    min-width: 320px;
+    min-height: 100vh;
+    color: var(--text);
+    background:
+        radial-gradient(circle at 12% -10%, rgba(98, 87, 199, 0.075), transparent 28rem),
+        var(--bg);
+    transition:
+        color var(--transition-base),
+        background-color var(--transition-base);
+}
+
+html[data-theme='dark'] body {
+    background:
+        radial-gradient(circle at 12% -10%, rgba(111, 94, 201, 0.12), transparent 30rem),
+        radial-gradient(circle at 92% 5%, rgba(139, 92, 246, 0.055), transparent 24rem),
+        var(--bg);
+}
+
+::selection {
+    background: var(--primary-soft-strong);
+    color: var(--text);
+}
+
+a {
+    color: var(--primary);
+    text-underline-offset: 0.16em;
+}
+
+a:hover {
+    color: var(--primary-dark);
+}
+
+button,
+a,
+input,
+select,
+textarea,
+summary {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+    transition:
+        border-color var(--transition-fast),
+        background-color var(--transition-fast),
+        color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        opacity var(--transition-fast);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid transparent;
+    box-shadow: var(--focus-ring);
+}
+
+input,
+select,
+textarea {
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--text);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--muted);
+    opacity: 0.8;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+    background: var(--surface-muted);
+    color: var(--muted);
+}
+

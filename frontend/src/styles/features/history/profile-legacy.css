@@ -1,0 +1,185 @@
+.profile-history-heading {
+    align-items: flex-start;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.profile-history-heading > div:first-child {
+    max-width: 720px;
+}
+
+.retention-control {
+    flex: 0 0 auto;
+    min-width: 360px;
+}
+
+.retention-control label {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.retention-control > div {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) auto;
+    gap: 0.5rem;
+}
+
+.retention-control select {
+    min-height: 40px;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+}
+
+.history-toolbar {
+    padding: 0.85rem 0;
+}
+
+.history-toolbar > span,
+.history-pagination > span {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.history-task-filter {
+    display: inline-flex;
+    gap: 0.25rem;
+    padding: 0.22rem;
+    border-radius: 10px;
+    background: #f1f5f9;
+}
+
+.history-task-filter button {
+    border: 0;
+    border-radius: 8px;
+    padding: 0.45rem 0.7rem;
+    background: transparent;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.history-task-filter button.active {
+    background: white;
+    color: var(--primary);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+}
+
+.profile-history-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.profile-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.profile-history-table th,
+.profile-history-table td {
+    padding: 0.68rem 0.75rem;
+    border-bottom: 1px solid #e8edf4;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.profile-history-table th {
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.7rem;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.profile-history-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.profile-history-table td strong,
+.profile-history-table td small {
+    display: block;
+}
+
+.profile-history-table td small {
+    max-width: 220px;
+    margin-top: 0.16rem;
+    overflow: hidden;
+    color: var(--muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-pill,
+.history-status {
+    display: inline-flex;
+    align-items: center;
+    width: max-content;
+    margin-bottom: 0.28rem;
+    border-radius: 999px;
+    padding: 0.22rem 0.48rem;
+    font-size: 0.66rem;
+    font-weight: 850;
+}
+
+.task-pill.classification {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.task-pill.detection {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.history-status.completed {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.history-status.running {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.history-status.expiring {
+    background: #ffedd5;
+    color: #c2410c;
+}
+
+.history-open-cell {
+    text-align: right !important;
+}
+
+.secondary-action.small-inline {
+    width: auto;
+    min-height: 34px;
+    margin: 0;
+    padding: 0.42rem 0.68rem;
+    white-space: nowrap;
+}
+
+.history-pagination {
+    padding-top: 0.85rem;
+}
+
+.history-pagination > div {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.history-empty {
+    margin: 0;
+    padding: 2rem 1rem;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    text-align: center;
+}
