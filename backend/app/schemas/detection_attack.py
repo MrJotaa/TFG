@@ -18,6 +18,8 @@ class DetectionAttackComparison(BaseModel):
 
     ``attack_success`` conserva la definición legacy: es verdadero cuando
     disminuye el número de detecciones o la confianza media adversaria.
+    No mide desplazamientos de cajas: debe interpretarse con precaución para
+    PGD de localización.
     """
 
     original_detection_count: int

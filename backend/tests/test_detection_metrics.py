@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from ml.models.detection import Detection, DetectionBox
 from utils.detection_metrics import (
     average,
     average_detection_confidence,
@@ -102,6 +103,18 @@ def test_detection_comparison_reports_new_detections_with_negative_delta():
     )
 
     assert metrics.detections_difference == -1
+    assert metrics.attack_success is False
+
+
+def test_localization_only_shift_is_not_mislabeled_as_legacy_success():
+    """Count and confidence remain unchanged despite a large box shift."""
+    original = Detection(0, 0.9, DetectionBox(10, 10, 30, 30))
+    shifted = Detection(0, 0.9, DetectionBox(60, 60, 80, 80))
+
+    metrics = calculate_detection_comparison([original], [shifted])
+
+    assert metrics.original_count == metrics.adversarial_count == 1
+    assert metrics.average_confidence_difference == 0.0
     assert metrics.attack_success is False
 
 
