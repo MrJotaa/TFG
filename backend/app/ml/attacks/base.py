@@ -162,6 +162,9 @@ class BaseAdversarialAttack(ABC):
     knowledge_type: AttackKnowledgeType
     revision: str | None = None
     supported_task_types: tuple[str, ...] = ()
+    # None: cualquier modelo de los tipos de tarea admitidos. Los ataques
+    # específicos pueden restringir esta capacidad a IDs de modelo concretos.
+    supported_model_ids: tuple[str, ...] | None = None
     parameter_specs: tuple[AttackParameterSpec, ...] = ()
     requires_exclusive_model_execution = False
     evaluation_micro_batch_size = 1
@@ -270,7 +273,7 @@ class BaseAdversarialAttack(ABC):
         )
 
     def catalog_entry(self) -> dict[str, Any]:
-        return {
+        entry = {
             "id": self.id,
             "name": self.name,
             "description": self.description,
@@ -278,6 +281,9 @@ class BaseAdversarialAttack(ABC):
             "supported_task_types": list(self.supported_task_types),
             "parameters": [spec.as_catalog_dict() for spec in self.parameter_specs],
         }
+        if self.supported_model_ids is not None:
+            entry["supported_model_ids"] = list(self.supported_model_ids)
+        return entry
 
     @abstractmethod
     def apply(

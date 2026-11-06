@@ -53,3 +53,18 @@ def require_attack_task_type(
         raise BadRequestError(
             f"El ataque '{attack.id}' no es compatible con la tarea de {task_label}"
         )
+
+
+def require_attack_model_compatibility(attack, model) -> None:
+    """Valida la tarea y, si el ataque los restringe, los IDs de modelo.
+
+    Los ataques anteriores no declaraban ``supported_model_ids``: en ese caso
+    siguen admitiendo todos los modelos del tipo de tarea compatible.
+    """
+    require_attack_task_type(attack, model.task_type)
+
+    supported_model_ids = getattr(attack, "supported_model_ids", None)
+    if supported_model_ids is not None and model.id not in supported_model_ids:
+        raise BadRequestError(
+            f"El ataque '{attack.id}' no es compatible con el modelo '{model.id}'"
+        )

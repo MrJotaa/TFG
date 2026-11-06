@@ -78,6 +78,30 @@ def test_attack_enum_registry_and_catalog_stay_in_sync():
     assert {item.id for item in catalog} == set(AttackType)
 
 
+def test_legacy_attack_catalog_has_no_model_restrictions():
+    for item in list_attack_catalog():
+        assert "supported_model_ids" not in item
+        assert AttackCatalogItem.model_validate(item).supported_model_ids is None
+
+
+def test_attack_catalog_validates_optional_model_restrictions():
+    restricted = get_attack(AttackType.YOLO_CONFIDENCE).__class__()
+    restricted.supported_model_ids = ("rf_detr_nano",)
+
+    catalog_entry = restricted.catalog_entry()
+    assert catalog_entry["supported_model_ids"] == ["rf_detr_nano"]
+    assert (
+        AttackCatalogItem.model_validate(catalog_entry).supported_model_ids
+        == ["rf_detr_nano"]
+    )
+
+    for invalid in ([], [""], [" rf_detr_nano"], ["rf_detr_nano", "rf_detr_nano"]):
+        with pytest.raises(ValueError):
+            AttackCatalogItem.model_validate(
+                {**catalog_entry, "supported_model_ids": invalid}
+            )
+
+
 @pytest.mark.parametrize("task_type", ["classification", "detection"])
 def test_registered_task_compatibility_matrix_does_not_regress(task_type):
     compatible = {

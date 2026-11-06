@@ -2,7 +2,7 @@ from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
     DETECTION_TASK_TYPE,
-    require_attack_task_type,
+    require_attack_model_compatibility,
     require_model_task_type,
 )
 from ml.attacks.registry import (
@@ -65,9 +65,9 @@ async def apply_detection_attack(
         endpoint="/detect/attack",
     )
 
-    require_attack_task_type(
+    require_attack_model_compatibility(
         attack=attack,
-        task_type=model.task_type,
+        model=model,
     )
 
     _raise_if_cancelled(cancellation_token)
