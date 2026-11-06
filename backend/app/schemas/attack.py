@@ -16,6 +16,7 @@ class AttackType(str, Enum):
     ZOO = "zoo"
     # ID legacy serializado: se conserva para clientes y resultados existentes.
     YOLO_CONFIDENCE = "yolo_confidence"
+    DETECTION_LOCALIZATION_PGD = "detection_localization_pgd"
 
 
 AttackTaskType = Literal["classification", "detection"]

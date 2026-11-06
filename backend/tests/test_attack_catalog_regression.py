@@ -31,6 +31,7 @@ EXPECTED_TASK_COMPATIBILITY = {
     "detection": {
         AttackType.RANDOM_NOISE,
         AttackType.YOLO_CONFIDENCE,
+        AttackType.DETECTION_LOCALIZATION_PGD,
     },
 }
 
@@ -80,8 +81,11 @@ def test_attack_enum_registry_and_catalog_stay_in_sync():
 
 def test_legacy_attack_catalog_has_no_model_restrictions():
     for item in list_attack_catalog():
-        assert "supported_model_ids" not in item
-        assert AttackCatalogItem.model_validate(item).supported_model_ids is None
+        if item["id"] == AttackType.DETECTION_LOCALIZATION_PGD:
+            assert item["supported_model_ids"] == ["rf_detr_nano"]
+        else:
+            assert "supported_model_ids" not in item
+            assert AttackCatalogItem.model_validate(item).supported_model_ids is None
 
 
 def test_attack_catalog_validates_optional_model_restrictions():

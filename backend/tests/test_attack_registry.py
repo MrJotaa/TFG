@@ -3,6 +3,7 @@ import pytest
 from ml.attacks.carlini_wagner import CarliniWagnerAttack
 from ml.attacks.deepfool import DeepFoolAttack
 from ml.attacks.detection_confidence import DetectionConfidenceAttack
+from ml.attacks.detection_localization_pgd import DetectionLocalizationPGDAttack
 from ml.attacks.fgsm import FGSMAttack
 from ml.attacks.hop_skip_jump import HopSkipJumpAttack
 from ml.attacks.pgd import PGDAttack
@@ -30,6 +31,7 @@ from schemas.attack import AttackType
         (AttackType.ZOO, ZerothOrderOptimizationAttack),
         (AttackType.RANDOM_NOISE, RandomNoiseAttack),
         (AttackType.YOLO_CONFIDENCE, DetectionConfidenceAttack),
+        (AttackType.DETECTION_LOCALIZATION_PGD, DetectionLocalizationPGDAttack),
     ],
 )
 def test_get_attack_returns_registered_implementation(
@@ -54,6 +56,7 @@ def test_list_available_attacks_returns_all_registered_attacks():
         AttackType.ZOO,
         AttackType.RANDOM_NOISE,
         AttackType.YOLO_CONFIDENCE,
+        AttackType.DETECTION_LOCALIZATION_PGD,
     }
 
 

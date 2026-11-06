@@ -11,6 +11,7 @@ from torchvision.transforms.functional import to_tensor
 import services.detection_attack_service as detection_attack_service
 import services.detection_evaluation_service as detection_evaluation_service
 from ml.attacks.detection_confidence import DetectionConfidenceAttack
+from ml.attacks.detection_localization_pgd import DetectionLocalizationPGDAttack
 from ml.attacks.registry import get_attack
 from ml.explainability.gradcam import generate_detection_eigencam
 from ml.models.definitions import build_model_registry
@@ -37,6 +38,7 @@ REAL_SMOKE_ENABLED = os.getenv("RUN_RF_DETR_REAL_SMOKE") == "1"
 _DETECTION_ATTACKS = (
     AttackType.RANDOM_NOISE,
     AttackType.YOLO_CONFIDENCE,
+    AttackType.DETECTION_LOCALIZATION_PGD,
 )
 
 
@@ -590,5 +592,21 @@ def test_real_rf_detr_nano_checkpoint_supports_application_contracts():
         )
         assert attack_result["perturbation_linf"] <= 0.01
         assert attack_result["adversarial_image"].size == source_image.size
+
+        # A4: smoke completo del ataque real (una iteración). Si el detector
+        # no encuentra objetos sobre esta imagen artificial, el comportamiento
+        # científicamente correcto es dejarla intacta.
+        localization_attack_result = DetectionLocalizationPGDAttack().apply(
+            model_wrapper=model,
+            image=source_image,
+            parameters=AttackParameters(epsilon=0.03, alpha=0.01, steps=1),
+        )
+        assert localization_attack_result["adversarial_image"].size == source_image.size
+        assert localization_attack_result["perturbation_image"].size == source_image.size
+        assert 0 <= localization_attack_result["perturbation_linf"] <= 0.03
+        assert all(
+            parameter.grad is None
+            for parameter in model.get_torch_model().parameters()
+        )
     finally:
         model.unload()
