@@ -428,6 +428,7 @@ async def _evaluate_detection_dataset(
                 perturbation_linf=attack_result["perturbation_linf"],
                 perturbation_l2=attack_result["perturbation_l2"],
                 adversarial_image_url=adversarial_image_url,
+                execution_trace=attack_result.get("execution_trace"),
                 original_detections=to_detection_predictions(original_detections),
                 adversarial_detections=to_detection_predictions(adversarial_detections),
             )

@@ -19,6 +19,7 @@ from ml.adapters.art_square_detection import (
 )
 from ml.attacks.base import AttackParameterSpec, BaseAdversarialAttack
 from ml.attacks.presentation import perturbation_to_visualization
+from schemas.detection_square_trace import SquareDetectionExecutionTrace
 
 # ART emplea el generador global de NumPy. Protegemos el ciclo seed/generate/
 # restore entre ejecuciones de este ataque, sin compartir estado entre imágenes.
@@ -59,7 +60,8 @@ class SquareDetectionAttack(BaseAdversarialAttack):
         ),
         AttackParameterSpec(
             key="max_queries", label="Consultas máximas", summary_label="consultas",
-            description="Máximo de inferencias reales por imagen, incluida la original",
+            description=("Consultas internas máximas de Square, incluida la referencia "
+                         "limpia; no incluye métricas o visualización posterior"),
             value_type="integer", default=50, control="number",
             minimum=1, maximum=250, step=1,
         ),
@@ -109,7 +111,14 @@ class SquareDetectionAttack(BaseAdversarialAttack):
             model_wrapper, image, epsilon=epsilon, max_queries=max_queries,
             cancellation_token=cancellation_token,
         )
-        if epsilon > 0 and max_queries > 1 and session.initialise():
+        if epsilon == 0:
+            status = "skipped_zero_epsilon"
+        elif max_queries == 1:
+            status = "skipped_insufficient_budget"
+        elif not session.initialise():
+            status = "skipped_no_references"
+        else:
+            status = "completed"
             self._check_cancelled(cancellation_token)
             from art.attacks.evasion import SquareAttack
 
@@ -128,18 +137,24 @@ class SquareDetectionAttack(BaseAdversarialAttack):
                 adv_criterion=session.success_criterion,
                 verbose=False,
             )
-            # Se captura EXCLUSIVAMENTE la señal de presupuesto agotado. Los
-            # errores de detector/ART/cancelación deben llegar al servicio.
-            with _SQUARE_ART_RNG_LOCK:
+            # ART usa el RNG global de NumPy. Mientras otro runner tenga el
+            # bloqueo, comprobar periódicamente la cancelación; no esperar a
+            # que termine la búsqueda ajena para atenderla.
+            while not _SQUARE_ART_RNG_LOCK.acquire(timeout=0.05):
+                self._check_cancelled(cancellation_token)
+            try:
+                self._check_cancelled(cancellation_token)
                 state = np.random.get_state()
                 try:
                     np.random.seed(seed)
                     try:
                         art_attack.generate(session.clean.copy(), y=references)
                     except DetectionQueryBudgetExhausted:
-                        pass
+                        status = "budget_exhausted"
                 finally:
                     np.random.set_state(state)
+            finally:
+                _SQUARE_ART_RNG_LOCK.release()
 
         self._check_cancelled(cancellation_token)
         # session.best_pixels procede siempre de una inferencia REAL, salvo
@@ -152,9 +167,25 @@ class SquareDetectionAttack(BaseAdversarialAttack):
         linf, l2 = self._perturbation_norms(delta)
         if linf > epsilon + 1e-6:
             raise RuntimeError("Square result violates its 8-bit L∞ budget")
+        # Una traza por imagen, sin estado compartido. No incluye inferencias
+        # adicionales de visualización o métricas posteriores al ataque.
+        score = session.best_score if session.objective is not None else None
+        trace = SquareDetectionExecutionTrace(
+            status=status,
+            queries=session.queries,
+            max_queries=max_queries,
+            cache_hits=session.cache_hits,
+            seed=seed,
+            attack_revision=self.revision,
+            reference_count=(len(session.objective.references) if session.objective else 0),
+            clean_score=(session.clean_score if session.objective else None),
+            best_score=score,
+            objective_reached=(score is not None and score <= 0.8),
+        )
         return {
             "adversarial_image": adversarial_image,
             "perturbation_image": perturbation_to_visualization(delta),
             "perturbation_linf": round(linf, 4),
             "perturbation_l2": round(l2, 4),
+            "execution_trace": trace.model_dump(mode="json"),
         }

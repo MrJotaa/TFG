@@ -320,3 +320,101 @@ def test_square_registered_attack_with_real_detector(model_id):
         assert result["perturbation_linf"] <= 0.0301
     finally:
         model.unload()
+
+
+def test_square_execution_trace_for_skipped_and_budget_exhausted(monkeypatch):
+    """C4: una traza operativa por ejecución, sin confundirla con attack_success."""
+    from ml.attacks import square_detection as production
+    from schemas.detection_square_trace import SquareDetectionExecutionTrace
+
+    attack = SquareDetectionAttack()
+    original = _image()
+    for model, parameters, status, queries in (
+        (_Detector(), _parameters(epsilon=0), "skipped_zero_epsilon", 0),
+        (_Detector(), _parameters(max_queries=1), "skipped_insufficient_budget", 0),
+        (_Detector(weak=True), _parameters(), "skipped_no_references", 1),
+    ):
+        result = attack.apply(model, original, parameters)
+        trace = SquareDetectionExecutionTrace.model_validate(result["execution_trace"])
+        assert trace.status == status
+        assert trace.queries == queries
+        assert trace.max_queries == parameters.max_queries
+        assert trace.reference_count == 0
+        assert trace.clean_score is None and trace.best_score is None
+        assert trace.objective_reached is False
+        assert trace.seed == parameters.seed
+        assert trace.attack_revision == attack.revision
+
+    class _ExhaustingSquare:
+        def __init__(self, *, loss, eps, **kwargs):
+            self.loss = loss
+            self.eps = eps
+
+        def generate(self, x, y):
+            for index in range(12):
+                changed = x.copy()
+                changed[:, :, 0, index % 12] = 1.0
+                self.loss(changed, y)
+
+    evasion = types.ModuleType("art.attacks.evasion")
+    evasion.SquareAttack = _ExhaustingSquare
+    monkeypatch.setitem(sys.modules, "art", types.ModuleType("art"))
+    monkeypatch.setitem(sys.modules, "art.attacks", types.ModuleType("art.attacks"))
+    monkeypatch.setitem(sys.modules, "art.attacks.evasion", evasion)
+    monkeypatch.setattr(production, "create_square_art_estimator", lambda session: object())
+
+    detector = _Detector()
+    result = attack.apply(detector, original, _parameters(max_queries=3, seed=21))
+    trace = SquareDetectionExecutionTrace.model_validate(result["execution_trace"])
+    assert trace.status == "budget_exhausted"
+    assert trace.queries == detector.calls == trace.max_queries == 3
+    assert trace.seed == 21
+    assert trace.reference_count == 1
+    assert trace.clean_score == pytest.approx(1.0)
+    assert trace.best_score <= trace.clean_score
+
+
+def test_square_rng_wait_is_cooperatively_cancellable(monkeypatch):
+    """Un runner en espera del RNG global no bloquea una cancelación."""
+    import threading
+    from ml.attacks import square_detection as production
+
+    class _UnusedArtSquare:
+        def __init__(self, **kwargs):
+            pass
+
+        def generate(self, x, y):
+            raise AssertionError("ART must not begin after cancellation")
+
+    evasion = types.ModuleType("art.attacks.evasion")
+    evasion.SquareAttack = _UnusedArtSquare
+    monkeypatch.setitem(sys.modules, "art", types.ModuleType("art"))
+    monkeypatch.setitem(sys.modules, "art.attacks", types.ModuleType("art.attacks"))
+    monkeypatch.setitem(sys.modules, "art.attacks.evasion", evasion)
+    reached_estimator = threading.Event()
+    monkeypatch.setattr(
+        production, "create_square_art_estimator",
+        lambda session: reached_estimator.set() or object(),
+    )
+    token = CancellationToken()
+    exceptions = []
+
+    def run():
+        try:
+            SquareDetectionAttack().create_runner(_detector, _parameters(), token).apply(
+                _detector, _image(), _parameters()
+            )
+        except BaseException as error:
+            exceptions.append(error)
+
+    _detector = _Detector()
+    with production._SQUARE_ART_RNG_LOCK:
+        worker = threading.Thread(target=run)
+        worker.start()
+        assert reached_estimator.wait(3)
+        token.cancel()
+        worker.join(timeout=3)
+        assert not worker.is_alive(), "Cancellation must not wait for the RNG lock"
+    assert len(exceptions) == 1
+    assert isinstance(exceptions[0], OperationCancelled)
+    assert _detector.calls == 1

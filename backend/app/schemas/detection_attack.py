@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from schemas.attack import ArchivedAttackId, AttackParameters, AttackType
 from schemas.detection import DetectionPrediction
 from schemas.detection_metrics import DetectionMetricsContract
+from schemas.detection_square_trace import SquareDetectionExecutionTrace
 
 
 class DetectionAttackRequest(BaseModel):
@@ -49,3 +50,6 @@ class DetectionAttackResponse(DetectionMetricsContract):
     original_detections: list[DetectionPrediction]
     adversarial_detections: list[DetectionPrediction]
     comparison: DetectionAttackComparison
+    execution_trace: SquareDetectionExecutionTrace | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )

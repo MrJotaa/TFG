@@ -50,6 +50,7 @@ class SquareDetectionQuerySession:
         self.reference: DetectionResult | None = None
         self.objective: SquareDetectionObjective | None = None
         self.best_score = float("inf")
+        self.clean_score: float | None = None
         self.best_pixels = self.original.copy()
 
     def check_cancelled(self):
@@ -116,6 +117,7 @@ class SquareDetectionQuerySession:
         self.reference = prediction
         self.objective = objective
         self.best_score = objective.score(prediction)
+        self.clean_score = self.best_score
         self.best_pixels = self.original.copy()
         return True
 

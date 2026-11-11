@@ -248,9 +248,13 @@ async def apply_detection_attack(
         original_detections=to_detection_predictions(original_detections),
         adversarial_detections=to_detection_predictions(adversarial_detections),
         comparison=comparison,
+        execution_trace=attack_result.get("execution_trace"),
         original_explanation_image_url=original_explanation_image_url,
         adversarial_explanation_image_url=adversarial_explanation_image_url,
     )
+
+    if response.execution_trace is not None:
+        metadata["execution_trace"] = response.execution_trace.model_dump(mode="json")
 
     metadata.update(
         {

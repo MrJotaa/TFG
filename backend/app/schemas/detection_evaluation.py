@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 from schemas.attack import ArchivedAttackId, AttackParameters, AttackType
 from schemas.detection import DetectionPrediction
+from schemas.detection_square_trace import SquareDetectionExecutionTrace
 from schemas.detection_metrics import (
     DetectionMetricsContract,
     DetectionSupervisedConfiguration,
@@ -48,6 +49,9 @@ class DetectionEvaluationImageResult(BaseModel):
     perturbation_l2: float
 
     adversarial_image_url: str | None = None
+    execution_trace: SquareDetectionExecutionTrace | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     original_detections: list[DetectionPrediction]
     adversarial_detections: list[DetectionPrediction]
