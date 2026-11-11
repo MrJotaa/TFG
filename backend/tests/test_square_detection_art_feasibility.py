@@ -14,46 +14,11 @@ from PIL import Image
 
 from ml.models.detection import Detection, DetectionBox, DetectionResult
 from ml.models.detection_inference import DetectionEvaluationInferenceConfiguration
+from ml.attacks.detection_square_objective import SquareDetectionObjective
 
 
 class _QueryBudgetExhausted(RuntimeError):
     """Se alcanza el límite ANTES de iniciar una inferencia adicional."""
-
-
-def _iou(left: DetectionBox, right: DetectionBox) -> float:
-    intersection = max(0.0, min(left.x_max, right.x_max) - max(left.x_min, right.x_min)) * max(
-        0.0, min(left.y_max, right.y_max) - max(left.y_min, right.y_min)
-    )
-    left_area = (left.x_max - left.x_min) * (left.y_max - left.y_min)
-    right_area = (right.x_max - right.x_min) * (right.y_max - right.y_min)
-    union = left_area + right_area - intersection
-    return intersection / union if union > 0 else 0.0
-
-
-def _retention(prediction: DetectionResult, reference: DetectionResult) -> float:
-    """Menor puntuación = menor supervivencia de objetos de la imagen limpia.
-
-    Una predicción solo puntúa contra anclas de su clase. Las detecciones
-    nuevas de otras clases NO se confunden con supervivencia del ancla.
-    Esta versión preliminar admite correspondencias muchos-a-uno; C2 revisará
-    los emparejamientos ambiguos antes de registrar el ataque.
-    """
-    if (prediction.source_width, prediction.source_height) != (
-        reference.source_width, reference.source_height
-    ):
-        raise ValueError("Prediction/reference source geometries differ")
-    if not reference.detections:
-        raise ValueError("Square detection requires non-empty clean references")
-    return sum(
-        max(
-            (
-                candidate.confidence * _iou(anchor.box, candidate.box)
-                 for candidate in prediction.detections
-                 if candidate.class_id == anchor.class_id),
-            default=0.0,
-        )
-        for anchor in reference.detections
-    ) / len(reference.detections)
 
 
 def _as_batch(image: Image.Image) -> np.ndarray:
@@ -78,6 +43,7 @@ class _DetectionQueryProbe:
         self.cache = {}
         self.configuration = DetectionEvaluationInferenceConfiguration(score_floor=0.001)
         self.reference = None
+        self.objective = None
         self.baseline = None
         self.best_score = float("inf")
         self.best_image = None
@@ -118,8 +84,8 @@ class _DetectionQueryProbe:
             predictions[index] = result
             # El mejor candidato se conserva también si ART solo consulta el
             # criterio de éxito y aborta antes de llamar a loss().
-            if self.reference is not None:
-                score = _retention(result, self.reference)
+            if self.objective is not None:
+                score = self.objective.score(result)
                 if score < self.best_score:
                     self.best_score = score
                     self.best_image = (quantized.astype(np.float32) / 255.0)[None]
@@ -128,29 +94,34 @@ class _DetectionQueryProbe:
     def initialise(self):
         # Llamada limpia incluida en el presupuesto, sin gradientes.
         reference = self.predict(self.clean)[0]
-        if not reference.detections:
+        objective = SquareDetectionObjective.from_clean(reference)
+        if objective is None:
             return False
         self.reference = reference
-        self.baseline = _retention(reference, reference)
+        self.objective = objective
+        self.baseline = objective.score(reference)
         self.best_score = self.baseline
         self.best_image = self.clean.copy()
         return True
 
+    def _score_batch(self, predictions: np.ndarray, references: np.ndarray) -> np.ndarray:
+        if self.objective is None or self.reference is None:
+            raise RuntimeError("Square objective has not been initialised")
+        if len(predictions) != len(references) or any(
+            reference != self.reference for reference in references
+        ):
+            raise ValueError("ART must use the immutable clean references")
+        return np.array(
+            [self.objective.score(prediction) for prediction in predictions],
+            dtype=np.float32,
+        )
+
     def loss(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-        predictions = self.predict(x)
-        values = np.array([
-            _retention(prediction, ref)
-            for prediction, ref in zip(predictions, y)
-        ], dtype=np.float32)
-        return values
+        return self._score_batch(self.predict(x), y)
 
     def criterion(self, y_pred: np.ndarray, y: np.ndarray) -> np.ndarray:
         # Criterio independiente del indicador legacy attack_success.
-        values = np.array([
-            _retention(prediction, ref)
-            for prediction, ref in zip(y_pred, y)
-        ])
-        return values <= 0.8 * self.baseline
+        return self._score_batch(y_pred, y) <= 0.8 * self.baseline
 
 
 def _run_art_square(probe: _DetectionQueryProbe, *, max_iter: int = 8):
@@ -217,39 +188,6 @@ class _SyntheticDetector:
         )
 
 
-def _detection(class_id, confidence, box, width=32, height=32):
-    return DetectionResult(
-        source_width=width,
-        source_height=height,
-        detections=(Detection(class_id, confidence, DetectionBox(*box)),),
-    )
-
-
-def test_retention_decreases_for_disappearance_relocation_class_and_confidence():
-    reference = _detection(0, 0.9, (4, 4, 16, 16))
-    assert _retention(reference, reference) == pytest.approx(0.9)
-    assert _retention(DetectionResult(32, 32, ()), reference) == 0
-    assert _retention(_detection(1, 0.9, (4, 4, 16, 16)), reference) == 0
-    assert _retention(_detection(0, 0.9, (20, 20, 28, 28)), reference) == 0
-    assert _retention(_detection(0, 0.3, (4, 4, 16, 16)), reference) == pytest.approx(0.3)
-
-
-def test_retention_does_not_reward_false_positives_or_duplicates():
-    original = _detection(0, 0.8, (4, 4, 16, 16))
-    extra = Detection(2, 0.99, DetectionBox(19, 19, 22, 22))
-    duplicate = Detection(0, 0.5, DetectionBox(4, 4, 16, 16))
-    prediction = DetectionResult(32, 32, original.detections + (extra, duplicate))
-    assert _retention(prediction, original) == pytest.approx(0.8)
-
-
-def test_retention_requires_reference_and_same_geometry():
-    original = _detection(0, 0.8, (4, 4, 16, 16))
-    with pytest.raises(ValueError, match="non-empty"):
-        _retention(original, DetectionResult(32, 32, ()))
-    with pytest.raises(ValueError, match="geometries"):
-        _retention(_detection(0, 0.8, (4, 4, 16, 16), width=40), original)
-
-
 def test_real_detector_budget_counts_only_unique_inferences():
     clean = _as_batch(Image.new("RGB", (16, 16), color=(128, 128, 128)))
     probe = _DetectionQueryProbe(_SyntheticDetector(), clean, max_queries=2, eps=0.06)
@@ -279,6 +217,37 @@ def test_query_saves_best_even_without_explicit_loss_call():
     assert float(np.max(np.abs(probe.best_image - clean))) <= 0.08
 
 
+def test_c2_probe_fixes_clean_references_and_skips_weak_predictions():
+    class _WeakDetector:
+        def detect_for_evaluation(self, image, configuration):
+            return DetectionResult(
+                image.width,
+                image.height,
+                (Detection(1, 0.15, DetectionBox(2, 2, 10, 10)),),
+            )
+
+    clean = _as_batch(Image.new("RGB", (20, 20), color=(128, 128, 128)))
+    weak = _DetectionQueryProbe(_WeakDetector(), clean, max_queries=3, eps=0.03)
+    assert not weak.initialise()
+    assert weak.queries == 1
+    assert weak.objective is None
+
+    strong = _DetectionQueryProbe(_SyntheticDetector(), clean, max_queries=3, eps=0.03)
+    assert strong.initialise()
+    assert strong.baseline == pytest.approx(1.0)
+    frozen = strong.objective.references
+    labels = np.empty((1,), dtype=object)
+    labels[0] = strong.reference
+    assert strong.loss(clean, labels)[0] == pytest.approx(1.0)
+    assert strong.queries == 1  # cache: no second detector inference
+    with pytest.raises(ValueError, match="immutable clean references"):
+        strong.criterion(
+            np.array([strong.reference], dtype=object),
+            np.array([weak.reference], dtype=object),
+        )
+    assert strong.objective.references == frozen
+
+
 def test_query_quantization_preserves_strict_linf_budget():
     clean = _as_batch(Image.new("RGB", (16, 16), color=(128, 128, 128)))
     probe = _DetectionQueryProbe(_SyntheticDetector(), clean, max_queries=3, eps=0.03)
@@ -302,7 +271,8 @@ def test_square_art_synthetic_respects_budget_and_recovers_best():
     assert best.shape == clean.shape
     assert probe.best_score <= probe.baseline
     assert float(np.max(np.abs(best - clean))) <= probe.eps + 1e-6
-    assert float(np.max(np.abs(probe._quantize(best[0]).astype(float) / 255 - clean[0]))) <= probe.eps + 1e-6
+    quantized = probe._quantize(best[0]).astype(float) / 255.0
+    assert float(np.max(np.abs(quantized - clean[0]))) <= probe.eps + 1e-6
 
 
 def test_square_art_stops_at_one_query_without_unscored_output():

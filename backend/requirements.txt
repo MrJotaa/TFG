@@ -7,6 +7,7 @@ pillow
 torch
 torchvision
 numpy
+scipy
 pycocotools==2.0.11
 tidecv==1.0.1
 email-validator
