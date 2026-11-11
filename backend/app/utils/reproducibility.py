@@ -10,7 +10,7 @@ def attack_parameters_for_image(
     image_id: str,
 ) -> AttackParameters:
     """Derive a stable per-image seed without depending on dataset order."""
-    if attack_type != AttackType.RANDOM_NOISE:
+    if attack_type not in (AttackType.RANDOM_NOISE, AttackType.SQUARE_DETECTION):
         return parameters
     digest = hashlib.sha256(f"{parameters.seed}\0{image_id}".encode("utf-8")).digest()
     image_seed = int.from_bytes(digest[:4], "big") & 0x7FFFFFFF

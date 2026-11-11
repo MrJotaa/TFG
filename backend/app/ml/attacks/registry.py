@@ -8,6 +8,7 @@ from ml.attacks.fgsm import FGSMAttack
 from ml.attacks.hop_skip_jump import HopSkipJumpAttack
 from ml.attacks.pgd import PGDAttack
 from ml.attacks.random_noise import RandomNoiseAttack
+from ml.attacks.square_detection import SquareDetectionAttack
 from ml.attacks.zoo import ZerothOrderOptimizationAttack
 from schemas.attack import AttackParameters, AttackType
 
@@ -21,6 +22,7 @@ _AVAILABLE_ATTACKS = {
     AttackType.ZOO: ZerothOrderOptimizationAttack(),
     AttackType.YOLO_CONFIDENCE: DetectionConfidenceAttack(),
     AttackType.DETECTION_LOCALIZATION_PGD: DetectionLocalizationPGDAttack(),
+    AttackType.SQUARE_DETECTION: SquareDetectionAttack(),
 }
 
 

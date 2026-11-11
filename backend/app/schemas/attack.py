@@ -17,6 +17,7 @@ class AttackType(str, Enum):
     # ID legacy serializado: se conserva para clientes y resultados existentes.
     YOLO_CONFIDENCE = "yolo_confidence"
     DETECTION_LOCALIZATION_PGD = "detection_localization_pgd"
+    SQUARE_DETECTION = "square_detection"
 
 
 # Stored results may outlive their attack implementation. Requests still

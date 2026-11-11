@@ -224,6 +224,7 @@ def test_attack_catalog_endpoint_exposes_registered_metadata(client):
         "zoo",
         "yolo_confidence",
         "detection_localization_pgd",
+        "square_detection",
     }
     assert catalog["detection_localization_pgd"]["supported_model_ids"] == [
         "rf_detr_nano"
