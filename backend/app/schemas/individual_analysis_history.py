@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from schemas.attack import AttackParameters, AttackResponse, AttackType
+from schemas.attack import ArchivedAttackId, AttackParameters, AttackResponse, AttackType
 from schemas.detection_attack import DetectionAttackResponse
 
 IndividualAnalysisTaskType = Literal["classification", "detection"]
@@ -50,7 +50,7 @@ class IndividualAnalysisHistoryItem(BaseModel):
     model_id: str
     model_name: str
     model_revision: str | None = None
-    attack_type: AttackType
+    attack_type: ArchivedAttackId
     attack_revision: str | None = None
     parameters: AttackParameters
     summary: dict[str, Any]

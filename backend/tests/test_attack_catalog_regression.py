@@ -186,3 +186,46 @@ def test_art_attacks_build_with_common_adapter_without_running_generate(attack_t
         adapter.estimator,
         art_attack.estimator_requirements,
     )
+
+
+@pytest.mark.parametrize("schema", [
+    "schemas.attack.AttackResponse",
+    "schemas.detection_attack.DetectionAttackResponse",
+    "schemas.evaluation.EvaluationResponse",
+    "schemas.detection_evaluation.DetectionEvaluationResponse",
+    "schemas.detection_evaluation.DetectionEvaluationHistoryItem",
+    "schemas.evaluation_history.EvaluationHistoryItem",
+    "schemas.individual_analysis_history.IndividualAnalysisHistoryItem",
+])
+def test_archived_attack_identifiers_remain_readable(schema):
+    from importlib import import_module
+
+    from pydantic import TypeAdapter
+
+    module_name, schema_name = schema.rsplit(".", 1)
+    model = getattr(import_module(module_name), schema_name)
+    archived_id = "archived_attack_from_previous_version"
+    annotation = model.model_fields["attack_type"].annotation
+    assert TypeAdapter(annotation).validate_python(archived_id) == archived_id
+
+
+@pytest.mark.parametrize("schema", [
+    "schemas.attack.AttackRequest",
+    "schemas.detection_attack.DetectionAttackRequest",
+    "schemas.evaluation.EvaluationRequest",
+    "schemas.detection_evaluation.DetectionEvaluationRequest",
+    "schemas.evaluation_history.EvaluationCompatibilityRequest",
+    "schemas.individual_analysis_history.IndividualAnalysisCompatibilityRequest",
+])
+def test_archived_attack_identifiers_cannot_be_executed(schema):
+    from importlib import import_module
+
+    from pydantic import TypeAdapter, ValidationError
+
+    module_name, schema_name = schema.rsplit(".", 1)
+    model = getattr(import_module(module_name), schema_name)
+    archived_id = "archived_attack_from_previous_version"
+    with pytest.raises(ValidationError):
+        TypeAdapter(model.model_fields["attack_type"].annotation).validate_python(
+            archived_id
+        )

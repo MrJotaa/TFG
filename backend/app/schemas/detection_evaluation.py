@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from schemas.attack import AttackParameters, AttackType
+from schemas.attack import ArchivedAttackId, AttackParameters, AttackType
 from schemas.detection import DetectionPrediction
 from schemas.detection_metrics import (
     DetectionMetricsContract,
@@ -90,7 +90,7 @@ class DetectionEvaluationResponse(DetectionMetricsContract):
     dataset_id: str
     dataset_revision: int = Field(ge=0)
     annotation_snapshot_id: str | None = None
-    attack_type: AttackType
+    attack_type: ArchivedAttackId
     parameters: AttackParameters
 
     summary: DetectionEvaluationSummary
@@ -105,7 +105,7 @@ class DetectionEvaluationHistoryItem(DetectionMetricsContract):
     annotation_snapshot_id: str | None = None
     model_id: str
     model_name: str
-    attack_type: AttackType
+    attack_type: ArchivedAttackId
     attack_revision: str | None = None
     parameters: AttackParameters
     supervised_configuration: DetectionSupervisedConfiguration

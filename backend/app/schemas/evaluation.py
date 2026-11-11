@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from schemas.attack import AttackParameters, AttackType
+from schemas.attack import ArchivedAttackId, AttackParameters, AttackType
 from schemas.classification_metrics import (
     AdvancedClassificationMetrics,
     EvaluationImageDiagnostics,
@@ -86,7 +86,7 @@ class EvaluationResponse(BaseModel):
     model_id: str
     model_name: str | None = None
 
-    attack_type: AttackType
+    attack_type: ArchivedAttackId
     parameters: AttackParameters
 
     summary: EvaluationSummary

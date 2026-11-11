@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from schemas.attack import AttackParameters, AttackType
+from schemas.attack import ArchivedAttackId, AttackParameters, AttackType
 from schemas.detection import DetectionPrediction
 from schemas.detection_metrics import DetectionMetricsContract
 
@@ -35,7 +35,7 @@ class DetectionAttackComparison(BaseModel):
 
 class DetectionAttackResponse(DetectionMetricsContract):
     result_id: str
-    attack_type: AttackType
+    attack_type: ArchivedAttackId
     parameters: AttackParameters
 
     original_annotated_image_url: str

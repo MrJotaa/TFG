@@ -19,6 +19,10 @@ class AttackType(str, Enum):
     DETECTION_LOCALIZATION_PGD = "detection_localization_pgd"
 
 
+# Stored results may outlive their attack implementation. Requests still
+# accept only AttackType; responses may retain an archived identifier.
+ArchivedAttackId = AttackType | str
+
 AttackTaskType = Literal["classification", "detection"]
 AttackKnowledgeType = Literal["white_box", "black_box", "baseline"]
 AttackParameterValueType = Literal["float", "integer", "boolean", "string"]
@@ -188,7 +192,7 @@ class AttackComparison(BaseModel):
 
 class AttackResponse(BaseModel):
     result_id: str
-    attack_type: AttackType
+    attack_type: ArchivedAttackId
     parameters: AttackParameters
 
     adversarial_image_url: str
