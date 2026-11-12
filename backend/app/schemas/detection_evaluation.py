@@ -2,8 +2,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from schemas.attack import AttackParameters, AttackType
+from schemas.attack import ArchivedAttackId, AttackParameters, AttackType
 from schemas.detection import DetectionPrediction
+from schemas.detection_square_trace import SquareDetectionExecutionTrace
 from schemas.detection_metrics import (
     DetectionMetricsContract,
     DetectionSupervisedConfiguration,
@@ -26,8 +27,10 @@ class DetectionEvaluationImageResult(BaseModel):
     """
     Métricas por imagen con deltas ``original - adversarial``.
 
-    ``attack_success`` es una clasificación legacy basada en reducción de
-    conteo o confianza, no una evaluación por objetos contra ground truth.
+    ``attack_success`` en métricas v1.1 indica pérdida de correspondencia
+    de detecciones originales (misma clase, IoU >= 0.5). No mide exactitud
+    frente a ground truth; consultar ``supervised`` si hay anotaciones.
+    Los resultados históricos v1.0 conservan su criterio original.
     """
 
     image_id: str
@@ -46,6 +49,9 @@ class DetectionEvaluationImageResult(BaseModel):
     perturbation_l2: float
 
     adversarial_image_url: str | None = None
+    execution_trace: SquareDetectionExecutionTrace | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     original_detections: list[DetectionPrediction]
     adversarial_detections: list[DetectionPrediction]
@@ -55,7 +61,9 @@ class DetectionEvaluationSummary(BaseModel):
     """
     Resumen básico con deltas ``original - adversarial``.
 
-    ``attack_success_rate`` agrega la clasificación legacy de cada imagen.
+    ``attack_success_rate`` promedia el criterio indicado por
+    ``attack_success_criterion`` sobre TODAS las imágenes de la evaluación;
+    no es una tasa condicionada a imágenes atacables ni sustituye AP/COCO.
     """
 
     total_images: int
@@ -87,7 +95,7 @@ class DetectionEvaluationResponse(DetectionMetricsContract):
     dataset_id: str
     dataset_revision: int = Field(ge=0)
     annotation_snapshot_id: str | None = None
-    attack_type: AttackType
+    attack_type: ArchivedAttackId
     parameters: AttackParameters
 
     summary: DetectionEvaluationSummary
@@ -102,7 +110,8 @@ class DetectionEvaluationHistoryItem(DetectionMetricsContract):
     annotation_snapshot_id: str | None = None
     model_id: str
     model_name: str
-    attack_type: AttackType
+    attack_type: ArchivedAttackId
+    attack_revision: str | None = None
     parameters: AttackParameters
     supervised_configuration: DetectionSupervisedConfiguration
     summary: DetectionEvaluationSummary

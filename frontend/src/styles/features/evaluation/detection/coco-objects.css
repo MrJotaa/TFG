@@ -701,3 +701,12 @@
         padding: 0.4rem;
     }
 }
+
+/* Describe la definición de éxito realmente persistida en cada evaluación. */
+.detection-success-explanation {
+    max-width: 78rem;
+    margin: 0.7rem 0 1.1rem;
+    color: var(--muted);
+    font-size: 0.76rem;
+    line-height: 1.6;
+}

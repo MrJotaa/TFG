@@ -9,7 +9,10 @@ import {
 } from 'react'
 import { getAttacks } from '../api/attacks'
 import { useAuth } from './AuthContext'
-import { buildAttackParameters } from '../utils/attackCatalog'
+import {
+    buildAttackParameters,
+    resolveCompatibleAttackSelection,
+} from '../utils/attackCatalog'
 
 const ExperimentContext = createContext(null)
 
@@ -19,7 +22,10 @@ export function ExperimentProvider({ children }) {
     const [selectedDataset, setSelectedDataset] = useState(null)
     const [selectedImage, setSelectedImage] = useState(null)
     const [activeModel, setActiveModel] = useState(null)
+    const activeModelRef = useRef(null)
+    const preserveHistorySelectionRef = useRef(false)
     const [attackCatalog, setAttackCatalog] = useState([])
+    const attackCatalogRef = useRef(attackCatalog)
     const [attackCatalogError, setAttackCatalogError] = useState('')
     const [selectedAttack, setSelectedAttack] = useState('fgsm')
     const selectedAttackRef = useRef(selectedAttack)
@@ -45,13 +51,25 @@ export function ExperimentProvider({ children }) {
             .then((catalog) => {
                 if (cancelled) return
 
+                attackCatalogRef.current = catalog
                 setAttackCatalog(catalog)
-                setAttackParameters((current) =>
-                    buildAttackParameters(
+
+                // Model activation and catalog loading can finish in either order.
+                // Recovered analyses keep their historical choice and parameters.
+                if (activeModelRef.current && !preserveHistorySelectionRef.current) {
+                    const selection = resolveCompatibleAttackSelection(
                         catalog,
+                        activeModelRef.current,
                         selectedAttackRef.current,
-                        current,
-                    ),
+                    )
+                    if (selection.attackId !== selectedAttackRef.current) {
+                        selectedAttackRef.current = selection.attackId
+                        setSelectedAttack(selection.attackId)
+                    }
+                }
+                setAttackParameters((current) => selectedAttackRef.current
+                    ? buildAttackParameters(catalog, selectedAttackRef.current, current)
+                    : {},
                 )
             })
             .catch((error) => {
@@ -70,6 +88,7 @@ export function ExperimentProvider({ children }) {
     }, [isAuthenticated, attackCatalog.length])
 
     const clearRecoveredResults = useCallback(() => {
+        preserveHistorySelectionRef.current = false
         setRecoveredEvaluation(null)
         setRecoveredIndividualAnalysis(null)
     }, [])
@@ -86,7 +105,25 @@ export function ExperimentProvider({ children }) {
 
     const selectModel = useCallback((model) => {
         clearRecoveredResults()
+        activeModelRef.current = model
         setActiveModel(model)
+
+        // Keep this callback stable: ModelSelector fetches models when it changes.
+        // The ref always points to the newest catalog without retriggering that fetch.
+        const catalog = attackCatalogRef.current
+        const selection = resolveCompatibleAttackSelection(
+            catalog,
+            model,
+            selectedAttackRef.current,
+        )
+        if (selection.attackId !== selectedAttackRef.current) {
+            selectedAttackRef.current = selection.attackId
+            setSelectedAttack(selection.attackId)
+            setAttackParameters((current) => selection.attackId
+                ? buildAttackParameters(catalog, selection.attackId, current)
+                : {},
+            )
+        }
     }, [clearRecoveredResults])
 
     const selectAttack = useCallback((attackId) => {
@@ -104,6 +141,7 @@ export function ExperimentProvider({ children }) {
     }, [clearRecoveredResults])
 
     const openRecoveredEvaluation = useCallback(({ historyItem, stored, dataset }) => {
+        preserveHistorySelectionRef.current = true
         selectedAttackRef.current = historyItem.attack_type
         setSelectedDataset(dataset)
         setSelectedAttack(historyItem.attack_type)
@@ -123,6 +161,7 @@ export function ExperimentProvider({ children }) {
     }, [attackCatalog])
 
     const openRecoveredIndividualAnalysis = useCallback(({ historyItem, stored, dataset, image }) => {
+        preserveHistorySelectionRef.current = true
         selectedAttackRef.current = historyItem.attack_type
         setSelectedDataset(dataset)
         setSelectedImage(image)
@@ -144,6 +183,7 @@ export function ExperimentProvider({ children }) {
     }, [attackCatalog])
 
     const beginIndividualComparison = useCallback(({ base, kind }) => {
+        preserveHistorySelectionRef.current = true
         selectedAttackRef.current = base.item.attack_type
         setSelectedDataset(base.dataset)
         setSelectedImage(base.image)
@@ -161,10 +201,13 @@ export function ExperimentProvider({ children }) {
     }, [attackCatalog])
 
     const clearPendingIndividualComparison = useCallback(() => {
+        preserveHistorySelectionRef.current = false
         setPendingIndividualComparison(null)
     }, [])
 
     const resetExperiment = useCallback(() => {
+        preserveHistorySelectionRef.current = false
+        activeModelRef.current = null
         selectedAttackRef.current = 'fgsm'
         setDatasets([])
         setSelectedDataset(null)

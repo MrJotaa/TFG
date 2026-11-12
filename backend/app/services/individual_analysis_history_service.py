@@ -37,7 +37,7 @@ ANALYSIS_STORAGE_SCHEMA_VERSION = 1
 ANALYSIS_ARTIFACT_FILENAME = "analysis.json"
 PIPELINE_VERSIONS = {
     "classification": "classification-individual-analysis-v1",
-    "detection": "detection-individual-analysis-v1",
+    "detection": "detection-individual-analysis-v2-matched-success",
 }
 
 
@@ -343,6 +343,8 @@ def _analysis_summary(task_type: IndividualAnalysisTaskType, analysis) -> dict:
             analysis.comparison.average_adversarial_confidence
         ),
         "attack_success": analysis.comparison.attack_success,
+        "attack_success_criterion": analysis.attack_success_criterion,
+        "metrics_schema_version": analysis.metrics_schema_version,
     }
 
 

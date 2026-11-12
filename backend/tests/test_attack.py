@@ -223,7 +223,12 @@ def test_attack_catalog_endpoint_exposes_registered_metadata(client):
         "hop_skip_jump",
         "zoo",
         "yolo_confidence",
+        "detection_localization_pgd",
+        "square_detection",
     }
+    assert catalog["detection_localization_pgd"]["supported_model_ids"] == [
+        "rf_detr_nano"
+    ]
     assert catalog["fgsm"]["supported_task_types"] == ["classification"]
     assert catalog["yolo_confidence"]["supported_task_types"] == ["detection"]
     assert catalog["yolo_confidence"]["name"] == "Supresión de confianza"

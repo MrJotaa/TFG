@@ -172,6 +172,51 @@ async def test_detection_evaluation_round_trip_and_history(
     assert history[0].result_id == result_id
     assert history[0].summary == response.summary
     assert history[0].supervised_available is False
+    assert history[0].attack_revision is None
+    assert "attack_revision" not in persistence_environment.documents[result_id]
+
+
+@pytest.mark.asyncio
+async def test_localization_pgd_legacy_history_persists_revision(
+    persistence_environment,
+):
+    result_id = "detection_evaluation_00000000-0000-4000-8000-000000000090"
+    request = DetectionEvaluationRequest(
+        dataset_id="dataset-1",
+        attack_type=AttackType.DETECTION_LOCALIZATION_PGD,
+        parameters={"epsilon": 0.02, "alpha": 0.005, "steps": 4},
+    )
+    response = _response(result_id).model_copy(
+        update={
+            "model_id": "rf_detr_nano",
+            "attack_type": request.attack_type,
+            "parameters": request.parameters,
+        }
+    )
+    await persistence.persist_detection_evaluation(
+        response=response,
+        request=request,
+        owner_id="user-1",
+    )
+
+    document = persistence_environment.documents[result_id]
+    assert document["attack_revision"] == "rf-detr-localization-pgd-linf-pseudo-v1"
+    assert document["parameters"] == request.parameters.model_dump(mode="json")
+    history = await persistence.list_detection_evaluations(
+        owner_id="user-1", limit=10, offset=0
+    )
+    assert history[0].attack_revision == document["attack_revision"]
+    assert history[0].parameters == request.parameters
+    assert await persistence.get_detection_evaluation(
+        evaluation_id=result_id, owner_id="user-1"
+    ) == response
+
+    # Índice anterior a A5: se sigue leyendo sin revisión ni migración de BD.
+    document.pop("attack_revision")
+    history = await persistence.list_detection_evaluations(
+        owner_id="user-1", limit=10, offset=0
+    )
+    assert history[0].attack_revision is None
 
 
 @pytest.mark.asyncio
@@ -368,3 +413,30 @@ async def test_legacy_detection_access_honors_preserved_evaluations(
     assert len(history) == 1
     assert history[0].preserved is True
     assert history[0].expires_at is None
+
+
+@pytest.mark.asyncio
+async def test_new_success_criterion_roundtrip_to_index_and_history(
+    tmp_path, persistence_environment
+):
+    """A newly stored evaluation cannot be mistaken for legacy history."""
+    result_id = "detection_evaluation_00000000-0000-4000-8000-000000000022"
+    response = _response(result_id).model_copy(update={
+        "metrics_schema_version": "1.1",
+        "attack_success_criterion": "matched_detections_iou50_v1",
+    })
+    await persistence.persist_detection_evaluation(
+        response=response, request=_request(), owner_id="user-1"
+    )
+    document = persistence_environment.documents[result_id]
+    assert document["metrics_schema_version"] == "1.1"
+    assert document["attack_success_criterion"] == "matched_detections_iou50_v1"
+    restored = await persistence.get_detection_evaluation(
+        evaluation_id=result_id, owner_id="user-1"
+    )
+    assert restored == response
+    history = await persistence.list_detection_evaluations(
+        owner_id="user-1", limit=10, offset=0
+    )
+    assert history[0].attack_success_criterion == "matched_detections_iou50_v1"
+    assert history[0].metrics_schema_version == "1.1"

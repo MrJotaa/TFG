@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field
 
-from schemas.attack import AttackParameters, AttackType
+from schemas.attack import ArchivedAttackId, AttackParameters, AttackType
 from schemas.detection import DetectionPrediction
 from schemas.detection_metrics import DetectionMetricsContract
+from schemas.detection_square_trace import SquareDetectionExecutionTrace
 
 
 class DetectionAttackRequest(BaseModel):
@@ -16,8 +17,10 @@ class DetectionAttackComparison(BaseModel):
     """
     Comparación básica con deltas ``original - adversarial``.
 
-    ``attack_success`` conserva la definición legacy: es verdadero cuando
-    disminuye el número de detecciones o la confianza media adversaria.
+    Desde metrics_schema_version 1.1, ``attack_success`` es verdadero si
+    desaparece al menos una correspondencia uno a uno de la misma clase con
+    IoU >= 0.5, no por una variación aislada de confianza. Los artefactos
+    antiguos conservan el significado indicado en attack_success_criterion.
     """
 
     original_detection_count: int
@@ -33,7 +36,7 @@ class DetectionAttackComparison(BaseModel):
 
 class DetectionAttackResponse(DetectionMetricsContract):
     result_id: str
-    attack_type: AttackType
+    attack_type: ArchivedAttackId
     parameters: AttackParameters
 
     original_annotated_image_url: str
@@ -47,3 +50,6 @@ class DetectionAttackResponse(DetectionMetricsContract):
     original_detections: list[DetectionPrediction]
     adversarial_detections: list[DetectionPrediction]
     comparison: DetectionAttackComparison
+    execution_trace: SquareDetectionExecutionTrace | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )

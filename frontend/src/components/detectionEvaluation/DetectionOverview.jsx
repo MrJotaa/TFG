@@ -1,4 +1,5 @@
 import MetricCard from '../evaluation/MetricCard'
+import { getDetectionSuccessPresentation } from '../../utils/detectionAttackSuccess'
 import {
     formatDecimal,
     formatInteger,
@@ -12,6 +13,7 @@ import {
 
 function DetectionOverview({ evaluation }) {
     const { summary, supervised } = evaluation
+    const successCopy = getDetectionSuccessPresentation(evaluation)
     const objectSummary = supervised?.object_analysis?.summary
     const outcomes = getObjectOutcomeItems(objectSummary)
     const outcomeTotal = objectSummary?.total_objects ?? 0
@@ -124,7 +126,7 @@ function DetectionOverview({ evaluation }) {
                 </div>
             )}
 
-            <section className="evaluation-secondary-grid" aria-label="Métricas descriptivas históricas">
+            <section className="evaluation-secondary-grid" aria-label="Métricas de detección y perturbación">
                 <MetricCard
                     label="Detecciones originales"
                     value={formatInteger(summary.total_original_detections)}
@@ -138,9 +140,9 @@ function DetectionOverview({ evaluation }) {
                     tone="adversarial"
                 />
                 <MetricCard
-                    label="Indicador heurístico de éxito"
+                    label={successCopy.rateLabel}
                     value={formatRatio(summary.attack_success_rate)}
-                    helper="Reducción de conteo o confianza media"
+                    helper={successCopy.rateHelper}
                     tone="neutral"
                 />
                 <MetricCard
@@ -162,6 +164,12 @@ function DetectionOverview({ evaluation }) {
                     tone="neutral"
                 />
             </section>
+
+            <p className="detection-success-explanation">
+                {successCopy.description} La tasa se calcula sobre todas las imágenes evaluadas,
+                incluidas las omitidas por un ataque. Las métricas COCO usan anotaciones cuando
+                están disponibles.
+            </p>
 
             {supervised?.annotation_coverage && (
                 <section className="evaluation-surface detection-coverage-grid">

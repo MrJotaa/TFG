@@ -47,7 +47,7 @@ test('individual history presents task-specific compact summaries', () => {
         },
     })
     assert.equal(individualAnalysisSummary(detection), '8 → 3 detecciones')
-    assert.equal(individualAnalysisOutcome(detection), 'Detecciones preservadas')
+    assert.equal(individualAnalysisOutcome(detection), 'Criterio histórico no cumplido')
 })
 
 test('individual comparison requires the same dataset revision and exact image', () => {

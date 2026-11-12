@@ -95,3 +95,59 @@ async def test_detection_attack_operation_supports_opt_in_exclusive_access():
 def test_only_model_dependent_detection_attack_requires_exclusive_access():
     assert DetectionConfidenceAttack.requires_exclusive_model_execution is True
     assert RandomNoiseAttack.requires_exclusive_model_execution is False
+
+
+@pytest.mark.asyncio
+async def test_model_selection_waits_for_a_running_detection_operation(monkeypatch):
+    """A model switch cannot unload the detector in use by another thread."""
+    from api.routes import models as models_route
+
+    entered = threading.Event()
+    release = threading.Event()
+    selections = []
+
+    def detection_in_progress():
+        entered.set()
+        assert release.wait(timeout=3)
+        return "inference complete"
+
+    def select_model(model_id):
+        selections.append(model_id)
+        return model_id
+
+    monkeypatch.setattr(models_route, "select_model", select_model)
+    operation = asyncio.create_task(run_detection_model_operation(detection_in_progress))
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        selection = asyncio.create_task(models_route.select_current_model("rf_detr_nano"))
+        await asyncio.sleep(0.03)
+        assert selections == []  # cannot unload mid-inference
+        assert selection.done() is False
+    finally:
+        release.set()
+    assert await asyncio.wait_for(operation, 3) == "inference complete"
+    assert await asyncio.wait_for(selection, 3) == "rf_detr_nano"
+    assert selections == ["rf_detr_nano"]
+
+
+@pytest.mark.asyncio
+async def test_model_selection_does_not_block_event_loop(monkeypatch):
+    from api.routes import models as models_route
+
+    entered = threading.Event()
+    release = threading.Event()
+
+    def select_model(model_id):
+        entered.set()
+        assert release.wait(timeout=3)
+        return model_id
+
+    monkeypatch.setattr(models_route, "select_model", select_model)
+    task = asyncio.create_task(models_route.select_current_model("yolo26n"))
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        await asyncio.sleep(0)
+        assert not task.done()
+    finally:
+        release.set()
+    assert await asyncio.wait_for(task, 3) == "yolo26n"

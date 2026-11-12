@@ -1,3 +1,5 @@
+import { getDetectionSuccessPresentation } from './detectionAttackSuccess.js'
+
 export const CLASSIFICATION_METRIC_HELP = {
     f1_macro: 'Calcula F1 por separado para cada clase y después hace una media en la que todas las clases pesan lo mismo, tengan muchas o pocas muestras.',
     top5_robust_accuracy: 'Porcentaje de imágenes cuya clase real sigue apareciendo entre las cinco predicciones con mayor puntuación después del ataque.',
@@ -361,4 +363,21 @@ export const DETECTION_METRIC_GUIDES = {
         ],
         note: 'Las cajas mostradas usan el filtro público de confianza > 0,25, que puede diferir del umbral elegido para el punto de operación supervisado.',
     },
+}
+
+
+/** Las guías se adaptan al criterio del resultado abierto, no al código actual. */
+export function getDetectionMetricGuide(tab, evaluation) {
+    const guide = DETECTION_METRIC_GUIDES[tab]
+    if (!guide || (tab !== 'overview' && tab !== 'images')) return guide
+    const copy = getDetectionSuccessPresentation(evaluation)
+    const legacyTerm = tab === 'overview'
+        ? 'Indicadores heurísticos históricos'
+        : 'Indicador heurístico de éxito'
+    return {
+        ...guide,
+        items: guide.items.map((item) => item.term === legacyTerm
+            ? { term: copy.rateLabel, definition: copy.description }
+            : item),
+    }
 }

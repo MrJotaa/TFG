@@ -113,3 +113,46 @@ test('busy state includes every asynchronous operation', () => {
     const state = buildComparisonViewState({ ...base, savingAnalysis: true })
     assert.equal(state.busy, true)
 })
+
+test('individual analysis blocks model-restricted attacks without hiding historical results', () => {
+    const restricted = {
+        id: 'detection_localization_pgd',
+        supported_task_types: ['detection'],
+        supported_model_ids: ['rf_detr_nano'],
+    }
+    const current = buildComparisonViewState({
+        ...base,
+        activeModel: { id: 'yolo26n', name: 'YOLO', task_type: 'detection' },
+        attackCatalog: [restricted],
+        selectedAttack: restricted.id,
+    })
+    assert.equal(current.historyMode, false)
+    assert.equal(current.isAttackSupported, false)
+
+    const recovered = buildComparisonViewState({
+        ...base,
+        activeModel: { id: 'yolo26n', name: 'YOLO', task_type: 'detection' },
+        attackCatalog: [restricted],
+        selectedAttack: 'random_noise',
+        recoveredIndividualAnalysis: {
+            historyItem: {
+                analysis_id: 'historical-pgd',
+                model_id: 'rf_detr_nano',
+                model_name: 'RF-DETR',
+                task_type: 'detection',
+                attack_type: restricted.id,
+                parameters: { epsilon: 0.03 },
+            },
+            data: {
+                result_id: 'stored-pgd',
+                original_detections: [],
+                adversarial_detections: [],
+            },
+        },
+    })
+    assert.equal(recovered.historyMode, true)
+    assert.equal(recovered.viewModel.id, 'rf_detr_nano')
+    assert.equal(recovered.viewAttack, restricted.id)
+    assert.equal(recovered.isAttackSupported, true)
+    assert.equal(recovered.attackResult.result_id, 'stored-pgd')
+})

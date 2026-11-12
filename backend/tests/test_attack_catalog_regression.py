@@ -31,6 +31,8 @@ EXPECTED_TASK_COMPATIBILITY = {
     "detection": {
         AttackType.RANDOM_NOISE,
         AttackType.YOLO_CONFIDENCE,
+        AttackType.DETECTION_LOCALIZATION_PGD,
+        AttackType.SQUARE_DETECTION,
     },
 }
 
@@ -76,6 +78,35 @@ def test_attack_enum_registry_and_catalog_stay_in_sync():
     assert len(catalog) == len({item.id for item in catalog})
     assert set(registered) == set(AttackType)
     assert {item.id for item in catalog} == set(AttackType)
+
+
+def test_legacy_attack_catalog_has_no_model_restrictions():
+    for item in list_attack_catalog():
+        if item["id"] == AttackType.DETECTION_LOCALIZATION_PGD:
+            assert item["supported_model_ids"] == ["rf_detr_nano"]
+        elif item["id"] == AttackType.SQUARE_DETECTION:
+            assert item["supported_model_ids"] == ["yolo26n", "rf_detr_nano"]
+        else:
+            assert "supported_model_ids" not in item
+            assert AttackCatalogItem.model_validate(item).supported_model_ids is None
+
+
+def test_attack_catalog_validates_optional_model_restrictions():
+    restricted = get_attack(AttackType.YOLO_CONFIDENCE).__class__()
+    restricted.supported_model_ids = ("rf_detr_nano",)
+
+    catalog_entry = restricted.catalog_entry()
+    assert catalog_entry["supported_model_ids"] == ["rf_detr_nano"]
+    assert (
+        AttackCatalogItem.model_validate(catalog_entry).supported_model_ids
+        == ["rf_detr_nano"]
+    )
+
+    for invalid in ([], [""], [" rf_detr_nano"], ["rf_detr_nano", "rf_detr_nano"]):
+        with pytest.raises(ValueError):
+            AttackCatalogItem.model_validate(
+                {**catalog_entry, "supported_model_ids": invalid}
+            )
 
 
 @pytest.mark.parametrize("task_type", ["classification", "detection"])
@@ -158,3 +189,46 @@ def test_art_attacks_build_with_common_adapter_without_running_generate(attack_t
         adapter.estimator,
         art_attack.estimator_requirements,
     )
+
+
+@pytest.mark.parametrize("schema", [
+    "schemas.attack.AttackResponse",
+    "schemas.detection_attack.DetectionAttackResponse",
+    "schemas.evaluation.EvaluationResponse",
+    "schemas.detection_evaluation.DetectionEvaluationResponse",
+    "schemas.detection_evaluation.DetectionEvaluationHistoryItem",
+    "schemas.evaluation_history.EvaluationHistoryItem",
+    "schemas.individual_analysis_history.IndividualAnalysisHistoryItem",
+])
+def test_archived_attack_identifiers_remain_readable(schema):
+    from importlib import import_module
+
+    from pydantic import TypeAdapter
+
+    module_name, schema_name = schema.rsplit(".", 1)
+    model = getattr(import_module(module_name), schema_name)
+    archived_id = "archived_attack_from_previous_version"
+    annotation = model.model_fields["attack_type"].annotation
+    assert TypeAdapter(annotation).validate_python(archived_id) == archived_id
+
+
+@pytest.mark.parametrize("schema", [
+    "schemas.attack.AttackRequest",
+    "schemas.detection_attack.DetectionAttackRequest",
+    "schemas.evaluation.EvaluationRequest",
+    "schemas.detection_evaluation.DetectionEvaluationRequest",
+    "schemas.evaluation_history.EvaluationCompatibilityRequest",
+    "schemas.individual_analysis_history.IndividualAnalysisCompatibilityRequest",
+])
+def test_archived_attack_identifiers_cannot_be_executed(schema):
+    from importlib import import_module
+
+    from pydantic import TypeAdapter, ValidationError
+
+    module_name, schema_name = schema.rsplit(".", 1)
+    model = getattr(import_module(module_name), schema_name)
+    archived_id = "archived_attack_from_previous_version"
+    with pytest.raises(ValidationError):
+        TypeAdapter(model.model_fields["attack_type"].annotation).validate_python(
+            archived_id
+        )

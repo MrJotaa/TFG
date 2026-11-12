@@ -115,7 +115,7 @@ class _FakeDetectionModel:
 
 
 @pytest.mark.asyncio
-async def test_detection_evaluation_uses_canonical_deltas_and_legacy_success(
+async def test_detection_evaluation_uses_canonical_deltas_and_matching_success(
     monkeypatch,
     _stub_detection_evaluation_persistence,
 ):
@@ -204,7 +204,8 @@ async def test_detection_evaluation_uses_canonical_deltas_and_legacy_success(
     )
 
     assert response.result_id == TEST_DETECTION_EVALUATION_ID
-    assert response.metrics_schema_version == "1.0"
+    assert response.metrics_schema_version == "1.1"
+    assert response.attack_success_criterion == "matched_detections_iou50_v1"
     assert response.delta_convention == "original_minus_adversarial"
 
     assert response.results[0].detections_difference == 1
@@ -427,8 +428,9 @@ async def test_detection_evaluation_integrates_supervised_metrics_once(
     assert supervised.object_analysis.by_image is None
     assert supervised.object_analysis.objects is None
     assert len(response.results) == 2
-    assert response.results[0].attack_success is True
-    assert response.results[1].attack_success is True
+    assert response.results[0].attack_success is True  # Desaparición
+    assert response.results[1].attack_success is False  # Solo baja la confianza
+    assert response.summary.attack_success_rate == 0.5
     assert model.catalog_calls == 1
     assert resolution_calls == 1
     assert len(model.detection_calls) == 4

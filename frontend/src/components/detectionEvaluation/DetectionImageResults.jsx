@@ -14,6 +14,12 @@ import {
     stepEvaluationPreviewZoom,
 } from '../../utils/evaluationImagePreview'
 import { formatDecimal, formatInteger } from '../../utils/metricFormatting'
+import {
+    detectionSuccessLabel,
+    detectionOutcomeExplanation,
+    getDetectionSuccessPresentation,
+    squareObjectivePresentation,
+} from '../../utils/detectionAttackSuccess'
 
 const PAGE_SIZE = 6
 
@@ -412,6 +418,8 @@ function DetectionImageCard({
     onGenerateEigenCam,
 }) {
     const [previewImage, setPreviewImage] = useState(null)
+    const successCopy = getDetectionSuccessPresentation(evaluation)
+    const squareObjective = squareObjectivePresentation(result.execution_trace)
     const [showEigenCam, setShowEigenCam] = useState(true)
     const eigenCamLoading = eigenCamEntry.status === 'loading'
     const eigenCamReady = eigenCamEntry.status === 'success'
@@ -437,8 +445,11 @@ function DetectionImageCard({
                     <strong>{result.filename}</strong>
                     <small>{result.image_id}</small>
                 </div>
-                <span className={`detection-legacy-badge ${result.attack_success ? 'success' : 'neutral'}`}>
-                    {result.attack_success ? 'Indicador heurístico positivo' : 'Indicador heurístico negativo'}
+                <span
+                    className={`detection-legacy-badge ${result.attack_success ? 'success' : 'neutral'}`}
+                    title={successCopy.description}
+                >
+                    {detectionSuccessLabel(evaluation, result.attack_success)}
                 </span>
             </header>
 
@@ -470,6 +481,17 @@ function DetectionImageCard({
                 <div><dt>Conf. tras el ataque</dt><dd>{formatDecimal(result.average_adversarial_confidence)}</dd></div>
                 <div><dt>Δ confianza</dt><dd>{formatDecimal(result.average_confidence_difference)}</dd></div>
             </dl>
+
+            <p className="detection-preview-note">
+                {detectionOutcomeExplanation(evaluation, result)}
+            </p>
+            {squareObjective && (
+                <div className="detection-square-trace" aria-label="Objetivo particular de Square">
+                    <strong>{squareObjective.label}</strong>
+                    <span>{squareObjective.detail}</span>
+                    <small>{squareObjective.note}</small>
+                </div>
+            )}
 
             <section className="detection-eigencam-section">
                 <div className="detection-eigencam-action">

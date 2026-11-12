@@ -20,6 +20,11 @@ class FakeModel:
     name = "YOLO26n · preentrenado en COCO"
 
 
+class FakeRfDetrModel(FakeModel):
+    id = "rf_detr_nano"
+    name = "RF-DETR Nano"
+
+
 def _dataset(owner_id: str) -> dict:
     dataset_id = ObjectId()
     return {
@@ -31,7 +36,9 @@ def _dataset(owner_id: str) -> dict:
     }
 
 
-async def _identity(monkeypatch, attack_type: AttackType) -> dict:
+async def _identity(
+    monkeypatch, attack_type: AttackType, *, model_type=FakeModel
+) -> dict:
     owner_id = str(ObjectId())
     dataset = _dataset(owner_id)
     monkeypatch.setattr(
@@ -42,7 +49,7 @@ async def _identity(monkeypatch, attack_type: AttackType) -> dict:
     monkeypatch.setattr(
         evaluation_history_service,
         "get_active_model",
-        lambda: FakeModel(),
+        lambda: model_type(),
     )
     monkeypatch.setattr(
         evaluation_history_service,
@@ -68,6 +75,21 @@ async def test_detection_confidence_revision_participates_in_evaluation_identity
     identity = await _identity(monkeypatch, AttackType.YOLO_CONFIDENCE)
 
     assert identity["attack_revision"] == "detection-confidence-linf-v2"
+
+
+async def test_localization_pgd_revision_and_resolved_parameters_in_history_identity(
+    monkeypatch,
+):
+    identity = await _identity(
+        monkeypatch,
+        AttackType.DETECTION_LOCALIZATION_PGD,
+        model_type=FakeRfDetrModel,
+    )
+
+    assert identity["model_id"] == "rf_detr_nano"
+    assert identity["attack_type"] == "detection_localization_pgd"
+    assert identity["attack_revision"] == "rf-detr-localization-pgd-linf-pseudo-v1"
+    assert identity["parameters"] == {"epsilon": 0.03, "alpha": 0.01, "steps": 10}
 
 
 async def test_unversioned_attacks_keep_legacy_evaluation_identity_shape(monkeypatch):

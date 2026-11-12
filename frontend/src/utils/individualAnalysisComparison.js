@@ -1,4 +1,9 @@
 import { classifyIndividualAnalysisComparison } from './individualAnalysisHistory.js'
+import {
+    detectionSuccessLabel,
+    detectionOutcomeExplanation,
+    squareObjectivePresentation,
+} from './detectionAttackSuccess.js'
 
 const COMPARISON_DESCRIPTIONS = {
     model: 'Misma imagen y mismo ataque; cambia únicamente el modelo.',
@@ -14,6 +19,7 @@ const INCOMPATIBILITY_REASONS = {
     different_dataset_revision: 'Los análisis usan revisiones diferentes del dataset.',
     different_image: 'Los análisis no corresponden a la misma imagen.',
     different_pipeline_version: 'Los análisis usan versiones diferentes del pipeline.',
+    different_metrics_schema_version: 'Los análisis de detección utilizan criterios de éxito diferentes (histórico frente a correspondencia IoU).',
     different_model_revision: 'La revisión del modelo no coincide.',
     different_attack_revision: 'La revisión del ataque no coincide.',
     identical_configuration: 'Los dos análisis tienen la misma configuración.',
@@ -118,6 +124,9 @@ export function individualAnalysisComparisonSummary(taskType, analysis) {
                 ? -Number(comparison.average_confidence_difference)
                 : null,
             attackSuccess: comparison.attack_success,
+            successLabel: detectionSuccessLabel(analysis, comparison.attack_success),
+            successExplanation: detectionOutcomeExplanation(analysis, comparison),
+            squareObjective: squareObjectivePresentation(analysis.execution_trace),
             perturbationLinf: comparison.perturbation_linf,
             perturbationL2: comparison.perturbation_l2,
         }

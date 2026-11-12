@@ -11,10 +11,12 @@ from torchvision.transforms.functional import to_tensor
 import services.detection_attack_service as detection_attack_service
 import services.detection_evaluation_service as detection_evaluation_service
 from ml.attacks.detection_confidence import DetectionConfidenceAttack
+from ml.attacks.detection_localization_pgd import DetectionLocalizationPGDAttack
 from ml.attacks.registry import get_attack
 from ml.explainability.gradcam import generate_detection_eigencam
 from ml.models.definitions import build_model_registry
-from ml.models.detection import DetectionResult
+from ml.models.detection import DetectionBox, DetectionResult
+from ml.models.detection_localization import DetectionLocalizationReferences
 from ml.models.detection_inference import DetectionEvaluationInferenceConfiguration
 from ml.models.rf_detr.catalog import build_rf_detr_class_catalog
 from ml.models.rf_detr.config import RfDetrDetectionModelConfig
@@ -36,6 +38,7 @@ REAL_SMOKE_ENABLED = os.getenv("RUN_RF_DETR_REAL_SMOKE") == "1"
 _DETECTION_ATTACKS = (
     AttackType.RANDOM_NOISE,
     AttackType.YOLO_CONFIDENCE,
+    AttackType.DETECTION_LOCALIZATION_PGD,
 )
 
 
@@ -547,6 +550,36 @@ def test_real_rf_detr_nano_checkpoint_supports_application_contracts():
             parameter.grad is None for parameter in model.get_torch_model().parameters()
         )
 
+        # A3: comprobar en el checkpoint fijado las pérdidas oficiales
+        # y el gradiente de localización en geometría de origen.
+        # Una referencia COCO real sería preferible; usamos una caja válida
+        # conocida para verificar el contrato sin depender de detecciones.
+        localization_references = (
+            DetectionLocalizationReferences.from_supervised_objects(
+                source_width=source_image.width,
+                source_height=source_image.height,
+                objects=((1, DetectionBox(10.0, 10.0, 60.0, 45.0)),),
+            )
+        )
+        localization_input = model.prepare_detection_attack_input(
+            source_image
+        ).requires_grad_(True)
+        localization_loss = model.detection_localization_objective(
+            localization_input, localization_references
+        )
+        (localization_gradient,) = torch.autograd.grad(
+            localization_loss, localization_input
+        )
+        assert localization_loss.ndim == 0
+        assert torch.isfinite(localization_loss)
+        assert localization_gradient.shape == localization_input.shape
+        assert torch.isfinite(localization_gradient).all()
+        assert torch.count_nonzero(localization_gradient) > 0
+        assert all(
+            parameter.grad is None
+            for parameter in model.get_torch_model().parameters()
+        )
+
         explanation = generate_detection_eigencam(model, source_image)
         assert explanation.size == source_image.size
         assert explanation.mode == "RGB"
@@ -559,5 +592,21 @@ def test_real_rf_detr_nano_checkpoint_supports_application_contracts():
         )
         assert attack_result["perturbation_linf"] <= 0.01
         assert attack_result["adversarial_image"].size == source_image.size
+
+        # A4: smoke completo del ataque real (una iteración). Si el detector
+        # no encuentra objetos sobre esta imagen artificial, el comportamiento
+        # científicamente correcto es dejarla intacta.
+        localization_attack_result = DetectionLocalizationPGDAttack().apply(
+            model_wrapper=model,
+            image=source_image,
+            parameters=AttackParameters(epsilon=0.03, alpha=0.01, steps=1),
+        )
+        assert localization_attack_result["adversarial_image"].size == source_image.size
+        assert localization_attack_result["perturbation_image"].size == source_image.size
+        assert 0 <= localization_attack_result["perturbation_linf"] <= 0.03
+        assert all(
+            parameter.grad is None
+            for parameter in model.get_torch_model().parameters()
+        )
     finally:
         model.unload()

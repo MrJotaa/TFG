@@ -8,7 +8,7 @@ from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
     CLASSIFICATION_TASK_TYPE,
-    require_attack_task_type,
+    require_attack_model_compatibility,
     require_model_task_type,
 )
 from ml.attacks.base import (
@@ -399,9 +399,9 @@ async def _evaluate_dataset(
         endpoint="/evaluate",
     )
 
-    require_attack_task_type(
+    require_attack_model_compatibility(
         attack=attack,
-        task_type=model.task_type,
+        model=model,
     )
 
     label_resolution = resolve_dataset_labels(

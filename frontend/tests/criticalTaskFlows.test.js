@@ -13,6 +13,11 @@ const ATTACK_CATALOG = [
     { id: 'random_noise', supported_task_types: ['classification', 'detection'] },
     { id: 'pgd', supported_task_types: ['classification'] },
     { id: 'yolo_confidence', supported_task_types: ['detection'] },
+    {
+        id: 'detection_localization_pgd',
+        supported_task_types: ['detection'],
+        supported_model_ids: ['rf_detr_nano'],
+    },
 ]
 
 test('classification exposes only classification-compatible attacks', () => {
@@ -24,10 +29,16 @@ test('classification exposes only classification-compatible attacks', () => {
     assert.equal(isAttackSupportedForTask(ATTACK_CATALOG, 'pgd', 'classification'), true)
 })
 
-test('detection exposes Random Noise and Detection Confidence only', () => {
+test('detection exposes only attacks compatible with the selected detector', () => {
     assert.deepEqual(
-        getSupportedAttacksForTask(ATTACK_CATALOG, 'detection').map((attack) => attack.id),
+        getSupportedAttacksForTask(ATTACK_CATALOG, 'detection', 'yolo26n')
+            .map((attack) => attack.id),
         ['random_noise', 'yolo_confidence'],
+    )
+    assert.deepEqual(
+        getSupportedAttacksForTask(ATTACK_CATALOG, 'detection', 'rf_detr_nano')
+            .map((attack) => attack.id),
+        ['random_noise', 'yolo_confidence', 'detection_localization_pgd'],
     )
     assert.equal(isAttackSupportedForTask(ATTACK_CATALOG, 'fgsm', 'detection'), false)
     assert.equal(isAttackSupportedForTask(ATTACK_CATALOG, 'yolo_confidence', 'detection'), true)

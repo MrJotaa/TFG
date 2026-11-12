@@ -286,6 +286,7 @@ export function buildComparisonViewState({
             attackCatalog,
             view.viewAttack,
             taskType,
+            view.viewModel?.id,
         ),
         imageContextKey,
         attackContextKey,

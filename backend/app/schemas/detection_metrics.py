@@ -89,10 +89,26 @@ class DetectionMetricsContract(BaseModel):
     ambiguos.
     """
 
+    # Missing fields in historical artifacts must retain their old meaning.
     metrics_schema_version: str = "1.0"
+    attack_success_criterion: Literal[
+        "legacy_count_or_confidence_v1", "matched_detections_iou50_v1"
+    ] = "legacy_count_or_confidence_v1"
     delta_convention: Literal["original_minus_adversarial"] = (
         "original_minus_adversarial"
     )
+
+    @model_validator(mode="after")
+    def validate_success_criterion_version(self):
+        expected = {
+            "1.0": "legacy_count_or_confidence_v1",
+            "1.1": "matched_detections_iou50_v1",
+        }.get(self.metrics_schema_version)
+        if expected is not None and self.attack_success_criterion != expected:
+            raise ValueError(
+                "attack_success_criterion does not match metrics_schema_version"
+            )
+        return self
 
 
 class DetectionMetricModel(BaseModel):

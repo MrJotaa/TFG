@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from schemas.predict import PredictResponse
 
@@ -16,7 +16,13 @@ class AttackType(str, Enum):
     ZOO = "zoo"
     # ID legacy serializado: se conserva para clientes y resultados existentes.
     YOLO_CONFIDENCE = "yolo_confidence"
+    DETECTION_LOCALIZATION_PGD = "detection_localization_pgd"
+    SQUARE_DETECTION = "square_detection"
 
+
+# Stored results may outlive their attack implementation. Requests still
+# accept only AttackType; responses may retain an archived identifier.
+ArchivedAttackId = AttackType | str
 
 AttackTaskType = Literal["classification", "detection"]
 AttackKnowledgeType = Literal["white_box", "black_box", "baseline"]
@@ -49,7 +55,23 @@ class AttackCatalogItem(BaseModel):
     description: str = Field(min_length=1)
     knowledge_type: AttackKnowledgeType
     supported_task_types: list[AttackTaskType] = Field(min_length=1)
+    # Ausencia/None: compatible con cualquier modelo de las tareas declaradas.
+    supported_model_ids: list[str] | None = Field(default=None, min_length=1)
     parameters: list[AttackParameterDefinition]
+
+    @field_validator("supported_model_ids")
+    @classmethod
+    def validate_supported_model_ids(cls, model_ids: list[str] | None):
+        if model_ids is None:
+            return None
+        if any(
+            not model_id.strip() or model_id != model_id.strip()
+            for model_id in model_ids
+        ):
+            raise ValueError("Los identificadores de modelo no pueden estar vacíos")
+        if len(model_ids) != len(set(model_ids)):
+            raise ValueError("Los identificadores de modelo deben ser únicos")
+        return model_ids
 
 
 class AttackParameters(BaseModel):
@@ -171,7 +193,7 @@ class AttackComparison(BaseModel):
 
 class AttackResponse(BaseModel):
     result_id: str
-    attack_type: AttackType
+    attack_type: ArchivedAttackId
     parameters: AttackParameters
 
     adversarial_image_url: str

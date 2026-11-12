@@ -581,6 +581,10 @@
     color: var(--success-text);
 }
 
+.classification-attack-status.neutral {
+    color: var(--muted-strong);
+}
+
 .classification-impact-flow {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);

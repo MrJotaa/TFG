@@ -6,7 +6,7 @@ from core.cancellation import CancellationToken
 from core.errors import BadRequestError
 from core.task_compatibility import (
     DETECTION_TASK_TYPE,
-    require_attack_task_type,
+    require_attack_model_compatibility,
     require_model_task_type,
 )
 from ml.attacks.registry import (
@@ -73,6 +73,8 @@ from utils.detection_evaluation_artifacts import (
     save_detection_evaluation_adversarial_image,
 )
 from utils.detection_metrics import (
+    CURRENT_DETECTION_METRICS_SCHEMA_VERSION,
+    MATCHED_DETECTION_SUCCESS,
     average,
     calculate_detection_comparison,
 )
@@ -261,9 +263,9 @@ async def _evaluate_detection_dataset(
         endpoint="/detect/evaluate",
     )
 
-    require_attack_task_type(
+    require_attack_model_compatibility(
         attack=attack,
-        task_type=model.task_type,
+        model=model,
     )
 
     attack_runner = create_attack_runner(
@@ -428,6 +430,7 @@ async def _evaluate_detection_dataset(
                 perturbation_linf=attack_result["perturbation_linf"],
                 perturbation_l2=attack_result["perturbation_l2"],
                 adversarial_image_url=adversarial_image_url,
+                execution_trace=attack_result.get("execution_trace"),
                 original_detections=to_detection_predictions(original_detections),
                 adversarial_detections=to_detection_predictions(adversarial_detections),
             )
@@ -517,6 +520,8 @@ async def _evaluate_detection_dataset(
     )
 
     response = DetectionEvaluationResponse(
+        metrics_schema_version=CURRENT_DETECTION_METRICS_SCHEMA_VERSION,
+        attack_success_criterion=MATCHED_DETECTION_SUCCESS,
         result_id=result_id,
         model_id=model.id,
         model_name=model.name,

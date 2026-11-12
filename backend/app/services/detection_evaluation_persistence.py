@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from core.errors import BadRequestError, ForbiddenError, GoneError, NotFoundError
 from db.collections import detection_evaluations_collection
+from ml.attacks.registry import get_attack
 from schemas.detection_evaluation import (
     DetectionEvaluationHistoryItem,
     DetectionEvaluationRequest,
@@ -46,6 +47,7 @@ async def persist_detection_evaluation(
     result_path = _result_path(response.result_id)
     created_at = datetime.now(timezone.utc)
     expires_at = created_at + timedelta(seconds=RESULTS_TTL_SECONDS)
+    attack_revision = get_attack(response.attack_type).revision
 
     await asyncio.to_thread(
         _write_response_artifact,
@@ -67,6 +69,11 @@ async def persist_detection_evaluation(
                 "model_id": response.model_id,
                 "model_name": response.model_name,
                 "attack_type": response.attack_type.value,
+                **(
+                    {"attack_revision": attack_revision}
+                    if attack_revision is not None
+                    else {}
+                ),
                 "parameters": request.parameters.model_dump(mode="json"),
                 "supervised_configuration": (
                     request.supervised_configuration.model_dump(mode="json")
@@ -82,6 +89,7 @@ async def persist_detection_evaluation(
                     else None
                 ),
                 "metrics_schema_version": response.metrics_schema_version,
+                "attack_success_criterion": response.attack_success_criterion,
                 "delta_convention": response.delta_convention,
                 "artifact_filename": DETECTION_EVALUATION_ARTIFACT_FILENAME,
                 "created_at": created_at,
@@ -180,12 +188,16 @@ def _history_item(document: dict) -> DetectionEvaluationHistoryItem:
             model_id=document["model_id"],
             model_name=document["model_name"],
             attack_type=document["attack_type"],
+            attack_revision=document.get("attack_revision"),
             parameters=document["parameters"],
             supervised_configuration=document["supervised_configuration"],
             summary=document["summary"],
             supervised_available=document["supervised_available"],
             supervised_reason=document.get("supervised_reason"),
             metrics_schema_version=document["metrics_schema_version"],
+            attack_success_criterion=document.get(
+                "attack_success_criterion", "legacy_count_or_confidence_v1"
+            ),
             delta_convention=document["delta_convention"],
             created_at=_utc_datetime(document.get("created_at"), "created_at"),
             expires_at=(

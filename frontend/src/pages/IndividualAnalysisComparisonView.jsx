@@ -118,11 +118,19 @@ function DetectionSummary({ side, summary }) {
         <article className={`individual-comparison-result-card side-${side.toLowerCase()}`}>
             <header>
                 <span className="individual-comparison-side-token">{side}</span>
-                <strong>{summary.attackSuccess ? 'Impacto detectado' : 'Detecciones preservadas'}</strong>
+                <strong title={summary.successExplanation}>{summary.successLabel}</strong>
             </header>
             <p className="individual-comparison-result-flow">
                 {summary.primaryLabel} <small>{summary.primaryCaption}</small>
             </p>
+            <p className="detection-impact-note">{summary.successExplanation}</p>
+            {summary.squareObjective && (
+                <div className="detection-square-outcome" aria-label="Objetivo particular de Square">
+                    <strong>{summary.squareObjective.label}</strong>
+                    <span>{summary.squareObjective.detail}</span>
+                    <small>{summary.squareObjective.note}</small>
+                </div>
+            )}
             <div className="individual-comparison-result-metrics">
                 <div>
                     <span>Confianza media original</span>

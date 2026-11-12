@@ -1,3 +1,5 @@
+import { getDetectionSuccessPresentation } from './detectionAttackSuccess.js'
+
 export const RESULT_RETENTION_OPTIONS = [
     { value: 3600, label: '1 hora' },
     { value: 7200, label: '2 horas' },
@@ -78,5 +80,9 @@ export function historySummary(item) {
         }
         return `${summary.changed_predictions ?? 0} predicciones cambiadas`
     }
-    return `${summary.total_original_detections ?? 0} → ${summary.total_adversarial_detections ?? 0} detecciones`
+    const counts = `${summary.total_original_detections ?? 0} → ${summary.total_adversarial_detections ?? 0} detecciones`
+    const hasCriterion = item.metrics_schema_version != null || item.attack_success_criterion != null
+    return hasCriterion
+        ? `${counts} · ${getDetectionSuccessPresentation(item).historyLabel}`
+        : counts
 }

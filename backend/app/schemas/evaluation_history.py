@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from schemas.attack import AttackParameters, AttackType
+from schemas.attack import ArchivedAttackId, AttackParameters, AttackType
 from schemas.detection_evaluation import DetectionEvaluationResponse
 from schemas.detection_metrics import DetectionSupervisedConfiguration
 from schemas.evaluation import EvaluationResponse
@@ -29,10 +29,16 @@ class EvaluationHistoryItem(BaseModel):
     dataset_revision: int = Field(ge=0)
     model_id: str
     model_name: str
-    attack_type: AttackType
+    attack_type: ArchivedAttackId
     parameters: AttackParameters
     supervised_configuration: DetectionSupervisedConfiguration | None = None
     summary: dict[str, Any] | None = None
+    metrics_schema_version: str | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    attack_success_criterion: str | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     created_at: datetime
     completed_at: datetime | None = None
     expires_at: datetime | None = None
