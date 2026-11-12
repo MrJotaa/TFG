@@ -1,5 +1,4 @@
 import math
-from types import SimpleNamespace
 
 import pytest
 
@@ -8,11 +7,18 @@ from utils.detection_metrics import (
     average,
     average_detection_confidence,
     calculate_detection_comparison,
+    LEGACY_DETECTION_SUCCESS,
+    MATCHED_DETECTION_SUCCESS,
 )
 
 
-def _detection(confidence: float):
-    return SimpleNamespace(confidence=confidence)
+def _detection(
+    confidence: float,
+    *,
+    class_id: int = 0,
+    bbox: tuple[float, float, float, float] = (10, 10, 30, 30),
+):
+    return Detection(class_id, confidence, DetectionBox(*bbox))
 
 
 def test_average_returns_zero_for_empty_values():
@@ -52,7 +58,7 @@ def test_detection_comparison_detects_reduced_count():
     assert metrics.attack_success is True
 
 
-def test_detection_comparison_detects_confidence_reduction():
+def test_confidence_decrease_alone_does_not_count_as_success():
     metrics = calculate_detection_comparison(
         original_detections=[
             _detection(0.9),
@@ -64,7 +70,7 @@ def test_detection_comparison_detects_confidence_reduction():
 
     assert metrics.detections_difference == 0
     assert metrics.average_confidence_difference == pytest.approx(0.3)
-    assert metrics.attack_success is True
+    assert metrics.attack_success is False
 
 
 def test_detection_comparison_reports_unsuccessful_attack():
@@ -106,7 +112,7 @@ def test_detection_comparison_reports_new_detections_with_negative_delta():
     assert metrics.attack_success is False
 
 
-def test_localization_only_shift_is_not_mislabeled_as_legacy_success():
+def test_localization_shift_counts_as_matching_failure():
     """Count and confidence remain unchanged despite a large box shift."""
     original = Detection(0, 0.9, DetectionBox(10, 10, 30, 30))
     shifted = Detection(0, 0.9, DetectionBox(60, 60, 80, 80))
@@ -115,7 +121,7 @@ def test_localization_only_shift_is_not_mislabeled_as_legacy_success():
 
     assert metrics.original_count == metrics.adversarial_count == 1
     assert metrics.average_confidence_difference == 0.0
-    assert metrics.attack_success is False
+    assert metrics.attack_success is True
 
 
 def test_detection_comparison_handles_no_detections():
@@ -196,6 +202,7 @@ def test_legacy_attack_success_rounds_each_confidence_before_averaging():
     metrics = calculate_detection_comparison(
         original_detections=original_detections,
         adversarial_detections=adversarial_detections,
+        success_criterion=LEGACY_DETECTION_SUCCESS,
     )
 
     assert metrics.average_original_confidence == pytest.approx(0.500099)
@@ -249,6 +256,77 @@ def test_detection_comparison_preserves_legacy_attack_success(
     metrics = calculate_detection_comparison(
         original_detections=original_detections,
         adversarial_detections=adversarial_detections,
+        success_criterion=LEGACY_DETECTION_SUCCESS,
     )
 
     assert metrics.attack_success is legacy_attack_success
+
+
+@pytest.mark.parametrize("confidence", [0.899, 0.8, 0.25])
+def test_confidence_reduction_without_box_or_class_change_is_not_success(confidence):
+    metrics = calculate_detection_comparison(
+        [_detection(0.9)], [_detection(confidence)]
+    )
+    assert metrics.attack_success is False
+    assert metrics.average_confidence_difference > 0
+
+
+def test_class_change_same_box_counts_as_success():
+    metrics = calculate_detection_comparison(
+        [_detection(0.9, class_id=0)], [_detection(0.9, class_id=1)]
+    )
+    assert metrics.attack_success is True
+    assert metrics.detections_difference == 0
+
+
+def test_iou_threshold_inclusive_and_significant_shift():
+    original = [_detection(0.9, bbox=(0, 0, 30, 20))]
+    # Exact 0.5 IoU: horizontal overlap 20, union 40.
+    boundary = [_detection(0.9, bbox=(10, 0, 40, 20))]
+    shifted = [_detection(0.9, bbox=(11, 0, 41, 20))]
+    assert calculate_detection_comparison(original, boundary).attack_success is False
+    assert calculate_detection_comparison(original, shifted).attack_success is True
+
+
+def test_one_to_one_matching_prevents_double_use_of_one_candidate():
+    originals = [
+        _detection(0.8, bbox=(0, 0, 20, 20)),
+        _detection(0.9, bbox=(1, 0, 21, 20)),
+    ]
+    adversarial = [_detection(0.9, bbox=(0, 0, 20, 20))]
+    assert calculate_detection_comparison(originals, adversarial).attack_success is True
+
+
+def test_matching_uses_maximum_cardinality_not_confidence_or_greedy_order():
+    originals = [
+        _detection(0.8, bbox=(0, 0, 20, 20)),
+        _detection(0.9, bbox=(10, 0, 30, 20)),
+    ]
+    adversarial = [
+        _detection(0.6, bbox=(5, 0, 25, 20)),  # overlaps both at IoU 0.6
+        _detection(0.3, bbox=(0, 0, 20, 20)),  # overlaps only first at 1.0
+    ]
+    assert calculate_detection_comparison(originals, adversarial).attack_success is False
+
+
+def test_extra_detections_do_not_mask_lost_original_detection():
+    originals = [
+        _detection(0.9, bbox=(0, 0, 20, 20)),
+        _detection(0.9, bbox=(50, 0, 70, 20)),
+    ]
+    adversarial = [
+        _detection(0.9, bbox=(0, 0, 20, 20)),
+        _detection(0.9, bbox=(90, 0, 110, 20)),
+    ]
+    assert calculate_detection_comparison(originals, adversarial).attack_success is True
+    assert calculate_detection_comparison([], adversarial).attack_success is False
+
+
+def test_legacy_formula_can_still_be_requested_explicitly():
+    original = [_detection(0.9)]
+    adversarial = [_detection(0.899)]
+    assert calculate_detection_comparison(original, adversarial).attack_success is False
+    assert calculate_detection_comparison(
+        original, adversarial, success_criterion=LEGACY_DETECTION_SUCCESS
+    ).attack_success is True
+    assert MATCHED_DETECTION_SUCCESS != LEGACY_DETECTION_SUCCESS

@@ -89,6 +89,7 @@ async def persist_detection_evaluation(
                     else None
                 ),
                 "metrics_schema_version": response.metrics_schema_version,
+                "attack_success_criterion": response.attack_success_criterion,
                 "delta_convention": response.delta_convention,
                 "artifact_filename": DETECTION_EVALUATION_ARTIFACT_FILENAME,
                 "created_at": created_at,
@@ -194,6 +195,9 @@ def _history_item(document: dict) -> DetectionEvaluationHistoryItem:
             supervised_available=document["supervised_available"],
             supervised_reason=document.get("supervised_reason"),
             metrics_schema_version=document["metrics_schema_version"],
+            attack_success_criterion=document.get(
+                "attack_success_criterion", "legacy_count_or_confidence_v1"
+            ),
             delta_convention=document["delta_convention"],
             created_at=_utc_datetime(document.get("created_at"), "created_at"),
             expires_at=(

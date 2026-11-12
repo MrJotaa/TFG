@@ -33,6 +33,12 @@ class EvaluationHistoryItem(BaseModel):
     parameters: AttackParameters
     supervised_configuration: DetectionSupervisedConfiguration | None = None
     summary: dict[str, Any] | None = None
+    metrics_schema_version: str | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    attack_success_criterion: str | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     created_at: datetime
     completed_at: datetime | None = None
     expires_at: datetime | None = None

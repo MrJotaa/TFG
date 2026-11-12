@@ -98,6 +98,30 @@
     margin-bottom: 1rem;
 }
 
+/* Etiquetas largas de criterios versionados: sin desbordar en móvil. */
+.detection-image-result-card > header .detection-legacy-badge {
+    max-width: min(100%, 21rem);
+    white-space: normal;
+    text-align: center;
+    line-height: 1.35;
+}
+
+.detection-square-trace {
+    display: grid;
+    gap: 0.25rem;
+    margin: 0.65rem 0 0;
+    padding: 0.6rem 0.8rem;
+    border-left: 2px solid var(--primary);
+    background: var(--primary-soft);
+    color: var(--text-soft);
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.detection-square-trace > small {
+    color: var(--muted-strong);
+}
+
 .detection-image-result-card > header div,
 .detection-image-result-card > header small {
     display: block;

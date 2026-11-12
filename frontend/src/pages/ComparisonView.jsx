@@ -27,6 +27,12 @@ import {
 } from '../utils/attackFormatting'
 import { buildComparisonViewState } from '../utils/comparisonView'
 import {
+    detectionSuccessLabel,
+    detectionOutcomeExplanation,
+    getDetectionSuccessPresentation,
+    squareObjectivePresentation,
+} from '../utils/detectionAttackSuccess'
+import {
     analysisImagePosition,
     formatAnalysisProbability,
     formatSignedInteger,
@@ -362,6 +368,8 @@ function DetectionWorkspaceTabs({ activePanel, onSelect }) {
 
 function DetectionResults({ result }) {
     const comparison = result.comparison
+    const successCopy = getDetectionSuccessPresentation(result)
+    const squareObjective = squareObjectivePresentation(result.execution_trace)
     const countDelta = comparison.adversarial_detection_count - comparison.original_detection_count
     const confidenceDelta = comparison.average_adversarial_confidence - comparison.average_original_confidence
 
@@ -373,10 +381,10 @@ function DetectionResults({ result }) {
                     <h3 id="detection-impact-title">Impacto en las detecciones</h3>
                 </div>
                 <span
-                    className={`classification-attack-status ${comparison.attack_success ? 'danger' : 'success'}`}
+                    className={`classification-attack-status ${comparison.attack_success ? 'danger' : successCopy.version === '1.1' ? 'neutral' : 'success'}`}
                 >
                     <span aria-hidden="true">●</span>
-                    {comparison.attack_success ? 'Ataque exitoso' : 'Detección preservada'}
+                    {detectionSuccessLabel(result, comparison.attack_success)}
                 </span>
             </header>
 
@@ -406,10 +414,18 @@ function DetectionResults({ result }) {
                 <em>{formatSignedPercentagePoints(confidenceDelta)}</em>
             </div>
 
+            <p className="detection-impact-note">{detectionOutcomeExplanation(result, comparison)}</p>
             <p className="detection-impact-note">
                 El recuento y la confianza son descriptivos para esta imagen. Sin
-                matching contra anotaciones de referencia no equivalen a AP ni recall.
+                anotaciones de referencia no equivalen a AP ni recall.
             </p>
+            {squareObjective && (
+                <div className="detection-square-outcome" aria-label="Objetivo particular de Square">
+                    <strong>{squareObjective.label}</strong>
+                    <span>{squareObjective.detail}</span>
+                    <small>{squareObjective.note}</small>
+                </div>
+            )}
 
             <div className="detection-result-comparison">
                 <DetectionList

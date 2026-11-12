@@ -128,7 +128,7 @@ def _snapshot(*, reviewed):
 
 
 @pytest.mark.asyncio
-async def test_localization_pgd_individual_response_preserves_legacy_and_revision(
+async def test_localization_pgd_individual_response_reports_spatial_success_and_revision(
     monkeypatch, tmp_path
 ):
     model = _LocalizationDetector()
@@ -180,7 +180,9 @@ async def test_localization_pgd_individual_response_preserves_legacy_and_revisio
     assert response.comparison.original_detection_count == 1
     assert response.comparison.adversarial_detection_count == 1
     assert response.comparison.average_confidence_difference == 0.0
-    assert response.comparison.attack_success is False  # Semántica legacy intacta.
+    assert response.comparison.attack_success is True  # La caja se ha desplazado.
+    assert response.metrics_schema_version == "1.1"
+    assert response.attack_success_criterion == "matched_detections_iou50_v1"
     assert response.comparison.perturbation_linf > 0
     assert (
         response.original_detections[0].bbox
@@ -196,7 +198,7 @@ async def test_localization_pgd_individual_response_preserves_legacy_and_revisio
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("reviewed", [True, False])
-async def test_localization_dataset_metrics_preserve_legacy_success(
+async def test_localization_dataset_metrics_detect_spatial_success(
     monkeypatch, reviewed
 ):
     model = _LocalizationDetector()
@@ -258,8 +260,8 @@ async def test_localization_dataset_metrics_preserve_legacy_success(
     assert response.summary.total_original_detections == 1
     assert response.summary.total_adversarial_detections == 1
     assert response.summary.average_confidence_difference == 0.0
-    assert response.summary.attack_success_rate == 0.0
-    assert response.results[0].attack_success is False
+    assert response.summary.attack_success_rate == 1.0
+    assert response.results[0].attack_success is True
     assert response.results[0].original_detections[0].bbox != (
         response.results[0].adversarial_detections[0].bbox
     )

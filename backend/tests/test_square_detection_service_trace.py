@@ -7,6 +7,7 @@ from PIL import Image
 
 import services.detection_attack_service as individual_service
 import services.detection_evaluation_service as evaluation_service
+from ml.attacks.registry import get_attack
 from ml.models.detection import Detection, DetectionBox, DetectionResult
 from schemas.attack import AttackType
 from schemas.detection_attack import DetectionAttackRequest
@@ -51,7 +52,7 @@ def _execution_trace():
         "max_queries": 5,
         "cache_hits": 2,
         "seed": 123,
-        "attack_revision": "art-1.20.1-square-detection-linf-fixed-references-v1",
+        "attack_revision": get_attack(AttackType.SQUARE_DETECTION).revision,
         "reference_count": 1,
         "clean_score": 1.0,
         "best_score": 0.75,
@@ -91,7 +92,7 @@ async def test_individual_response_and_saved_payload_include_query_trace(monkeyp
     )
     assert response.execution_trace.queries == 5
     assert response.execution_trace.status == "budget_exhausted"
-    assert response.comparison.attack_success is False  # no redefinición legacy
+    assert response.comparison.attack_success is False  # misma clase y caja, sin pérdida de correspondencia
     assert persisted_metadata[0]["execution_trace"] == _execution_trace()
     assert persisted_metadata[0]["attack_revision"] == _execution_trace()["attack_revision"]
     assert persisted_payloads[0]["execution_trace"] == _execution_trace()

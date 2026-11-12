@@ -418,3 +418,76 @@ def test_square_rng_wait_is_cooperatively_cancellable(monkeypatch):
     assert len(exceptions) == 1
     assert isinstance(exceptions[0], OperationCancelled)
     assert _detector.calls == 1
+
+
+@pytest.mark.parametrize(
+    ("width", "height"),
+    [(640, 424), (1024, 32), (32, 1024), (3840, 64), (200, 2)],
+)
+def test_square_initial_tile_fits_panorama(width, height):
+    from ml.attacks.square_detection import _square_initial_fraction
+
+    p_init = _square_initial_fraction(width, height)
+    tile = max(int(round(np.sqrt(p_init * width * height))), 1)
+    assert 0 < p_init <= 0.05
+    assert 1 <= tile < min(width, height)
+    if width == 640 and height == 424:
+        assert p_init == 0.05
+
+
+def test_square_skips_one_pixel_dimension_without_running_art():
+    model = _Detector()
+    attack = SquareDetectionAttack()
+    image = _image(width=100, height=1)
+    result = attack.apply(model, image, _parameters())
+    assert np.array_equal(np.asarray(result["adversarial_image"]), np.asarray(image))
+    assert model.calls == 0
+    assert result["execution_trace"]["status"] == "skipped_unsupported_geometry"
+    assert result["execution_trace"]["queries"] == 0
+    assert result["perturbation_linf"] == 0
+
+
+def test_square_passes_safe_initial_fraction_to_art(monkeypatch):
+    from ml.attacks import square_detection as production
+
+    observed = []
+
+    class _FakeArtSquare:
+        def __init__(self, *, p_init, loss, **kwargs):
+            observed.append(p_init)
+            self.loss = loss
+
+        def generate(self, x, y):
+            self.loss(x, y)
+            return x
+
+    evasion = types.ModuleType("art.attacks.evasion")
+    evasion.SquareAttack = _FakeArtSquare
+    monkeypatch.setitem(sys.modules, "art", types.ModuleType("art"))
+    monkeypatch.setitem(sys.modules, "art.attacks", types.ModuleType("art.attacks"))
+    monkeypatch.setitem(sys.modules, "art.attacks.evasion", evasion)
+    monkeypatch.setattr(production, "create_square_art_estimator", lambda session: object())
+
+    attack = SquareDetectionAttack()
+    parameters = _parameters()
+    model = _Detector()
+    image = _image(width=1024, height=32)
+    result = attack.apply(model, image, parameters)
+    assert result["execution_trace"]["queries"] == 1
+    assert len(observed) == 1
+    tile = round(np.sqrt(observed[0] * image.width * image.height))
+    assert 1 <= tile < image.height
+
+
+@pytest.mark.parametrize(("width", "height"), [(1024, 32), (32, 1024)])
+def test_square_art_real_handles_panorama_without_invalid_square(width, height):
+    """Run ART's actual Linf search on extreme but valid geometries."""
+    pytest.importorskip("art")
+    image = _image(width=width, height=height)
+    detector = _Detector()
+    parameters = _parameters(max_queries=6, steps=3, epsilon=0.03, seed=7)
+    result = SquareDetectionAttack().apply(detector, image, parameters)
+    assert result["adversarial_image"].size == image.size
+    assert 1 <= detector.calls <= parameters.max_queries
+    assert result["execution_trace"]["queries"] == detector.calls
+    assert _pixel_linf(result["adversarial_image"], image) <= parameters.epsilon + 1e-6

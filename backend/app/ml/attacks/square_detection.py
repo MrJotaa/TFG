@@ -26,6 +26,19 @@ from schemas.detection_square_trace import SquareDetectionExecutionTrace
 _SQUARE_ART_RNG_LOCK = Lock()
 
 
+def _square_initial_fraction(width: int, height: int) -> float:
+    """Limit ART's initial square to fit both sides of a source image.
+
+    ART 1.20.1 samples square origins with randint(0, side - tile),
+    so the rounded tile must be strictly smaller than the shortest side.
+    The schedule only decreases p_init in subsequent iterations.
+    """
+    shortest = min(width, height)
+    if shortest < 2:
+        raise ValueError("Square Attack requires both image dimensions >= 2")
+    return min(0.05, (shortest - 1) ** 2 / (width * height))
+
+
 @dataclass(frozen=True, slots=True)
 class _SquareDetectionRunner:
     attack: "SquareDetectionAttack"
@@ -47,7 +60,7 @@ class SquareDetectionAttack(BaseAdversarialAttack):
         "de consultas al detector; reduce la supervivencia de detecciones originales"
     )
     knowledge_type = "black_box"
-    revision = "art-1.20.1-square-detection-linf-fixed-references-v1"
+    revision = "art-1.20.1-square-detection-linf-fixed-references-v2"
     supported_task_types = ("detection",)
     supported_model_ids = ("yolo26n", "rf_detr_nano")
     requires_exclusive_model_execution = True
@@ -115,6 +128,8 @@ class SquareDetectionAttack(BaseAdversarialAttack):
             status = "skipped_zero_epsilon"
         elif max_queries == 1:
             status = "skipped_insufficient_budget"
+        elif min(image.size) < 2:
+            status = "skipped_unsupported_geometry"
         elif not session.initialise():
             status = "skipped_no_references"
         else:
@@ -129,7 +144,7 @@ class SquareDetectionAttack(BaseAdversarialAttack):
                 estimator=estimator,
                 norm=np.inf,
                 eps=epsilon,
-                p_init=0.05,
+                p_init=_square_initial_fraction(*image.size),
                 max_iter=steps,
                 nb_restarts=1,
                 batch_size=1,

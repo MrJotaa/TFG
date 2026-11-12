@@ -248,6 +248,26 @@
     line-height: 1.5;
 }
 
+.detection-square-outcome {
+    display: grid;
+    gap: 0.25rem;
+    margin-top: 0.9rem;
+    padding: 0.65rem 0.85rem;
+    border-left: 2px solid var(--primary);
+    background: var(--primary-soft);
+    line-height: 1.45;
+    font-size: 0.75rem;
+}
+
+.detection-square-outcome > strong {
+    color: var(--text-soft);
+}
+
+.detection-square-outcome > small {
+    color: var(--muted-strong);
+    line-height: 1.5;
+}
+
 .detection-result-comparison,
 .detection-explanation-lists.comparison {
     display: grid;

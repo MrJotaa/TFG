@@ -1,4 +1,8 @@
 import { stableComparisonKey } from './evaluationComparison.js'
+import {
+    detectionSuccessLabel,
+    getDetectionSuccessPresentation,
+} from './detectionAttackSuccess.js'
 
 export function individualAnalysisSummary(item) {
     const summary = item?.summary ?? {}
@@ -15,12 +19,12 @@ export function individualAnalysisSummary(item) {
 }
 
 export function individualAnalysisOutcome(item) {
-    if (item?.summary?.attack_success === true) return 'Ataque exitoso'
-    if (item?.summary?.attack_success === false) {
-        return item?.task_type === 'detection'
-            ? 'Detecciones preservadas'
-            : 'Predicción preservada'
+    const success = item?.summary?.attack_success
+    if (item?.task_type === 'detection' && typeof success === 'boolean') {
+        return detectionSuccessLabel(item.summary, success)
     }
+    if (success === true) return 'Ataque exitoso'
+    if (success === false) return 'Predicción preservada'
     return 'Resultado guardado'
 }
 
@@ -32,6 +36,11 @@ function comparisonContextMismatch(left, right) {
     if (!left || !right) return 'missing_result'
     if (left.analysis_id === right.analysis_id) return 'same_result'
     if (left.task_type !== right.task_type) return 'different_task'
+    if (left.task_type === 'detection'
+        && getDetectionSuccessPresentation(left.summary).criterion
+            !== getDetectionSuccessPresentation(right.summary).criterion) {
+        return 'different_metrics_schema_version'
+    }
     if (left.dataset_id !== right.dataset_id) return 'different_dataset'
     if (left.dataset_revision !== right.dataset_revision) return 'different_dataset_revision'
     if (left.image_id !== right.image_id) return 'different_image'

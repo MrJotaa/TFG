@@ -27,7 +27,7 @@ import {
     getDetectionEigenCamKey,
     isDetectionEigenCamResponse,
 } from '../utils/detectionEvaluationEigenCamState'
-import { DETECTION_METRIC_GUIDES } from '../utils/evaluationMetricGuides'
+import { getDetectionMetricGuide } from '../utils/evaluationMetricGuides'
 import {
     attackParametersKey,
     isAttackSupportedForTask,
@@ -430,7 +430,7 @@ function DetectionEvaluationPanel({
                     <EvaluationTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
                     <EvaluationMetricGuide
                         key={activeTab}
-                        guide={DETECTION_METRIC_GUIDES[activeTab]}
+                        guide={getDetectionMetricGuide(activeTab, evaluation)}
                         variant="detection"
                     />
 

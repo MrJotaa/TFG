@@ -25,6 +25,8 @@ from services.detection_model_execution import (
 )
 from services.model_service import get_active_model_instance
 from utils.detection_metrics import (
+    CURRENT_DETECTION_METRICS_SCHEMA_VERSION,
+    MATCHED_DETECTION_SUCCESS,
     calculate_detection_comparison,
 )
 from utils.result_files import (
@@ -238,6 +240,8 @@ async def apply_detection_attack(
         )
 
     response = DetectionAttackResponse(
+        metrics_schema_version=CURRENT_DETECTION_METRICS_SCHEMA_VERSION,
+        attack_success_criterion=MATCHED_DETECTION_SUCCESS,
         result_id=result_id,
         attack_type=request.attack_type,
         parameters=request.parameters,
@@ -253,6 +257,8 @@ async def apply_detection_attack(
         adversarial_explanation_image_url=adversarial_explanation_image_url,
     )
 
+    metadata["metrics_schema_version"] = response.metrics_schema_version
+    metadata["attack_success_criterion"] = response.attack_success_criterion
     if response.execution_trace is not None:
         metadata["execution_trace"] = response.execution_trace.model_dump(mode="json")
 
@@ -263,7 +269,7 @@ async def apply_detection_attack(
             "attack_type": request.attack_type.value,
             "attack_revision": getattr(attack, "revision", None),
             "parameters": request.parameters.model_dump(mode="json"),
-            "pipeline_version": "detection-individual-analysis-v1",
+            "pipeline_version": "detection-individual-analysis-v2-matched-success",
         }
     )
     save_result_metadata(

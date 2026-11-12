@@ -27,10 +27,10 @@ class DetectionEvaluationImageResult(BaseModel):
     """
     Métricas por imagen con deltas ``original - adversarial``.
 
-    ``attack_success`` es una clasificación legacy basada en reducción de
-    conteo o confianza, no una evaluación por objetos contra ground truth.
-    En ataques de localización puede ser falso aunque disminuya AP/IoU;
-    consultar ``supervised`` cuando existan anotaciones verificadas.
+    ``attack_success`` en métricas v1.1 indica pérdida de correspondencia
+    de detecciones originales (misma clase, IoU >= 0.5). No mide exactitud
+    frente a ground truth; consultar ``supervised`` si hay anotaciones.
+    Los resultados históricos v1.0 conservan su criterio original.
     """
 
     image_id: str
@@ -61,8 +61,9 @@ class DetectionEvaluationSummary(BaseModel):
     """
     Resumen básico con deltas ``original - adversarial``.
 
-    ``attack_success_rate`` agrega la clasificación legacy de cada imagen.
-    No sustituye al delta de AP ni al análisis de objetos supervisado.
+    ``attack_success_rate`` promedia el criterio indicado por
+    ``attack_success_criterion`` sobre TODAS las imágenes de la evaluación;
+    no es una tasa condicionada a imágenes atacables ni sustituye AP/COCO.
     """
 
     total_images: int

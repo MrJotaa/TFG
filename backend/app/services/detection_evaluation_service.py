@@ -73,6 +73,8 @@ from utils.detection_evaluation_artifacts import (
     save_detection_evaluation_adversarial_image,
 )
 from utils.detection_metrics import (
+    CURRENT_DETECTION_METRICS_SCHEMA_VERSION,
+    MATCHED_DETECTION_SUCCESS,
     average,
     calculate_detection_comparison,
 )
@@ -518,6 +520,8 @@ async def _evaluate_detection_dataset(
     )
 
     response = DetectionEvaluationResponse(
+        metrics_schema_version=CURRENT_DETECTION_METRICS_SCHEMA_VERSION,
+        attack_success_criterion=MATCHED_DETECTION_SUCCESS,
         result_id=result_id,
         model_id=model.id,
         model_name=model.name,

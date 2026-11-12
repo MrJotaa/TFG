@@ -16,6 +16,7 @@ SquareExecutionStatus = Literal[
     "skipped_no_references",
     "skipped_zero_epsilon",
     "skipped_insufficient_budget",
+    "skipped_unsupported_geometry",
 ]
 
 

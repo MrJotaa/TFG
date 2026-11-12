@@ -49,7 +49,7 @@ _EVALUATION_WRONG_OWNER = "La evaluación pertenece a otro usuario"
 
 EVALUATION_STORAGE_SCHEMA_VERSION = 2
 CLASSIFICATION_PIPELINE_VERSION = "classification-evaluation-v2"
-DETECTION_PIPELINE_VERSION = "detection-evaluation-v3-yolo26-end2end-tide1"
+DETECTION_PIPELINE_VERSION = "detection-evaluation-v4-yolo26-end2end-tide1-matched-success-iou50"
 CLASSIFICATION_ARTIFACT_FILENAME = "evaluation.json"
 DETECTION_ARTIFACT_FILENAME = "evaluation.json"
 DETECTION_EVALUATIONS_BASE_PATH = Path(
@@ -225,6 +225,7 @@ async def complete_evaluation_execution(
                     supervised.get("reason") if supervised is not None else None
                 ),
                 "delta_convention": response_payload.get("delta_convention"),
+                "attack_success_criterion": response_payload.get("attack_success_criterion"),
             }
         )
 
@@ -680,6 +681,8 @@ def _history_item(document: dict) -> EvaluationHistoryItem:
             parameters=document.get("parameters", {}),
             supervised_configuration=document.get("supervised_configuration"),
             summary=document.get("summary"),
+            metrics_schema_version=document.get("metrics_schema_version"),
+            attack_success_criterion=document.get("attack_success_criterion"),
             created_at=created_at,
             completed_at=(
                 _utc_datetime(document.get("completed_at"), "completed_at")

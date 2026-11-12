@@ -8,6 +8,7 @@ from schemas.models import (
 from services.classification_label_service import (
     get_active_model_class_catalog,
 )
+from services.detection_model_execution import run_detection_model_operation
 from services.model_service import (
     get_active_model,
     list_models,
@@ -38,4 +39,6 @@ async def get_active_model_classes() -> ModelClassCatalog:
     "/models/{model_id}/select",
 )
 async def select_current_model(model_id: str) -> ModelInfo:
-    return select_model(model_id)
+    # Cambio de modelo y ejecución del detector comparten la misma exclusión.
+    # Evita descargar un detector mientras otra petición lo está utilizando.
+    return await run_detection_model_operation(select_model, model_id)

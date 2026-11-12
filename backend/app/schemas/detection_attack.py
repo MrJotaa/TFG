@@ -17,10 +17,10 @@ class DetectionAttackComparison(BaseModel):
     """
     Comparación básica con deltas ``original - adversarial``.
 
-    ``attack_success`` conserva la definición legacy: es verdadero cuando
-    disminuye el número de detecciones o la confianza media adversaria.
-    No mide desplazamientos de cajas: debe interpretarse con precaución para
-    PGD de localización.
+    Desde metrics_schema_version 1.1, ``attack_success`` es verdadero si
+    desaparece al menos una correspondencia uno a uno de la misma clase con
+    IoU >= 0.5, no por una variación aislada de confianza. Los artefactos
+    antiguos conservan el significado indicado en attack_success_criterion.
     """
 
     original_detection_count: int
