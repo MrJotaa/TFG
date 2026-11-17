@@ -159,6 +159,12 @@ docker compose ps
 
 MongoDB y el backend deberían aparecer como servicios saludables.
 
+## Manual de usuario
+
+El [manual de usuario](docs/Manual_de_uso_TFG.md) describe la instalación y
+el uso de la plataforma: acceso, gestión de datasets, análisis de imágenes,
+evaluaciones, comparaciones e historial.
+
 ## Configuración
 
 El backend carga su configuración desde:
