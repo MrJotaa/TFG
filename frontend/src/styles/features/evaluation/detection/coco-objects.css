@@ -710,3 +710,224 @@
     font-size: 0.76rem;
     line-height: 1.6;
 }
+
+/* Image inspection from the COCO object aggregates. */
+.detection-object-image-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--primary);
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.detection-object-image-link:hover,
+.detection-object-image-link:focus-visible {
+    color: var(--text);
+}
+
+.detection-object-image-backdrop {
+    z-index: 1600;
+}
+
+.detection-object-image-dialog {
+    width: min(1200px, calc(100vw - 2rem));
+    max-width: 1200px;
+    max-height: min(92vh, 920px);
+    color: var(--text);
+}
+
+.detection-object-image-dialog > header small {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--muted);
+    font-size: 0.74rem;
+}
+
+.detection-object-image-close {
+    padding: 0.5rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-soft);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.detection-object-image-content {
+    padding: 1rem 1.25rem 1.5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.detection-object-image-explanation {
+    margin: 0 0 0.85rem;
+    color: var(--muted-strong);
+    font-size: 0.81rem;
+    line-height: 1.5;
+}
+
+.detection-object-image-counts {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin: 0 0 1rem;
+}
+
+.detection-object-image-counts > div {
+    min-width: 0;
+    padding: 0.7rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: var(--surface-soft);
+}
+
+.detection-object-image-counts dt {
+    color: var(--muted-strong);
+    font-size: 0.73rem;
+}
+
+.detection-object-image-counts dd {
+    margin: 0.25rem 0 0;
+    font-size: 1.2rem;
+    font-weight: 750;
+}
+
+.detection-object-image-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    margin: 0 0 0.85rem;
+    color: var(--text-soft);
+    font-size: 0.76rem;
+}
+
+.detection-object-image-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.detection-object-image-legend span::before {
+    content: '';
+    width: 14px;
+    height: 10px;
+    border: 2px solid #38bdf8;
+}
+
+.detection-object-image-legend .reference::before {
+    border-color: #fbbf24;
+    border-style: dashed;
+}
+
+.detection-object-image-legend .adversarial::before {
+    border-color: #fb7185;
+}
+
+.detection-object-image-grid .detection-preview-frame {
+    min-height: 0;
+}
+
+/* Keep the reference distinguishable in both the inline preview and zoom viewer. */
+.detection-object-image-grid .detection-preview .detection-overlay-box.tone-reference,
+.detection-image-lightbox-canvas .detection-box-overlay .detection-overlay-box.tone-reference {
+    stroke: #fbbf24;
+    stroke-dasharray: 8 5;
+}
+
+.detection-object-image-grid .detection-preview .detection-overlay-label-bg.tone-reference,
+.detection-image-lightbox-canvas .detection-box-overlay .detection-overlay-label-bg.tone-reference {
+    fill: #92400e;
+}
+
+@media (max-width: 800px) {
+    .detection-object-image-counts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .detection-object-image-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* Object-specific inspection reuses the same image modal without flooding it
+   with labels for every COCO reference. */
+.detection-objects-table .detection-object-image-link {
+    max-width: 20rem;
+    overflow-wrap: anywhere;
+}
+
+.detection-object-image-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.detection-object-inspection-summary {
+    margin-bottom: 0.95rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: var(--surface-soft);
+}
+
+.detection-object-inspection-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.detection-object-inspection-heading strong {
+    color: var(--text);
+}
+
+.detection-object-inspection-heading span,
+.detection-object-inspection-summary p,
+.detection-object-inspection-observations dt {
+    color: var(--muted-strong);
+}
+
+.detection-object-inspection-summary p {
+    margin: 0.5rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.detection-object-inspection-observations {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin: 0.8rem 0 0;
+}
+
+.detection-object-inspection-observations > div {
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 0.55rem 0.65rem;
+}
+
+.detection-object-inspection-observations dt {
+    margin-bottom: 0.2rem;
+    font-size: 0.72rem;
+}
+
+.detection-object-inspection-observations dd {
+    margin: 0;
+    font-size: 0.81rem;
+    font-weight: 600;
+}
+
+.detection-object-inspection-summary .detection-object-inspection-note {
+    font-size: 0.76rem;
+}
+
+@media (max-width: 680px) {
+    .detection-object-inspection-observations {
+        grid-template-columns: 1fr;
+    }
+}
