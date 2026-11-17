@@ -51,7 +51,7 @@ function formatSupervisedProtocol(configuration) {
 function comparisonGuideSummary(comparisonKind) {
     if (comparisonKind === 'model') return 'Compara el rendimiento robusto y su retención frente a la referencia de cada modelo. Un valor absoluto mayor y una menor pérdida responden a preguntas complementarias.'
     if (comparisonKind === 'attack') return 'Compara cuánto rendimiento conserva el mismo modelo frente a cada ataque. Las diferencias describen el impacto observado, pero no convierten automáticamente un ataque en «mejor» o «peor» porque sus intensidades pueden no ser equivalentes.'
-    return 'Compara cómo cambia el impacto del mismo ataque al modificar su configuración. La referencia original permanece como ancla para interpretar la degradación.'
+    return 'Compara cómo cambia el impacto del mismo ataque al modificar su configuración. La referencia original sirve para interpretar la degradación.'
 }
 
 function SummaryComparisonGuide({ taskType, comparisonKind }) {
@@ -66,7 +66,7 @@ function SummaryComparisonGuide({ taskType, comparisonKind }) {
             <div className="evaluation-comparison-guide-body">
                 <p>{summary}</p>
                 <div className="evaluation-comparison-guide-grid">
-                    <div><strong>A y B son identidades</strong><span>Ámbar y cian solo distinguen evaluaciones; no significan mejor o peor.</span></div>
+                    <div><strong>Identificación de las evaluaciones</strong><span>Ámbar y cian solo distinguen evaluaciones; no significan mejor o peor.</span></div>
                     <div><strong>{taskType === 'detection' ? 'Retención de mAP' : 'Retención de exactitud'}</strong><span>Relaciona el resultado robusto con el rendimiento original de la misma evaluación y evita confundir un buen punto de partida con mayor resistencia.</span></div>
                 </div>
                 <p className="evaluation-comparison-guide-note"><strong>Clave de interpretación:</strong> no se declara un ganador global. Cada métrica responde a una pregunta distinta.</p>
@@ -360,7 +360,7 @@ function EvaluationComparisonView() {
 
                         {insights.length > 0 && (
                             <section className="evaluation-comparison-insights" aria-label="Observaciones destacadas">
-                                <div><span className="evaluation-eyebrow">Lectura rápida</span><h3>Qué merece la pena investigar</h3><p>Observaciones descriptivas calculadas directamente de A y B; no constituyen un ganador global.</p></div>
+                                <div><span className="evaluation-eyebrow">Resumen interpretativo</span><h3>Observaciones destacadas</h3><p>Observaciones descriptivas calculadas a partir de las métricas de A y B. No establecen una superioridad global.</p></div>
                                 <div>{insights.map((insight) => <article key={insight.key} className={`side-${insight.side}`}><span aria-hidden="true">{insight.side.toUpperCase()}</span><p>{insight.text}</p></article>)}</div>
                             </section>
                         )}
