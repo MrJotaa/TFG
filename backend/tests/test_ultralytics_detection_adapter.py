@@ -174,7 +174,6 @@ def test_ultralytics_adapter_clips_partially_outside_box():
 @pytest.mark.parametrize(
     "row",
     [
-        [650.0, 10.0, 660.0, 20.0, 0.5, 0.0],
         [20.0, 10.0, 10.0, 30.0, 0.5, 0.0],
         [10.0, 10.0, 20.0, 30.0, float("nan"), 0.0],
         [10.0, 10.0, 20.0, 30.0, 0.5, 0.25],
@@ -187,6 +186,60 @@ def test_ultralytics_adapter_rejects_invalid_native_detection(row):
     with pytest.raises(DetectionAdapterError):
         _prepared_receiver.adapt(
             _prepared_arg_1,
+            source_width=640,
+            source_height=320,
+        )
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        [10.0, 20.0, 10.0, 30.0, 0.5, 0.0],
+        [10.0, 20.0, 20.0, 20.0, 0.5, 0.0],
+        [650.0, 10.0, 660.0, 20.0, 0.5, 0.0],
+        [-20.0, 10.0, -10.0, 20.0, 0.5, 0.0],
+        [10.0, 330.0, 20.0, 340.0, 0.5, 0.0],
+    ],
+)
+def test_ultralytics_adapter_skips_boxes_without_positive_clipped_area(row):
+    result = UltralyticsDetectionAdapter().adapt(
+        _native_result([row]),
+        source_width=640,
+        source_height=320,
+    )
+
+    assert result.detections == ()
+
+
+def test_ultralytics_adapter_skips_degenerate_box_without_losing_valid_ones():
+    rows = [[10.0, 20.0, 30.0, 40.0, 0.8, 0.0]] * 275
+    rows.append([10.0, 20.0, 10.0, 40.0, 0.5, 0.0])
+    rows.append([30.0, 40.0, 50.0, 60.0, 0.7, 2.0])
+
+    result = UltralyticsDetectionAdapter().adapt(
+        _native_result(rows),
+        source_width=640,
+        source_height=320,
+    )
+
+    assert len(result.detections) == 276
+    assert result.detections[0].class_name == "person"
+    assert result.detections[-1].class_name == "car"
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        [10.0, 20.0, 10.0, 40.0, 1.1, 0.0],
+        [10.0, 20.0, 10.0, 40.0, 0.5, -1.0],
+        [10.0, 20.0, 10.0, 40.0, 0.5, 0.5],
+        [10.0, 20.0, 10.0, 40.0, float("inf"), 0.0],
+    ],
+)
+def test_ultralytics_adapter_does_not_hide_invalid_fields_on_degenerate_boxes(row):
+    with pytest.raises(DetectionAdapterError):
+        UltralyticsDetectionAdapter().adapt(
+            _native_result([row]),
             source_width=640,
             source_height=320,
         )

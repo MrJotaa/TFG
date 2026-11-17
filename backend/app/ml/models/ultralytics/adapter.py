@@ -81,14 +81,18 @@ class UltralyticsDetectionAdapter:
         rows = native_rows.detach().to(device="cpu").tolist()
 
         detections = tuple(
-            self._adapt_row(
-                row,
-                row_index=row_index,
-                names=native_result.names,
-                source_width=source_width,
-                source_height=source_height,
-            )
+            detection
             for row_index, row in enumerate(rows)
+            if (
+                detection := self._adapt_row(
+                    row,
+                    row_index=row_index,
+                    names=native_result.names,
+                    source_width=source_width,
+                    source_height=source_height,
+                )
+            )
+            is not None
         )
 
         return DetectionResult(
@@ -105,7 +109,7 @@ class UltralyticsDetectionAdapter:
         names: Mapping[int, str] | Sequence[str] | None,
         source_width: int,
         source_height: int,
-    ) -> Detection:
+    ) -> Detection | None:
         if len(row) != 6:
             raise DetectionAdapterError(
                 f"native detection {row_index} must contain six values"
@@ -116,9 +120,9 @@ class UltralyticsDetectionAdapter:
             raise DetectionAdapterError(
                 f"native detection {row_index} contains a non-finite value"
             )
-        if x_min >= x_max or y_min >= y_max:
+        if x_min > x_max or y_min > y_max:
             raise DetectionAdapterError(
-                f"native detection {row_index} has an inverted or degenerate box"
+                f"native detection {row_index} has an inverted box"
             )
         if not native_class_id.is_integer():
             raise DetectionAdapterError(
@@ -131,15 +135,29 @@ class UltralyticsDetectionAdapter:
             if class_id < 0:
                 raise DetectionContractError("class_id must not be negative")
 
+            class_name = _resolve_class_name(names, class_id)
+            if not 0.0 <= confidence <= 1.0:
+                raise DetectionContractError("confidence must be between 0 and 1")
+
+            clipped_x_min = max(0.0, min(float(source_width), x_min))
+            clipped_y_min = max(0.0, min(float(source_height), y_min))
+            clipped_x_max = max(0.0, min(float(source_width), x_max))
+            clipped_y_max = max(0.0, min(float(source_height), y_max))
+
+            # Ultralytics puede devolver cajas sin superficie al reproyectar
+            # o recortar las detecciones. No representan objetos evaluables.
+            if clipped_x_min >= clipped_x_max or clipped_y_min >= clipped_y_max:
+                return None
+
             return Detection(
                 class_id=class_id,
-                class_name=_resolve_class_name(names, class_id),
+                class_name=class_name,
                 confidence=confidence,
                 box=DetectionBox(
-                    x_min=max(0.0, min(float(source_width), x_min)),
-                    y_min=max(0.0, min(float(source_height), y_min)),
-                    x_max=max(0.0, min(float(source_width), x_max)),
-                    y_max=max(0.0, min(float(source_height), y_max)),
+                    x_min=clipped_x_min,
+                    y_min=clipped_y_min,
+                    x_max=clipped_x_max,
+                    y_max=clipped_y_max,
                 ),
             )
         except DetectionContractError as error:

@@ -497,9 +497,9 @@ function ClassificationCurveComparison({ leftEvaluation, rightEvaluation, sameMo
                 items={[
                     { title: curveType === 'roc' ? 'ROC' : 'Precision–Recall', text: curveType === 'roc' ? 'Una curva más próxima a la esquina superior izquierda discrimina mejor entre clases.' : 'Una curva más alta conserva más precisión para el mismo nivel de recall.' },
                     { title: sameModel ? 'Referencia común' : 'Dos referencias', text: sameModel ? 'Como el modelo y dataset son los mismos, se dibuja una sola referencia original.' : 'Al comparar modelos distintos cada evaluación conserva su propia referencia original.' },
-                    { title: 'Inspección comparable', text: 'El tooltip usa la misma posición del eje X para estimar A y B. Las curvas conservan sus puntos reales y no se suavizan.' },
+                    { title: 'Inspección comparable', text: 'La información emergente del gráfico utiliza la misma posición del eje X para estimar los valores de A y B. Las curvas conservan sus puntos reales y no se suavizan.' },
                 ]}
-                note={curveType === 'precision_recall' ? 'Las irregularidades de la curva reflejan los puntos empíricos almacenados; no se alisan para mejorar artificialmente su aspecto.' : undefined}
+                note={curveType === 'precision_recall' ? 'Las irregularidades de la curva reflejan los puntos empíricos almacenados; no se suavizan artificialmente.' : undefined}
             />
             <ComparisonCurveChart series={series} xLabel={curveType === 'roc' ? 'Falsos positivos' : 'Recall'} yLabel={curveType === 'roc' ? 'Verdaderos positivos' : 'Precisión'} scoreLabel={curveType === 'roc' ? 'AUC' : 'AP'} />
         </section>
@@ -668,7 +668,7 @@ function DetectionTideComparison({ leftEvaluation, rightEvaluation }) {
     const chartData = rows.map((row) => ({ label: row.shortLabel, a: row.leftImpact, b: row.rightImpact }))
     return (
         <section className="evaluation-comparison-detail-section">
-            <ComparisonSectionHeading eyebrow="Diagnóstico TIDE" title="Qué tipo de error pesa más en A y B" description="La gráfica ofrece la lectura inmediata y la tabla conserva el valor exacto y la frecuencia de cada tipo de error." />
+            <ComparisonSectionHeading eyebrow="Diagnóstico TIDE" title="Errores con mayor impacto en A y B" description="La gráfica ofrece la lectura inmediata y la tabla conserva el valor exacto y la frecuencia de cada tipo de error." />
             <ComparisonGuide intro="dAP mide cuánto AP50 se recuperaría corrigiendo hipotéticamente un tipo de error. Una barra más larga indica mayor impacto, no necesariamente más casos." items={[{ title: 'Impacto (dAP)', text: 'Cuantifica cuánto perjudica el error al AP50.' }, { title: 'Frecuencia', text: 'Cuenta cuántas veces aparece el error; frecuencia e impacto no son equivalentes.' }]} />
             <div className="evaluation-comparison-chart tide" role="img" aria-label="Comparación TIDE A y B">
                 <ResponsiveContainer width="100%" height="100%">
@@ -751,7 +751,7 @@ function DetectionObjectCases({ leftEvaluation, rightEvaluation }) {
                 intro="Empieza por los objetos donde A y B discrepan. Cada caso conserva la caja de referencia y superpone la detección asociada cuando existe."
                 items={[
                     { title: 'Solo A / solo B preserva', text: 'Aísla objetos que sobreviven al ataque únicamente en una de las evaluaciones.' },
-                    { title: 'Referencia', text: 'La caja de referencia procede de la anotación del dataset y sirve de ancla para interpretar IoU y desapariciones.' },
+                    { title: 'Referencia', text: 'La caja de referencia procede de la anotación del dataset y permite interpretar el IoU y las desapariciones.' },
                 ]}
                 note="Los IDs y coordenadas siguen disponibles en los datos almacenados, pero la vista prioriza la evidencia visual porque es más interpretable."
             />
@@ -1076,7 +1076,7 @@ function ComparisonImages({ taskType, leftItem, rightItem, leftEvaluation, right
         <section className="evaluation-comparison-detail-section">
             <ComparisonSectionHeading eyebrow="Casos concretos" title="La misma imagen bajo A y B" description="Filtra casos divergentes y abre perturbaciones o explicabilidad solo cuando necesites profundizar." />
             <ComparisonGuide
-                intro="Las miniaturas permiten detectar diferencias de un vistazo. Amplía cualquier vista para inspeccionar detalle sin perder bounding boxes ni etiquetas."
+                intro="Las miniaturas permiten detectar diferencias de un vistazo. Amplía cualquier vista para inspeccionar los detalles sin perder las cajas de detección ni las etiquetas."
                 items={[
                     { title: 'Filtros comparativos', text: taskType === 'detection' ? 'Priorizan imágenes donde A y B publican distinto número de detecciones.' : 'Priorizan casos donde una evaluación conserva la clase correcta y la otra no.' },
                     sameModel

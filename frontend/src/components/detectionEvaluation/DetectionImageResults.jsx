@@ -76,16 +76,23 @@ function DetectionBoxesOverlay({ detections, dimensions }) {
         Math.min(dimensions.width, dimensions.height) * 0.005,
     )
 
+    const overlayDescription = detections.some((item) => item.tone === 'reference')
+        ? `${detections.length} cajas superpuestas`
+        : `${detections.length} detecciones`
+
     return (
         <svg
             className="detection-box-overlay"
             viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
-            aria-label={`${detections.length} detecciones`}
-            >
-            <title>{`${detections.length} detecciones`}</title>
+            aria-label={overlayDescription}
+        >
+            <title>{overlayDescription}</title>
             {detections.map((detection, index) => {
                 const { x1, y1, x2, y2 } = detection.bbox
-                const label = `${detection.label} ${formatDecimal(detection.confidence, 2)}`
+                const label = detection.confidence == null
+                    ? detection.label
+                    : `${detection.label} ${formatDecimal(detection.confidence, 2)}`
+                const showLabel = detection.showLabel !== false
                 const labelWidth = Math.min(
                     x2 - x1,
                     Math.max(fontSize * 4, label.length * fontSize * 0.58),
@@ -94,29 +101,34 @@ function DetectionBoxesOverlay({ detections, dimensions }) {
 
                 return (
                     <g key={`${detection.label}-${index}`}>
+                        {detection.tone === 'reference' && <title>{`Referencia COCO: ${detection.label}`}</title>}
                         <rect
-                            className="detection-overlay-box"
+                            className={`detection-overlay-box${detection.tone === 'reference' ? ' tone-reference' : ''}`}
                             x={x1}
                             y={y1}
                             width={x2 - x1}
                             height={y2 - y1}
                             strokeWidth={strokeWidth}
                         />
-                        <rect
-                            className="detection-overlay-label-bg"
-                            x={x1}
-                            y={labelY}
-                            width={labelWidth}
-                            height={fontSize * 1.4}
-                        />
-                        <text
-                            className="detection-overlay-label"
-                            x={x1 + fontSize * 0.25}
-                            y={labelY + fontSize}
-                            fontSize={fontSize}
-                        >
-                            {label}
-                        </text>
+                        {showLabel && (
+                            <>
+                                <rect
+                                    className={`detection-overlay-label-bg${detection.tone === 'reference' ? ' tone-reference' : ''}`}
+                                    x={x1}
+                                    y={labelY}
+                                    width={labelWidth}
+                                    height={fontSize * 1.4}
+                                />
+                                <text
+                                    className="detection-overlay-label"
+                                    x={x1 + fontSize * 0.25}
+                                    y={labelY + fontSize}
+                                    fontSize={fontSize}
+                                >
+                                    {label}
+                                </text>
+                            </>
+                        )}
                     </g>
                 )
             })}
@@ -124,7 +136,7 @@ function DetectionBoxesOverlay({ detections, dimensions }) {
     )
 }
 
-function DetectionOverlayImage({ imagePath, result, variant, onExpand }) {
+export function DetectionOverlayImage({ imagePath, result, variant, onExpand }) {
     const [dimensions, setDimensions] = useState(null)
     const [failed, setFailed] = useState(false)
     const isOriginal = variant === 'original'
@@ -219,7 +231,7 @@ function EigenCamPreview({ label, path, filename, variant, onExpand }) {
     )
 }
 
-function DetectionImageLightbox({ preview, onClose }) {
+export function DetectionImageLightbox({ preview, onClose }) {
     const [zoom, setZoom] = useState(1)
     const [pan, setPan] = useState({ x: 0, y: 0 })
     const [isDragging, setIsDragging] = useState(false)

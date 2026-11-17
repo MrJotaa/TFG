@@ -162,3 +162,68 @@ export function getDetectionImageAggregateView(
         ),
     }
 }
+
+// The object-level view and the image result list use the same evaluation
+// snapshot. Match by ID, not by list index: order can differ after filtering.
+function isRenderableBox(box) {
+    if (!box) return false
+    const { x1, y1, x2, y2 } = box
+    return [x1, y1, x2, y2].every((value) => typeof value === 'number' && Number.isFinite(value))
+        && x2 > x1 && y2 > y1
+}
+
+export function getDetectionObjectImagePreview(evaluation, imageId, objectId = null) {
+    const key = String(imageId)
+    const result = (evaluation?.results ?? []).find((item) => String(item.image_id) === key)
+    const objects = (evaluation?.supervised?.object_analysis?.objects ?? [])
+        .filter((item) => String(item.image_id) === key)
+    const aggregate = (evaluation?.supervised?.object_analysis?.by_image ?? [])
+        .find((item) => String(item.image_id) === key)
+    // A selected object belongs to this image: never look it up globally by ID
+    // or silently fall back to an unrelated object when a record is missing.
+    const selectedObject = objectId == null
+        ? null
+        : objects.find((item) => String(item.object_id) === String(objectId)) ?? null
+
+    function buildOverlay(phase) {
+        const detections = []
+        for (const object of selectedObject ? [selectedObject] : objectId == null ? objects : []) {
+            const category = object.category?.category_name ?? 'Objeto'
+            if (isRenderableBox(object.ground_truth_box)) {
+                detections.push({
+                    bbox: object.ground_truth_box,
+                    label: category,
+                    // Show only the class name: reference styling and the legend
+                    // distinguish this annotation from model detections.
+                    tone: 'reference',
+                })
+            }
+            const observation = phase === 'original'
+                ? object.original_observation
+                : object.adversarial_observation
+            if (isRenderableBox(observation?.detection_box)) {
+                detections.push({
+                    bbox: observation.detection_box,
+                    label: category,
+                    confidence: observation.confidence,
+                    tone: phase,
+                })
+            }
+        }
+        return detections
+    }
+
+    return {
+        imageId: key,
+        filename: result?.filename ?? null,
+        originalImagePath: evaluation?.dataset_id != null
+            ? `/datasets/${encodeURIComponent(String(evaluation.dataset_id))}/images/${encodeURIComponent(key)}`
+            : null,
+        adversarialImagePath: result?.adversarial_image_url || null,
+        aggregate: aggregate ?? null,
+        objects,
+        selectedObject,
+        originalDetections: buildOverlay('original'),
+        adversarialDetections: buildOverlay('adversarial'),
+    }
+}

@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from 'react'
+import DetectionObjectImagePreview from './DetectionObjectImagePreview'
 import { formatDecimal, formatInteger, formatRatio } from '../../utils/metricFormatting'
 import {
     formatBoundingBox,
@@ -10,6 +11,7 @@ import {
     DETECTION_OBJECT_PAGE_SIZES,
     filterAndSortDetectionObjects,
     getDetectionImageAggregateView,
+    getDetectionObjectImagePreview,
     getDetectionObjectFilterOptions,
     paginateDetectionObjects,
 } from '../../utils/detectionObjectExplorer'
@@ -49,7 +51,7 @@ function ObjectObservation({ observation }) {
     )
 }
 
-function ObjectAggregateTable({ rows, dimension }) {
+function ObjectAggregateTable({ rows, dimension, onSelectImage }) {
     return (
         <div className="evaluation-table-wrapper">
             <table className="evaluation-table detection-object-aggregate-table">
@@ -70,7 +72,19 @@ function ObjectAggregateTable({ rows, dimension }) {
                 <tbody>
                     {rows.map((row) => (
                         <tr key={row.key}>
-                            <th scope="row">{row.label}</th>
+                            <th scope="row">
+                                {onSelectImage ? (
+                                    <button
+                                        type="button"
+                                        className="detection-object-image-link"
+                                        onClick={() => onSelectImage(row.image_id)}
+                                        aria-label={`Inspeccionar imagen ${row.image_id}`}
+                                        title="Ver imagen original y tras el ataque"
+                                    >
+                                        {row.label}
+                                    </button>
+                                ) : row.label}
+                            </th>
                             <td>{formatInteger(row.total_objects)}</td>
                             <td>{formatInteger(row.preserved_count)}</td>
                             <td className="tone-danger">{formatInteger(row.suppressed_count)}</td>
@@ -97,6 +111,7 @@ function DetectionObjectAnalysis({ evaluation }) {
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(DETECTION_OBJECT_PAGE_SIZES[0])
     const [expandedObjectId, setExpandedObjectId] = useState(null)
+    const [previewSelection, setPreviewSelection] = useState(null)
     const [visibleImageRows, setVisibleImageRows] = useState(
         DETECTION_IMAGE_AGGREGATE_BATCH_SIZE,
     )
@@ -155,6 +170,13 @@ function DetectionObjectAnalysis({ evaluation }) {
         imageRows,
         visibleImageRows,
     )
+    const imagePreview = previewSelection === null
+        ? null
+        : getDetectionObjectImagePreview(
+            evaluation,
+            previewSelection.imageId,
+            previewSelection.objectId,
+        )
 
     return (
         <div className="evaluation-tab-content">
@@ -204,6 +226,7 @@ function DetectionObjectAnalysis({ evaluation }) {
                         <ObjectAggregateTable
                             rows={imageAggregateView.items}
                             dimension="ID de imagen"
+                            onSelectImage={(imageId) => setPreviewSelection({ imageId, objectId: null })}
                         />
                         {imageAggregateView.totalCount > DETECTION_IMAGE_AGGREGATE_BATCH_SIZE && (
                             <div className="detection-image-aggregate-actions">
@@ -309,8 +332,31 @@ function DetectionObjectAnalysis({ evaluation }) {
                                                 return (
                                                     <Fragment key={object.object_id}>
                                                         <tr>
-                                                            <td title={object.object_id}>{object.object_id}</td>
-                                                            <td title={object.image_id}>{object.image_id}</td>
+                                                            <td title={object.object_id}>
+                                                                <button
+                                                                    type="button"
+                                                                    className="detection-object-image-link"
+                                                                    aria-label={`Inspeccionar objeto ${object.object_id}`}
+                                                                    title="Ver el objeto de referencia y sus detecciones emparejadas"
+                                                                    onClick={() => setPreviewSelection({
+                                                                        imageId: object.image_id,
+                                                                        objectId: object.object_id,
+                                                                    })}
+                                                                >
+                                                                    {object.object_id}
+                                                                </button>
+                                                            </td>
+                                                            <td title={object.image_id}>
+                                                                <button
+                                                                    type="button"
+                                                                    className="detection-object-image-link"
+                                                                    aria-label={`Inspeccionar imagen ${object.image_id}`}
+                                                                    title="Ver los objetos evaluados de esta imagen"
+                                                                    onClick={() => setPreviewSelection({ imageId: object.image_id, objectId: null })}
+                                                                >
+                                                                    {object.image_id}
+                                                                </button>
+                                                            </td>
                                                             <td>{object.category.category_name}</td>
                                                             <td><span className={`detection-outcome-badge outcome-${object.outcome}`}>{OUTCOME_LABELS[object.outcome]}</span></td>
                                                             <td><ObjectObservation observation={object.original_observation} /></td>
@@ -370,6 +416,14 @@ function DetectionObjectAnalysis({ evaluation }) {
                     <strong>Respuesta compacta.</strong>
                     <span>Los agregados globales, por clase y por tamaño están completos. Activa “Incluir detalle por objeto” antes de una nueva ejecución para materializar las tablas por imagen y objeto.</span>
                 </div>
+            )}
+            {imagePreview && (
+                <DetectionObjectImagePreview
+                    key={`${imagePreview.imageId}:${imagePreview.selectedObject?.object_id ?? 'image'}`}
+                    image={imagePreview}
+                    onShowImage={() => setPreviewSelection({ imageId: imagePreview.imageId, objectId: null })}
+                    onClose={() => setPreviewSelection(null)}
+                />
             )}
         </div>
     )
