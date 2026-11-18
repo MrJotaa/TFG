@@ -1,0 +1,35 @@
+import { getAttackDefinition } from './attackCatalog.js'
+
+export function getAttackName(attackId, attackCatalog = []) {
+    return getAttackDefinition(attackCatalog, attackId)?.name || attackId
+}
+
+export function formatAttackParameters(
+    selectedAttack,
+    attackParameters,
+    attackCatalog = [],
+) {
+    const attack = getAttackDefinition(attackCatalog, selectedAttack)
+
+    if (!attack) {
+        const entries = Object.entries(attackParameters ?? {})
+        if (entries.length === 0) return 'Sin parámetros'
+        entries.sort(([left], [right]) => left.localeCompare(right))
+        return entries.map(([key, value]) => `${key}=${value}`).join(' · ')
+    }
+
+    if (attack.parameters.length === 0) return 'Sin parámetros'
+
+    return attack.parameters
+        .map((parameter) => {
+            const value = Object.hasOwn(attackParameters ?? {}, parameter.key)
+                ? attackParameters[parameter.key]
+                : parameter.default
+            const selectedChoice = parameter.choices?.find(
+                (choice) => choice.value === value,
+            )
+            const displayValue = selectedChoice?.label ?? value
+            return `${parameter.summary_label}=${displayValue}`
+        })
+        .join(' · ')
+}

@@ -1,0 +1,102 @@
+.profile-form label {
+    display: block;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+.profile-form input {
+    width: 100%;
+    margin-top: 0.35rem;
+    padding: 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.profile-dataset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.profile-dataset-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem;
+    background: var(--surface-soft);
+}
+
+.profile-dataset-item span {
+    color: var(--muted);
+}
+
+.dashboard-user-button {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dashboard-user-button:hover {
+    border-color: var(--primary);
+    background: #eff6ff;
+}
+
+.header-user-link {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 700;
+    padding: 0;
+}
+
+.header-user-link:hover {
+    color: var(--primary);
+}
+
+.success-message {
+    background: #dcfce7;
+    border: 1px solid #86efac;
+    color: #166534;
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+.danger-zone {
+    border-color: #fecaca;
+    background: #fff5f5;
+}
+
+@media (max-width: 900px) {
+    .profile-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-form-grid,
+    .profile-dataset-list.compact {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-history-heading,
+    .evaluation-reuse-notice {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .retention-control {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .evaluation-reuse-actions {
+        flex-wrap: wrap;
+    }
+
+    .profile-danger-row {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+}

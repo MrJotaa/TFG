@@ -1,0 +1,278 @@
+/* Profile / account management refresh */
+.profile-settings-page {
+    gap: 0;
+    padding: 0.2rem 0 0.5rem;
+}
+
+.profile-page-heading {
+    padding: 0.85rem 1rem 1.15rem;
+}
+
+.profile-page-heading h1,
+.profile-page-heading p {
+    margin: 0;
+}
+
+.profile-page-heading h1 {
+    margin-top: 0.18rem;
+    color: var(--text);
+    font-size: clamp(1.35rem, 2vw, 1.7rem);
+    letter-spacing: -0.025em;
+}
+
+.profile-page-heading p {
+    margin-top: 0.32rem;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.profile-eyebrow,
+.profile-danger-label {
+    color: var(--primary);
+    font-size: 0.68rem;
+    font-weight: 850;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+}
+
+.profile-overview-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.88fr);
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.profile-section {
+    min-width: 0;
+    padding: 1.2rem 1rem;
+    background: transparent;
+}
+
+.profile-overview-grid > .profile-section + .profile-section {
+    border-left: 1px solid var(--border-subtle);
+}
+
+.profile-section-heading,
+.profile-history-heading-modern {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.profile-section-heading h2,
+.profile-section-heading p,
+.profile-history-heading-modern h2,
+.profile-history-heading-modern p {
+    margin: 0;
+}
+
+.profile-section-heading h2,
+.profile-history-heading-modern h2,
+.profile-danger-section h2 {
+    color: var(--text);
+    font-size: 1.05rem;
+    letter-spacing: -0.012em;
+}
+
+.profile-section-heading p,
+.profile-history-heading-modern p {
+    margin-top: 0.28rem;
+    color: var(--muted);
+    line-height: 1.48;
+}
+
+.profile-account-form {
+    margin-top: 1rem;
+}
+
+.profile-field {
+    display: grid;
+    gap: 0.38rem;
+    min-width: 0;
+    color: var(--text-soft);
+    font-size: 0.78rem;
+    font-weight: 750;
+}
+
+.profile-field input,
+.profile-retention-control select {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        background var(--transition-fast);
+}
+
+.profile-field input {
+    padding: 0.62rem 0.72rem;
+}
+
+.profile-field input:hover:not(:disabled),
+.profile-retention-control select:hover:not(:disabled) {
+    border-color: var(--border-strong);
+}
+
+.profile-field input:focus,
+.profile-retention-control select:focus {
+    border-color: var(--primary-border);
+    box-shadow: var(--focus-ring);
+}
+
+.profile-field input:disabled,
+.profile-retention-control select:disabled {
+    opacity: 0.62;
+}
+
+.profile-password-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 0.9rem 0.1rem 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.profile-password-toggle-row > div {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.profile-password-toggle-row strong {
+    color: var(--text-soft);
+    font-size: 0.8rem;
+}
+
+.profile-password-toggle-row span,
+.profile-security-note,
+.profile-form-actions > span,
+.profile-empty-copy,
+.profile-dataset-more,
+.profile-retention-control small {
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+.profile-text-action {
+    flex: 0 0 auto;
+    padding: 0.38rem 0.5rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--primary);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.profile-text-action:hover:not(:disabled) {
+    background: var(--primary-soft);
+}
+
+.profile-password-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.profile-password-panel .auth-field {
+    gap: 0.38rem;
+}
+
+.profile-password-panel .auth-field:last-of-type {
+    grid-column: 1 / -1;
+}
+
+.profile-password-panel .auth-field input,
+.profile-delete-form .auth-field input {
+    background: var(--surface);
+}
+
+.profile-security-note {
+    grid-column: 1 / -1;
+    margin: -0.15rem 0 0;
+}
+
+.profile-inline-message {
+    margin: 0.85rem 0 0;
+    padding: 0.68rem 0.78rem;
+    border-radius: var(--radius-md);
+    font-size: 0.78rem;
+}
+
+.profile-inline-message.success-message {
+    border: 1px solid var(--success-border);
+    background: var(--success-soft);
+    color: var(--success-text);
+}
+
+.profile-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-top: 1rem;
+}
+
+.profile-form-actions .primary-action {
+    width: auto;
+    min-width: 132px;
+    margin: 0;
+}
+
+.profile-dataset-heading {
+    align-items: center;
+}
+
+.profile-dataset-list-clean {
+    margin-top: 0.8rem;
+}
+
+.profile-dataset-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 46px;
+    padding: 0.62rem 0.2rem;
+}
+
+.profile-dataset-row + .profile-dataset-row::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0.7rem;
+    left: 0.7rem;
+    height: 1px;
+    background: var(--border-subtle);
+}
+
+.profile-dataset-row strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-soft);
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-dataset-row span {
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 0.76rem;
+}
+
+.profile-dataset-more {
+    margin: 0.55rem 0 0;
+    text-align: right;
+}

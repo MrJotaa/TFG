@@ -1,0 +1,657 @@
+import json
+import math
+import re
+import uuid
+from pathlib import PurePosixPath
+
+from core.errors import BadRequestError
+from services.annotation_importers.base import (
+    CanonicalAnnotationSnapshot,
+    CanonicalCategory,
+    CanonicalObjectAnnotation,
+    DatasetImageIdentity,
+)
+
+WINDOWS_DRIVE_PATTERN = re.compile(r"^[A-Za-z]:")
+
+
+class CocoImportValidationError(BadRequestError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        section: str,
+        field: str | None = None,
+        coco_id: int | None = None,
+        image_name: str | None = None,
+    ):
+        detail = {
+            "code": "invalid_coco_annotations",
+            "message": message,
+            "section": section,
+            "snapshot_applied": False,
+        }
+        if field is not None:
+            detail["field"] = field
+        if coco_id is not None:
+            detail["coco_id"] = coco_id
+        if image_name is not None:
+            detail["image_name"] = image_name
+
+        super().__init__(detail)
+
+
+def normalize_external_file_name(file_name: str) -> str:
+    if not isinstance(file_name, str) or not file_name.strip():
+        raise ValueError("file_name debe ser una cadena no vacía")
+
+    normalized = file_name.strip().replace("\\", "/")
+
+    if any(ord(character) < 32 for character in normalized):
+        raise ValueError("file_name contiene caracteres de control")
+    if normalized.startswith("/") or WINDOWS_DRIVE_PATTERN.match(normalized):
+        raise ValueError("no se permiten rutas absolutas")
+
+    path = PurePosixPath(normalized)
+
+    if any(part in {"", ".", ".."} for part in path.parts):
+        raise ValueError("no se permiten segmentos de ruta inseguros")
+
+    return path.as_posix()
+
+
+def _require_list(root: dict, field: str) -> list:
+    value = root.get(field)
+    if not isinstance(value, list):
+        raise CocoImportValidationError(
+            f"'{field}' debe ser una lista",
+            section=field,
+            field=field,
+        )
+    return value
+
+
+def _require_object(value, section: str, index: int) -> dict:
+    if not isinstance(value, dict):
+        raise CocoImportValidationError(
+            f"{section}[{index}] debe ser un objeto",
+            section=section,
+        )
+    return value
+
+
+def _require_integer(
+    value,
+    *,
+    section: str,
+    field: str,
+    coco_id: int | None = None,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise CocoImportValidationError(
+            f"'{field}' debe ser un entero",
+            section=section,
+            field=field,
+            coco_id=coco_id,
+        )
+    return value
+
+
+def _require_finite_number(
+    value,
+    *,
+    section: str,
+    field: str,
+    coco_id: int | None = None,
+) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise CocoImportValidationError(
+            f"'{field}' debe ser numérico",
+            section=section,
+            field=field,
+            coco_id=coco_id,
+        )
+
+    try:
+        numeric_value = float(value)
+    except OverflowError as error:
+        raise CocoImportValidationError(
+            f"'{field}' debe ser finito",
+            section=section,
+            field=field,
+            coco_id=coco_id,
+        ) from error
+    if not math.isfinite(numeric_value):
+        raise CocoImportValidationError(
+            f"'{field}' debe ser finito",
+            section=section,
+            field=field,
+            coco_id=coco_id,
+        )
+    return numeric_value
+
+
+class CocoAnnotationImporter:
+    format_name = "coco"
+
+    def parse(
+        self,
+        content: bytes,
+        dataset_images: tuple[DatasetImageIdentity, ...],
+    ) -> CanonicalAnnotationSnapshot:
+        try:
+            decoded = content.decode("utf-8")
+            root = json.loads(decoded)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise CocoImportValidationError(
+                "El archivo subido no contiene un JSON COCO UTF-8 válido",
+                section="root",
+            ) from error
+
+        if not isinstance(root, dict):
+            raise CocoImportValidationError(
+                "La raíz del JSON COCO debe ser un objeto",
+                section="root",
+            )
+
+        coco_images = _require_list(root, "images")
+        coco_annotations = _require_list(root, "annotations")
+        coco_categories = _require_list(root, "categories")
+
+        categories, category_by_external_id = self._parse_categories(coco_categories)
+        image_by_external_id, reviewed_image_ids, image_dimensions = (
+            self._parse_and_associate_images(coco_images, dataset_images)
+        )
+        annotations = self._parse_annotations(
+            coco_annotations,
+            image_by_external_id,
+            image_dimensions,
+            category_by_external_id,
+        )
+
+        return CanonicalAnnotationSnapshot(
+            categories=tuple(categories),
+            annotations=tuple(annotations),
+            reviewed_image_ids=frozenset(reviewed_image_ids),
+            image_dimensions=image_dimensions,
+        )
+
+    def _parse_categories(
+        self,
+        coco_categories: list,
+    ) -> tuple[list[CanonicalCategory], dict[int, CanonicalCategory]]:
+        categories = []
+        category_by_external_id = {}
+        normalized_names = set()
+
+        for index, raw_category in enumerate(coco_categories):
+            category = _require_object(raw_category, "categories", index)
+            category_id = _require_integer(
+                category.get("id"),
+                section="categories",
+                field="id",
+            )
+
+            if category_id in category_by_external_id:
+                raise CocoImportValidationError(
+                    f"ID de categoría duplicado: {category_id}",
+                    section="categories",
+                    field="id",
+                    coco_id=category_id,
+                )
+
+            name = category.get("name")
+            if not isinstance(name, str) or not name.strip():
+                raise CocoImportValidationError(
+                    "El nombre de la categoría debe ser una cadena no vacía",
+                    section="categories",
+                    field="name",
+                    coco_id=category_id,
+                )
+            name = name.strip()
+
+            normalized_name = name.casefold()
+            if normalized_name in normalized_names:
+                raise CocoImportValidationError(
+                    f"Nombre de categoría duplicado: '{name}'",
+                    section="categories",
+                    field="name",
+                    coco_id=category_id,
+                )
+
+            supercategory = category.get("supercategory")
+            if supercategory is not None and not isinstance(supercategory, str):
+                raise CocoImportValidationError(
+                    "'supercategory' debe ser una cadena o null",
+                    section="categories",
+                    field="supercategory",
+                    coco_id=category_id,
+                )
+
+            canonical_category = CanonicalCategory(
+                internal_id=str(uuid.uuid4()),
+                external_id=category_id,
+                name=name,
+                supercategory=(
+                    supercategory.strip() if isinstance(supercategory, str) else None
+                ),
+            )
+            categories.append(canonical_category)
+            category_by_external_id[category_id] = canonical_category
+            normalized_names.add(normalized_name)
+
+        return categories, category_by_external_id
+
+    def _parse_and_associate_images(
+        self,
+        coco_images: list,
+        dataset_images: tuple[DatasetImageIdentity, ...],
+    ) -> tuple[
+        dict[int, DatasetImageIdentity],
+        set[str],
+        dict[str, tuple[int, int]],
+    ]:
+        exact_matches, basename_matches = self._dataset_image_match_indexes(
+            dataset_images
+        )
+        image_by_external_id: dict[int, DatasetImageIdentity] = {}
+        mapped_dataset_image_ids: set[str] = set()
+        image_dimensions: dict[str, tuple[int, int]] = {}
+
+        for index, raw_image in enumerate(coco_images):
+            coco_image_id, dataset_image = self._associate_image(
+                raw_image=raw_image,
+                index=index,
+                exact_matches=exact_matches,
+                basename_matches=basename_matches,
+                image_by_external_id=image_by_external_id,
+                mapped_dataset_image_ids=mapped_dataset_image_ids,
+            )
+            image_by_external_id[coco_image_id] = dataset_image
+            mapped_dataset_image_ids.add(dataset_image.image_id)
+            image_dimensions[dataset_image.image_id] = (
+                dataset_image.width,
+                dataset_image.height,
+            )
+
+        return (
+            image_by_external_id,
+            mapped_dataset_image_ids,
+            image_dimensions,
+        )
+
+    @staticmethod
+    def _dataset_image_match_indexes(
+        dataset_images: tuple[DatasetImageIdentity, ...],
+    ) -> tuple[
+        dict[str, list[DatasetImageIdentity]],
+        dict[str, list[DatasetImageIdentity]],
+    ]:
+        exact_matches: dict[str, list[DatasetImageIdentity]] = {}
+        basename_matches: dict[str, list[DatasetImageIdentity]] = {}
+        for dataset_image in dataset_images:
+            try:
+                identity = normalize_external_file_name(
+                    dataset_image.original_file_name
+                )
+            except ValueError:
+                continue
+            exact_matches.setdefault(identity, []).append(dataset_image)
+            basename_matches.setdefault(PurePosixPath(identity).name, []).append(
+                dataset_image
+            )
+        return exact_matches, basename_matches
+
+    def _associate_image(
+        self,
+        *,
+        raw_image: object,
+        index: int,
+        exact_matches: dict[str, list[DatasetImageIdentity]],
+        basename_matches: dict[str, list[DatasetImageIdentity]],
+        image_by_external_id: dict[int, DatasetImageIdentity],
+        mapped_dataset_image_ids: set[str],
+    ) -> tuple[int, DatasetImageIdentity]:
+        image = _require_object(raw_image, "images", index)
+        coco_image_id = _require_integer(
+            image.get("id"),
+            section="images",
+            field="id",
+        )
+        if coco_image_id in image_by_external_id:
+            raise CocoImportValidationError(
+                f"ID de imagen duplicado: {coco_image_id}",
+                section="images",
+                field="id",
+                coco_id=coco_image_id,
+            )
+
+        file_name = self._normalized_coco_file_name(image, coco_image_id)
+        dataset_image = self._resolve_dataset_image(
+            file_name=file_name,
+            coco_image_id=coco_image_id,
+            exact_matches=exact_matches,
+            basename_matches=basename_matches,
+        )
+        if dataset_image.image_id in mapped_dataset_image_ids:
+            raise CocoImportValidationError(
+                "La misma imagen del conjunto de datos está asociada más de una vez",
+                section="images",
+                field="file_name",
+                coco_id=coco_image_id,
+                image_name=file_name,
+            )
+        self._validate_declared_dimensions(
+            image=image,
+            coco_image_id=coco_image_id,
+            file_name=file_name,
+            dataset_image=dataset_image,
+        )
+        return coco_image_id, dataset_image
+
+    @staticmethod
+    def _normalized_coco_file_name(image: dict, coco_image_id: int) -> str:
+        raw_file_name = image.get("file_name")
+        try:
+            return normalize_external_file_name(raw_file_name)
+        except ValueError as error:
+            raise CocoImportValidationError(
+                str(error),
+                section="images",
+                field="file_name",
+                coco_id=coco_image_id,
+                image_name=(
+                    raw_file_name if isinstance(raw_file_name, str) else None
+                ),
+            ) from error
+
+    @staticmethod
+    def _resolve_dataset_image(
+        *,
+        file_name: str,
+        coco_image_id: int,
+        exact_matches: dict[str, list[DatasetImageIdentity]],
+        basename_matches: dict[str, list[DatasetImageIdentity]],
+    ) -> DatasetImageIdentity:
+        candidates = exact_matches.get(file_name) or basename_matches.get(
+            PurePosixPath(file_name).name,
+            [],
+        )
+        if not candidates:
+            raise CocoImportValidationError(
+                "La imagen COCO no se pudo asociar con ninguna imagen del conjunto de datos",
+                section="images",
+                field="file_name",
+                coco_id=coco_image_id,
+                image_name=file_name,
+            )
+        if len(candidates) > 1:
+            raise CocoImportValidationError(
+                "La correspondencia de la imagen COCO es ambigua",
+                section="images",
+                field="file_name",
+                coco_id=coco_image_id,
+                image_name=file_name,
+            )
+        return candidates[0]
+
+    @staticmethod
+    def _validate_declared_dimensions(
+        *,
+        image: dict,
+        coco_image_id: int,
+        file_name: str,
+        dataset_image: DatasetImageIdentity,
+    ) -> None:
+        declared_width = _require_finite_number(
+            image.get("width"),
+            section="images",
+            field="width",
+            coco_id=coco_image_id,
+        )
+        declared_height = _require_finite_number(
+            image.get("height"),
+            section="images",
+            field="height",
+            coco_id=coco_image_id,
+        )
+        if (
+            declared_width <= 0
+            or declared_height <= 0
+            or not declared_width.is_integer()
+            or not declared_height.is_integer()
+        ):
+            raise CocoImportValidationError(
+                "Las dimensiones de la imagen deben ser enteros positivos",
+                section="images",
+                field="width/height",
+                coco_id=coco_image_id,
+                image_name=file_name,
+            )
+        if (
+            int(declared_width) != dataset_image.width
+            or int(declared_height) != dataset_image.height
+        ):
+            raise CocoImportValidationError(
+                (
+                    "Las dimensiones declaradas en COCO no coinciden con las "
+                    "dimensiones de la imagen de referencia del conjunto de datos"
+                ),
+                section="images",
+                field="width/height",
+                coco_id=coco_image_id,
+                image_name=file_name,
+            )
+
+    def _parse_annotations(
+        self,
+        coco_annotations: list,
+        image_by_external_id: dict[int, DatasetImageIdentity],
+        image_dimensions: dict[str, tuple[int, int]],
+        category_by_external_id: dict[int, CanonicalCategory],
+    ) -> list[CanonicalObjectAnnotation]:
+        annotations = []
+        annotation_ids: set[int] = set()
+        for index, raw_annotation in enumerate(coco_annotations):
+            annotations.append(
+                self._parse_annotation(
+                    raw_annotation=raw_annotation,
+                    index=index,
+                    annotation_ids=annotation_ids,
+                    image_by_external_id=image_by_external_id,
+                    image_dimensions=image_dimensions,
+                    category_by_external_id=category_by_external_id,
+                )
+            )
+        return annotations
+
+    def _parse_annotation(
+        self,
+        *,
+        raw_annotation: object,
+        index: int,
+        annotation_ids: set[int],
+        image_by_external_id: dict[int, DatasetImageIdentity],
+        image_dimensions: dict[str, tuple[int, int]],
+        category_by_external_id: dict[int, CanonicalCategory],
+    ) -> CanonicalObjectAnnotation:
+        annotation = _require_object(raw_annotation, "annotations", index)
+        annotation_id = _require_integer(
+            annotation.get("id"),
+            section="annotations",
+            field="id",
+        )
+        if annotation_id in annotation_ids:
+            raise CocoImportValidationError(
+                f"ID de anotación duplicado: {annotation_id}",
+                section="annotations",
+                field="id",
+                coco_id=annotation_id,
+            )
+        annotation_ids.add(annotation_id)
+
+        dataset_image = self._annotation_dataset_image(
+            annotation,
+            annotation_id,
+            image_by_external_id,
+        )
+        category = self._annotation_category(
+            annotation,
+            annotation_id,
+            category_by_external_id,
+        )
+        x, y, width, height = self._annotation_bbox(
+            annotation,
+            annotation_id,
+            dataset_image,
+            image_dimensions,
+        )
+        area = self._annotation_area(annotation, annotation_id, width, height)
+        iscrowd = self._annotation_iscrowd(annotation, annotation_id)
+        return CanonicalObjectAnnotation(
+            external_id=annotation_id,
+            image_id=dataset_image.image_id,
+            category_internal_id=category.internal_id,
+            bbox_x1=x,
+            bbox_y1=y,
+            bbox_x2=x + width,
+            bbox_y2=y + height,
+            area=area,
+            iscrowd=iscrowd,
+        )
+
+    @staticmethod
+    def _annotation_dataset_image(
+        annotation: dict,
+        annotation_id: int,
+        image_by_external_id: dict[int, DatasetImageIdentity],
+    ) -> DatasetImageIdentity:
+        image_id = _require_integer(
+            annotation.get("image_id"),
+            section="annotations",
+            field="image_id",
+            coco_id=annotation_id,
+        )
+        dataset_image = image_by_external_id.get(image_id)
+        if dataset_image is None:
+            raise CocoImportValidationError(
+                f"La anotación hace referencia a un ID de imagen COCO desconocido: {image_id}",
+                section="annotations",
+                field="image_id",
+                coco_id=annotation_id,
+            )
+        return dataset_image
+
+    @staticmethod
+    def _annotation_category(
+        annotation: dict,
+        annotation_id: int,
+        category_by_external_id: dict[int, CanonicalCategory],
+    ) -> CanonicalCategory:
+        category_id = _require_integer(
+            annotation.get("category_id"),
+            section="annotations",
+            field="category_id",
+            coco_id=annotation_id,
+        )
+        category = category_by_external_id.get(category_id)
+        if category is None:
+            raise CocoImportValidationError(
+                f"La anotación hace referencia a un ID de categoría desconocido: {category_id}",
+                section="annotations",
+                field="category_id",
+                coco_id=annotation_id,
+            )
+        return category
+
+    @staticmethod
+    def _annotation_bbox(
+        annotation: dict,
+        annotation_id: int,
+        dataset_image: DatasetImageIdentity,
+        image_dimensions: dict[str, tuple[int, int]],
+    ) -> tuple[float, float, float, float]:
+        bbox = annotation.get("bbox")
+        if not isinstance(bbox, list) or len(bbox) != 4:
+            raise CocoImportValidationError(
+                "'bbox' debe contener [x, y, width, height]",
+                section="annotations",
+                field="bbox",
+                coco_id=annotation_id,
+            )
+        x, y, width, height = [
+            _require_finite_number(
+                value,
+                section="annotations",
+                field=f"bbox[{position}]",
+                coco_id=annotation_id,
+            )
+            for position, value in enumerate(bbox)
+        ]
+        if width <= 0 or height <= 0:
+            raise CocoImportValidationError(
+                "La anchura y la altura de la caja delimitadora deben ser mayores que cero",
+                section="annotations",
+                field="bbox",
+                coco_id=annotation_id,
+            )
+        authoritative_width, authoritative_height = image_dimensions[
+            dataset_image.image_id
+        ]
+        if (
+            x < 0
+            or y < 0
+            or x + width > authoritative_width
+            or y + height > authoritative_height
+        ):
+            raise CocoImportValidationError(
+                "La caja delimitadora está fuera de los límites de la imagen de referencia",
+                section="annotations",
+                field="bbox",
+                coco_id=annotation_id,
+                image_name=dataset_image.original_file_name,
+            )
+        return x, y, width, height
+
+    @staticmethod
+    def _annotation_area(
+        annotation: dict,
+        annotation_id: int,
+        width: float,
+        height: float,
+    ) -> float:
+        raw_area = annotation.get("area")
+        area = (
+            width * height
+            if raw_area is None
+            else _require_finite_number(
+                raw_area,
+                section="annotations",
+                field="area",
+                coco_id=annotation_id,
+            )
+        )
+        if area <= 0:
+            raise CocoImportValidationError(
+                "'area' debe ser mayor que cero",
+                section="annotations",
+                field="area",
+                coco_id=annotation_id,
+            )
+        return area
+
+    @staticmethod
+    def _annotation_iscrowd(annotation: dict, annotation_id: int) -> int:
+        raw_iscrowd = annotation.get("iscrowd", 0)
+        if (
+            isinstance(raw_iscrowd, bool)
+            or not isinstance(raw_iscrowd, int)
+            or raw_iscrowd not in {0, 1}
+        ):
+            raise CocoImportValidationError(
+                "'iscrowd' debe ser 0 o 1",
+                section="annotations",
+                field="iscrowd",
+                coco_id=annotation_id,
+            )
+        return raw_iscrowd

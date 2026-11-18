@@ -1,0 +1,44 @@
+from fastapi import APIRouter, Depends
+
+from api.dependencies.auth import require_current_user
+from schemas.models import (
+    ModelClassCatalog,
+    ModelInfo,
+)
+from services.classification_label_service import (
+    get_active_model_class_catalog,
+)
+from services.detection_model_execution import run_detection_model_operation
+from services.model_service import (
+    get_active_model,
+    list_models,
+    select_model,
+)
+
+router = APIRouter(dependencies=[Depends(require_current_user)])
+
+
+@router.get("/models")
+async def get_models() -> list[ModelInfo]:
+    return list_models()
+
+
+@router.get("/models/active")
+async def get_current_model() -> ModelInfo:
+    return get_active_model()
+
+
+@router.get(
+    "/models/active/classes",
+)
+async def get_active_model_classes() -> ModelClassCatalog:
+    return get_active_model_class_catalog()
+
+
+@router.post(
+    "/models/{model_id}/select",
+)
+async def select_current_model(model_id: str) -> ModelInfo:
+    # Cambio de modelo y ejecución del detector comparten la misma exclusión.
+    # Evita descargar un detector mientras otra petición lo está utilizando.
+    return await run_detection_model_operation(select_model, model_id)

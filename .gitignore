@@ -1,0 +1,43 @@
+# Entorno virtual
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Archivos de entorno
+.env
+
+# Archivos del sistema
+.DS_Store
+
+# Uploads
+uploads/
+
+# VSCode / IDEs
+.vscode/
+.idea/
+
+# Test fotos
+TestFotos/
+
+#Docker
+mongo_data/
+
+# Frontend
+node_modules/
+dist/
+.env.local
+
+# Test coverage
+/backend/coverage/
+
+# SonarQube Scanner
+/backend/.scannerwork/
+
+# Frontend test coverage
+/frontend/coverage/
+
+# SonarQube Scanner
+/frontend/.scannerwork/

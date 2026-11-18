@@ -1,0 +1,116 @@
+{
+  "benchmark_schema_version": 1,
+  "configuration": {
+    "attack": "fgsm",
+    "dataset_id": "6a4e355fee391933a99ebe9a",
+    "force_recompute": true,
+    "measured_runs": 3,
+    "model": {
+      "active": true,
+      "id": "resnet18",
+      "loaded": true,
+      "name": "ResNet18 pretrained",
+      "task_type": "classification"
+    },
+    "parameters": {
+      "epsilon": 0.03
+    },
+    "requested_parameters": {
+      "epsilon": 0.03
+    },
+    "requested_supervised_configuration": null,
+    "supervised_configuration": null,
+    "task": "classification",
+    "warmup_runs": 1
+  },
+  "created_at": "2026-08-24T08:39:45.591118+00:00",
+  "environment": {
+    "base_url": "http://127.0.0.1:8000",
+    "platform": "Linux-5.15.0-190-generic-x86_64-with-glibc2.35",
+    "python": "3.10.12",
+    "repository": {
+      "commit": "739e9f0162110485d78566dfb80564599ce8cf2c",
+      "dirty": true
+    }
+  },
+  "label": "baseline-before-optimizations",
+  "measured_runs": [
+    {
+      "effective_supervised_configuration": null,
+      "elapsed_seconds": 29.879978,
+      "index": 1,
+      "kind": "measured",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "epsilon": 0.03
+      },
+      "response_bytes": 337124,
+      "result_id": "evaluation_d22e4611-b488-40b3-96b3-cd57e8370729",
+      "throughput_images_per_second": 3.346723,
+      "time_to_first_progress_seconds": 0.010787,
+      "time_to_metrics_phase_seconds": 29.825306,
+      "total_images": 100
+    },
+    {
+      "effective_supervised_configuration": null,
+      "elapsed_seconds": 30.582593,
+      "index": 2,
+      "kind": "measured",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "epsilon": 0.03
+      },
+      "response_bytes": 337124,
+      "result_id": "evaluation_78fbe730-7c91-412c-abb5-69b5105f59eb",
+      "throughput_images_per_second": 3.269834,
+      "time_to_first_progress_seconds": 0.009274,
+      "time_to_metrics_phase_seconds": 30.524906,
+      "total_images": 100
+    },
+    {
+      "effective_supervised_configuration": null,
+      "elapsed_seconds": 33.143503,
+      "index": 3,
+      "kind": "measured",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "epsilon": 0.03
+      },
+      "response_bytes": 337124,
+      "result_id": "evaluation_5ac98c07-c1e2-4619-a840-d3b69f5b7c58",
+      "throughput_images_per_second": 3.017183,
+      "time_to_first_progress_seconds": 0.009308,
+      "time_to_metrics_phase_seconds": 33.084316,
+      "total_images": 100
+    }
+  ],
+  "summary": {
+    "max_seconds": 33.143503,
+    "mean_response_bytes": 337124.0,
+    "mean_seconds": 31.202025,
+    "mean_throughput_images_per_second": 3.211247,
+    "median_seconds": 30.582593,
+    "median_throughput_images_per_second": 3.269834,
+    "min_seconds": 29.879978,
+    "runs": 3,
+    "stdev_seconds": 1.717679
+  },
+  "warmup_runs": [
+    {
+      "effective_supervised_configuration": null,
+      "elapsed_seconds": 28.942263,
+      "index": 1,
+      "kind": "warmup",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "epsilon": 0.03
+      },
+      "response_bytes": 337124,
+      "result_id": "evaluation_6a2c883c-3516-4cfb-9b39-8a7ed6706e9c",
+      "throughput_images_per_second": 3.455155,
+      "time_to_first_progress_seconds": 0.046959,
+      "time_to_metrics_phase_seconds": 28.884455,
+      "total_images": 100
+    }
+  ]
+}

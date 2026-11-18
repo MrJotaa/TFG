@@ -1,0 +1,367 @@
+.coco-annotation-panel {
+    display: grid;
+    gap: 1rem;
+    margin: 1.25rem 0;
+    padding: 1rem;
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+.coco-annotation-panel h4,
+.coco-annotation-panel h5 {
+    margin: 0 0 0.4rem;
+}
+
+.coco-import-form {
+    display: flex;
+    gap: 0.8rem;
+    align-items: end;
+    flex-wrap: wrap;
+}
+
+.coco-import-form label {
+    display: grid;
+    flex: 1 1 280px;
+    gap: 0.4rem;
+    font-weight: 600;
+}
+
+.annotation-coverage-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.annotation-category-distribution ul {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.annotation-category-distribution li {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.55rem 0.7rem;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.annotation-status {
+    display: inline-flex;
+    width: fit-content;
+    margin: 0 0 0.65rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.annotation-status.reviewed_empty {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.annotation-status.reviewed_with_objects {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.success-message:where(*) {
+    color: #166534;
+    font-weight: 600;
+}
+
+.detection-image-results-grid {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.detection-image-result-card {
+    padding: 1.25rem;
+    border: 1px solid #dbe3ee;
+    border-radius: 1rem;
+    background: #fff;
+}
+
+.detection-image-result-card > header,
+.detection-preview figcaption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.detection-image-result-card > header {
+    margin-bottom: 1rem;
+}
+
+/* Etiquetas largas de criterios versionados: sin desbordar en móvil. */
+.detection-image-result-card > header .detection-legacy-badge {
+    max-width: min(100%, 21rem);
+    white-space: normal;
+    text-align: center;
+    line-height: 1.35;
+}
+
+.detection-square-trace {
+    display: grid;
+    gap: 0.25rem;
+    margin: 0.65rem 0 0;
+    padding: 0.6rem 0.8rem;
+    border-left: 2px solid var(--primary);
+    background: var(--primary-soft);
+    color: var(--text-soft);
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.detection-square-trace > small {
+    color: var(--muted-strong);
+}
+
+.detection-image-result-card > header div,
+.detection-image-result-card > header small {
+    display: block;
+}
+
+.detection-image-result-card > header small {
+    max-width: 42rem;
+    margin-top: 0.2rem;
+    overflow: hidden;
+    color: #64748b;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.detection-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.detection-preview {
+    min-width: 0;
+    margin: 0;
+}
+
+.detection-preview figcaption {
+    margin-bottom: 0.55rem;
+    color: #334155;
+}
+
+.detection-preview figcaption span {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.detection-preview-frame {
+    position: relative;
+    overflow: hidden;
+    min-height: 14rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.8rem;
+    background: #0f172a;
+}
+
+.detection-preview-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.detection-box-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.detection-overlay-box {
+    fill: transparent;
+    vector-effect: non-scaling-stroke;
+}
+
+.detection-preview.tone-original .detection-overlay-box {
+    stroke: #38bdf8;
+}
+
+.detection-preview.tone-original .detection-overlay-label-bg {
+    fill: #0369a1;
+}
+
+.detection-preview.tone-adversarial .detection-overlay-box {
+    stroke: #fb7185;
+}
+
+.detection-preview.tone-adversarial .detection-overlay-label-bg {
+    fill: #be123c;
+}
+
+.detection-overlay-label {
+    fill: #fff;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+.detection-preview-error {
+    display: grid;
+    min-height: 14rem;
+    place-items: center;
+    color: #cbd5e1;
+}
+
+.detection-preview-note {
+    margin: 0.75rem 0 0;
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.detection-image-result-metrics {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 1rem 0 0;
+}
+
+.detection-image-result-metrics div {
+    padding: 0.7rem;
+    border-radius: 0.65rem;
+    background: #f8fafc;
+}
+
+.detection-image-result-metrics dt,
+.detection-image-result-metrics dd {
+    margin: 0;
+}
+
+.detection-image-result-metrics dt {
+    color: #64748b;
+    font-size: 0.78rem;
+}
+
+.detection-image-result-metrics dd {
+    margin-top: 0.2rem;
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.detection-prediction-list {
+    margin-top: 0.9rem;
+}
+
+.detection-prediction-list summary {
+    cursor: pointer;
+    color: #2563eb;
+    font-weight: 650;
+}
+
+.detection-prediction-list dl,
+.detection-prediction-list dl div {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.detection-prediction-list dl {
+    margin-bottom: 0;
+}
+
+.detection-prediction-list dl div {
+    grid-template-columns: 8rem minmax(0, 1fr);
+}
+
+.detection-prediction-list dt,
+.detection-prediction-list dd {
+    margin: 0;
+}
+
+.detection-prediction-list dt {
+    font-weight: 700;
+}
+
+.detection-eigencam-section {
+    display: grid;
+    gap: 0.85rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid #dbe4f0;
+    border-radius: 0.8rem;
+    background: #f8fafc;
+}
+
+.detection-eigencam-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.detection-eigencam-action > div,
+.detection-eigencam-action span {
+    display: grid;
+}
+
+.detection-eigencam-action span {
+    margin-top: 0.2rem;
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.detection-eigencam-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.detection-eigencam-preview {
+    min-width: 0;
+    margin: 0;
+}
+
+.detection-eigencam-preview figcaption {
+    margin-bottom: 0.55rem;
+    color: #334155;
+    font-weight: 700;
+}
+
+.detection-eigencam-preview img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.8rem;
+    background: #0f172a;
+}
+
+@media (max-width: 900px) {
+    .detection-preview-grid,
+    .detection-eigencam-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .detection-image-result-metrics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .detection-image-result-card > header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .detection-image-result-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .detection-prediction-list dl div {
+        grid-template-columns: 1fr;
+    }
+
+    .detection-eigencam-action {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}

@@ -1,0 +1,318 @@
+/* --------------------------------------------------------------------------
+ * Access experience
+ * -------------------------------------------------------------------------- */
+.auth-page:where(*) {
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem clamp(1rem, 3vw, 2.5rem) 2rem;
+    overflow-x: hidden;
+}
+
+.auth-topbar {
+    width: min(1120px, 100%);
+    min-height: 3.5rem;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.auth-brand {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.auth-brand-mark {
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--primary-border);
+    border-radius: 0.72rem;
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.auth-brand-mark svg {
+    width: 1.22rem;
+    height: 1.22rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+}
+
+.auth-brand > div {
+    min-width: 0;
+    display: grid;
+    gap: 0.08rem;
+}
+
+.auth-brand strong {
+    color: var(--text);
+    font-size: 0.9rem;
+    line-height: 1.15;
+}
+
+.auth-brand span:last-child {
+    color: var(--muted);
+    font-size: 0.7rem;
+    line-height: 1.2;
+}
+
+.auth-layout {
+    width: 100%;
+    flex: 1;
+    display: grid;
+    place-items: center;
+    padding: clamp(2.25rem, 7vh, 5rem) 0;
+}
+
+.auth-form-panel {
+    width: min(440px, 100%);
+    padding: clamp(1.6rem, 4vw, 2.15rem);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    background: var(--surface);
+    box-shadow: var(--shadow-soft);
+}
+
+.auth-form-heading {
+    margin-bottom: 1.8rem;
+    text-align: center;
+}
+
+.auth-form-eyebrow {
+    display: inline-block;
+    margin-bottom: 0.72rem;
+    color: var(--primary);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.auth-form-heading h1 {
+    margin: 0;
+    color: var(--text);
+    font-size: clamp(1.65rem, 4vw, 2rem);
+    letter-spacing: -0.035em;
+    line-height: 1.12;
+}
+
+.auth-form-heading p {
+    max-width: 22rem;
+    margin: 0.7rem auto 0;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+.auth-form {
+    display: grid;
+    gap: 1.05rem;
+}
+
+.auth-field {
+    display: grid;
+    gap: 0.46rem;
+    margin: 0;
+    color: var(--text-soft);
+}
+
+.auth-field-label {
+    font-size: 0.79rem;
+    font-weight: 720;
+}
+
+.auth-field input,
+.auth-password-control input {
+    width: 100%;
+    height: 3rem;
+    margin: 0;
+    padding: 0 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 0.72rem;
+    background: color-mix(in srgb, var(--surface) 82%, var(--bg));
+    color: var(--text);
+    box-shadow: none;
+}
+
+.auth-field input:hover:not(:disabled),
+.auth-password-control input:hover:not(:disabled) {
+    border-color: var(--border-strong);
+}
+
+.auth-field input:focus,
+.auth-password-control input:focus {
+    border-color: var(--primary-border);
+    background: var(--surface);
+}
+
+.auth-field input::placeholder,
+.auth-password-control input::placeholder {
+    color: var(--muted);
+    opacity: 0.72;
+}
+
+.auth-password-control {
+    position: relative;
+    display: block;
+}
+
+.auth-password-control input {
+    padding-right: 3.25rem;
+}
+
+.auth-password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.45rem;
+    width: 2.15rem;
+    height: 2.15rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 0.58rem;
+    background: transparent;
+    color: var(--muted);
+    transform: translateY(-50%);
+}
+
+.auth-password-toggle:hover:not(:disabled) {
+    background: var(--surface-hover);
+    color: var(--text);
+}
+
+.auth-password-toggle svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.75;
+}
+
+.auth-field.has-error input {
+    border-color: var(--danger-border);
+}
+
+.auth-field-error {
+    color: var(--danger);
+    font-size: 0.73rem;
+    line-height: 1.35;
+}
+
+.auth-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.62rem;
+    margin: -0.4rem 0 1.25rem;
+    padding: 0.72rem 0.82rem;
+    border-left: 2px solid var(--danger);
+    background: var(--danger-soft);
+    color: var(--danger-text);
+    font-size: 0.79rem;
+    line-height: 1.45;
+}
+
+.auth-alert-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--danger-border);
+    border-radius: 50%;
+    font-size: 0.68rem;
+    font-weight: 850;
+}
+
+.auth-submit {
+    width: 100%;
+    min-height: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    margin: 0.3rem 0 0;
+    border-radius: 0.72rem;
+    font-size: 0.86rem;
+}
+
+.auth-submit-spinner {
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 2px solid color-mix(in srgb, var(--primary-contrast) 36%, transparent);
+    border-top-color: var(--primary-contrast);
+    border-radius: 50%;
+    animation: auth-spin 0.7s linear infinite;
+}
+
+.auth-alternative {
+    margin: 1.55rem 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+.auth-alternative a {
+    color: var(--text);
+    font-weight: 750;
+    text-decoration-color: var(--primary-border);
+}
+
+.auth-alternative a:hover {
+    color: var(--primary);
+}
+
+@keyframes auth-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 520px) {
+    .auth-page {
+        padding: 1rem;
+    }
+
+    .auth-topbar {
+        align-items: flex-start;
+    }
+
+    .auth-brand span:last-child {
+        display: none;
+    }
+
+    .auth-brand-mark {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .auth-layout {
+        padding: 2rem 0 1rem;
+    }
+
+    .auth-form-panel {
+        padding: 1.4rem 1.2rem;
+        border-radius: var(--radius-lg);
+    }
+
+    .auth-form-heading {
+        margin-bottom: 1.5rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-submit-spinner {
+        animation-duration: 1.6s;
+    }
+}

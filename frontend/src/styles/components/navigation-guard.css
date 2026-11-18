@@ -1,0 +1,98 @@
+/* Navigation protection for temporary analysis work */
+.navigation-guard-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(7, 17, 31, 0.58);
+    backdrop-filter: blur(5px);
+}
+
+.navigation-guard-dialog {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.85rem 1rem;
+    width: min(100%, 520px);
+    padding: 1.15rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    background: var(--surface-raised);
+    color: var(--text);
+    box-shadow: var(--shadow-md);
+}
+
+.navigation-guard-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid var(--warning-border);
+    border-radius: 13px;
+    background: var(--warning-soft);
+    color: var(--warning);
+}
+
+.navigation-guard-dialog.danger .navigation-guard-icon {
+    border-color: var(--danger-border);
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.navigation-guard-icon svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.navigation-guard-copy {
+    min-width: 0;
+}
+
+.navigation-guard-copy h2 {
+    margin: 0.18rem 0 0;
+    color: var(--text);
+    font-size: 1.05rem;
+    letter-spacing: -0.015em;
+}
+
+.navigation-guard-copy p {
+    margin: 0.5rem 0 0;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+.navigation-guard-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    padding-top: 0.15rem;
+}
+
+.navigation-guard-actions button {
+    margin: 0;
+    min-width: 138px;
+}
+
+@media (max-width: 560px) {
+    .navigation-guard-dialog {
+        grid-template-columns: 1fr;
+    }
+
+    .navigation-guard-actions {
+        grid-column: 1;
+        flex-direction: column-reverse;
+    }
+
+    .navigation-guard-actions button {
+        width: 100%;
+    }
+}
+

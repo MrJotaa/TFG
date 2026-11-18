@@ -1,0 +1,28 @@
+@import './core/tokens.css';
+@import './core/document.css';
+@import './components/actions.css';
+@import './components/theme-switcher.css';
+@import './components/app-shell.css';
+@import './compat/legacy-surfaces.css';
+@import './compat/dark-mode.css';
+@import './compat/visual-compatibility.css';
+@import './components/navigation-guard.css';
+
+/* El orden de estas importaciones conserva la cascada de los estilos originales. */
+@import './pages/dashboard.css';
+@import './pages/auth.css';
+@import './pages/profile.css';
+@import './pages/datasets.css';
+
+@import './features/individual-analysis/classification.css';
+@import './features/individual-analysis/detection.css';
+@import './features/evaluation/classification/refinements.css';
+@import './features/evaluation/detection/refinements.css';
+
+@import './features/comparison/evaluation/base.css';
+@import './features/comparison/evaluation/refinements.css';
+@import './features/history/dashboard-unified.css';
+@import './features/comparison/individual/results.css';
+@import './features/history/individual-persistence.css';
+@import './features/history/profile-actions.css';
+@import './compat/native-accessibility.css';

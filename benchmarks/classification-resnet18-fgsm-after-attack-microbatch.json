@@ -1,0 +1,141 @@
+{
+  "benchmark_schema_version": 1,
+  "comparison": {
+    "baseline_file": "benchmarks/classification-resnet18-fgsm-after-work-reuse.json",
+    "metrics": {
+      "mean_response_bytes": {
+        "baseline": 337124.0,
+        "current": 337129.0,
+        "percent_change": 0.001
+      },
+      "mean_seconds": {
+        "baseline": 27.342132,
+        "current": 26.852994,
+        "percent_change": -1.789
+      },
+      "mean_throughput_images_per_second": {
+        "baseline": 3.657728,
+        "current": 3.724002,
+        "percent_change": 1.812
+      },
+      "median_seconds": {
+        "baseline": 27.526272,
+        "current": 26.82646,
+        "percent_change": -2.542
+      }
+    }
+  },
+  "configuration": {
+    "attack": "fgsm",
+    "dataset_id": "6a4e355fee391933a99ebe9a",
+    "force_recompute": true,
+    "measured_runs": 3,
+    "model": {
+      "active": true,
+      "id": "resnet18",
+      "loaded": true,
+      "name": "ResNet18 pretrained",
+      "task_type": "classification"
+    },
+    "parameters": {
+      "epsilon": 0.03
+    },
+    "requested_parameters": {
+      "epsilon": 0.03
+    },
+    "requested_supervised_configuration": null,
+    "supervised_configuration": null,
+    "task": "classification",
+    "warmup_runs": 1
+  },
+  "created_at": "2026-08-24T15:13:47.195310+00:00",
+  "environment": {
+    "base_url": "http://127.0.0.1:8000",
+    "platform": "Linux-5.15.0-190-generic-x86_64-with-glibc2.35",
+    "python": "3.10.12",
+    "repository": {
+      "commit": "2f1a0a7316a2fb007e1e32bd10264ea2d5ec21b8",
+      "dirty": true
+    }
+  },
+  "label": "after-attack-microbatch",
+  "measured_runs": [
+    {
+      "effective_supervised_configuration": null,
+      "elapsed_seconds": 26.82646,
+      "index": 1,
+      "kind": "measured",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "epsilon": 0.03
+      },
+      "response_bytes": 337129,
+      "result_id": "evaluation_40b2318e-b25b-43cf-972a-d27a2e2a3d81",
+      "throughput_images_per_second": 3.727663,
+      "time_to_first_progress_seconds": 0.197535,
+      "time_to_metrics_phase_seconds": 26.770269,
+      "total_images": 100
+    },
+    {
+      "effective_supervised_configuration": null,
+      "elapsed_seconds": 26.789651,
+      "index": 2,
+      "kind": "measured",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "epsilon": 0.03
+      },
+      "response_bytes": 337129,
+      "result_id": "evaluation_aeb4e486-19ea-4120-94f7-aeee2a5733a0",
+      "throughput_images_per_second": 3.732785,
+      "time_to_first_progress_seconds": 0.197799,
+      "time_to_metrics_phase_seconds": 26.738798,
+      "total_images": 100
+    },
+    {
+      "effective_supervised_configuration": null,
+      "elapsed_seconds": 26.942871,
+      "index": 3,
+      "kind": "measured",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "epsilon": 0.03
+      },
+      "response_bytes": 337129,
+      "result_id": "evaluation_e83b48fd-6b2c-4d73-abf2-8041b5517ae4",
+      "throughput_images_per_second": 3.711557,
+      "time_to_first_progress_seconds": 0.196477,
+      "time_to_metrics_phase_seconds": 26.891198,
+      "total_images": 100
+    }
+  ],
+  "summary": {
+    "max_seconds": 26.942871,
+    "mean_response_bytes": 337129.0,
+    "mean_seconds": 26.852994,
+    "mean_throughput_images_per_second": 3.724002,
+    "median_seconds": 26.82646,
+    "median_throughput_images_per_second": 3.727663,
+    "min_seconds": 26.789651,
+    "runs": 3,
+    "stdev_seconds": 0.079982
+  },
+  "warmup_runs": [
+    {
+      "effective_supervised_configuration": null,
+      "elapsed_seconds": 26.52248,
+      "index": 1,
+      "kind": "warmup",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "epsilon": 0.03
+      },
+      "response_bytes": 337129,
+      "result_id": "evaluation_90bc0034-2041-4496-b4e2-fb0f5518fe5a",
+      "throughput_images_per_second": 3.770386,
+      "time_to_first_progress_seconds": 0.210172,
+      "time_to_metrics_phase_seconds": 26.466466,
+      "total_images": 100
+    }
+  ]
+}

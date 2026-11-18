@@ -1,0 +1,319 @@
+{
+  "benchmark_schema_version": 1,
+  "comparison": {
+    "baseline_file": "benchmarks/detection-yolo26n-after-dataset-snapshot.json",
+    "metrics": {
+      "mean_response_bytes": {
+        "baseline": 837065.0,
+        "current": 838122.0,
+        "percent_change": 0.126
+      },
+      "mean_seconds": {
+        "baseline": 183.974303,
+        "current": 131.828314,
+        "percent_change": -28.344
+      },
+      "mean_throughput_images_per_second": {
+        "baseline": 0.543569,
+        "current": 0.760978,
+        "percent_change": 39.997
+      },
+      "median_seconds": {
+        "baseline": 183.643089,
+        "current": 127.094283,
+        "percent_change": -30.793
+      }
+    }
+  },
+  "configuration": {
+    "attack": "yolo_confidence",
+    "dataset_id": "6a70c3ed1b9169836cdfc016",
+    "force_recompute": true,
+    "measured_runs": 3,
+    "model": {
+      "active": true,
+      "id": "yolo26n",
+      "loaded": true,
+      "name": "YOLO26n pretrained",
+      "task_type": "detection"
+    },
+    "parameters": {
+      "alpha": 0.01,
+      "epsilon": 0.03,
+      "steps": 10
+    },
+    "requested_parameters": {},
+    "requested_supervised_configuration": {},
+    "supervised_configuration": {
+      "coco_area_ranges": [
+        "all",
+        "small",
+        "medium",
+        "large"
+      ],
+      "coco_iou_thresholds": [
+        0.5,
+        0.55,
+        0.6,
+        0.65,
+        0.7,
+        0.75,
+        0.8,
+        0.85,
+        0.9,
+        0.95
+      ],
+      "coco_max_detections": [
+        1,
+        10,
+        100
+      ],
+      "coco_recall_threshold_count": 101,
+      "confidence_threshold": 0.25,
+      "include_object_level_details": false,
+      "inference_mode": "end_to_end_nms_free",
+      "interactive_output_confidence_comparison": "strictly_greater_than",
+      "interactive_output_confidence_threshold": 0.25,
+      "iou_threshold": 0.5,
+      "max_detections_per_image": 300,
+      "nms_iou_threshold": null,
+      "score_floor": 0.001
+    },
+    "task": "detection",
+    "warmup_runs": 1
+  },
+  "created_at": "2026-08-24T14:12:16.064056+00:00",
+  "environment": {
+    "base_url": "http://127.0.0.1:8000",
+    "platform": "Linux-5.15.0-190-generic-x86_64-with-glibc2.35",
+    "python": "3.10.12",
+    "repository": {
+      "commit": "8d030c1d38e7a719ca220644576ef6c75a8db82e",
+      "dirty": true
+    }
+  },
+  "label": "after-detection-concurrency",
+  "measured_runs": [
+    {
+      "effective_supervised_configuration": {
+        "coco_area_ranges": [
+          "all",
+          "small",
+          "medium",
+          "large"
+        ],
+        "coco_iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "coco_max_detections": [
+          1,
+          10,
+          100
+        ],
+        "coco_recall_threshold_count": 101,
+        "confidence_threshold": 0.25,
+        "include_object_level_details": false,
+        "inference_mode": "end_to_end_nms_free",
+        "interactive_output_confidence_comparison": "strictly_greater_than",
+        "interactive_output_confidence_threshold": 0.25,
+        "iou_threshold": 0.5,
+        "max_detections_per_image": 300,
+        "nms_iou_threshold": null,
+        "score_floor": 0.001
+      },
+      "elapsed_seconds": 125.874231,
+      "index": 1,
+      "kind": "measured",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "alpha": 0.01,
+        "epsilon": 0.03,
+        "steps": 10
+      },
+      "response_bytes": 838122,
+      "result_id": "detection_evaluation_c3793a46-84f5-4bf6-b7bf-d3e9f0c770be",
+      "throughput_images_per_second": 0.794444,
+      "time_to_first_progress_seconds": 0.047879,
+      "time_to_metrics_phase_seconds": 122.252014,
+      "total_images": 100
+    },
+    {
+      "effective_supervised_configuration": {
+        "coco_area_ranges": [
+          "all",
+          "small",
+          "medium",
+          "large"
+        ],
+        "coco_iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "coco_max_detections": [
+          1,
+          10,
+          100
+        ],
+        "coco_recall_threshold_count": 101,
+        "confidence_threshold": 0.25,
+        "include_object_level_details": false,
+        "inference_mode": "end_to_end_nms_free",
+        "interactive_output_confidence_comparison": "strictly_greater_than",
+        "interactive_output_confidence_threshold": 0.25,
+        "iou_threshold": 0.5,
+        "max_detections_per_image": 300,
+        "nms_iou_threshold": null,
+        "score_floor": 0.001
+      },
+      "elapsed_seconds": 127.094283,
+      "index": 2,
+      "kind": "measured",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "alpha": 0.01,
+        "epsilon": 0.03,
+        "steps": 10
+      },
+      "response_bytes": 838122,
+      "result_id": "detection_evaluation_3f805a91-768d-4db5-8f26-a7900fc681a9",
+      "throughput_images_per_second": 0.786817,
+      "time_to_first_progress_seconds": 0.046534,
+      "time_to_metrics_phase_seconds": 123.589641,
+      "total_images": 100
+    },
+    {
+      "effective_supervised_configuration": {
+        "coco_area_ranges": [
+          "all",
+          "small",
+          "medium",
+          "large"
+        ],
+        "coco_iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "coco_max_detections": [
+          1,
+          10,
+          100
+        ],
+        "coco_recall_threshold_count": 101,
+        "confidence_threshold": 0.25,
+        "include_object_level_details": false,
+        "inference_mode": "end_to_end_nms_free",
+        "interactive_output_confidence_comparison": "strictly_greater_than",
+        "interactive_output_confidence_threshold": 0.25,
+        "iou_threshold": 0.5,
+        "max_detections_per_image": 300,
+        "nms_iou_threshold": null,
+        "score_floor": 0.001
+      },
+      "elapsed_seconds": 142.516427,
+      "index": 3,
+      "kind": "measured",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "alpha": 0.01,
+        "epsilon": 0.03,
+        "steps": 10
+      },
+      "response_bytes": 838122,
+      "result_id": "detection_evaluation_ea3a9686-04d0-473d-abb1-754a878ce038",
+      "throughput_images_per_second": 0.701673,
+      "time_to_first_progress_seconds": 0.049173,
+      "time_to_metrics_phase_seconds": 139.217862,
+      "total_images": 100
+    }
+  ],
+  "summary": {
+    "max_seconds": 142.516427,
+    "mean_response_bytes": 838122.0,
+    "mean_seconds": 131.828314,
+    "mean_throughput_images_per_second": 0.760978,
+    "median_seconds": 127.094283,
+    "median_throughput_images_per_second": 0.786817,
+    "min_seconds": 125.874231,
+    "runs": 3,
+    "stdev_seconds": 9.276258
+  },
+  "warmup_runs": [
+    {
+      "effective_supervised_configuration": {
+        "coco_area_ranges": [
+          "all",
+          "small",
+          "medium",
+          "large"
+        ],
+        "coco_iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "coco_max_detections": [
+          1,
+          10,
+          100
+        ],
+        "coco_recall_threshold_count": 101,
+        "confidence_threshold": 0.25,
+        "include_object_level_details": false,
+        "inference_mode": "end_to_end_nms_free",
+        "interactive_output_confidence_comparison": "strictly_greater_than",
+        "interactive_output_confidence_threshold": 0.25,
+        "iou_threshold": 0.5,
+        "max_detections_per_image": 300,
+        "nms_iou_threshold": null,
+        "score_floor": 0.001
+      },
+      "elapsed_seconds": 121.326664,
+      "index": 1,
+      "kind": "warmup",
+      "progress_events": 102,
+      "resolved_parameters": {
+        "alpha": 0.01,
+        "epsilon": 0.03,
+        "steps": 10
+      },
+      "response_bytes": 838118,
+      "result_id": "detection_evaluation_977efc60-2c34-4fb4-af18-c0e28de7e16a",
+      "throughput_images_per_second": 0.824221,
+      "time_to_first_progress_seconds": 0.047643,
+      "time_to_metrics_phase_seconds": 117.930095,
+      "total_images": 100
+    }
+  ]
+}

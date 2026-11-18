@@ -1,0 +1,130 @@
+from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+from schemas.attack import ArchivedAttackId, AttackParameters, AttackType
+from schemas.detection import DetectionPrediction
+from schemas.detection_square_trace import SquareDetectionExecutionTrace
+from schemas.detection_metrics import (
+    DetectionMetricsContract,
+    DetectionSupervisedConfiguration,
+    DetectionSupervisedMetrics,
+    DetectionSupervisedUnavailableReason,
+)
+
+
+class DetectionEvaluationRequest(BaseModel):
+    dataset_id: str
+    attack_type: AttackType = AttackType.YOLO_CONFIDENCE
+    parameters: AttackParameters = Field(default_factory=AttackParameters)
+    supervised_configuration: DetectionSupervisedConfiguration = Field(
+        default_factory=DetectionSupervisedConfiguration
+    )
+    force_recompute: bool = Field(default=False, exclude=True)
+
+
+class DetectionEvaluationImageResult(BaseModel):
+    """
+    Métricas por imagen con deltas ``original - adversarial``.
+
+    ``attack_success`` en métricas v1.1 indica pérdida de correspondencia
+    de detecciones originales (misma clase, IoU >= 0.5). No mide exactitud
+    frente a ground truth; consultar ``supervised`` si hay anotaciones.
+    Los resultados históricos v1.0 conservan su criterio original.
+    """
+
+    image_id: str
+    filename: str
+
+    original_detection_count: int
+    adversarial_detection_count: int
+    detections_difference: int
+
+    average_original_confidence: float
+    average_adversarial_confidence: float
+    average_confidence_difference: float
+
+    attack_success: bool
+    perturbation_linf: float
+    perturbation_l2: float
+
+    adversarial_image_url: str | None = None
+    execution_trace: SquareDetectionExecutionTrace | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+
+    original_detections: list[DetectionPrediction]
+    adversarial_detections: list[DetectionPrediction]
+
+
+class DetectionEvaluationSummary(BaseModel):
+    """
+    Resumen básico con deltas ``original - adversarial``.
+
+    ``attack_success_rate`` promedia el criterio indicado por
+    ``attack_success_criterion`` sobre TODAS las imágenes de la evaluación;
+    no es una tasa condicionada a imágenes atacables ni sustituye AP/COCO.
+    """
+
+    total_images: int
+
+    total_original_detections: int
+    total_adversarial_detections: int
+    detections_difference: int
+
+    average_original_detections_per_image: float
+    average_adversarial_detections_per_image: float
+
+    average_original_confidence: float
+    average_adversarial_confidence: float
+    average_confidence_difference: float
+
+    images_with_reduced_detections: int
+    images_with_no_adversarial_detections: int
+
+    attack_success_rate: float
+
+    average_perturbation_linf: float
+    average_perturbation_l2: float
+
+
+class DetectionEvaluationResponse(DetectionMetricsContract):
+    result_id: str
+    model_id: str
+    model_name: str
+    dataset_id: str
+    dataset_revision: int = Field(ge=0)
+    annotation_snapshot_id: str | None = None
+    attack_type: ArchivedAttackId
+    parameters: AttackParameters
+
+    summary: DetectionEvaluationSummary
+    results: list[DetectionEvaluationImageResult]
+    supervised: DetectionSupervisedMetrics | None = None
+
+
+class DetectionEvaluationHistoryItem(DetectionMetricsContract):
+    result_id: str
+    dataset_id: str
+    dataset_revision: int = Field(ge=0)
+    annotation_snapshot_id: str | None = None
+    model_id: str
+    model_name: str
+    attack_type: ArchivedAttackId
+    attack_revision: str | None = None
+    parameters: AttackParameters
+    supervised_configuration: DetectionSupervisedConfiguration
+    summary: DetectionEvaluationSummary
+    supervised_available: bool
+    supervised_reason: DetectionSupervisedUnavailableReason | None = None
+    created_at: datetime
+    expires_at: datetime | None = None
+    preserved: bool = False
+
+
+class DetectionEvaluationEigenCamResponse(BaseModel):
+    evaluation_id: str
+    image_id: str
+    explanation_type: str = "eigencam"
+    original_eigencam_image_url: str
+    adversarial_eigencam_image_url: str
