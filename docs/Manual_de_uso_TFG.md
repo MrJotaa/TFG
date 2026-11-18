@@ -34,6 +34,8 @@ Para comprobar los contenedores utilice `docker compose ps`; para detener la pla
 
 ## 2. Acceso y preparación de datos
 
+Para empezar con conjuntos de ejemplo reproducibles, crea primero una cuenta en la plataforma y, desde la raíz del repositorio, ejecuta `sh scripts/datasets/prepare_examples.sh`. Sin opciones, el programa descargará e importará 100 imágenes de Imagenette con sus etiquetas de clasificación y 100 imágenes de COCO con sus anotaciones de detección. Solicitará el correo y la contraseña de la cuenta; no necesitarás instalar Python. También puedes indicar `--count 20` (se aceptan múltiplos de 10 entre 10 y 100), elegir una tarea con `--task classification` o `--task detection`, o utilizar `--prepare-only` para obtener los archivos sin importarlos. Si se interrumpe, repite el mismo comando para reanudar. Consulta [Datasets de ejemplo](datasets.md) para más detalles y fuentes originales.
+
 En la pantalla inicial, pulse **Crear cuenta**, introduzca nombre, correo electrónico y contraseña (con confirmación), o utilice **Iniciar sesión** si ya dispone de una cuenta. Tras acceder se muestra el panel principal, **Datos del experimento**.
 
 Para preparar las imágenes, pulse **Gestionar datasets** y después **Nuevo**. Indique el nombre, elija el tipo **Clasificación** o **Detección**, seleccione una o varias imágenes y confirme con **Crear con N imágenes**. En esta pantalla puede seleccionar un conjunto existente, **Añadir imágenes**, cambiar su nombre, inspeccionar imágenes o eliminarlas.

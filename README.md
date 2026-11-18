@@ -165,6 +165,24 @@ El [manual de usuario](docs/Manual_de_uso_TFG.md) describe la instalación y
 el uso de la plataforma: acceso, gestión de datasets, análisis de imágenes,
 evaluaciones, comparaciones e historial.
 
+## Datasets de ejemplo
+
+Con la aplicación iniciada y una cuenta creada, prepara **e importa** ejemplos
+supervisados para ambas tareas (100 imágenes de Imagenette y 100 de COCO):
+
+```sh
+sh scripts/datasets/prepare_examples.sh
+```
+
+El script utiliza Docker, solicita la autenticación en la plataforma y aplica
+las etiquetas de clasificación o importa las anotaciones COCO. Se pueden elegir
+tamaños entre 10 y 100 imágenes por dataset, siempre múltiplos de 10; por
+ejemplo, `--count 20`. Las descargas se almacenan fuera del código y admiten
+reintentos y reanudación. No es necesario instalar Python localmente.
+
+Consulta [Datasets de ejemplo](Docs/datasets.md) para las opciones, la
+procedencia de los datos y el procedimiento de recuperación ante fallos.
+
 ## Configuración
 
 El backend carga su configuración desde:
