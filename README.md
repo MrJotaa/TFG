@@ -180,8 +180,8 @@ tamaños entre 10 y 100 imágenes por dataset, siempre múltiplos de 10; por
 ejemplo, `--count 20`. Las descargas se almacenan fuera del código y admiten
 reintentos y reanudación. No es necesario instalar Python localmente.
 
-Consulta [Datasets de ejemplo](Docs/datasets.md) para las opciones, la
-procedencia de los datos y el procedimiento de recuperación ante fallos.
+Las instrucciones completas de preparación, importación y uso de datasets
+propios están en el [manual de usuario](Docs/Manual_de_uso_TFG.md).
 
 ## Configuración
 

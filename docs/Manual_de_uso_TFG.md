@@ -34,11 +34,31 @@ Para comprobar los contenedores utilice `docker compose ps`; para detener la pla
 
 ## 2. Acceso y preparación de datos
 
-Para empezar con conjuntos de ejemplo reproducibles, crea primero una cuenta en la plataforma y, desde la raíz del repositorio, ejecuta `sh scripts/datasets/prepare_examples.sh`. Sin opciones, el programa descargará e importará 100 imágenes de Imagenette con sus etiquetas de clasificación y 100 imágenes de COCO con sus anotaciones de detección. Solicitará el correo y la contraseña de la cuenta; no necesitarás instalar Python. También puedes indicar `--count 20` (se aceptan múltiplos de 10 entre 10 y 100), elegir una tarea con `--task classification` o `--task detection`, o utilizar `--prepare-only` para obtener los archivos sin importarlos. Si se interrumpe, repite el mismo comando para reanudar. Consulta [Datasets de ejemplo](datasets.md) para más detalles y fuentes originales.
+Una vez iniciada la aplicación, abra **http://localhost:5173**. En la pantalla inicial, pulse **Crear cuenta**, introduzca nombre, correo electrónico y contraseña (con confirmación), o utilice **Iniciar sesión** si ya dispone de una cuenta. Tras acceder se muestra el panel principal, **Datos del experimento**.
 
-En la pantalla inicial, pulse **Crear cuenta**, introduzca nombre, correo electrónico y contraseña (con confirmación), o utilice **Iniciar sesión** si ya dispone de una cuenta. Tras acceder se muestra el panel principal, **Datos del experimento**.
+### Preparación automática de datasets de ejemplo
 
-Para preparar las imágenes, pulse **Gestionar datasets** y después **Nuevo**. Indique el nombre, elija el tipo **Clasificación** o **Detección**, seleccione una o varias imágenes y confirme con **Crear con N imágenes**. En esta pantalla puede seleccionar un conjunto existente, **Añadir imágenes**, cambiar su nombre, inspeccionar imágenes o eliminarlas.
+Con la aplicación iniciada y una cuenta creada, ejecute desde la **raíz del repositorio**:
+
+```bash
+sh scripts/datasets/prepare_examples.sh
+```
+
+El script utiliza Docker para descargar e importar automáticamente **100 imágenes de Imagenette para clasificación**, con sus etiquetas, y **100 imágenes de COCO 2017 para detección**, con sus anotaciones. Solicita el **correo electrónico y la contraseña de la cuenta de la aplicación** (no los de GitHub); la contraseña no se muestra al escribirla. No es necesario instalar Python localmente ni etiquetar manualmente estos conjuntos.
+
+Puede ajustar la cantidad a un múltiplo de 10 entre 10 y 100 imágenes por dataset, o preparar solo una tarea:
+
+```bash
+sh scripts/datasets/prepare_examples.sh --count 20
+sh scripts/datasets/prepare_examples.sh --task classification --count 50
+sh scripts/datasets/prepare_examples.sh --task detection --count 30
+```
+
+Para descargar y preparar los archivos sin importarlos, utilice `--prepare-only`. Los datos se guardan en `example_datasets/`, fuera del seguimiento de Git. El proceso conserva los archivos preparados y admite reintentos; si se interrumpe, ejecute de nuevo el mismo comando para continuar. La importación requiere una terminal interactiva y conexión con la aplicación. Encontrará los conjuntos ya importados en **Gestionar datasets**, asociados a la cuenta utilizada.
+
+### Preparación manual de datasets propios
+
+También puede pulsar **Gestionar datasets** y después **Nuevo**. Indique el nombre, elija el tipo **Clasificación** o **Detección**, seleccione una o varias imágenes y confirme con **Crear con N imágenes**. En esta pantalla puede seleccionar un conjunto existente, **Añadir imágenes**, cambiar su nombre, inspeccionar imágenes o eliminarlas.
 
 - **Clasificación:** en la pestaña **Imágenes**, seleccione cada imagen y complete **Etiqueta de clase** mediante **Guardar etiqueta**. Las etiquetas deben corresponder a clases reconocibles por el modelo para obtener métricas supervisadas.
 - **Detección:** abra **Anotaciones** e **Importar anotaciones** para cargar un archivo JSON en formato COCO con las categorías y cajas de los objetos. Revise el indicador de cobertura; una nueva importación **reemplaza** las anotaciones COCO anteriores del conjunto.
