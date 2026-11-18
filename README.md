@@ -63,20 +63,84 @@ Para ejecutar la aplicación únicamente es necesario disponer de:
 * Docker Engine o Docker Desktop.
 * Docker Compose v2.
 
-No es necesario instalar localmente Python, Node.js ni MongoDB.
+No es necesario instalar localmente Python, Node.js ni MongoDB. Para usar los
+lanzadores se requiere una terminal POSIX (`sh`, Linux/macOS o Git Bash) o
+PowerShell (Windows), sin dependencias de Python adicionales.
 
 Se recomienda disponer de conexión a Internet durante el primer uso de los modelos, ya que algunos pesos preentrenados se descargan bajo demanda.
 
 ## Puesta en marcha
 
-Desde la raíz del repositorio:
+Desde la raíz del repositorio, el **arranque recomendado** detecta si puede
+utilizar una GPU NVIDIA con Docker y, en caso contrario, ejecuta en CPU:
 
 ```bash
-cp backend/.env.example backend/.env
+# Linux, macOS o Git Bash (Windows)
+sh start.sh
+```
+
+En PowerShell (Windows), desde la raíz:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+Los lanzadores preparan `backend/.env` (con una clave JWT aleatoria segura)
+si aún no existe; **nunca reemplazan un `.env` existente**. Construyen y
+arrancan los tres servicios en segundo plano, sin borrar la base de datos ni los
+archivos persistentes. Si no se dispone de `.env.example`, crean un `.env`
+mínimo usando los valores por defecto del backend. Mantén `backend/.env`
+fuera del control de versiones (`git check-ignore backend/.env`); los lanzadores
+muestran un aviso si Git no lo está ignorando. Una primera ejecución puede
+requerir descargas y tardar más.
+
+También se puede utilizar el arranque manual habitual:
+
+```bash
+cp backend/.env.example backend/.env   # si existe la plantilla
+# Editar JWT_SECRET_KEY antes de arrancar
 docker compose up --build
 ```
 
-La primera construcción puede tardar más debido a la instalación de las dependencias del backend y frontend.
+### Selección del dispositivo de ejecución
+
+| Opción | Linux/macOS/Git Bash | PowerShell |
+| --- | --- | --- |
+| Automática (por defecto) | `sh start.sh` | `powershell -ExecutionPolicy Bypass -File .\start.ps1` |
+| Solo CPU | `sh start.sh cpu` | `powershell -ExecutionPolicy Bypass -File .\start.ps1 cpu` |
+| Exigir GPU NVIDIA | `sh start.sh gpu` | `powershell -ExecutionPolicy Bypass -File .\start.ps1 gpu` |
+
+En modo automático, el lanzador primero busca indicios de una GPU NVIDIA en el
+anfitrión; si los encuentra, comprueba su accesibilidad dentro de Docker con
+una imagen CUDA de prueba y, tras arrancar, que PyTorch realmente detecta CUDA.
+Si no puede utilizarla, vuelve a CPU. Para un motor Docker remoto o una GPU no
+visible mediante `nvidia-smi` en el anfitrión, se puede utilizar `gpu` para
+forzar la comprobación; el modo `gpu` **no degrada silenciosamente a CPU**.
+La primera prueba GPU puede descargar `nvidia/cuda:13.0.0-base-ubuntu24.04`.
+
+Para ejecutar en GPU NVIDIA se necesitan un controlador compatible con CUDA 13
+(serie 580 o posterior), Docker con soporte NVIDIA (NVIDIA Container Toolkit en
+Linux o integración equivalente en Docker Desktop) y una GPU soportada por la
+versión de PyTorch incluida. **Instalar PyTorch con CUDA dentro del contenedor no
+es suficiente** si Docker no expone la GPU.
+
+La configuración CPU permanece en `compose.yaml` y la reserva opcional de GPU
+se declara en `compose.gpu.yaml`. Sin utilizar los lanzadores, puede arrancarse
+GPU explícitamente con:
+
+```bash
+docker compose -f compose.yaml -f compose.gpu.yaml up -d --build
+```
+
+Para confirmar el dispositivo dentro del backend:
+
+```bash
+docker compose exec backend python -c "import torch; print('CUDA:', torch.cuda.is_available()); print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+```
+
+Consulta la [guía oficial de GPU en Docker Compose](https://docs.docker.com/compose/how-tos/gpu-support/)
+y las [instrucciones de NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+si el acceso a CUDA falla.
 
 Una vez iniciados los servicios estarán disponibles:
 
@@ -95,6 +159,39 @@ docker compose ps
 
 MongoDB y el backend deberían aparecer como servicios saludables.
 
+## Manual de usuario
+
+El [manual de usuario](docs/Manual_de_uso_TFG.md) describe la instalación y
+el uso de la plataforma: acceso, gestión de datasets, análisis de imágenes,
+evaluaciones, comparaciones e historial.
+
+## Datasets de ejemplo
+
+Con la aplicación iniciada y una cuenta creada, prepara **e importa** ejemplos
+supervisados para ambas tareas (100 imágenes de Imagenette y 100 de COCO):
+
+```sh
+# Linux, macOS o Git Bash (Windows)
+sh scripts/datasets/prepare_examples.sh
+```
+
+En **Windows PowerShell** se utiliza el lanzador equivalente:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\datasets\prepare_examples.ps1
+```
+
+Ambos lanzadores utilizan Docker y el mismo script Python del contenedor.
+El script utiliza Docker, solicita la autenticación en la plataforma y aplica
+las etiquetas de clasificación o importa las anotaciones COCO. Se pueden elegir
+tamaños entre 10 y 100 imágenes por dataset, siempre múltiplos de 10; por
+ejemplo, `--count 20` en `sh` o `-Count 20` en PowerShell. Las descargas se
+almacenan fuera del código y admiten reintentos y reanudación. No es necesario
+instalar Python localmente.
+
+Las instrucciones completas de preparación, importación y uso de datasets
+propios están en el [manual de usuario](Docs/Manual_de_uso_TFG.md).
+
 ## Configuración
 
 El backend carga su configuración desde:
@@ -103,11 +200,9 @@ El backend carga su configuración desde:
 backend/.env
 ```
 
-Antes de la primera ejecución debe crearse a partir de la plantilla incluida:
-
-```bash
-cp backend/.env.example backend/.env
-```
+Los lanzadores `start.sh` y `start.ps1` lo crean automáticamente con una clave
+JWT segura cuando falta. Para un arranque manual puede copiarse la plantilla
+`backend/.env.example` si está disponible y completar la clave.
 
 La variable obligatoria es:
 
@@ -133,7 +228,13 @@ Dentro de Docker Compose, la conexión a MongoDB se configura automáticamente m
 
 ## Ejecución habitual
 
-Para iniciar la aplicación:
+Para iniciar la aplicación con selección automática CPU/GPU:
+
+```bash
+sh start.sh
+```
+
+Para iniciar con Docker Compose directamente (CPU):
 
 ```bash
 docker compose up
@@ -151,7 +252,7 @@ Para ejecutar los servicios en segundo plano:
 docker compose up -d
 ```
 
-Para detenerlos:
+Para detenerlos (también si se iniciaron con el modo GPU):
 
 ```bash
 docker compose down
