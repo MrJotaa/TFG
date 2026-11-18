@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prepara e importa ejemplos Imagenette/COCO sin Python en el anfitrión.
 
-Se ejecuta en el contenedor backend a través de prepare_examples.sh.
+Se ejecuta en el contenedor backend mediante los lanzadores .sh o .ps1.
 Las descargas quedan en /datasets, un volumen local ignorado por Git.
 """
 from __future__ import annotations

@@ -41,9 +41,17 @@ Una vez iniciada la aplicación, abra **http://localhost:5173**. En la pantalla 
 Con la aplicación iniciada y una cuenta creada, ejecute desde la **raíz del repositorio**:
 
 ```bash
+# Linux, macOS o Git Bash (Windows)
 sh scripts/datasets/prepare_examples.sh
 ```
 
+En **Windows PowerShell**:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\datasets\prepare_examples.ps1
+```
+
+Ambos lanzadores ejecutan el mismo programa Python dentro de Docker.
 El script utiliza Docker para descargar e importar automáticamente **100 imágenes de Imagenette para clasificación**, con sus etiquetas, y **100 imágenes de COCO 2017 para detección**, con sus anotaciones. Solicita el **correo electrónico y la contraseña de la cuenta de la aplicación** (no los de GitHub); la contraseña no se muestra al escribirla. No es necesario instalar Python localmente ni etiquetar manualmente estos conjuntos.
 
 Puede ajustar la cantidad a un múltiplo de 10 entre 10 y 100 imágenes por dataset, o preparar solo una tarea:
@@ -54,7 +62,14 @@ sh scripts/datasets/prepare_examples.sh --task classification --count 50
 sh scripts/datasets/prepare_examples.sh --task detection --count 30
 ```
 
-Para descargar y preparar los archivos sin importarlos, utilice `--prepare-only`. Los datos se guardan en `example_datasets/`, fuera del seguimiento de Git. El proceso conserva los archivos preparados y admite reintentos; si se interrumpe, ejecute de nuevo el mismo comando para continuar. La importación requiere una terminal interactiva y conexión con la aplicación. Encontrará los conjuntos ya importados en **Gestionar datasets**, asociados a la cuenta utilizada.
+En PowerShell se emplean parámetros equivalentes, por ejemplo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\datasets\prepare_examples.ps1 -Count 20
+powershell -ExecutionPolicy Bypass -File .\scripts\datasets\prepare_examples.ps1 -Task detection -Count 30
+```
+
+Para descargar y preparar los archivos sin importarlos, utilice `--prepare-only` en `sh` o `-PrepareOnly` en PowerShell. Los datos se guardan en `example_datasets/`, fuera del seguimiento de Git. El proceso conserva los archivos preparados y admite reintentos; si se interrumpe, ejecute de nuevo el mismo comando para continuar. La importación requiere una terminal interactiva y conexión con la aplicación. Encontrará los conjuntos ya importados en **Gestionar datasets**, asociados a la cuenta utilizada.
 
 ### Preparación manual de datasets propios
 

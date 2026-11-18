@@ -171,14 +171,23 @@ Con la aplicación iniciada y una cuenta creada, prepara **e importa** ejemplos
 supervisados para ambas tareas (100 imágenes de Imagenette y 100 de COCO):
 
 ```sh
+# Linux, macOS o Git Bash (Windows)
 sh scripts/datasets/prepare_examples.sh
 ```
 
+En **Windows PowerShell** se utiliza el lanzador equivalente:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\datasets\prepare_examples.ps1
+```
+
+Ambos lanzadores utilizan Docker y el mismo script Python del contenedor.
 El script utiliza Docker, solicita la autenticación en la plataforma y aplica
 las etiquetas de clasificación o importa las anotaciones COCO. Se pueden elegir
 tamaños entre 10 y 100 imágenes por dataset, siempre múltiplos de 10; por
-ejemplo, `--count 20`. Las descargas se almacenan fuera del código y admiten
-reintentos y reanudación. No es necesario instalar Python localmente.
+ejemplo, `--count 20` en `sh` o `-Count 20` en PowerShell. Las descargas se
+almacenan fuera del código y admiten reintentos y reanudación. No es necesario
+instalar Python localmente.
 
 Las instrucciones completas de preparación, importación y uso de datasets
 propios están en el [manual de usuario](Docs/Manual_de_uso_TFG.md).
