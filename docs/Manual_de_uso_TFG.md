@@ -30,7 +30,34 @@ docker compose up --build
 
 Cuando terminen de iniciarse los servicios, abra **http://localhost:5173** en el navegador. La documentación interactiva de la API está en `http://localhost:8000/docs`.
 
-Para comprobar los contenedores utilice `docker compose ps`; para detener la plataforma, `docker compose down`. Este último comando **no borra** la base de datos ni los archivos persistentes. La primera construcción y la primera carga de algunos modelos pueden tardar más, ya que se instalan dependencias y pueden descargarse pesos preentrenados; conviene disponer de conexión a Internet.
+Para comprobar los contenedores utilice `docker compose ps`. La detención y desinstalación se explican a continuación. La primera construcción y la primera carga de algunos modelos pueden tardar más, ya que se instalan dependencias y pueden descargarse pesos preentrenados; conviene disponer de conexión a Internet.
+
+### Detención y desinstalación
+
+Los scripts de arranque (`start.sh` y `start.ps1`) se utilizan solo para iniciar
+la aplicación. Para **detener los servicios sin perder datos**, ejecute desde
+la raíz del repositorio:
+
+```bash
+sh stop.sh
+```
+
+En Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\stop.ps1
+```
+
+Para **retirar el despliegue Docker**, utilice `sh stop.sh uninstall` o
+`powershell -ExecutionPolicy Bypass -File .\stop.ps1 uninstall`,
+respectivamente. Esta operación elimina contenedores, redes, imágenes locales
+de Compose y **el volumen persistente de MongoDB**: se perderán usuarios,
+historial y metadatos almacenados en la base de datos. Es necesario escribir
+`DESINSTALAR` para confirmar. Se conservan el código fuente y los archivos
+locales (`backend/uploads/`, `example_datasets/`, `backend/.env`). Las imágenes
+con etiquetas propias descargadas de registros externos pueden permanecer en
+Docker. Haga una copia de seguridad antes de desinstalar si desea conservar
+los datos.
 
 ## 2. Acceso y preparación de datos
 
