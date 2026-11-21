@@ -252,11 +252,44 @@ Para ejecutar los servicios en segundo plano:
 docker compose up -d
 ```
 
-Para detenerlos (también si se iniciaron con el modo GPU):
+### Detención y desinstalación
+
+Para **detener** los servicios sin eliminar contenedores, el volumen de MongoDB ni
+archivos locales (funciona tanto en CPU como en GPU), utiliza el lanzador
+independiente del de arranque:
 
 ```bash
-docker compose down
+sh stop.sh
 ```
+
+En Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\stop.ps1
+```
+
+Para **desinstalar los recursos del despliegue Docker** (contenedores, redes,
+imágenes locales de Compose y el volumen persistente de MongoDB):
+
+```bash
+sh stop.sh uninstall
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\stop.ps1 uninstall
+```
+
+**Atención:** `uninstall` elimina el volumen de MongoDB, con lo que se pierden
+los usuarios, el historial y los metadatos de datasets almacenados en la base
+de datos. Solicita escribir `DESINSTALAR` para confirmar. No borra el código
+fuente ni los archivos locales (`backend/uploads/`, `example_datasets/`,
+`backend/.env`). Las imágenes descargadas con etiquetas propias, como MongoDB,
+pueden permanecer en Docker. Haz copia de seguridad de los datos si los
+necesitas.
+
+Alternativamente, `docker compose stop` detiene los servicios sin borrar sus
+datos, y `docker compose down` elimina también contenedores y redes, pero
+conserva el volumen de la base de datos.
 
 Para consultar el estado:
 
