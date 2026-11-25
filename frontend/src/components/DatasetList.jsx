@@ -4,6 +4,7 @@ function DatasetList({
     onSelectDataset,
     compact = false,
     variant = 'default',
+    selectionLocked = false,
 }) {
     const classNames = [
         'dataset-list',
@@ -33,7 +34,11 @@ function DatasetList({
                                 key={dataset.id}
                                 type="button"
                                 className={buttonClassName}
-                                onClick={() => onSelectDataset(dataset)}
+                                disabled={selectionLocked}
+                                onClick={() => {
+                                    if (!selectionLocked) onSelectDataset(dataset)
+                                }}
+                                title={selectionLocked ? 'El dataset de A permanece fijo durante la comparación' : undefined}
                                 aria-pressed={isSelected}
                             >
                                 <span>{dataset.name}</span>

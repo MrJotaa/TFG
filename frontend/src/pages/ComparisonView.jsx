@@ -25,7 +25,8 @@ import {
     formatAttackParameters,
     getAttackName,
 } from '../utils/attackFormatting'
-import { buildComparisonViewState } from '../utils/comparisonView'
+import { buildComparisonViewState, getIndividualAnalysisTabs } from '../utils/comparisonView'
+import { getAttackParameterError } from '../utils/attackCatalog'
 import {
     detectionSuccessLabel,
     detectionOutcomeExplanation,
@@ -37,6 +38,7 @@ import {
     formatAnalysisProbability,
     formatSignedInteger,
     formatSignedPercentagePoints,
+    resolveAdjacentAnalysisImage,
 } from '../utils/individualAnalysis'
 import { formatCreatedAgo } from '../utils/evaluationHistory'
 import { getCompatibleIndividualAnalysisCandidates } from '../utils/individualAnalysisHistory'
@@ -205,12 +207,8 @@ function ClassificationExplainabilityResult({ explanation, selectedImage }) {
     )
 }
 
-function ClassificationWorkspaceTabs({ activePanel, onSelect }) {
-    const tabs = [
-        ['clean', 'Predicción'],
-        ['attack', 'Comparación'],
-        ['explanation', 'Explicabilidad'],
-    ]
+function IndividualWorkspaceTabs({ activePanel, onSelect, analysisMode }) {
+    const tabs = getIndividualAnalysisTabs(analysisMode)
 
     return (
         <nav className="classification-analysis-tabs" aria-label="Modos del análisis individual">
@@ -342,30 +340,6 @@ function DetectionExplainabilityResult({ explanation, selectedImage }) {
     )
 }
 
-function DetectionWorkspaceTabs({ activePanel, onSelect }) {
-    const tabs = [
-        ['clean', 'Detección'],
-        ['attack', 'Comparación'],
-        ['explanation', 'Explicabilidad'],
-    ]
-
-    return (
-        <nav className="classification-analysis-tabs" aria-label="Modos del análisis individual de detección">
-            {tabs.map(([panel, label]) => (
-                <button
-                    key={panel}
-                    type="button"
-                    className={activePanel === panel ? 'active' : ''}
-                    aria-current={activePanel === panel ? 'page' : undefined}
-                    onClick={() => onSelect(panel)}
-                >
-                    {label}
-                </button>
-            ))}
-        </nav>
-    )
-}
-
 function DetectionResults({ result }) {
     const comparison = result.comparison
     const successCopy = getDetectionSuccessPresentation(result)
@@ -476,6 +450,7 @@ function ClassificationCleanPanel({
                 description="Obtén la clase predicha, su confianza y el Top-K sin modificar la imagen."
                 actionLabel="Ejecutar predicción"
                 onAction={handlePredict}
+                disabled={busy}
             />
         )
     }
@@ -554,7 +529,7 @@ function ClassificationAttackPanel({
                 description={`El ataque ${attackName} calculará también la predicción original y los Grad-CAM necesarios para la exploración visual.`}
                 actionLabel={`Aplicar ${attackName} y comparar`}
                 onAction={handleRunAttack}
-                disabled={!isAttackSupported}
+                disabled={busy || !isAttackSupported}
             />
         )
     }
@@ -625,6 +600,7 @@ function ClassificationExplanationPanel({
                 description="Obtén una explicación visual de la predicción sin necesidad de ejecutar un ataque."
                 actionLabel="Generar Grad-CAM"
                 onAction={handleGenerateExplainability}
+                disabled={busy}
             />
         )
     }
@@ -693,6 +669,7 @@ function DetectionCleanPanel({
                 description="Obtén las cajas, clases y confianzas sin modificar la imagen seleccionada."
                 actionLabel="Ejecutar detección"
                 onAction={handlePredict}
+                disabled={busy}
             />
         )
     }
@@ -766,7 +743,7 @@ function DetectionAttackPanel({
                 description={`El ataque ${attackName} calculará también la detección original y los artefactos visuales disponibles para este modelo.`}
                 actionLabel={`Aplicar ${attackName} y comparar`}
                 onAction={handleRunAttack}
-                disabled={!isAttackSupported}
+                disabled={busy || !isAttackSupported}
             />
         )
     }
@@ -837,6 +814,7 @@ function DetectionExplanationPanel({
                 description="Obtén una explicación visual de las detecciones sin necesidad de ejecutar un ataque."
                 actionLabel="Generar Eigen-CAM"
                 onAction={handleGenerateExplainability}
+                disabled={busy}
             />
         )
     }
@@ -880,7 +858,7 @@ function DetectionWorkspacePanel(props) {
 
 function ClassificationAnalysisContent(props) {
     const {
-        activePanel, attackName, attackParameterSummary, attackResult, busy, classificationExplanation, cleanPrediction,
+        activePanel, analysisMode, attackParameterError, attackName, attackParameterSummary, attackResult, busy, classificationExplanation, cleanPrediction,
         contextOpen, datasetImages, error, historyMode, imageContextKey, imageDimensions, isAttackSupported, loading,
         loadingExplainability, loadingPrediction, pendingComparisonCopy, pendingIndividualComparison, recoveredHistoryItem,
         saveState, savingAnalysis, selectedDataset, selectedImage, selectedIndex, taskType, viewModel, handleCancelOperation,
@@ -894,7 +872,7 @@ function ClassificationAnalysisContent(props) {
             <span className="individual-comparison-side-token">B</span>
             <div>
                 <strong>Preparando B · {pendingComparisonCopy.label}</strong>
-                <p>{pendingComparisonCopy.instruction} Antes de ejecutar se validará la identidad experimental exacta.</p>
+                <p>{pendingComparisonCopy.instruction} La imagen de A permanece fijada. Antes de ejecutar se validará la identidad experimental exacta.</p>
             </div>
         </div>
     )}
@@ -902,8 +880,12 @@ function ClassificationAnalysisContent(props) {
         <div className="classification-context-strip">
             <div className="classification-context-summary">
                 <strong title={viewModel.name}>{viewModel.name}</strong>
-                <span aria-hidden="true">/</span>
-                <span>{attackName} {attackParameterSummary}</span>
+                {analysisMode === 'attack' && (
+                    <>
+                        <span aria-hidden="true">/</span>
+                        <span>{attackName} {attackParameterSummary}</span>
+                    </>
+                )}
                 <span aria-hidden="true">/</span>
                 <span>{selectedDataset.name}</span>
             </div>
@@ -913,9 +895,9 @@ function ClassificationAnalysisContent(props) {
                     <button
                         type="button"
                         onClick={() => selectRelativeImage(-1)}
-                        disabled={selectedIndex <= 0 || busy || historyMode}
+                        disabled={selectedIndex <= 0 || busy || historyMode || Boolean(pendingIndividualComparison)}
                         aria-label="Imagen anterior"
-                        title="Imagen anterior"
+                        title={pendingIndividualComparison ? 'Imagen fijada para A/B' : 'Imagen anterior'}
                     >
                         ‹
                     </button>
@@ -929,10 +911,11 @@ function ClassificationAnalysisContent(props) {
                             selectedIndex < 0 ||
                             selectedIndex >= datasetImages.length - 1 ||
                             busy ||
-                            historyMode
+                            historyMode ||
+                            Boolean(pendingIndividualComparison)
                         }
                         aria-label="Imagen siguiente"
-                        title="Imagen siguiente"
+                        title={pendingIndividualComparison ? 'Imagen fijada para A/B' : 'Imagen siguiente'}
                     >
                         ›
                     </button>
@@ -963,14 +946,18 @@ function ClassificationAnalysisContent(props) {
                     <dt>Modelo</dt>
                     <dd>{viewModel.name}</dd>
                 </div>
-                <div>
-                    <dt>Ataque</dt>
-                    <dd>{attackName}</dd>
-                </div>
-                <div>
-                    <dt>Parámetros</dt>
-                    <dd>{attackParameterSummary || 'Configuración por defecto'}</dd>
-                </div>
+                {analysisMode === 'attack' && (
+                    <>
+                        <div>
+                            <dt>Ataque</dt>
+                            <dd>{attackName}</dd>
+                        </div>
+                        <div>
+                            <dt>Parámetros</dt>
+                            <dd>{attackParameterSummary || 'Configuración por defecto'}</dd>
+                        </div>
+                    </>
+                )}
                 <div>
                     <dt>Dataset</dt>
                     <dd>{selectedDataset.name}</dd>
@@ -1000,14 +987,19 @@ function ClassificationAnalysisContent(props) {
 
     {error && <p className="error classification-analysis-error" role="alert">{error}</p>}
 
-    {!historyMode && !isAttackSupported && (
+    {analysisMode === 'attack' && !historyMode && !isAttackSupported && (
         <div className="evaluation-warning-banner">
             El ataque seleccionado no es compatible con el modelo activo.
             Cámbialo desde el panel principal antes de ejecutar la comparación.
         </div>
     )}
 
-    <ClassificationWorkspaceTabs
+    {analysisMode === 'attack' && !historyMode && isAttackSupported && attackParameterError && (
+        <div className="evaluation-warning-banner" role="alert">{attackParameterError}</div>
+    )}
+
+    <IndividualWorkspaceTabs
+        analysisMode={analysisMode}
         activePanel={activePanel}
         onSelect={(panel) => setActivePanelState({
             contextKey: imageContextKey,
@@ -1025,7 +1017,7 @@ function ClassificationAnalysisContent(props) {
             busy={busy}
             selectedImage={selectedImage}
             attackResult={attackResult}
-            isAttackSupported={isAttackSupported}
+            isAttackSupported={isAttackSupported && !attackParameterError}
             attackName={attackName}
             taskType={taskType}
             imageDimensions={imageDimensions}
@@ -1052,7 +1044,7 @@ function ClassificationAnalysisContent(props) {
 
 function ClassificationAnalysisPage(props) {
     const {
-        attackCatalog, checkingHistory, compareDialogOpen, comparisonCandidates, currentReference, duplicateAnalysis,
+        analysisMode, attackCatalog, checkingHistory, compareDialogOpen, comparisonCandidates, currentReference, duplicateAnalysis,
         handleCompareSavedCandidate, handleOpenDuplicate, handlePrepareComparison, handleRecalculateDuplicate,
         handleUseDuplicateAsB, loading, loadingComparisonCandidates, navigateToDashboard, pendingIndividualComparison,
         selectedDataset, selectedImage, setCompareDialogOpen, setDuplicateAnalysis, viewModel,
@@ -1063,10 +1055,11 @@ function ClassificationAnalysisPage(props) {
             <section className="comparison-page classification-analysis-page">
                 <header className="classification-analysis-header">
                     <span className="evaluation-eyebrow">Análisis individual · Clasificación</span>
-                    <h2>Predicción, robustez y atención del modelo</h2>
+                    <h2>{analysisMode === 'prediction' ? 'Predicción individual' : 'Análisis adversario'}</h2>
                     <p>
-                        Explora la inferencia original, compara el efecto del ataque y
-                        analiza Grad-CAM sin abandonar la misma imagen.
+                        {analysisMode === 'prediction'
+                            ? 'Explora la predicción original y su explicación mediante Grad-CAM.'
+                            : 'Compara el efecto del ataque y analiza Grad-CAM en ambas condiciones.'}
                     </p>
                 </header>
 
@@ -1117,7 +1110,7 @@ function ClassificationAnalysisPage(props) {
 
 function DetectionAnalysisContent(props) {
     const {
-        activePanel, attackName, attackParameterSummary, attackResult, busy, cleanDetection, contextOpen, datasetImages,
+        activePanel, analysisMode, attackParameterError, attackName, attackParameterSummary, attackResult, busy, cleanDetection, contextOpen, datasetImages,
         detectionExplanation, error, explainabilityResult, historyMode, imageContextKey, imageDimensions, isAttackSupported,
         loading, loadingExplainability, loadingPrediction, pendingComparisonCopy, pendingIndividualComparison,
         recoveredHistoryItem, saveState, savingAnalysis, selectedDataset, selectedImage, selectedIndex, taskType, viewModel,
@@ -1131,7 +1124,7 @@ function DetectionAnalysisContent(props) {
             <span className="individual-comparison-side-token">B</span>
             <div>
                 <strong>Preparando B · {pendingComparisonCopy.label}</strong>
-                <p>{pendingComparisonCopy.instruction} Antes de ejecutar se validará la identidad experimental exacta.</p>
+                <p>{pendingComparisonCopy.instruction} La imagen de A permanece fijada. Antes de ejecutar se validará la identidad experimental exacta.</p>
             </div>
         </div>
     )}
@@ -1139,8 +1132,12 @@ function DetectionAnalysisContent(props) {
         <div className="classification-context-strip">
             <div className="classification-context-summary">
                 <strong title={viewModel.name}>{viewModel.name}</strong>
-                <span aria-hidden="true">/</span>
-                <span>{attackName} {attackParameterSummary}</span>
+                {analysisMode === 'attack' && (
+                    <>
+                        <span aria-hidden="true">/</span>
+                        <span>{attackName} {attackParameterSummary}</span>
+                    </>
+                )}
                 <span aria-hidden="true">/</span>
                 <span>{selectedDataset.name}</span>
             </div>
@@ -1150,9 +1147,9 @@ function DetectionAnalysisContent(props) {
                     <button
                         type="button"
                         onClick={() => selectRelativeImage(-1)}
-                        disabled={selectedIndex <= 0 || busy || historyMode}
+                        disabled={selectedIndex <= 0 || busy || historyMode || Boolean(pendingIndividualComparison)}
                         aria-label="Imagen anterior"
-                        title="Imagen anterior"
+                        title={pendingIndividualComparison ? 'Imagen fijada para A/B' : 'Imagen anterior'}
                     >
                         ‹
                     </button>
@@ -1166,10 +1163,11 @@ function DetectionAnalysisContent(props) {
                             selectedIndex < 0 ||
                             selectedIndex >= datasetImages.length - 1 ||
                             busy ||
-                            historyMode
+                            historyMode ||
+                            Boolean(pendingIndividualComparison)
                         }
                         aria-label="Imagen siguiente"
-                        title="Imagen siguiente"
+                        title={pendingIndividualComparison ? 'Imagen fijada para A/B' : 'Imagen siguiente'}
                     >
                         ›
                     </button>
@@ -1201,14 +1199,18 @@ function DetectionAnalysisContent(props) {
                     <dt>Modelo</dt>
                     <dd>{viewModel.name}</dd>
                 </div>
-                <div>
-                    <dt>Ataque</dt>
-                    <dd>{attackName}</dd>
-                </div>
-                <div>
-                    <dt>Parámetros</dt>
-                    <dd>{attackParameterSummary || 'Sin parámetros'}</dd>
-                </div>
+                {analysisMode === 'attack' && (
+                    <>
+                        <div>
+                            <dt>Ataque</dt>
+                            <dd>{attackName}</dd>
+                        </div>
+                        <div>
+                            <dt>Parámetros</dt>
+                            <dd>{attackParameterSummary || 'Configuración por defecto'}</dd>
+                        </div>
+                    </>
+                )}
                 <div>
                     <dt>Dataset</dt>
                     <dd>{selectedDataset.name}</dd>
@@ -1242,14 +1244,19 @@ function DetectionAnalysisContent(props) {
         </p>
     )}
 
-    {!historyMode && !isAttackSupported && (
+    {analysisMode === 'attack' && !historyMode && !isAttackSupported && (
         <div className="evaluation-warning-banner">
             El ataque seleccionado no es compatible con este detector.
             Cambia el ataque desde el panel principal.
         </div>
     )}
 
-    <DetectionWorkspaceTabs
+    {analysisMode === 'attack' && !historyMode && isAttackSupported && attackParameterError && (
+        <div className="evaluation-warning-banner" role="alert">{attackParameterError}</div>
+    )}
+
+    <IndividualWorkspaceTabs
+        analysisMode={analysisMode}
         activePanel={activePanel}
         onSelect={(panel) => setActivePanelState({
             contextKey: imageContextKey,
@@ -1267,7 +1274,7 @@ function DetectionAnalysisContent(props) {
             busy={busy}
             selectedImage={selectedImage}
             attackResult={attackResult}
-            isAttackSupported={isAttackSupported}
+            isAttackSupported={isAttackSupported && !attackParameterError}
             attackName={attackName}
             taskType={taskType}
             imageDimensions={imageDimensions}
@@ -1294,7 +1301,7 @@ function DetectionAnalysisContent(props) {
 
 function DetectionAnalysisPage(props) {
     const {
-        attackCatalog, checkingHistory, compareDialogOpen, comparisonCandidates, currentReference, duplicateAnalysis,
+        analysisMode, attackCatalog, checkingHistory, compareDialogOpen, comparisonCandidates, currentReference, duplicateAnalysis,
         handleCompareSavedCandidate, handleOpenDuplicate, handlePrepareComparison, handleRecalculateDuplicate,
         handleUseDuplicateAsB, loading, loadingComparisonCandidates, navigateToDashboard, pendingIndividualComparison,
         selectedDataset, selectedImage, setCompareDialogOpen, setDuplicateAnalysis, viewModel,
@@ -1305,10 +1312,11 @@ function DetectionAnalysisPage(props) {
         <section className="comparison-page classification-analysis-page detection-analysis-page">
             <header className="classification-analysis-header">
                 <span className="evaluation-eyebrow">Análisis individual · Detección</span>
-                <h2>Detección, robustez y atención del modelo</h2>
+                <h2>{analysisMode === 'prediction' ? 'Predicción individual' : 'Análisis adversario'}</h2>
                 <p>
-                    Explora las detecciones originales, compara el efecto del ataque y
-                    analiza Eigen-CAM sin abandonar la misma imagen.
+                    {analysisMode === 'prediction'
+                        ? 'Explora las detecciones originales y su explicación mediante Eigen-CAM.'
+                        : 'Compara las detecciones antes y después del ataque y analiza Eigen-CAM.'}
                 </p>
             </header>
 
@@ -1356,7 +1364,7 @@ function DetectionAnalysisPage(props) {
     )
 }
 
-function ComparisonView() {
+function ComparisonView({ mode = 'attack' }) {
     const navigate = useNavigate()
     const {
         selectedDataset,
@@ -1393,6 +1401,7 @@ function ComparisonView() {
     const requestAbortController = useRef(null)
 
     const {
+        analysisMode,
         recoveredHistoryItem,
         historyMode,
         viewModel,
@@ -1416,6 +1425,7 @@ function ComparisonView() {
         busy,
         hasTemporaryWork,
     } = buildComparisonViewState({
+        mode,
         selectedDataset,
         selectedImage,
         activeModel,
@@ -1436,6 +1446,9 @@ function ComparisonView() {
         checkingHistory,
         savingAnalysis,
     })
+    const attackParameterError = analysisMode === 'attack' && !historyMode
+        ? getAttackParameterError(attackCatalog, selectedAttack, attackParameters)
+        : ''
     const datasetImages = useMemo(
         () => selectedDataset?.images ?? [],
         [selectedDataset],
@@ -1475,6 +1488,7 @@ function ComparisonView() {
     }
 
     async function handlePredict() {
+        if (analysisMode !== 'prediction' || busy) return
         if (!selectedDataset || !selectedImage || !activeModel) {
             setCurrentError('Debes seleccionar un conjunto de datos, una imagen y un modelo.')
             return
@@ -1547,6 +1561,12 @@ function ComparisonView() {
     }
 
     async function executeAttack(preflight) {
+        const parameterError = getAttackParameterError(attackCatalog, selectedAttack, attackParameters)
+        if (parameterError) {
+            setCurrentError(parameterError)
+            return
+        }
+
         const controller = beginCancellableRequest()
         const request = {
             datasetId: selectedDataset.id,
@@ -1600,6 +1620,7 @@ function ComparisonView() {
     }
 
     async function handleRunAttack() {
+        if (analysisMode !== 'attack' || busy || historyMode) return
         if (!selectedDataset || !selectedImage || !activeModel) {
             setCurrentError('Debes seleccionar un conjunto de datos, una imagen y un modelo.')
             return
@@ -1607,6 +1628,12 @@ function ComparisonView() {
 
         if (!isAttackSupported) {
             setCurrentError('El ataque seleccionado no es compatible con el modelo activo.')
+            return
+        }
+
+        const parameterError = getAttackParameterError(attackCatalog, selectedAttack, attackParameters)
+        if (parameterError) {
+            setCurrentError(parameterError)
             return
         }
 
@@ -1757,6 +1784,7 @@ function ComparisonView() {
     }
 
     async function handleGenerateExplainability() {
+        if (busy || historyMode) return
         if (!selectedDataset || !selectedImage || !activeModel) {
             setCurrentError('Debes seleccionar un conjunto de datos, una imagen y un modelo.')
             return
@@ -1793,7 +1821,9 @@ function ComparisonView() {
     }
 
     function selectRelativeImage(offset) {
-        const nextImage = datasetImages[selectedIndex + offset]
+        const nextImage = resolveAdjacentAnalysisImage(
+            datasetImages, selectedIndex, offset, busy || historyMode || Boolean(pendingIndividualComparison),
+        )
 
         if (nextImage) {
             setSelectedImage(nextImage)
@@ -1807,18 +1837,16 @@ function ComparisonView() {
     const imageDimensions = selectedImage?.width && selectedImage?.height
         ? `${selectedImage.width} × ${selectedImage.height} px`
         : null
-    const attackName = getAttackName(viewAttack, attackCatalog)
-    const attackParameterSummary = formatAttackParameters(
-        viewAttack,
-        viewAttackParameters,
-        attackCatalog,
-    )
+    const attackName = analysisMode === 'attack' ? getAttackName(viewAttack, attackCatalog) : ''
+    const attackParameterSummary = analysisMode === 'attack'
+        ? formatAttackParameters(viewAttack, viewAttackParameters, attackCatalog)
+        : ''
     const pendingComparisonCopy = pendingIndividualComparison
         ? individualComparisonKindCopy(pendingIndividualComparison.kind)
         : null
 
     const pageProps = {
-        activePanel, attackCatalog, attackName, attackParameterSummary, attackResult, busy, checkingHistory,
+        activePanel, analysisMode, attackCatalog, attackName, attackParameterSummary, attackParameterError, attackResult, busy, checkingHistory,
         classificationExplanation, cleanPrediction, cleanDetection, compareDialogOpen, comparisonCandidates,
         contextOpen, currentReference, datasetImages, detectionExplanation, duplicateAnalysis, error,
         explainabilityResult, handleCancelOperation, handleCompareSavedCandidate, handleGenerateExplainability,

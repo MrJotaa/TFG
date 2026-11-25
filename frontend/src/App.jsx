@@ -31,13 +31,13 @@ function App() {
                 <Route path="/datasets" element={<DatasetManager />} />
                 <Route
                   path="/prediction"
-                  element={<Navigate to="/comparison" replace />}
+                  element={<ComparisonView key="prediction" mode="prediction" />}
                 />
                 <Route
                   path="/detection"
-                  element={<Navigate to="/comparison" replace />}
+                  element={<Navigate to="/prediction" replace />}
                 />
-                <Route path="/comparison" element={<ComparisonView />} />
+                <Route path="/comparison" element={<ComparisonView key="attack" mode="attack" />} />
                 <Route path="/evaluation" element={<EvaluationView />} />
                 <Route
                   path="/evaluations/compare"

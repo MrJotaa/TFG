@@ -86,7 +86,7 @@ function ParameterControl({ parameter, value, onChange }) {
                 min={parameter.minimum ?? undefined}
                 max={parameter.maximum ?? undefined}
                 step={parameter.step ?? undefined}
-                value={value}
+                value={Number.isNaN(value) ? '' : value}
                 onChange={(event) => onChange(parseParameterValue(parameter, event))}
             />
         </label>
@@ -102,6 +102,7 @@ function AttackSelector({
     attackCatalog,
     loading = false,
     error = '',
+    parameterError = '',
 }) {
     const activeTaskType = activeModel?.task_type || 'classification'
     const availableAttacks = getSupportedAttacksForTask(
@@ -250,6 +251,9 @@ function AttackSelector({
                                 />
                             ))}
                         </div>
+                    )}
+                    {parameterError && (
+                        <p className="error" role="alert">{parameterError}</p>
                     )}
                 </div>
             )}

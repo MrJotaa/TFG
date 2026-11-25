@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useMatch, useNavigate } from 'react-router-dom'
 import ThemeSwitcher from '../ThemeSwitcher'
 import { useAuth } from '../../context/AuthContext'
 import { useExperiment } from '../../context/ExperimentContext'
@@ -9,6 +9,15 @@ function BrandMark() {
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 3 4.8 6.2v5.2c0 4.5 2.8 7.8 7.2 9.6 4.4-1.8 7.2-5.1 7.2-9.6V6.2L12 3Z" />
             <path d="m8.4 12.2 2.1 2.1 5.1-5.1" />
+        </svg>
+    )
+}
+
+function HomeIcon() {
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m3 10 9-7 9 7" />
+            <path d="M5 9v11h5v-6h4v6h5V9" />
         </svg>
     )
 }
@@ -24,6 +33,7 @@ function LogoutIcon() {
 
 function AppLayout() {
     const navigate = useNavigate()
+    const isDashboard = Boolean(useMatch({ path: '/dashboard', end: true }))
     const { logout, user } = useAuth()
     const { resetExperiment } = useExperiment()
     const { requestNavigation } = useNavigationGuard()
@@ -59,7 +69,7 @@ function AppLayout() {
                     title="Volver al panel principal"
                 >
                     <span className="app-brand-mark">
-                        <BrandMark />
+                        {isDashboard ? <BrandMark /> : <HomeIcon />}
                     </span>
                     <span className="app-brand-copy">
                         <strong>Analizador adversario</strong>

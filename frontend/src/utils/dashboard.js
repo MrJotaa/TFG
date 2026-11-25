@@ -3,52 +3,41 @@ export function getExperimentReadiness({
     selectedImage,
     activeModel,
     attackSupported = true,
+    attackParameterError = '',
 }) {
+    const canPredict = Boolean(activeModel && selectedDataset && selectedImage)
+    const canEvaluate = Boolean(activeModel && selectedDataset)
+    const attackReady = attackSupported && !attackParameterError
+    const actions = {
+        canPredict,
+        canAnalyze: Boolean(canPredict && attackReady),
+        canEvaluate: Boolean(canEvaluate && attackReady),
+    }
+
     if (!activeModel) {
-        return {
-            canAnalyze: false,
-            canEvaluate: false,
-            tone: 'idle',
-            message: 'Activa un modelo para comenzar.',
-        }
+        return { ...actions, tone: 'idle', message: 'Activa un modelo para comenzar.' }
     }
-
-    if (!attackSupported) {
-        return {
-            canAnalyze: false,
-            canEvaluate: false,
-            tone: 'idle',
-            message: 'Selecciona un ataque compatible con el modelo activo.',
-        }
-    }
-
-    const canEvaluate = Boolean(selectedDataset)
-    const canAnalyze = Boolean(canEvaluate && selectedImage)
-
     if (!selectedDataset) {
+        return { ...actions, tone: 'idle', message: 'Selecciona un conjunto de datos.' }
+    }
+    if (!attackReady) {
+        const reason = !attackSupported
+            ? 'Selecciona un ataque compatible con el modelo activo.'
+            : attackParameterError
         return {
-            canAnalyze,
-            canEvaluate,
-            tone: 'idle',
-            message: 'Selecciona un conjunto de datos.',
+            ...actions,
+            tone: canPredict || attackParameterError ? 'partial' : 'idle',
+            message: canPredict ? `Puedes predecir la imagen. Para aplicar un ataque o evaluar el dataset: ${reason}` : reason,
         }
     }
-
     if (!selectedImage) {
         return {
-            canAnalyze,
-            canEvaluate,
+            ...actions,
             tone: 'partial',
-            message: 'Dataset listo. Selecciona una imagen para el análisis individual.',
+            message: 'Dataset listo para evaluar. Selecciona una imagen para predecirla o atacarla.',
         }
     }
-
-    return {
-        canAnalyze,
-        canEvaluate,
-        tone: 'ready',
-        message: 'Configuración lista para ejecutar.',
-    }
+    return { ...actions, tone: 'ready', message: 'Configuración lista para ejecutar.' }
 }
 
 

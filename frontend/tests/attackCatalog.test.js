@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import {
     attackParametersKey,
     buildAttackParameters,
+    getAttackParameterError,
     getSupportedAttacksForTask,
     isAttackSupportedForTask,
     resolveCompatibleAttackSelection,
@@ -311,4 +312,43 @@ test('historical attack ids and parameters remain readable even if not offered t
         }),
         { epsilon: 0.05, steps: 50 },
     )
+})
+
+const hopSkipJumpCatalog = [{
+    id: 'hop_skip_jump',
+    parameters: [
+        { key: 'init_eval', default: 100, maximum: 10000, label: 'Evaluaciones iniciales' },
+        { key: 'max_eval', default: 10000, maximum: 10000, label: 'Evaluaciones máximas por iteración' },
+    ],
+}]
+
+test('HopSkipJump validates the relation between initial and maximum evaluations', () => {
+    const validate = (parameters) => getAttackParameterError(
+        hopSkipJumpCatalog, 'hop_skip_jump', parameters,
+    )
+    assert.equal(validate({}), '')
+    assert.equal(validate({ init_eval: 100, max_eval: 100 }), '')
+    assert.equal(validate({ init_eval: 50, max_eval: 100 }), '')
+    assert.match(validate({ init_eval: 100, max_eval: 50 }), /menores o iguales/)
+    assert.match(validate({ max_eval: 50 }), /menores o iguales/)
+    assert.equal(validate({ init_eval: 1000 }), '')
+})
+
+test('HopSkipJump blocks empty or invalid evaluation counts', () => {
+    for (const value of [NaN, null, '', 0, -1, 1.5, Infinity]) {
+        for (const key of ['init_eval', 'max_eval']) {
+            assert.match(getAttackParameterError(hopSkipJumpCatalog, 'hop_skip_jump', {
+                [key]: value,
+            }), /entero positivo/)
+        }
+    }
+    assert.match(getAttackParameterError(hopSkipJumpCatalog, 'hop_skip_jump', {
+        max_eval: 10001,
+    }), /10000/)
+})
+
+test('HopSkipJump cross-parameter constraints do not affect other attacks', () => {
+    assert.equal(getAttackParameterError(catalog, 'fgsm', {
+        init_eval: 100, max_eval: 50,
+    }), '')
 })

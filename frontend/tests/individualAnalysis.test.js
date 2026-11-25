@@ -7,6 +7,7 @@ import {
     formatSignedPercentagePoints,
     normalizeClassificationPanel,
     normalizeDetectionPanel,
+    resolveAdjacentAnalysisImage,
     resolveClassificationExplanation,
     resolveDetectionExplanation,
 } from '../src/utils/individualAnalysis.js'
@@ -128,4 +129,15 @@ test('standalone Eigen-CAM is available without an attack result', () => {
             adversarial: null,
         },
     )
+})
+
+test('adjacent image navigation is disabled during a controlled comparison and restored after it', () => {
+    const images = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+    assert.equal(resolveAdjacentAnalysisImage(images, 1, -1, true), null)
+    assert.equal(resolveAdjacentAnalysisImage(images, 1, 1, true), null)
+    assert.equal(resolveAdjacentAnalysisImage(images, 1, -1, false), images[0])
+    assert.equal(resolveAdjacentAnalysisImage(images, 1, 1, false), images[2])
+    assert.equal(resolveAdjacentAnalysisImage(images, 0, -1), null)
+    assert.equal(resolveAdjacentAnalysisImage(images, 2, 1), null)
+    assert.equal(resolveAdjacentAnalysisImage(images, -1, 1), null)
 })
