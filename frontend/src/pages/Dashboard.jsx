@@ -10,7 +10,7 @@ import { useExperiment } from '../context/ExperimentContext'
 import { useAuth } from '../context/AuthContext'
 import { useNavigationGuard } from '../context/NavigationGuardContext'
 import { getAttackName } from '../utils/attackFormatting'
-import { isAttackSupportedForTask } from '../utils/attackCatalog'
+import { getAttackParameterError, isAttackSupportedForTask } from '../utils/attackCatalog'
 import {
     clampDashboardSidebarWidth,
     getExperimentReadiness,
@@ -149,14 +149,17 @@ function Dashboard() {
         )
     )
 
+    const attackParameterError = getAttackParameterError(attackCatalog, selectedAttack, attackParameters)
+
     const readiness = useMemo(
         () => getExperimentReadiness({
             selectedDataset,
             selectedImage,
             activeModel,
             attackSupported,
+            attackParameterError,
         }),
-        [selectedDataset, selectedImage, activeModel, attackSupported],
+        [selectedDataset, selectedImage, activeModel, attackSupported, attackParameterError],
     )
 
     const activeAttackName = getAttackName(selectedAttack, attackCatalog)
@@ -188,14 +191,14 @@ function Dashboard() {
     ])
 
     function startNewEvaluation() {
-        if (pendingIndividualComparison) return
+        if (!readiness.canEvaluate || pendingIndividualComparison) return
         if (recoveredEvaluation) setRecoveredEvaluation(null)
         if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
         navigate('/evaluation')
     }
 
     function startNewIndividualAnalysis() {
-        if (pendingIndividualComparison && !pendingComparisonStatus?.ready) return
+        if (!readiness.canAnalyze || (pendingIndividualComparison && !pendingComparisonStatus?.ready)) return
         if (recoveredEvaluation) setRecoveredEvaluation(null)
         if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
         if (!pendingIndividualComparison) clearPendingIndividualComparison()
@@ -231,6 +234,7 @@ function Dashboard() {
                     attackCatalog={attackCatalog}
                     loading={attackCatalogLoading}
                     error={attackCatalogError}
+                    parameterError={attackParameterError}
                 />
             </aside>
 

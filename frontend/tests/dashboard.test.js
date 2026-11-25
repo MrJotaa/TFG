@@ -91,3 +91,25 @@ test('dashboard sidebar keyboard resizing resolves arrows and boundaries', () =>
     assert.equal(resolveDashboardSidebarWidthKey('End', 350), 430)
     assert.equal(resolveDashboardSidebarWidthKey('Enter', 350), null)
 })
+
+
+test('dashboard blocks both execution flows until invalid attack parameters are corrected', () => {
+    const context = {
+        selectedDataset: { id: 'dataset-1' },
+        selectedImage: { id: 'image-1' },
+        activeModel: { id: 'resnet18' },
+        attackSupported: true,
+    }
+    const message = 'Las evaluaciones iniciales deben ser menores o iguales que las máximas.'
+    for (const selectedImage of [context.selectedImage, null]) {
+        const readiness = getExperimentReadiness({
+            ...context, selectedImage, attackParameterError: message,
+        })
+        assert.equal(readiness.canAnalyze, false)
+        assert.equal(readiness.canEvaluate, false)
+        assert.equal(readiness.message, message)
+    }
+    const corrected = getExperimentReadiness({ ...context, attackParameterError: '' })
+    assert.equal(corrected.canAnalyze, true)
+    assert.equal(corrected.canEvaluate, true)
+})

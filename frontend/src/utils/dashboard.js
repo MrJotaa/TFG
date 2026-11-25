@@ -3,6 +3,7 @@ export function getExperimentReadiness({
     selectedImage,
     activeModel,
     attackSupported = true,
+    attackParameterError = '',
 }) {
     if (!activeModel) {
         return {
@@ -19,6 +20,15 @@ export function getExperimentReadiness({
             canEvaluate: false,
             tone: 'idle',
             message: 'Selecciona un ataque compatible con el modelo activo.',
+        }
+    }
+
+    if (attackParameterError) {
+        return {
+            canAnalyze: false,
+            canEvaluate: false,
+            tone: 'partial',
+            message: attackParameterError,
         }
     }
 

@@ -25,7 +25,7 @@ import {
     isEvaluationGradCamResponse,
 } from '../utils/evaluationGradCamState'
 import { CLASSIFICATION_METRIC_GUIDES } from '../utils/evaluationMetricGuides'
-import { attackParametersKey } from '../utils/attackCatalog'
+import { attackParametersKey, getAttackParameterError } from '../utils/attackCatalog'
 import { getAttackName } from '../utils/attackFormatting'
 import { isRequestCancelled } from '../api/client'
 import { useNavigationGuard } from '../context/NavigationGuardContext'
@@ -87,7 +87,13 @@ function EvaluationPanel({
         ]
     }, [evaluation])
 
+    const parameterError = getAttackParameterError(attackCatalog, selectedAttack, attackParameters)
+
     async function runEvaluation(forceRecompute) {
+        if (parameterError) {
+            setErrorState({ contextKey, message: parameterError })
+            return
+        }
         setReuseCandidate(null)
         setProgress(null)
         gradCamRun.current += 1
@@ -116,6 +122,10 @@ function EvaluationPanel({
     }
 
     async function handleEvaluate() {
+        if (parameterError) {
+            setErrorState({ contextKey, message: parameterError })
+            return
+        }
         if (!selectedDataset) {
             setErrorState({
                 contextKey,

@@ -26,6 +26,7 @@ import {
     getAttackName,
 } from '../utils/attackFormatting'
 import { buildComparisonViewState } from '../utils/comparisonView'
+import { getAttackParameterError } from '../utils/attackCatalog'
 import {
     detectionSuccessLabel,
     detectionOutcomeExplanation,
@@ -1547,6 +1548,12 @@ function ComparisonView() {
     }
 
     async function executeAttack(preflight) {
+        const parameterError = getAttackParameterError(attackCatalog, selectedAttack, attackParameters)
+        if (parameterError) {
+            setCurrentError(parameterError)
+            return
+        }
+
         const controller = beginCancellableRequest()
         const request = {
             datasetId: selectedDataset.id,
@@ -1607,6 +1614,12 @@ function ComparisonView() {
 
         if (!isAttackSupported) {
             setCurrentError('El ataque seleccionado no es compatible con el modelo activo.')
+            return
+        }
+
+        const parameterError = getAttackParameterError(attackCatalog, selectedAttack, attackParameters)
+        if (parameterError) {
+            setCurrentError(parameterError)
             return
         }
 
