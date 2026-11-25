@@ -38,6 +38,7 @@ import {
     formatAnalysisProbability,
     formatSignedInteger,
     formatSignedPercentagePoints,
+    resolveAdjacentAnalysisImage,
 } from '../utils/individualAnalysis'
 import { formatCreatedAgo } from '../utils/evaluationHistory'
 import { getCompatibleIndividualAnalysisCandidates } from '../utils/individualAnalysisHistory'
@@ -871,7 +872,7 @@ function ClassificationAnalysisContent(props) {
             <span className="individual-comparison-side-token">B</span>
             <div>
                 <strong>Preparando B · {pendingComparisonCopy.label}</strong>
-                <p>{pendingComparisonCopy.instruction} Antes de ejecutar se validará la identidad experimental exacta.</p>
+                <p>{pendingComparisonCopy.instruction} La imagen de A permanece fijada. Antes de ejecutar se validará la identidad experimental exacta.</p>
             </div>
         </div>
     )}
@@ -894,9 +895,9 @@ function ClassificationAnalysisContent(props) {
                     <button
                         type="button"
                         onClick={() => selectRelativeImage(-1)}
-                        disabled={selectedIndex <= 0 || busy || historyMode}
+                        disabled={selectedIndex <= 0 || busy || historyMode || Boolean(pendingIndividualComparison)}
                         aria-label="Imagen anterior"
-                        title="Imagen anterior"
+                        title={pendingIndividualComparison ? 'Imagen fijada para A/B' : 'Imagen anterior'}
                     >
                         ‹
                     </button>
@@ -910,10 +911,11 @@ function ClassificationAnalysisContent(props) {
                             selectedIndex < 0 ||
                             selectedIndex >= datasetImages.length - 1 ||
                             busy ||
-                            historyMode
+                            historyMode ||
+                            Boolean(pendingIndividualComparison)
                         }
                         aria-label="Imagen siguiente"
-                        title="Imagen siguiente"
+                        title={pendingIndividualComparison ? 'Imagen fijada para A/B' : 'Imagen siguiente'}
                     >
                         ›
                     </button>
@@ -1122,7 +1124,7 @@ function DetectionAnalysisContent(props) {
             <span className="individual-comparison-side-token">B</span>
             <div>
                 <strong>Preparando B · {pendingComparisonCopy.label}</strong>
-                <p>{pendingComparisonCopy.instruction} Antes de ejecutar se validará la identidad experimental exacta.</p>
+                <p>{pendingComparisonCopy.instruction} La imagen de A permanece fijada. Antes de ejecutar se validará la identidad experimental exacta.</p>
             </div>
         </div>
     )}
@@ -1145,9 +1147,9 @@ function DetectionAnalysisContent(props) {
                     <button
                         type="button"
                         onClick={() => selectRelativeImage(-1)}
-                        disabled={selectedIndex <= 0 || busy || historyMode}
+                        disabled={selectedIndex <= 0 || busy || historyMode || Boolean(pendingIndividualComparison)}
                         aria-label="Imagen anterior"
-                        title="Imagen anterior"
+                        title={pendingIndividualComparison ? 'Imagen fijada para A/B' : 'Imagen anterior'}
                     >
                         ‹
                     </button>
@@ -1161,10 +1163,11 @@ function DetectionAnalysisContent(props) {
                             selectedIndex < 0 ||
                             selectedIndex >= datasetImages.length - 1 ||
                             busy ||
-                            historyMode
+                            historyMode ||
+                            Boolean(pendingIndividualComparison)
                         }
                         aria-label="Imagen siguiente"
-                        title="Imagen siguiente"
+                        title={pendingIndividualComparison ? 'Imagen fijada para A/B' : 'Imagen siguiente'}
                     >
                         ›
                     </button>
@@ -1818,7 +1821,9 @@ function ComparisonView({ mode = 'attack' }) {
     }
 
     function selectRelativeImage(offset) {
-        const nextImage = datasetImages[selectedIndex + offset]
+        const nextImage = resolveAdjacentAnalysisImage(
+            datasetImages, selectedIndex, offset, busy || historyMode || Boolean(pendingIndividualComparison),
+        )
 
         if (nextImage) {
             setSelectedImage(nextImage)

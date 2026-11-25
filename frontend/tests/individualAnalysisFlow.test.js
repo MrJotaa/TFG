@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { resolveImageSelection } from '../src/utils/imageGallery.js'
+import { resolveAdjacentAnalysisImage } from '../src/utils/individualAnalysis.js'
 import {
     makeTemporaryAnalysisItem,
     pendingComparisonReadiness,
@@ -132,4 +134,31 @@ test('dashboard readiness explains each controlled comparison requirement', () =
         expectedKind: 'attack_configuration',
         attackParameters: { epsilon: 0.08 },
     }).ready, true)
+})
+
+
+test('preparing B keeps the image of A selected and the comparison ready', () => {
+    const image = { id: 'image-1' }
+    const common = {
+        baseItem: baseItem(),
+        expectedKind: 'attack',
+        selectedDataset: { id: 'dataset-1', dataset_revision: 3 },
+        activeModel: { id: 'resnet18', task_type: 'classification' },
+        selectedAttack: 'pgd',
+        attackParameters: { epsilon: 0.03, steps: 10 },
+    }
+    const otherImage = { id: 'image-2' }
+    for (const clickedImage of [image, otherImage]) {
+        const selectedImage = resolveImageSelection(image, clickedImage, true)
+        assert.equal(selectedImage, image)
+        assert.equal(pendingComparisonReadiness({ ...common, selectedImage }).ready, true)
+    }
+    assert.equal(resolveAdjacentAnalysisImage([otherImage, image], 1, -1, true), null)
+    assert.equal(resolveAdjacentAnalysisImage([image, otherImage], 0, 1, true), null)
+    // Cancelling preparation restores ordinary selection.
+    assert.equal(resolveImageSelection(image, image, false), null)
+    assert.equal(resolveImageSelection(image, otherImage, false), otherImage)
+    // The readiness validation remains a defensive check.
+    assert.equal(pendingComparisonReadiness({ ...common, selectedImage: otherImage }).ready, false)
+    assert.equal(pendingComparisonReadiness({ ...common, selectedImage: null }).ready, false)
 })
