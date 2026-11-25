@@ -2,7 +2,7 @@ import PrivateImage from './PrivateImage'
 import { useEffect, useState } from 'react'
 import { getDatasetImages } from '../api/datasets'
 import { resolveApiUrl } from '../api/client'
-import { filterVisibleImages } from '../utils/imageGallery'
+import { filterVisibleImages, resolveImageSelection } from '../utils/imageGallery'
 
 function CheckIcon() {
     return (
@@ -45,7 +45,7 @@ function GalleryEmptyState({ workspace, title, copy, fallback }) {
     return <p>{fallback}</p>
 }
 
-function GalleryImageCard({ image, selectedImage, onSelectImage, workspace, compact, allowPreview, onPreview }) {
+function GalleryImageCard({ image, selectedImage, onSelectImage, workspace, compact, allowPreview, onPreview, selectionLocked }) {
     const isSelected = selectedImage?.id === image.id
     let caption = null
     if (workspace) {
@@ -57,7 +57,20 @@ function GalleryImageCard({ image, selectedImage, onSelectImage, workspace, comp
     return (
         <div className={`image-card${isSelected ? ' selected' : ''}`}>
             <div className="image-card-visual">
-                <button type="button" className="image-button" onClick={() => onSelectImage(image)} aria-pressed={isSelected} title={`Seleccionar ${image.filename}`}>
+                <button
+                    type="button"
+                    className="image-button"
+                    disabled={selectionLocked}
+                    onClick={() => {
+                        const nextImage = resolveImageSelection(selectedImage, image, selectionLocked)
+                        if (nextImage !== selectedImage) onSelectImage(nextImage)
+                    }}
+                    aria-pressed={isSelected}
+                    aria-label={image.filename}
+                    title={selectionLocked
+                        ? 'La imagen de A permanece fija durante la comparación'
+                        : `${isSelected ? 'Deseleccionar' : 'Seleccionar'} ${image.filename}`}
+                >
                     <PrivateImage src={imageSource(image)} alt={image.filename} loading="lazy" />
                 </button>
                 {workspace && isSelected && <span className="image-selection-mark" aria-label="Imagen seleccionada"><CheckIcon /></span>}
@@ -100,6 +113,7 @@ function ImageGallery({
     allowPreview = false,
     onImagesLoaded,
     filterImage,
+    selectionLocked = false,
 }) {
     const [images, setImages] = useState([])
     const [error, setError] = useState('')
@@ -164,6 +178,7 @@ function ImageGallery({
                 allowPreview={allowPreview}
                 selectedImage={selectedImage}
                 onSelectImage={onSelectImage}
+                selectionLocked={selectionLocked}
                 setPreviewImage={setPreviewImage}
             />
 

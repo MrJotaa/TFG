@@ -166,6 +166,10 @@ html[data-theme='dark'] .workspace-image-gallery .image-card.selected {
         flex-direction: column-reverse;
     }
 
+    .dashboard-action-buttons.has-individual-actions {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     .dashboard-action-buttons .primary-action,
     .dashboard-action-buttons .secondary-action {
         width: 100%;

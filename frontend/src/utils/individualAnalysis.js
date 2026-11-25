@@ -134,3 +134,8 @@ export function analysisImagePosition(selectedIndex, totalImages) {
 
     return `${selectedIndex + 1} / ${total}`
 }
+
+export function resolveAdjacentAnalysisImage(images, selectedIndex, offset, selectionLocked = false) {
+    if (selectionLocked || !Number.isInteger(selectedIndex) || selectedIndex < 0) return null
+    return images[selectedIndex + offset] ?? null
+}

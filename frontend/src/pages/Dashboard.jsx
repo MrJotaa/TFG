@@ -10,7 +10,7 @@ import { useExperiment } from '../context/ExperimentContext'
 import { useAuth } from '../context/AuthContext'
 import { useNavigationGuard } from '../context/NavigationGuardContext'
 import { getAttackName } from '../utils/attackFormatting'
-import { isAttackSupportedForTask } from '../utils/attackCatalog'
+import { getAttackParameterError, isAttackSupportedForTask } from '../utils/attackCatalog'
 import {
     clampDashboardSidebarWidth,
     getExperimentReadiness,
@@ -108,8 +108,14 @@ function Dashboard() {
     }, [user, setDatasets, setSelectedDataset, setSelectedImage])
 
     function handleDatasetSelect(dataset) {
+        if (pendingIndividualComparison) return
         setSelectedDataset(dataset)
         setSelectedImage(null)
+    }
+
+    function handleImageSelect(image) {
+        if (pendingIndividualComparison) return
+        setSelectedImage(image)
     }
 
     function startLeftResize(event) {
@@ -138,6 +144,7 @@ function Dashboard() {
         setLeftWidth(nextWidth)
     }
 
+    const comparisonInputLocked = Boolean(pendingIndividualComparison)
     const attackSupported = Boolean(
         activeModel
         && attackCatalog.length > 0
@@ -149,14 +156,17 @@ function Dashboard() {
         )
     )
 
+    const attackParameterError = getAttackParameterError(attackCatalog, selectedAttack, attackParameters)
+
     const readiness = useMemo(
         () => getExperimentReadiness({
             selectedDataset,
             selectedImage,
             activeModel,
             attackSupported,
+            attackParameterError,
         }),
-        [selectedDataset, selectedImage, activeModel, attackSupported],
+        [selectedDataset, selectedImage, activeModel, attackSupported, attackParameterError],
     )
 
     const activeAttackName = getAttackName(selectedAttack, attackCatalog)
@@ -188,14 +198,22 @@ function Dashboard() {
     ])
 
     function startNewEvaluation() {
-        if (pendingIndividualComparison) return
+        if (!readiness.canEvaluate || pendingIndividualComparison) return
         if (recoveredEvaluation) setRecoveredEvaluation(null)
         if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
         navigate('/evaluation')
     }
 
+    function startNewPrediction() {
+        if (!readiness.canPredict || pendingIndividualComparison) return
+        if (recoveredEvaluation) setRecoveredEvaluation(null)
+        if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
+        clearNavigationProtection()
+        navigate('/prediction')
+    }
+
     function startNewIndividualAnalysis() {
-        if (pendingIndividualComparison && !pendingComparisonStatus?.ready) return
+        if (!readiness.canAnalyze || (pendingIndividualComparison && !pendingComparisonStatus?.ready)) return
         if (recoveredEvaluation) setRecoveredEvaluation(null)
         if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
         if (!pendingIndividualComparison) clearPendingIndividualComparison()
@@ -231,6 +249,7 @@ function Dashboard() {
                     attackCatalog={attackCatalog}
                     loading={attackCatalogLoading}
                     error={attackCatalogError}
+                    parameterError={attackParameterError}
                 />
             </aside>
 
@@ -246,7 +265,7 @@ function Dashboard() {
                 <nav className="dashboard-workspace-tabs" aria-label="Contenido del panel principal">
                     <button
                         type="button"
-                        className={workspaceTab === 'data' ? 'active' : ''}
+                        className={workspaceTab === 'data' || comparisonInputLocked ? 'active' : ''}
                         onClick={() => setWorkspaceTab('data')}
                     >
                         <DatabaseIcon />
@@ -254,7 +273,9 @@ function Dashboard() {
                     </button>
                     <button
                         type="button"
-                        className={workspaceTab === 'history' ? 'active' : ''}
+                        className={workspaceTab === 'history' && !comparisonInputLocked ? 'active' : ''}
+                        disabled={comparisonInputLocked}
+                        title={comparisonInputLocked ? 'Cancela la comparación para abrir el historial' : undefined}
                         onClick={() => setWorkspaceTab('history')}
                     >
                         <HistoryIcon />
@@ -263,17 +284,21 @@ function Dashboard() {
                 </nav>
 
                 <div className="dashboard-workspace-content">
-                    {workspaceTab === 'data' ? (
+                    {workspaceTab === 'data' || comparisonInputLocked ? (
                         <section className="dashboard-data-view">
                             <header className="dashboard-workspace-header">
                                 <div>
                                     <span className="dashboard-section-eyebrow">Espacio de trabajo</span>
                                     <h1>Datos del experimento</h1>
-                                    <p>Selecciona un dataset y una imagen. La configuración activa permanece visible a la izquierda.</p>
+                                    <p>{comparisonInputLocked
+                                        ? 'El dataset y la imagen de A están fijados. Modifica la configuración necesaria para B o cancela la comparación.'
+                                        : 'Selecciona un dataset y una imagen. La configuración activa permanece visible a la izquierda.'}</p>
                                 </div>
                                 <button
                                     type="button"
                                     className="dashboard-text-action"
+                                    disabled={comparisonInputLocked}
+                                    title={comparisonInputLocked ? 'Cancela la comparación para gestionar datasets' : undefined}
                                     onClick={() => navigate('/datasets')}
                                 >
                                     <SettingsIcon />
@@ -294,6 +319,7 @@ function Dashboard() {
                                     datasets={datasets}
                                     selectedDataset={selectedDataset}
                                     onSelectDataset={handleDatasetSelect}
+                                    selectionLocked={comparisonInputLocked}
                                     variant="workspace"
                                 />
                             </section>
@@ -304,13 +330,13 @@ function Dashboard() {
                                         <h2>{selectedDataset?.name || 'Imágenes del dataset'}</h2>
                                         <span>
                                             {selectedDataset
-                                                ? `${selectedDataset.image_count} imágenes · selecciona una para analizarla`
+                                                ? `${selectedDataset.image_count} imágenes · ${comparisonInputLocked ? 'imagen de A fijada' : 'selecciona una para analizarla'}`
                                                 : 'Selecciona un dataset para explorar sus imágenes'}
                                         </span>
                                     </div>
                                     {selectedImage && (
                                         <span className="dashboard-selected-image-label" title={selectedImage.filename}>
-                                            Seleccionada · {selectedImage.filename}
+                                            {comparisonInputLocked ? 'Fijada para A/B' : 'Seleccionada'} · {selectedImage.filename}
                                         </span>
                                     )}
                                 </div>
@@ -318,7 +344,8 @@ function Dashboard() {
                                 <ImageGallery
                                     selectedDataset={selectedDataset}
                                     selectedImage={selectedImage}
-                                    onSelectImage={setSelectedImage}
+                                    onSelectImage={handleImageSelect}
+                                    selectionLocked={comparisonInputLocked}
                                     refreshKey={imagesRefreshKey}
                                     workspace
                                     allowPreview
@@ -403,26 +430,48 @@ function Dashboard() {
                         </div>
                     </div>
 
-                    <div className="dashboard-action-buttons">
-                        <button
-                            type="button"
-                            className="secondary-action"
-                            onClick={startNewEvaluation}
-                            disabled={!readiness.canEvaluate || Boolean(pendingIndividualComparison)}
-                        >
-                            Evaluar dataset
-                        </button>
-                        <button
-                            type="button"
-                            className="primary-action"
-                            onClick={startNewIndividualAnalysis}
-                            disabled={
-                                !readiness.canAnalyze
-                                || (pendingIndividualComparison && !pendingComparisonStatus?.ready)
-                            }
-                        >
-                            {pendingIndividualComparison ? 'Analizar B' : 'Analizar imagen'}
-                        </button>
+                    <div className={`dashboard-action-buttons${!pendingIndividualComparison && selectedDataset && selectedImage ? ' has-individual-actions' : ''}`}>
+                        {pendingIndividualComparison ? (
+                            <button
+                                type="button"
+                                className="primary-action"
+                                onClick={startNewIndividualAnalysis}
+                                disabled={!readiness.canAnalyze || !pendingComparisonStatus?.ready}
+                            >
+                                Analizar B
+                            </button>
+                        ) : (
+                            <>
+                                {selectedDataset && selectedImage && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className="secondary-action"
+                                            onClick={startNewPrediction}
+                                            disabled={!readiness.canPredict}
+                                        >
+                                            Predecir imagen
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="secondary-action"
+                                            onClick={startNewIndividualAnalysis}
+                                            disabled={!readiness.canAnalyze}
+                                        >
+                                            Aplicar ataque
+                                        </button>
+                                    </>
+                                )}
+                                <button
+                                    type="button"
+                                    className="primary-action"
+                                    onClick={startNewEvaluation}
+                                    disabled={!readiness.canEvaluate}
+                                >
+                                    Evaluar dataset
+                                </button>
+                            </>
+                        )}
                     </div>
                 </footer>
             </section>
