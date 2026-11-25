@@ -939,3 +939,13 @@
     padding: 0.55rem 0.9rem;
     white-space: nowrap;
 }
+
+/* Keep dataset evaluation visible and primary alongside individual actions. */
+.dashboard-action-buttons.has-individual-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-action-buttons.has-individual-actions > .primary-action {
+    grid-column: 1 / -1;
+}

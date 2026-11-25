@@ -197,6 +197,14 @@ function Dashboard() {
         navigate('/evaluation')
     }
 
+    function startNewPrediction() {
+        if (!readiness.canPredict || pendingIndividualComparison) return
+        if (recoveredEvaluation) setRecoveredEvaluation(null)
+        if (recoveredIndividualAnalysis) setRecoveredIndividualAnalysis(null)
+        clearNavigationProtection()
+        navigate('/prediction')
+    }
+
     function startNewIndividualAnalysis() {
         if (!readiness.canAnalyze || (pendingIndividualComparison && !pendingComparisonStatus?.ready)) return
         if (recoveredEvaluation) setRecoveredEvaluation(null)
@@ -407,26 +415,48 @@ function Dashboard() {
                         </div>
                     </div>
 
-                    <div className="dashboard-action-buttons">
-                        <button
-                            type="button"
-                            className="secondary-action"
-                            onClick={startNewEvaluation}
-                            disabled={!readiness.canEvaluate || Boolean(pendingIndividualComparison)}
-                        >
-                            Evaluar dataset
-                        </button>
-                        <button
-                            type="button"
-                            className="primary-action"
-                            onClick={startNewIndividualAnalysis}
-                            disabled={
-                                !readiness.canAnalyze
-                                || (pendingIndividualComparison && !pendingComparisonStatus?.ready)
-                            }
-                        >
-                            {pendingIndividualComparison ? 'Analizar B' : 'Analizar imagen'}
-                        </button>
+                    <div className={`dashboard-action-buttons${!pendingIndividualComparison && selectedDataset && selectedImage ? ' has-individual-actions' : ''}`}>
+                        {pendingIndividualComparison ? (
+                            <button
+                                type="button"
+                                className="primary-action"
+                                onClick={startNewIndividualAnalysis}
+                                disabled={!readiness.canAnalyze || !pendingComparisonStatus?.ready}
+                            >
+                                Analizar B
+                            </button>
+                        ) : (
+                            <>
+                                {selectedDataset && selectedImage && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className="secondary-action"
+                                            onClick={startNewPrediction}
+                                            disabled={!readiness.canPredict}
+                                        >
+                                            Predecir imagen
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="secondary-action"
+                                            onClick={startNewIndividualAnalysis}
+                                            disabled={!readiness.canAnalyze}
+                                        >
+                                            Aplicar ataque
+                                        </button>
+                                    </>
+                                )}
+                                <button
+                                    type="button"
+                                    className="primary-action"
+                                    onClick={startNewEvaluation}
+                                    disabled={!readiness.canEvaluate}
+                                >
+                                    Evaluar dataset
+                                </button>
+                            </>
+                        )}
                     </div>
                 </footer>
             </section>

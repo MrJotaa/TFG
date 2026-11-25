@@ -17,6 +17,7 @@ test('dashboard requires an active model before enabling experiment actions', ()
 
     assert.equal(readiness.canEvaluate, false)
     assert.equal(readiness.canAnalyze, false)
+    assert.equal(readiness.canPredict, false)
     assert.equal(readiness.tone, 'idle')
 })
 
@@ -30,6 +31,7 @@ test('dashboard blocks actions when the selected attack is incompatible', () => 
 
     assert.equal(readiness.canEvaluate, false)
     assert.equal(readiness.canAnalyze, false)
+    assert.equal(readiness.canPredict, true)
     assert.match(readiness.message, /ataque compatible/i)
 })
 
@@ -43,10 +45,11 @@ test('dashboard can evaluate a dataset without selecting an individual image', (
 
     assert.equal(readiness.canEvaluate, true)
     assert.equal(readiness.canAnalyze, false)
+    assert.equal(readiness.canPredict, false)
     assert.equal(readiness.tone, 'partial')
 })
 
-test('dashboard enables both actions when model, attack, dataset and image are ready', () => {
+test('dashboard enables all three actions when an image is selected', () => {
     const readiness = getExperimentReadiness({
         selectedDataset: { id: 'dataset-1' },
         selectedImage: { id: 'image-1' },
@@ -56,6 +59,7 @@ test('dashboard enables both actions when model, attack, dataset and image are r
 
     assert.equal(readiness.canEvaluate, true)
     assert.equal(readiness.canAnalyze, true)
+    assert.equal(readiness.canPredict, true)
     assert.equal(readiness.tone, 'ready')
 })
 
@@ -107,9 +111,34 @@ test('dashboard blocks both execution flows until invalid attack parameters are 
         })
         assert.equal(readiness.canAnalyze, false)
         assert.equal(readiness.canEvaluate, false)
-        assert.equal(readiness.message, message)
+        assert.equal(readiness.canPredict, Boolean(selectedImage))
+        assert.ok(readiness.message.includes(message))
     }
     const corrected = getExperimentReadiness({ ...context, attackParameterError: '' })
     assert.equal(corrected.canAnalyze, true)
     assert.equal(corrected.canEvaluate, true)
+    assert.equal(corrected.canPredict, true)
+    assert.equal(getExperimentReadiness({ ...context, selectedImage: null }).canEvaluate, true)
+})
+
+
+test('dashboard disables all operations without a dataset, including stale image selection', () => {
+    for (const selectedImage of [null, { id: 'stale-image' }]) {
+        const readiness = getExperimentReadiness({
+            selectedDataset: null, selectedImage, activeModel: { id: 'resnet18' },
+        })
+        assert.equal(readiness.canEvaluate, false)
+        assert.equal(readiness.canAnalyze, false)
+        assert.equal(readiness.canPredict, false)
+    }
+})
+
+test('dataset-only evaluation still requires a compatible attack and valid parameters', () => {
+    const context = { selectedDataset: { id: 'dataset-1' }, selectedImage: null, activeModel: { id: 'model' } }
+    for (const options of [{ attackSupported: false }, { attackParameterError: 'Inválido' }]) {
+        const readiness = getExperimentReadiness({ ...context, ...options })
+        assert.equal(readiness.canEvaluate, false)
+        assert.equal(readiness.canAnalyze, false)
+        assert.equal(readiness.canPredict, false)
+    }
 })

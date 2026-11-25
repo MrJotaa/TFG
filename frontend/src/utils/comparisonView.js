@@ -4,8 +4,6 @@ import {
     isAttackSupportedForTask,
 } from './attackCatalog.js'
 import {
-    normalizeClassificationPanel,
-    normalizeDetectionPanel,
     resolveClassificationExplanation,
     resolveDetectionExplanation,
 } from './individualAnalysis.js'
@@ -74,14 +72,19 @@ function resolveAttackState({
     }
 }
 
-function resolvePanel({ activePanelState, imageContextKey, historyMode, isDetection }) {
-    let requestedPanel = historyMode ? 'attack' : 'clean'
-    if (activePanelState?.contextKey === imageContextKey) {
-        requestedPanel = activePanelState.panel
-    }
-    return isDetection
-        ? normalizeDetectionPanel(requestedPanel)
-        : normalizeClassificationPanel(requestedPanel)
+export function getIndividualAnalysisTabs(mode) {
+    return [
+        mode === 'prediction' ? ['clean', 'Predicción'] : ['attack', 'Comparación'],
+        ['explanation', 'Explicabilidad'],
+    ]
+}
+
+function resolvePanel({ activePanelState, imageContextKey, mode }) {
+    const tabs = getIndividualAnalysisTabs(mode)
+    const requestedPanel = activePanelState?.contextKey === imageContextKey
+        ? activePanelState.panel
+        : null
+    return tabs.some(([panel]) => panel === requestedPanel) ? requestedPanel : tabs[0][0]
 }
 
 function resolveOutputs({
@@ -191,6 +194,7 @@ function resolveTemporaryWork({
 }
 
 export function buildComparisonViewState({
+    mode = 'attack',
     selectedDataset,
     selectedImage,
     activeModel,
@@ -211,8 +215,10 @@ export function buildComparisonViewState({
     checkingHistory,
     savingAnalysis,
 }) {
+    // A prepared comparison must remain in the adversarial workflow.
+    const analysisMode = mode === 'prediction' && !pendingIndividualComparison ? 'prediction' : 'attack'
     const view = resolveViewContext({
-        recoveredIndividualAnalysis,
+        recoveredIndividualAnalysis: analysisMode === 'attack' ? recoveredIndividualAnalysis : null,
         activeModel,
         selectedAttack,
         attackParameters,
@@ -234,14 +240,13 @@ export function buildComparisonViewState({
     const { attackResult, attackIdentity } = resolveAttackState({
         historyMode: view.historyMode,
         recoveredAnalysis: view.recoveredAnalysis,
-        attackResultState,
+        attackResultState: analysisMode === 'attack' ? attackResultState : null,
         attackContextKey,
     })
     const activePanel = resolvePanel({
         activePanelState,
         imageContextKey,
-        historyMode: view.historyMode,
-        isDetection,
+        mode: analysisMode,
     })
     const outputs = resolveOutputs({
         isDetection,
@@ -269,7 +274,7 @@ export function buildComparisonViewState({
     const busy = Boolean(
         loading || loadingPrediction || loadingExplainability || checkingHistory || savingAnalysis,
     )
-    const hasTemporaryWork = resolveTemporaryWork({
+    const hasTemporaryWork = analysisMode === 'attack' && resolveTemporaryWork({
         pendingIndividualComparison,
         historyMode: view.historyMode,
         attackResult,
@@ -280,6 +285,7 @@ export function buildComparisonViewState({
 
     return {
         ...view,
+        analysisMode,
         taskType,
         isDetection,
         isAttackSupported: isAttackSupportedForTask(
